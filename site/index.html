@@ -26,6 +26,18 @@
   .label{font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
 
   /* top-left identity + stats */
+  #hud-ctl{overflow-y:auto;min-height:0;scrollbar-width:thin;scrollbar-color:rgba(120,140,190,.4) transparent}
+  #hud-ctl::-webkit-scrollbar{width:6px} #hud-ctl::-webkit-scrollbar-thumb{background:rgba(120,140,190,.35);border-radius:3px}
+  .ctl-h{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--amber);cursor:pointer;
+    padding:5px 0 3px;border-bottom:1px solid rgba(120,140,190,.18);margin-bottom:4px;user-select:none}
+  .ctl-h::after{content:' ▾';color:var(--dim)} .ctl-group.closed .ctl-h::after{content:' ▸'}
+  .ctl-group{margin-bottom:7px} .ctl-group.closed .toggle{display:none}
+  #btnGrid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px}
+  #btnGrid button{margin-top:0!important;width:100%}
+  #suggest{display:none;margin-top:4px;border:1px solid rgba(120,140,190,.3);border-radius:6px;overflow:hidden}
+  #suggest div{padding:4px 8px;font-family:var(--mono);font-size:10.5px;color:#c8cfe2;cursor:pointer}
+  #suggest div:hover{background:rgba(255,207,107,.15);color:#ffe9c0}
+  #suggest span{color:var(--dim);float:right;font-size:9px}
   #left-col{position:absolute;top:16px;left:16px;width:min(290px,calc(100vw - 32px));display:flex;flex-direction:column;gap:12px;max-height:calc(100vh - 32px);pointer-events:none}
   #right-col{position:absolute;top:16px;right:16px;width:198px;display:flex;flex-direction:column;gap:12px;max-height:calc(100vh - 32px);pointer-events:none}
   #left-col>.panel,#right-col>.panel{position:relative;top:auto;left:auto;right:auto;bottom:auto;pointer-events:auto}
@@ -201,13 +213,17 @@
       <div class="stat"><div class="k mono" id="s-far">—</div><div class="l">Farthest (ly)</div></div>
     </div>
     <button id="solarBtn">☉ Into the solar system</button>
-    <button id="shareBtn" title="Copy a link to this exact view">🔗 Share this view</button>
-    <button id="tourBtn" title="A guided flight from Earth to the edge of the observable universe">🧭 Cosmic tour</button>
-    <button id="measureBtn" title="Click two objects to measure the real distance between them">📏 Measure</button>
+    <div id="btnGrid">
+      <button id="tourBtn" title="A guided flight from Earth to the edge of the observable universe">🧭 Tour</button>
+      <button id="shareBtn" title="Copy a link to this exact view">🔗 Share</button>
+      <button id="measureBtn" title="Click two objects to measure the real distance between them">📏 Measure</button>
+      <button id="resetBtn2" title="Back to the full view" onclick="document.getElementById('resetBtn').click()">⟲ Reset</button>
+    </div>
   </div>
 
   <div class="panel" id="hud-search">
     <input id="search" placeholder="Search… Sirius, TRAPPIST-1, Andromeda" autocomplete="off" spellcheck="false">
+    <div id="suggest"></div>
     <div id="searchMsg"></div>
   </div>
 
@@ -247,43 +263,58 @@
   </div>
 
   <div class="panel" id="hud-ctl">
-    <div class="toggle" id="t-real"><span>Real scale</span><span class="sw"></span></div>
-    <div class="toggle on" id="t-gal"><span>Show galaxies</span><span class="sw"></span></div>
-    <div class="toggle on" id="t-mw"><span>Milky Way · Sgr A*</span><span class="sw"></span></div>
-    <div class="toggle on" id="t-mw3d"><span>Milky Way structure (3D)</span><span class="sw"></span></div>
-    <div class="toggle on" id="t-dso"><span>Nebulae &amp; clusters</span><span class="sw"></span></div>
-    <div class="toggle on" id="t-psr"><span>Pulsars (neutron stars)</span><span class="sw"></span></div>
-    <div class="toggle on" id="t-oclu"><span>Clusters · globulars · FRBs</span><span class="sw"></span></div>
-    <div class="toggle on" id="t-con"><span>Constellations</span><span class="sw"></span></div>
-    <div class="toggle on" id="t-hyg"><span>Stars (HYG)</span><span class="sw"></span></div>
-    <div class="toggle on" id="t-gpu"><span>GPU stars</span><span class="sw"></span></div>
-    <div class="toggle on" id="t-gaia"><span>Gaia stars (&lt;100 pc)</span><span class="sw"></span></div>
-    <div class="toggle on" id="t-web"><span>Cosmic web (2MRS)</span><span class="sw"></span></div>
-    <div class="toggle on" id="t-ob"><span>OB stars (arm tracers)</span><span class="sw"></span></div>
-    <div class="toggle on" id="t-var"><span>Variable stars</span><span class="sw"></span></div>
-    <div class="toggle on" id="t-qso"><span>Quasars</span><span class="sw"></span></div>
-    <div class="toggle on" id="t-edge"><span>Observable universe (CMB)</span><span class="sw"></span></div>
-    <div class="toggle" id="t-pm"><span>Proper motion</span><span class="sw"></span></div>
-    <div class="toggle" id="t-rot"><span>Auto-rotation</span><span class="sw"></span></div>
-    <div class="toggle" id="t-freelook"><span>Free-look flight</span><span class="sw"></span></div>
-    <div class="toggle on" id="t-size"><span>Size = planet radius</span><span class="sw"></span></div>
-    <div class="toggle on" id="t-moons"><span>Moons (solar system)</span><span class="sw"></span></div>
-    <div class="toggle on" id="t-ast"><span>Asteroids &amp; comets</span><span class="sw"></span></div>
-    <div class="toggle on" id="t-tno"><span>Trans-Neptunian &amp; Centaurs</span><span class="sw"></span></div>
-    <div class="toggle on" id="t-probes"><span>Spacecraft (Voyager…)</span><span class="sw"></span></div>
-    <div class="toggle on" id="t-helio"><span>Heliosphere</span><span class="sw"></span></div>
-    <div class="toggle on" id="t-belt"><span>Asteroid field</span><span class="sw"></span></div>
-    <div class="toggle on" id="t-hz"><span>Habitable zone</span><span class="sw"></span></div>
-    <div class="toggle on" id="t-veil"><span>Red veil</span><span class="sw"></span></div>
-    <div class="toggle on" id="t-rings"><span>Distance rings</span><span class="sw"></span></div>
-    <button id="resetBtn">Reset view</button>
+    <div class="ctl-group">
+      <div class="ctl-h">☀️ Solar system</div>
+      <div class="toggle on" id="t-moons"><span>Moons (solar system)</span><span class="sw"></span></div>
+      <div class="toggle on" id="t-ast"><span>Asteroids &amp; comets</span><span class="sw"></span></div>
+      <div class="toggle on" id="t-belt"><span>Asteroid field</span><span class="sw"></span></div>
+      <div class="toggle on" id="t-tno"><span>Trans-Neptunian &amp; Centaurs</span><span class="sw"></span></div>
+      <div class="toggle on" id="t-probes"><span>Spacecraft (Voyager…)</span><span class="sw"></span></div>
+      <div class="toggle on" id="t-helio"><span>Heliosphere</span><span class="sw"></span></div>
+      <div class="toggle on" id="t-size"><span>Size = planet radius</span><span class="sw"></span></div>
+    </div>
+    <div class="ctl-group">
+      <div class="ctl-h">⭐ Stars</div>
+      <div class="toggle on" id="t-hyg"><span>Stars (HYG)</span><span class="sw"></span></div>
+      <div class="toggle on" id="t-gpu"><span>GPU stars</span><span class="sw"></span></div>
+      <div class="toggle on" id="t-gaia"><span>Gaia stars (&lt;100 pc)</span><span class="sw"></span></div>
+      <div class="toggle on" id="t-ob"><span>OB stars (arm tracers)</span><span class="sw"></span></div>
+      <div class="toggle on" id="t-var"><span>Variable stars</span><span class="sw"></span></div>
+      <div class="toggle" id="t-pm"><span>Proper motion</span><span class="sw"></span></div>
+    </div>
+    <div class="ctl-group">
+      <div class="ctl-h">💫 Deep sky &amp; galaxy</div>
+      <div class="toggle on" id="t-dso"><span>Nebulae &amp; clusters</span><span class="sw"></span></div>
+      <div class="toggle on" id="t-oclu"><span>Clusters · globulars · FRBs</span><span class="sw"></span></div>
+      <div class="toggle on" id="t-psr"><span>Pulsars (neutron stars)</span><span class="sw"></span></div>
+      <div class="toggle on" id="t-con"><span>Constellations</span><span class="sw"></span></div>
+      <div class="toggle on" id="t-mw"><span>Milky Way · Sgr A*</span><span class="sw"></span></div>
+      <div class="toggle on" id="t-mw3d"><span>Milky Way structure (3D)</span><span class="sw"></span></div>
+      <div class="toggle on" id="t-hz"><span>Habitable zone</span><span class="sw"></span></div>
+    </div>
+    <div class="ctl-group">
+      <div class="ctl-h">🔭 Cosmos</div>
+      <div class="toggle on" id="t-gal"><span>Show galaxies</span><span class="sw"></span></div>
+      <div class="toggle on" id="t-web"><span>Cosmic web (2MRS)</span><span class="sw"></span></div>
+      <div class="toggle on" id="t-qso"><span>Quasars</span><span class="sw"></span></div>
+      <div class="toggle on" id="t-edge"><span>Observable universe (CMB)</span><span class="sw"></span></div>
+    </div>
+    <div class="ctl-group">
+      <div class="ctl-h">🎛️ View</div>
+      <div class="toggle" id="t-real"><span>Real scale</span><span class="sw"></span></div>
+      <div class="toggle" id="t-rot"><span>Auto-rotation</span><span class="sw"></span></div>
+      <div class="toggle" id="t-freelook"><span>Free-look flight</span><span class="sw"></span></div>
+      <div class="toggle on" id="t-veil"><span>Red veil</span><span class="sw"></span></div>
+      <div class="toggle on" id="t-rings"><span>Distance rings</span><span class="sw"></span></div>
+    </div>
+    <button id="resetBtn" style="display:none">Reset view</button>
     <div class="ctl-inst">
       <div class="label" style="margin-bottom:8px">Discovery instrument</div>
       <div class="colby" id="t-fac"><span>colour by it</span><span class="sw"></span></div>
       <div class="chips" id="facChips"></div>
     </div>
     <div class="hint" style="font-size:10px;color:var(--dim);margin-top:6px;font-style:italic;line-height:1.6">
-      Left-drag rotate · Right-drag pan<br>WASD fly · scroll zoom · click to travel
+      Drag rotate · right-drag pan · WASD fly<br>Scroll/pinch zoom to cursor · click to travel<br>🧭 tour · 📏 measure · 🔗 share view
     </div>
   </div>
   </div>
@@ -2231,6 +2262,7 @@ function doSearch(q){
   push('hyg', HYG.find(s=>eq(s.n)));
   push('gal', GAL.find(g=>eq(g.n)||eq(g.id)));
   push('star',STARS.find(s=>eq(s.h)));
+  push('body',SOLAR_BODIES.find(b=>eq(b.n))||(eq('sun')?SUN:null));
   push('probe',PROBES.find(p=>eq(p.n)));
   push('tno2',TNOS.find(t2=>eq(t2.n)));
   push('psr',PULSARS.find(o=>eq(o.n)));
@@ -2241,6 +2273,7 @@ function doSearch(q){
   push('hyg', HYG.find(s=>has(s.n)));
   push('gal', GAL.find(g=>has(g.n)||has(g.id)));
   push('star',STARS.find(s=>s._search.includes(q)));
+  push('body',SOLAR_BODIES.find(b=>has(b.n)));
   push('probe',PROBES.find(p=>has(p.n)));
   push('tno2',TNOS.find(t2=>has(t2.n)));
   push('psr',PULSARS.find(o=>has(o.n)));
@@ -2249,6 +2282,8 @@ function doSearch(q){
   const [t,o]=cands[0];
   if(t==='small'){ searchMsg.textContent='→ '+o.n+' ('+o.kind+')';
     if(!S.ast){S.ast=true;syncToggle('t-ast',true);} focusSys=null; S.pinned=o; enterSolar(); return; }
+  if(t==='body'){ searchMsg.textContent='→ '+o.n+' ('+(o.kind||'')+')';
+    focusSys=null; S.pinned=o; enterSolar(); return; }
   if(t==='probe'||t==='tno2'){ searchMsg.textContent='→ '+o.n+' ('+(o.kind||'')+')';
     if(t==='probe'&&!S.probes){S.probes=true;syncToggle('t-probes',true);}
     if(t==='tno2'&&!S.tno){S.tno=true;syncToggle('t-tno',true);}
@@ -2304,8 +2339,8 @@ function focusOnHyg(s){
   S.pinned=s; S.focusStar=null; focusSys=null;
   const dr=compress(s.d); aim(s.dx*dr,s.dy*dr,s.dz*dr, scale(s.d*0.2));
 }
-searchEl.addEventListener('keydown',e=>{if(e.key==='Enter')doSearch(searchEl.value);});
-searchEl.addEventListener('input',()=>{if(searchEl.value.trim().length>2)doSearch(searchEl.value);});
+searchEl.addEventListener('keydown',e=>{if(e.key==='Enter'){doSearch(searchEl.value);sugEl.style.display='none';}if(e.key==='Escape')sugEl.style.display='none';});
+searchEl.addEventListener('input',()=>{showSuggest(searchEl.value);if(searchEl.value.trim().length>2)doSearch(searchEl.value);});
 
 // ---- solar-system time travel ----
 const solTime=document.getElementById('solTime'), solDate=document.getElementById('solDate'),
@@ -2768,11 +2803,47 @@ document.getElementById('shareBtn').addEventListener('click',()=>{
   if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(u).then(done,()=>{searchMsg.textContent=u;});
   else searchMsg.textContent=u;
 });
+// ---- search suggestions ----
+let _sugIdx=null;
+function sugIndex(){
+  if(_sugIdx) return _sugIdx;
+  const ix=[];
+  const add=(n,k)=>{ if(n) ix.push([n,n.toLowerCase(),k]); };
+  SOLAR_BODIES.forEach(b=>{ add(b.n,b.kind); (b.moons||[]).forEach(m=>add(m.n,'Moon')); });
+  add('Sun','Star');
+  PROBES.forEach(p=>add(p.n,'Spacecraft'));
+  SMALL.forEach(o=>add(o.n,o.kind));
+  DSO.forEach(o=>add(o.n,(DSO_T[o.t]||{}).l||'Deep sky'));
+  HYG.forEach(h=>add(h.n,'Star'));
+  GAL.forEach(g=>add(g.n,'Galaxy'));
+  STARS.forEach(st=>add(st.h,'Exoplanet host'));
+  CLUSTERS.forEach(c=>add(c.n,(CLU_T[c.ct||0]||{}).l||'Cluster'));
+  PULSARS.forEach(p=>add(p.n,'Pulsar'));
+  return _sugIdx=ix;
+}
+const sugEl=document.getElementById('suggest');
+function showSuggest(q){
+  q=q.trim().toLowerCase();
+  if(!q||q.length<2){ sugEl.style.display='none'; sugEl.innerHTML=''; return; }
+  const ix=sugIndex(), out=[];
+  for(const e of ix){ if(e[1].startsWith(q)){ out.push(e); if(out.length>=6) break; } }
+  if(out.length<6) for(const e of ix){ if(!e[1].startsWith(q)&&e[1].includes(q)){ out.push(e); if(out.length>=6) break; } }
+  if(!out.length){ sugEl.style.display='none'; return; }
+  sugEl.innerHTML=out.map(e=>`<div data-n="${e[0].replace(/"/g,'&quot;')}">${e[0]}<span>${e[2]}</span></div>`).join('');
+  sugEl.style.display='block';
+}
+if(sugEl&&sugEl.addEventListener) sugEl.addEventListener('mousedown',e=>{
+  const d=e.target.closest?e.target.closest('[data-n]'):null;
+  if(d){ searchEl.value=d.dataset.n; doSearch(d.dataset.n); sugEl.style.display='none'; e.preventDefault(); }
+});
+// ---- collapsible control groups ----
+if(document.querySelectorAll) document.querySelectorAll('.ctl-h').forEach(h=>
+  h.addEventListener('click',()=>h.parentElement.classList.toggle('closed')));
 applyHash();
 initGL();
 loadGaia();
 loadExtragal();
 requestAnimationFrame(frame);
 }
-fetch('data/data.json').then(r=>r.json()).then(d=>{window.__DATA__=d;__run();}).catch(e=>{});
+fetch('data/data.json').then(r=>r.json()).then(d=>{window.__DATA__=d;__run();}).catch(e=>{document.body.innerHTML='<p>Error: '+e+'</p>';});
 </script>
