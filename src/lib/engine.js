@@ -2754,6 +2754,31 @@ if(document.querySelectorAll) document.querySelectorAll('.ctl-h').forEach(h=>
       B.appendChild(document.getElementById('info'));   // bottom sheet must escape the hidden drawer
   }catch(e){}
 })();
+// ---- unified timeline: one number line drives solar ephemeris + stellar proper motion ----
+const uniEl=document.getElementById('uniTime'), uniVal=document.getElementById('uniVal');
+const uniPlayBtn=document.getElementById('uniPlay'), uniNowBtn=document.getElementById('uniNow');
+function setUni(v){
+  const t=Math.sign(v)*Math.pow(Math.abs(v)/1000,3)*50000;       // cubic: fine control near today
+  S.pmYears=Math.round(t); S.pm=(v!==0);
+  S.tOffsetDays=Math.max(-36525,Math.min(36525,t*365.25));       // solar ephemeris valid ±100 yr
+  if(typeof setSolDate==='function') try{setSolDate();}catch(err){}
+  if(uniVal){ const yr=new Date().getFullYear()+t;
+    uniVal.textContent = v===0?'today':(Math.abs(t)<200
+      ? new Date(Date.now()+t*31557600000).toISOString().slice(0,10)
+      : (t>0?'+':'−')+Math.abs(Math.round(t)).toLocaleString('en-US')+' yr ('+Math.round(yr)+')'); }
+  dirty=true;
+}
+let uniTimer=null;
+if(uniEl&&uniEl.addEventListener){
+  uniEl.addEventListener('input',ev=>setUni(+ev.target.value));
+  if(uniPlayBtn) uniPlayBtn.addEventListener('click',()=>{
+    if(uniTimer){ clearInterval(uniTimer); uniTimer=null; uniPlayBtn.textContent='▶'; }
+    else { uniPlayBtn.textContent='⏸';
+      uniTimer=setInterval(()=>{ let v=+uniEl.value+2; if(v>1000)v=-1000; uniEl.value=v; setUni(v); },120); }
+  });
+  if(uniNowBtn) uniNowBtn.addEventListener('click',()=>{ uniEl.value=0; setUni(0);
+    if(uniTimer){clearInterval(uniTimer);uniTimer=null;if(uniPlayBtn)uniPlayBtn.textContent='▶';} });
+}
 api.clickToggle=clickToggle; api.doSearch=doSearch; api.getS=()=>S; api.suggest=suggestList;
 api.searchMsgText=()=>searchMsg.textContent; api.toggleFac=toggleFac; api.facColorToggle=facColorToggle;
 api.facList=()=>facList; api.searchInput=q=>{ if(q&&q.trim().length>2) doSearch(q); };

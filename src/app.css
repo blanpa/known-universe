@@ -375,3 +375,17 @@ body:not(.show-time) #hud-time,body:not(.show-time) #hud-soltime{display:none!im
   #hud-time,#hud-soltime{bottom:calc(56px + env(safe-area-inset-bottom,0));padding:6px 12px}
   #hud-time .ticks,#hud-soltime .ticks{display:none}
 }
+/* unified timeline strip replaces both legacy bars */
+body:not(.show-time) #hud-uni{display:none!important}
+#hud-time,#hud-soltime,#hud-pm{display:none!important}
+#hud-uni{position:fixed;left:0;right:0;bottom:0;top:auto;width:auto;max-width:none;border-radius:0;
+  border:0;border-top:1px solid var(--line);background:rgba(10,13,22,.94);backdrop-filter:blur(8px);
+  padding:7px 16px;display:flex;align-items:center;gap:12px;z-index:50;font-family:var(--ui)}
+#hud-uni .live{min-width:120px;text-align:center}
+#hud-uni button{background:rgba(255,255,255,.07);border:1px solid var(--line-strong);color:var(--txt-1);
+  border-radius:8px;padding:5px 10px;cursor:pointer}
+.uniCap{font-size:10px;color:var(--txt-2);flex:0 0 auto}
+@media (max-width:720px){
+  #hud-uni{bottom:calc(56px + env(safe-area-inset-bottom,0));padding:6px 10px}
+  .uniCap{display:none}
+}

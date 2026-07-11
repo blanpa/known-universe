@@ -1,3 +1,13 @@
+<div class="panel" id="hud-uni">
+  <button id="uniPlay" title="Play time">▶</button>
+  <button id="uniNow" title="Back to today">⟲</button>
+  <span id="uniVal" class="live">today</span>
+  <div class="track" style="flex:1">
+    <input type="range" id="uniTime" min="-1000" max="1000" value="0" step="1">
+  </div>
+  <span class="uniCap">−50,000 yr&nbsp;·&nbsp;+50,000 yr</span>
+</div>
+<div style="display:none" aria-hidden="true">
 <div class="panel" id="hud-time">
     <div class="time-head">
       <div class="yr">Year <span class="live" id="yrVal">2026</span></div>
@@ -28,3 +38,4 @@
       <button id="solNow">today</button>
     </div>
   </div>
+</div>

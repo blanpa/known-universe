@@ -49235,6 +49235,50 @@ void main(){                                             // soft shoulder above 
 			if (matchMedia("(max-width:720px)").matches && B.appendChild) B.appendChild(document.getElementById("info"));
 		} catch (e) {}
 	})();
+	const uniEl = document.getElementById("uniTime"), uniVal = document.getElementById("uniVal");
+	const uniPlayBtn = document.getElementById("uniPlay"), uniNowBtn = document.getElementById("uniNow");
+	function setUni(v) {
+		const t = Math.sign(v) * Math.pow(Math.abs(v) / 1e3, 3) * 5e4;
+		S.pmYears = Math.round(t);
+		S.pm = v !== 0;
+		S.tOffsetDays = Math.max(-36525, Math.min(36525, t * 365.25));
+		if (typeof setSolDate === "function") try {
+			setSolDate();
+		} catch (err) {}
+		if (uniVal) {
+			const yr = (/* @__PURE__ */ new Date()).getFullYear() + t;
+			uniVal.textContent = v === 0 ? "today" : Math.abs(t) < 200 ? new Date(Date.now() + t * 315576e5).toISOString().slice(0, 10) : (t > 0 ? "+" : "−") + Math.abs(Math.round(t)).toLocaleString("en-US") + " yr (" + Math.round(yr) + ")";
+		}
+		dirty = true;
+	}
+	let uniTimer = null;
+	if (uniEl && uniEl.addEventListener) {
+		uniEl.addEventListener("input", (ev) => setUni(+ev.target.value));
+		if (uniPlayBtn) uniPlayBtn.addEventListener("click", () => {
+			if (uniTimer) {
+				clearInterval(uniTimer);
+				uniTimer = null;
+				uniPlayBtn.textContent = "▶";
+			} else {
+				uniPlayBtn.textContent = "⏸";
+				uniTimer = setInterval(() => {
+					let v = +uniEl.value + 2;
+					if (v > 1e3) v = -1e3;
+					uniEl.value = v;
+					setUni(v);
+				}, 120);
+			}
+		});
+		if (uniNowBtn) uniNowBtn.addEventListener("click", () => {
+			uniEl.value = 0;
+			setUni(0);
+			if (uniTimer) {
+				clearInterval(uniTimer);
+				uniTimer = null;
+				if (uniPlayBtn) uniPlayBtn.textContent = "▶";
+			}
+		});
+	}
 	api.clickToggle = clickToggle;
 	api.doSearch = doSearch;
 	api.getS = () => S;
@@ -49435,11 +49479,6 @@ function Controls($$anchor, $$props) {
 					"id": "t-var",
 					"label": "Variable stars",
 					"on": true
-				},
-				{
-					"id": "t-pm",
-					"label": "Proper motion",
-					"on": false
 				}
 			]
 		},
@@ -49665,7 +49704,7 @@ function PmPanel($$anchor) {
 }
 //#endregion
 //#region src/components/TimeBars.svelte
-var root$3 = /* @__PURE__ */ from_html(`<div class="panel" id="hud-time"><div class="time-head"><div class="yr">Year <span class="live" id="yrVal">2026</span></div> <div class="meta" id="yrMeta"></div> <div class="time-min" title="Minimize">–</div></div> <div class="time-row"><button id="play" aria-label="Play time"><svg id="playIcon" viewBox="0 0 16 16"><path d="M3 2l11 6L3 14z"></path></svg></button> <div class="track"><input type="range" id="year" min="1992" max="2026" value="2026" step="1"/> <div class="ticks"><span>1992</span><span>2000</span><span>2009</span><span>2017</span><span>2026</span></div></div></div></div> <div class="panel" id="hud-soltime" style="display:none"><div class="time-head"><div class="yr">Solar system · <span class="live" id="solDate">–</span></div> <div class="meta">Time travel · planets on their orbits</div> <div class="time-min" title="Minimize">–</div></div> <div class="time-row"><button id="solPlay" aria-label="Play time"><svg id="solIcon" viewBox="0 0 16 16"><path d="M3 2l11 6L3 14z"></path></svg></button> <div class="track"><input type="range" id="solTime" min="-36525" max="36525" value="0" step="1"/> <div class="ticks"><span>−100 yr</span><span>−50</span><span>today</span><span>+50</span><span>+100 yr</span></div></div> <button id="solNow">today</button></div></div>`, 1);
+var root$3 = /* @__PURE__ */ from_html(`<div class="panel" id="hud-uni"><button id="uniPlay" title="Play time">▶</button> <button id="uniNow" title="Back to today">⟲</button> <span id="uniVal" class="live">today</span> <div class="track" style="flex:1"><input type="range" id="uniTime" min="-1000" max="1000" value="0" step="1"/></div> <span class="uniCap">−50,000 yr&nbsp;·&nbsp;+50,000 yr</span></div> <div style="display:none" aria-hidden="true"><div class="panel" id="hud-time"><div class="time-head"><div class="yr">Year <span class="live" id="yrVal">2026</span></div> <div class="meta" id="yrMeta"></div> <div class="time-min" title="Minimize">–</div></div> <div class="time-row"><button id="play" aria-label="Play time"><svg id="playIcon" viewBox="0 0 16 16"><path d="M3 2l11 6L3 14z"></path></svg></button> <div class="track"><input type="range" id="year" min="1992" max="2026" value="2026" step="1"/> <div class="ticks"><span>1992</span><span>2000</span><span>2009</span><span>2017</span><span>2026</span></div></div></div></div> <div class="panel" id="hud-soltime" style="display:none"><div class="time-head"><div class="yr">Solar system · <span class="live" id="solDate">–</span></div> <div class="meta">Time travel · planets on their orbits</div> <div class="time-min" title="Minimize">–</div></div> <div class="time-row"><button id="solPlay" aria-label="Play time"><svg id="solIcon" viewBox="0 0 16 16"><path d="M3 2l11 6L3 14z"></path></svg></button> <div class="track"><input type="range" id="solTime" min="-36525" max="36525" value="0" step="1"/> <div class="ticks"><span>−100 yr</span><span>−50</span><span>today</span><span>+50</span><span>+100 yr</span></div></div> <button id="solNow">today</button></div></div></div>`, 1);
 function TimeBars($$anchor) {
 	var fragment = root$3();
 	next(2);
