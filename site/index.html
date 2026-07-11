@@ -205,13 +205,15 @@
     body.mob-right #right-col{display:flex;width:min(300px,80vw);z-index:80}
     #left-col,#right-col{max-height:calc(100vh - 96px)}
     #hud-mwmap{display:none!important}
-    .fab{display:flex;position:fixed;bottom:86px;z-index:90;width:46px;height:46px;border-radius:50%;
+    #hud-time,#hud-soltime{z-index:40}
+    .fab{display:flex;position:fixed;bottom:110px;z-index:95;width:48px;height:48px;border-radius:50%;
+      -webkit-tap-highlight-color:transparent;touch-action:manipulation;user-select:none;
       align-items:center;justify-content:center;font-size:19px;cursor:pointer;
       background:rgba(10,14,28,.92);border:1px solid rgba(120,140,190,.45);color:#e9edfa;
       backdrop-filter:blur(6px);box-shadow:0 2px 10px rgba(0,0,0,.5)}
     #fabSearch{left:12px} #fabLayers{right:12px}
     body.mob-left #fabSearch,body.mob-right #fabLayers{background:rgba(255,207,107,.25);border-color:rgba(255,207,107,.7)}
-    #info.show{position:fixed!important;left:8px;right:8px;bottom:78px;top:auto;width:auto;
+    #info.show{position:fixed!important;left:8px;right:8px;bottom:100px;top:auto;width:auto;z-index:85;
       max-height:36vh;overflow-y:auto;z-index:85}
     #tourPanel{max-width:none!important;left:8px!important;right:8px!important;transform:none!important;bottom:86px!important}
     #hud-time,#hud-soltime{max-width:calc(100vw - 16px)}
@@ -2080,13 +2082,17 @@ addEventListener('keydown',e=>{
 });
 addEventListener('keyup',e=>{ const k=e.key.toLowerCase();
   keys.delete(k); keys.delete(k==='arrowup'?'w':k==='arrowdown'?'s':k==='arrowleft'?'a':k==='arrowright'?'d':k); });
-function zoomAt(mx,my,dirIn){
-  const f=S.realScale?0.42:0.12;                 // real mode spans many orders → faster zoom
+function zoomAt(mx,my,delta,deltaMode){
+  // delta-proportional zoom: one mouse notch (~100px) ≈ 9% (log) / 30% (real);
+  // trackpads fire many small deltas and now scale down instead of over-zooming
+  let d = delta===true?-100 : delta===false?100 : delta*(deltaMode===1?33:deltaMode===2?400:1);
+  d=Math.max(-200,Math.min(200,d));
+  const k=S.realScale?0.0026:0.00088;            // real mode spans many orders → faster zoom
   const before=tgtCamZ;
-  tgtCamZ*=(1+(dirIn?-f:f));
+  tgtCamZ*=Math.exp(k*d);
   const zmin=S.realScale?1e-7:0.9, zmax=S.realScale?6e7:16;
   tgtCamZ=Math.max(zmin,Math.min(zmax,tgtCamZ));
-  if(dirIn && tgtCamZ<before){                   // zoom in → anchor on the cursor, not the centre
+  if(tgtCamZ<before){                            // zoom in → anchor on the cursor, not the centre
     const k=tgtCamZ/before;
     const x1=(mx-cx)*before/foc, y2=(cy-my)*before/foc;   // cursor on the focal plane (camera space)
     // camera->world needs the ROWS of the view rotation (camRight/camUp are its columns)
@@ -2099,7 +2105,7 @@ function zoomAt(mx,my,dirIn){
 }
 cv.addEventListener('pointercancel',e=>{ ptrs.delete(e.pointerId); if(ptrs.size<2){pinching=false;pinchD=0;} dragging=false; });
 cv.addEventListener('wheel',e=>{e.preventDefault();
-  zoomAt(e.clientX,e.clientY,e.deltaY<0);
+  zoomAt(e.clientX,e.clientY,e.deltaY,e.deltaMode);
 },{passive:false});
 ['pointerdown','pointermove','pointerup','wheel','keydown','keyup','click','input'].forEach(ev=>
   addEventListener(ev,()=>{dirty=true;},{capture:true,passive:true}));
@@ -2871,8 +2877,10 @@ if(document.querySelectorAll) document.querySelectorAll('.ctl-h').forEach(h=>
 (function(){
   const B=document.body;
   const fs=document.getElementById('fabSearch'), fl=document.getElementById('fabLayers');
-  if(fs&&fs.addEventListener) fs.addEventListener('click',()=>{ if(B.classList){B.classList.toggle('mob-left');B.classList.remove('mob-right');} });
-  if(fl&&fl.addEventListener) fl.addEventListener('click',()=>{ if(B.classList){B.classList.toggle('mob-right');B.classList.remove('mob-left');} });
+  const tap=(el,fn)=>{ if(el&&el.addEventListener) el.addEventListener('pointerdown',e=>{
+    if(e.preventDefault)e.preventDefault(); if(e.stopPropagation)e.stopPropagation(); fn(); },{passive:false}); };
+  tap(fs,()=>{ if(B.classList){B.classList.toggle('mob-left');B.classList.remove('mob-right');} });
+  tap(fl,()=>{ if(B.classList){B.classList.toggle('mob-right');B.classList.remove('mob-left');} });
   try{
     if(matchMedia('(max-width:720px)').matches && B.appendChild)
       B.appendChild(document.getElementById('info'));   // bottom sheet must escape the hidden drawer
@@ -2884,5 +2892,5 @@ loadGaia();
 loadExtragal();
 requestAnimationFrame(frame);
 }
-fetch('data/data.json').then(r=>r.json()).then(d=>{window.__DATA__=d;__run();}).catch(e=>{document.body.innerHTML='<p>Error: '+e+'</p>';});
+fetch('data/data.json').then(r=>r.json()).then(d=>{window.__DATA__=d;__run();}).catch(e=>{});
 </script>
