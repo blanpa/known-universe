@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <meta charset="utf-8">
 <title>Known Universe — a real-data map of everything we’ve found</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <style>
   :root{
     --void:#070912; --void2:#0a0e1c;
@@ -196,6 +197,30 @@
     #hud-tl{max-width:210px;padding:12px 13px}
     #info{display:none}
   }
+  /* ---- mobile (≤720px): drawers + floating action buttons ---- */
+  .fab{display:none}
+  @media (max-width:720px){
+    #left-col,#right-col{display:none}
+    body.mob-left #left-col{display:flex;width:min(320px,86vw);z-index:80}
+    body.mob-right #right-col{display:flex;width:min(300px,80vw);z-index:80}
+    #left-col,#right-col{max-height:calc(100vh - 96px)}
+    #hud-mwmap{display:none!important}
+    .fab{display:flex;position:fixed;bottom:86px;z-index:90;width:46px;height:46px;border-radius:50%;
+      align-items:center;justify-content:center;font-size:19px;cursor:pointer;
+      background:rgba(10,14,28,.92);border:1px solid rgba(120,140,190,.45);color:#e9edfa;
+      backdrop-filter:blur(6px);box-shadow:0 2px 10px rgba(0,0,0,.5)}
+    #fabSearch{left:12px} #fabLayers{right:12px}
+    body.mob-left #fabSearch,body.mob-right #fabLayers{background:rgba(255,207,107,.25);border-color:rgba(255,207,107,.7)}
+    #info.show{position:fixed!important;left:8px;right:8px;bottom:78px;top:auto;width:auto;
+      max-height:36vh;overflow-y:auto;z-index:85}
+    #tourPanel{max-width:none!important;left:8px!important;right:8px!important;transform:none!important;bottom:86px!important}
+    #hud-time,#hud-soltime{max-width:calc(100vw - 16px)}
+  }
+  @media (pointer:coarse){
+    .toggle{padding-top:7px;padding-bottom:7px}
+    .ctl-h{padding:9px 0 6px}
+    .tbtn,#btnGrid button{padding:8px 10px}
+  }
 </style>
 
 <div id="stage">
@@ -370,6 +395,8 @@
   <div class="panel" id="info"></div>
 
 </div>
+<div class="fab" id="fabSearch" title="Search & info">🔍</div>
+<div class="fab" id="fabLayers" title="Layers">☰</div>
 <div id="tourPanel" style="display:none;position:fixed;left:50%;bottom:70px;transform:translateX(-50%);z-index:60;
   max-width:520px;background:rgba(10,14,28,.92);border:1px solid rgba(120,140,190,.35);border-radius:10px;
   padding:12px 16px;font-family:ui-monospace,monospace;color:#e9edfa;backdrop-filter:blur(4px)">
@@ -1982,6 +2009,7 @@ let dragging=false,panning=false,lx=0,ly=0,moved=0;
 cv.addEventListener('contextmenu',e=>e.preventDefault());
 const ptrs=new Map(); let pinching=false, pinchD=0;
 cv.addEventListener('pointerdown',e=>{
+  if(document.body.classList){ document.body.classList.remove('mob-left','mob-right'); }
   ptrs.set(e.pointerId,[e.clientX,e.clientY]);
   if(ptrs.size===2){ pinching=true; dragging=false;
     const p2=[...ptrs.values()]; pinchD=Math.hypot(p2[0][0]-p2[1][0],p2[0][1]-p2[1][1]); return; }
@@ -2839,6 +2867,17 @@ if(sugEl&&sugEl.addEventListener) sugEl.addEventListener('mousedown',e=>{
 // ---- collapsible control groups ----
 if(document.querySelectorAll) document.querySelectorAll('.ctl-h').forEach(h=>
   h.addEventListener('click',()=>h.parentElement.classList.toggle('closed')));
+// ---- mobile drawers ----
+(function(){
+  const B=document.body;
+  const fs=document.getElementById('fabSearch'), fl=document.getElementById('fabLayers');
+  if(fs&&fs.addEventListener) fs.addEventListener('click',()=>{ if(B.classList){B.classList.toggle('mob-left');B.classList.remove('mob-right');} });
+  if(fl&&fl.addEventListener) fl.addEventListener('click',()=>{ if(B.classList){B.classList.toggle('mob-right');B.classList.remove('mob-left');} });
+  try{
+    if(matchMedia('(max-width:720px)').matches && B.appendChild)
+      B.appendChild(document.getElementById('info'));   // bottom sheet must escape the hidden drawer
+  }catch(e){}
+})();
 applyHash();
 initGL();
 loadGaia();
