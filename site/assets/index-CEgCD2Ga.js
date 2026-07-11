@@ -123,6 +123,29 @@ function each_key_duplicate(a, b, value) {
 	throw new Error(`https://svelte.dev/e/each_key_duplicate`);
 }
 /**
+* `%rune%` cannot be used inside an effect cleanup function
+* @param {string} rune
+* @returns {never}
+*/
+function effect_in_teardown(rune) {
+	throw new Error(`https://svelte.dev/e/effect_in_teardown`);
+}
+/**
+* Effect cannot be created inside a `$derived` value that was not itself created inside an effect
+* @returns {never}
+*/
+function effect_in_unowned_derived() {
+	throw new Error(`https://svelte.dev/e/effect_in_unowned_derived`);
+}
+/**
+* `%rune%` can only be used inside an effect (e.g. during component initialisation)
+* @param {string} rune
+* @returns {never}
+*/
+function effect_orphan(rune) {
+	throw new Error(`https://svelte.dev/e/effect_orphan`);
+}
+/**
 * Maximum update depth exceeded. This typically indicates that an effect reads and writes the same piece of state
 * @returns {never}
 */
@@ -2499,6 +2522,16 @@ function without_reactive_context(fn) {
 //#region node_modules/svelte/src/internal/client/reactivity/effects.js
 /** @import { Blocker, ComponentContext, ComponentContextLegacy, Derived, Effect, TemplateNode, TransitionManager } from '#client' */
 /**
+* @param {'$effect' | '$effect.pre' | '$inspect'} rune
+*/
+function validate_effect(rune) {
+	if (active_effect === null) {
+		if (active_reaction === null) effect_orphan(rune);
+		effect_in_unowned_derived();
+	}
+	if (is_destroying_effect) effect_in_teardown(rune);
+}
+/**
 * @param {Effect} effect
 * @param {Effect} parent_effect
 */
@@ -2580,6 +2613,18 @@ function teardown(fn) {
 	return effect;
 }
 /**
+* Internal representation of `$effect(...)`
+* @param {() => void | (() => void)} fn
+*/
+function user_effect(fn) {
+	validate_effect("$effect");
+	var flags = active_effect.f;
+	if (!active_reaction && (flags & 32) !== 0 && component_context !== null && !component_context.i) {
+		var context = component_context;
+		(context.e ??= []).push(fn);
+	} else return create_user_effect(fn);
+}
+/**
 * @param {() => void | (() => void)} fn
 */
 function create_user_effect(fn) {
@@ -2605,6 +2650,13 @@ function component_root(fn) {
 			}
 		});
 	};
+}
+/**
+* @param {() => void | (() => void)} fn
+* @returns {Effect}
+*/
+function effect(fn) {
+	return create_effect(4, fn);
 }
 /**
 * @param {() => void | (() => void)} fn
@@ -3391,6 +3443,18 @@ function append(anchor, dom) {
 	anchor.before(dom);
 }
 /**
+* @param {Element} text
+* @param {string} value
+* @returns {void}
+*/
+function set_text(text, value) {
+	var str = value == null ? "" : typeof value === "object" ? `${value}` : value;
+	if (str !== (text[TEXT_CACHE] ??= text.nodeValue)) {
+		/** @type {any} */ text[TEXT_CACHE] = str;
+		text.nodeValue = `${str}`;
+	}
+}
+/**
 * Mounts a component to the given target and returns the exports and potentially the props (if compiled with `accessors: true`) of the component.
 * Transitions will play during the initial render unless the `intro` option is set to `false`.
 *
@@ -3481,6 +3545,198 @@ function _mount(Component, { target, anchor, props = {}, events, context, intro 
 * Uses a `WeakMap` to avoid memory leaks.
 */
 var mounted_components = /* @__PURE__ */ new WeakMap();
+//#endregion
+//#region node_modules/svelte/src/internal/client/dom/blocks/branches.js
+/** @import { Effect, TemplateNode } from '#client' */
+/**
+* @typedef {{ effect: Effect, fragment: DocumentFragment }} Branch
+*/
+/**
+* @template Key
+*/
+var BranchManager = class {
+	/** @type {TemplateNode} */
+	anchor;
+	/** @type {Map<Batch, Key>} */
+	#batches = /* @__PURE__ */ new Map();
+	/**
+	* Map of keys to effects that are currently rendered in the DOM.
+	* These effects are visible and actively part of the document tree.
+	* Example:
+	* ```
+	* {#if condition}
+	* 	foo
+	* {:else}
+	* 	bar
+	* {/if}
+	* ```
+	* Can result in the entries `true->Effect` and `false->Effect`
+	* @type {Map<Key, Effect>}
+	*/
+	#onscreen = /* @__PURE__ */ new Map();
+	/**
+	* Similar to #onscreen with respect to the keys, but contains branches that are not yet
+	* in the DOM, because their insertion is deferred.
+	* @type {Map<Key, Branch>}
+	*/
+	#offscreen = /* @__PURE__ */ new Map();
+	/**
+	* Keys of effects that are currently outroing
+	* @type {Set<Key>}
+	*/
+	#outroing = /* @__PURE__ */ new Set();
+	/**
+	* Whether to pause (i.e. outro) on change, or destroy immediately.
+	* This is necessary for `<svelte:element>`
+	*/
+	#transition = true;
+	/**
+	* @param {TemplateNode} anchor
+	* @param {boolean} transition
+	*/
+	constructor(anchor, transition = true) {
+		this.anchor = anchor;
+		this.#transition = transition;
+	}
+	/**
+	* @param {Batch} batch
+	*/
+	#commit = (batch) => {
+		if (!this.#batches.has(batch)) return;
+		var key = this.#batches.get(batch);
+		var onscreen = this.#onscreen.get(key);
+		if (onscreen) {
+			resume_effect(onscreen);
+			this.#outroing.delete(key);
+		} else {
+			var offscreen = this.#offscreen.get(key);
+			if (offscreen) {
+				resume_effect(offscreen.effect);
+				this.#onscreen.set(key, offscreen.effect);
+				this.#offscreen.delete(key);
+				/** @type {TemplateNode} */ offscreen.fragment.lastChild.remove();
+				this.anchor.before(offscreen.fragment);
+				onscreen = offscreen.effect;
+			}
+		}
+		for (const [b, k] of this.#batches) {
+			this.#batches.delete(b);
+			if (b === batch) break;
+			const offscreen = this.#offscreen.get(k);
+			if (offscreen) {
+				destroy_effect(offscreen.effect);
+				this.#offscreen.delete(k);
+			}
+		}
+		for (const [k, effect] of this.#onscreen) {
+			if (k === key || this.#outroing.has(k)) continue;
+			const on_destroy = () => {
+				if (Array.from(this.#batches.values()).includes(k)) {
+					var fragment = document.createDocumentFragment();
+					move_effect(effect, fragment);
+					fragment.append(create_text());
+					this.#offscreen.set(k, {
+						effect,
+						fragment
+					});
+				} else destroy_effect(effect);
+				this.#outroing.delete(k);
+				this.#onscreen.delete(k);
+			};
+			if (this.#transition || !onscreen) {
+				this.#outroing.add(k);
+				pause_effect(effect, on_destroy, false);
+			} else on_destroy();
+		}
+	};
+	/**
+	* @param {Batch} batch
+	*/
+	#discard = (batch) => {
+		this.#batches.delete(batch);
+		const keys = Array.from(this.#batches.values());
+		for (const [k, branch] of this.#offscreen) if (!keys.includes(k)) {
+			destroy_effect(branch.effect);
+			this.#offscreen.delete(k);
+		}
+	};
+	/**
+	*
+	* @param {any} key
+	* @param {null | ((target: TemplateNode) => void)} fn
+	*/
+	ensure(key, fn) {
+		var batch = current_batch;
+		var defer = should_defer_append();
+		if (fn && !this.#onscreen.has(key) && !this.#offscreen.has(key)) if (defer) {
+			var fragment = document.createDocumentFragment();
+			var target = create_text();
+			fragment.append(target);
+			this.#offscreen.set(key, {
+				effect: branch(() => fn(target)),
+				fragment
+			});
+		} else this.#onscreen.set(key, branch(() => fn(this.anchor)));
+		this.#batches.set(batch, key);
+		if (defer) {
+			for (const [k, effect] of this.#onscreen) if (k === key) batch.unskip_effect(effect);
+			else batch.skip_effect(effect);
+			for (const [k, branch] of this.#offscreen) if (k === key) batch.unskip_effect(branch.effect);
+			else batch.skip_effect(branch.effect);
+			batch.oncommit(this.#commit);
+			batch.ondiscard(this.#discard);
+		} else {
+			if (hydrating) this.anchor = hydrate_node;
+			this.#commit(batch);
+		}
+	}
+};
+//#endregion
+//#region node_modules/svelte/src/internal/client/dom/blocks/if.js
+/** @import { TemplateNode } from '#client' */
+/**
+* @param {TemplateNode} node
+* @param {(branch: (fn: (anchor: Node) => void, key?: number | false) => void) => void} fn
+* @param {boolean} [elseif] True if this is an `{:else if ...}` block rather than an `{#if ...}`, as that affects which transitions are considered 'local'
+* @returns {void}
+*/
+function if_block(node, fn, elseif = false) {
+	/** @type {TemplateNode | undefined} */
+	var marker;
+	if (hydrating) {
+		marker = hydrate_node;
+		hydrate_next();
+	}
+	var branches = new BranchManager(node);
+	var flags = elseif ? EFFECT_TRANSPARENT : 0;
+	/**
+	* @param {number | false} key
+	* @param {null | ((anchor: Node) => void)} fn
+	*/
+	function update_branch(key, fn) {
+		if (hydrating) {
+			var data = read_hydration_instruction(marker);
+			if (key !== parseInt(data.substring(1))) {
+				var anchor = skip_nodes();
+				set_hydrate_node(anchor);
+				branches.anchor = anchor;
+				set_hydrating(false);
+				branches.ensure(key, fn);
+				set_hydrating(true);
+				return;
+			}
+		}
+		branches.ensure(key, fn);
+	}
+	block(() => {
+		var has_branch = false;
+		fn((fn, key = 0) => {
+			has_branch = true;
+			update_branch(key, fn);
+		});
+		if (!has_branch) update_branch(-1, null);
+	}, flags);
+}
 //#endregion
 //#region node_modules/svelte/src/internal/client/dom/blocks/each.js
 /** @import { EachItem, EachOutroGroup, EachState, Effect, EffectNodes, MaybeSource, Source, TemplateNode, TransitionManager, Value } from '#client' */
@@ -4058,6 +4314,58 @@ function get_setters(element) {
 		proto = get_prototype_of(proto);
 	}
 	return setters;
+}
+//#endregion
+//#region node_modules/svelte/src/internal/client/dom/elements/bindings/this.js
+/** @import { ComponentContext, Effect } from '#client' */
+/**
+* @param {any} bound_value
+* @param {Element} element_or_component
+* @returns {boolean}
+*/
+function is_bound_this(bound_value, element_or_component) {
+	return bound_value === element_or_component || bound_value?.[STATE_SYMBOL] === element_or_component;
+}
+/**
+* @param {any} element_or_component
+* @param {(value: unknown, ...parts: unknown[]) => void} update
+* @param {(...parts: unknown[]) => unknown} get_value
+* @param {() => unknown[]} [get_parts] Set if the this binding is used inside an each block,
+* 										returns all the parts of the each block context that are used in the expression
+* @returns {void}
+*/
+function bind_this(element_or_component = {}, update, get_value, get_parts) {
+	var component_effect = component_context.r;
+	var parent = active_effect;
+	effect(() => {
+		/** @type {unknown[]} */
+		var old_parts;
+		/** @type {unknown[]} */
+		var parts;
+		render_effect(() => {
+			old_parts = parts;
+			parts = get_parts?.() || [];
+			untrack(() => {
+				if (!is_bound_this(get_value(...parts), element_or_component)) {
+					update(element_or_component, ...parts);
+					if (old_parts && is_bound_this(get_value(...old_parts), element_or_component)) update(null, ...old_parts);
+				}
+			});
+		});
+		return () => {
+			let p = parent;
+			while (p !== component_effect && p.parent !== null && p.parent.f & 33554432) p = p.parent;
+			const teardown = () => {
+				if (parts && is_bound_this(get_value(...parts), element_or_component)) update(null, ...parts);
+			};
+			const original_teardown = p.teardown;
+			p.teardown = () => {
+				teardown();
+				original_teardown?.();
+			};
+		};
+	});
+	return element_or_component;
 }
 if (typeof HTMLElement === "function");
 //#endregion
@@ -48263,7 +48571,8 @@ function runEngine() {
 //#region src/App.svelte
 var root = /* @__PURE__ */ from_html(`<div><span></span><span class="sw"></span></div>`);
 var root_1 = /* @__PURE__ */ from_html(`<div><div class="ctl-h"></div> <!></div>`);
-var root_2 = /* @__PURE__ */ from_html(`<div id="stage"><canvas id="gl"></canvas> <canvas id="sky"></canvas> <div id="left-col"><div class="panel" id="hud-tl"><h1><span class="dot"></span>Known Universe</h1> <div class="sub">One scale from the solar system to the galaxies — <b style="color:var(--ink);font-weight:600">scroll</b> to cross the orders of magnitude. Data: NASA · HYG · Local Volume.</div> <div class="stats"><div class="stat"><div class="k mono" id="s-sys">0</div><div class="l">Systems visible</div></div> <div class="stat"><div class="k mono" id="s-pl">0</div><div class="l">Planets</div></div> <div class="stat"><div class="k mono" id="s-near">—</div><div class="l">Nearest (ly)</div></div> <div class="stat"><div class="k mono" id="s-far">—</div><div class="l">Farthest (ly)</div></div></div> <button id="solarBtn">☉ Into the solar system</button> <div id="btnGrid"><button id="tourBtn" title="A guided flight from Earth to the edge of the observable universe">🧭 Tour</button> <button id="shareBtn" title="Copy a link to this exact view">🔗 Share</button> <button id="measureBtn" title="Click two objects to measure the real distance between them">📏 Measure</button> <button id="resetBtn2" title="Back to the full view">⟲ Reset</button></div></div> <div class="panel" id="hud-search"><input id="search" placeholder="Search… Sirius, TRAPPIST-1, Andromeda" autocomplete="off" spellcheck="false"/> <div id="suggest"></div> <div id="searchMsg"></div></div> <div class="panel" id="hud-mwmap"><div class="label">Milky Way · top-down</div> <canvas id="mwmap" width="198" height="150" style="width:198px;height:150px;display:block"></canvas> <div class="mwcap">Schematic · ~100,000 light-years across</div></div></div> <div id="right-col"><div class="panel" id="hud-tr"><div class="label">Star colour = temperature</div> <div class="spectrum"></div> <div class="spectrum-ax"><span>hot · 30,000 K</span><span>cool · 3,000 K</span></div> <div class="leg-row"><span style="display:flex;align-items:center;gap:5px;flex:0 0 auto"><span class="mk" style="width:4px;height:4px;background:var(--dim)"></span><span class="mk" style="width:11px;height:11px;background:var(--dim)"></span></span>Size = planet radius</div> <div class="leg-row"><span class="mk" style="background:#eafffb;box-shadow:0 0 8px #fff"></span>Sun — you are here</div> <div class="leg-row"><span class="mk" style="background:var(--cyan)"></span>discovered in the selected year</div> <div class="leg-row"><span class="mk" style="background:#e6473c;box-shadow:0 0 8px #e6473c"></span>beyond the neighbourhood</div> <div class="leg-row"><span class="mk" style="width:5px;height:5px;background:#cfe0ff"></span>real stars · HYG catalogue</div> <div class="leg-row" style="margin-top:13px;border-top:1px solid var(--line);padding-top:11px;flex-wrap:wrap"><span style="display:flex;gap:5px;flex:0 0 auto"><span class="mk" style="background:#c7dbff"></span> <span class="mk" style="background:#ffdeb0"></span> <span class="mk" style="background:#acc6ee"></span></span>Galaxies: spiral · elliptical · irregular</div> <div class="leg-row" style="flex-wrap:wrap"><span style="display:flex;gap:5px;flex:0 0 auto"><span class="mk" style="background:#ce966c"></span><span class="mk" style="background:#6ec4b8"></span> <span class="mk" style="background:#6e96e0"></span><span class="mk" style="background:#e2b484"></span></span>Planets: rocky · super-Earth · Neptune · gas giant</div> <div class="leg-row" style="flex-wrap:wrap"><span style="display:flex;gap:5px;flex:0 0 auto"><span class="mk" style="background:#96beff"></span><span class="mk" style="background:#ffe2a0"></span> <span class="mk" style="background:#ff7676"></span><span class="mk" style="background:#6ee6c6"></span></span>Deep-sky: open · globular · nebula · planetary</div></div> <div class="panel" id="hud-ctl"><!> <button id="resetBtn" style="display:none">Reset view</button> <div class="ctl-inst"><div class="label" style="margin-bottom:8px">Discovery instrument</div> <div class="colby" id="t-fac"><span>colour by it</span><span class="sw"></span></div> <div class="chips" id="facChips"></div></div> <div class="hint" style="font-size:10px;color:var(--dim);margin-top:6px;font-style:italic;line-height:1.6">Drag rotate · right-drag pan · WASD fly<br/>Scroll/pinch zoom to cursor · click to travel<br/>🧭 tour · 📏 measure · 🔗 share view</div></div></div> <div class="panel" id="hud-time"><div class="time-head"><div class="yr">Year <span class="live" id="yrVal">2026</span></div> <div class="meta" id="yrMeta"></div> <div class="time-min" title="Minimize">–</div></div> <div class="time-row"><button id="play" aria-label="Play time"><svg id="playIcon" viewBox="0 0 16 16"><path d="M3 2l11 6L3 14z"></path></svg></button> <div class="track"><input type="range" id="year" min="1992" max="2026" value="2026" step="1"/> <div class="ticks"><span>1992</span><span>2000</span><span>2009</span><span>2017</span><span>2026</span></div></div></div></div> <div class="panel" id="hud-soltime" style="display:none"><div class="time-head"><div class="yr">Solar system · <span class="live" id="solDate">–</span></div> <div class="meta">Time travel · planets on their orbits</div> <div class="time-min" title="Minimize">–</div></div> <div class="time-row"><button id="solPlay" aria-label="Play time"><svg id="solIcon" viewBox="0 0 16 16"><path d="M3 2l11 6L3 14z"></path></svg></button> <div class="track"><input type="range" id="solTime" min="-36525" max="36525" value="0" step="1"/> <div class="ticks"><span>−100 yr</span><span>−50</span><span>today</span><span>+50</span><span>+100 yr</span></div></div> <button id="solNow">today</button></div></div> <div class="panel" id="hud-pm" style="display:none"><div class="pm-head"><span class="label" style="margin:0">Night sky · proper motion</span> <span class="mono" id="pmVal">today</span></div> <input type="range" id="pmTime" min="-50000" max="50000" value="0" step="100"/> <div class="ticks"><span>−50,000 yr</span><span>today</span><span>+50,000 yr</span></div></div> <div class="panel" id="hud-nav" style="display:none"><div class="nav-head"><span class="label" style="margin:0">▸ Navigation · course</span> <span id="navClose" title="Clear course">✕</span></div> <div id="navName">–</div> <div class="nav-cells"><div class="nav-cell"><div id="navDist" class="mono nv">–</div><div class="nl">Distance</div></div> <div class="nav-cell"><div id="navLight" class="mono nv">–</div><div class="nl">Light travel time</div></div> <div class="nav-cell"><div id="navHead" class="mono nv">–</div><div class="nl">Bearing</div></div></div> <button id="navGo">Engage course ▸</button></div> <div class="panel" id="info"></div></div> <div id="mobbar"><div class="mb" id="mbSearch"><span>🔍</span>Search</div> <div class="mb" id="mbLayers"><span>☰</span>Layers</div> <div class="mb" id="mbTime"><span>🕐</span>Time</div> <div class="mb" id="mbTour"><span>🧭</span>Tour</div></div> <div id="tourPanel" style="display:none;position:fixed;left:50%;bottom:70px;transform:translateX(-50%);z-index:60;
+var root_2 = /* @__PURE__ */ from_html(`<div id="mobsheet"><div class="ms-head"><span> </span> <button class="ms-x">✕ Close</button></div> <div class="ms-body"></div></div>`);
+var root_3 = /* @__PURE__ */ from_html(`<div id="stage"><canvas id="gl"></canvas> <canvas id="sky"></canvas> <div id="left-col"><div class="panel" id="hud-tl"><h1><span class="dot"></span>Known Universe</h1> <div class="sub">One scale from the solar system to the galaxies — <b style="color:var(--ink);font-weight:600">scroll</b> to cross the orders of magnitude. Data: NASA · HYG · Local Volume.</div> <div class="stats"><div class="stat"><div class="k mono" id="s-sys">0</div><div class="l">Systems visible</div></div> <div class="stat"><div class="k mono" id="s-pl">0</div><div class="l">Planets</div></div> <div class="stat"><div class="k mono" id="s-near">—</div><div class="l">Nearest (ly)</div></div> <div class="stat"><div class="k mono" id="s-far">—</div><div class="l">Farthest (ly)</div></div></div> <button id="solarBtn">☉ Into the solar system</button> <div id="btnGrid"><button id="tourBtn" title="A guided flight from Earth to the edge of the observable universe">🧭 Tour</button> <button id="shareBtn" title="Copy a link to this exact view">🔗 Share</button> <button id="measureBtn" title="Click two objects to measure the real distance between them">📏 Measure</button> <button id="resetBtn2" title="Back to the full view">⟲ Reset</button></div></div> <div class="panel" id="hud-search"><input id="search" placeholder="Search… Sirius, TRAPPIST-1, Andromeda" autocomplete="off" spellcheck="false"/> <div id="suggest"></div> <div id="searchMsg"></div></div> <div class="panel" id="hud-mwmap"><div class="label">Milky Way · top-down</div> <canvas id="mwmap" width="198" height="150" style="width:198px;height:150px;display:block"></canvas> <div class="mwcap">Schematic · ~100,000 light-years across</div></div></div> <div id="right-col"><div class="panel" id="hud-tr"><div class="label">Star colour = temperature</div> <div class="spectrum"></div> <div class="spectrum-ax"><span>hot · 30,000 K</span><span>cool · 3,000 K</span></div> <div class="leg-row"><span style="display:flex;align-items:center;gap:5px;flex:0 0 auto"><span class="mk" style="width:4px;height:4px;background:var(--dim)"></span><span class="mk" style="width:11px;height:11px;background:var(--dim)"></span></span>Size = planet radius</div> <div class="leg-row"><span class="mk" style="background:#eafffb;box-shadow:0 0 8px #fff"></span>Sun — you are here</div> <div class="leg-row"><span class="mk" style="background:var(--cyan)"></span>discovered in the selected year</div> <div class="leg-row"><span class="mk" style="background:#e6473c;box-shadow:0 0 8px #e6473c"></span>beyond the neighbourhood</div> <div class="leg-row"><span class="mk" style="width:5px;height:5px;background:#cfe0ff"></span>real stars · HYG catalogue</div> <div class="leg-row" style="margin-top:13px;border-top:1px solid var(--line);padding-top:11px;flex-wrap:wrap"><span style="display:flex;gap:5px;flex:0 0 auto"><span class="mk" style="background:#c7dbff"></span> <span class="mk" style="background:#ffdeb0"></span> <span class="mk" style="background:#acc6ee"></span></span>Galaxies: spiral · elliptical · irregular</div> <div class="leg-row" style="flex-wrap:wrap"><span style="display:flex;gap:5px;flex:0 0 auto"><span class="mk" style="background:#ce966c"></span><span class="mk" style="background:#6ec4b8"></span> <span class="mk" style="background:#6e96e0"></span><span class="mk" style="background:#e2b484"></span></span>Planets: rocky · super-Earth · Neptune · gas giant</div> <div class="leg-row" style="flex-wrap:wrap"><span style="display:flex;gap:5px;flex:0 0 auto"><span class="mk" style="background:#96beff"></span><span class="mk" style="background:#ffe2a0"></span> <span class="mk" style="background:#ff7676"></span><span class="mk" style="background:#6ee6c6"></span></span>Deep-sky: open · globular · nebula · planetary</div></div> <div class="panel" id="hud-ctl"><!> <button id="resetBtn" style="display:none">Reset view</button> <div class="ctl-inst"><div class="label" style="margin-bottom:8px">Discovery instrument</div> <div class="colby" id="t-fac"><span>colour by it</span><span class="sw"></span></div> <div class="chips" id="facChips"></div></div> <div class="hint" style="font-size:10px;color:var(--dim);margin-top:6px;font-style:italic;line-height:1.6">Drag rotate · right-drag pan · WASD fly<br/>Scroll/pinch zoom to cursor · click to travel<br/>🧭 tour · 📏 measure · 🔗 share view</div></div></div> <div class="panel" id="hud-time"><div class="time-head"><div class="yr">Year <span class="live" id="yrVal">2026</span></div> <div class="meta" id="yrMeta"></div> <div class="time-min" title="Minimize">–</div></div> <div class="time-row"><button id="play" aria-label="Play time"><svg id="playIcon" viewBox="0 0 16 16"><path d="M3 2l11 6L3 14z"></path></svg></button> <div class="track"><input type="range" id="year" min="1992" max="2026" value="2026" step="1"/> <div class="ticks"><span>1992</span><span>2000</span><span>2009</span><span>2017</span><span>2026</span></div></div></div></div> <div class="panel" id="hud-soltime" style="display:none"><div class="time-head"><div class="yr">Solar system · <span class="live" id="solDate">–</span></div> <div class="meta">Time travel · planets on their orbits</div> <div class="time-min" title="Minimize">–</div></div> <div class="time-row"><button id="solPlay" aria-label="Play time"><svg id="solIcon" viewBox="0 0 16 16"><path d="M3 2l11 6L3 14z"></path></svg></button> <div class="track"><input type="range" id="solTime" min="-36525" max="36525" value="0" step="1"/> <div class="ticks"><span>−100 yr</span><span>−50</span><span>today</span><span>+50</span><span>+100 yr</span></div></div> <button id="solNow">today</button></div></div> <div class="panel" id="hud-pm" style="display:none"><div class="pm-head"><span class="label" style="margin:0">Night sky · proper motion</span> <span class="mono" id="pmVal">today</span></div> <input type="range" id="pmTime" min="-50000" max="50000" value="0" step="100"/> <div class="ticks"><span>−50,000 yr</span><span>today</span><span>+50,000 yr</span></div></div> <div class="panel" id="hud-nav" style="display:none"><div class="nav-head"><span class="label" style="margin:0">▸ Navigation · course</span> <span id="navClose" title="Clear course">✕</span></div> <div id="navName">–</div> <div class="nav-cells"><div class="nav-cell"><div id="navDist" class="mono nv">–</div><div class="nl">Distance</div></div> <div class="nav-cell"><div id="navLight" class="mono nv">–</div><div class="nl">Light travel time</div></div> <div class="nav-cell"><div id="navHead" class="mono nv">–</div><div class="nl">Bearing</div></div></div> <button id="navGo">Engage course ▸</button></div> <div class="panel" id="info"></div></div> <div id="mobbar"><div id="mbSearch"><span>🔍</span>Search</div> <div id="mbLayers"><span>☰</span>Layers</div> <div id="mbTime"><span>🕐</span>Time</div> <div class="mb" id="mbTour"><span>🧭</span>Tour</div></div> <!> <div id="tourPanel" style="display:none;position:fixed;left:50%;bottom:70px;transform:translateX(-50%);z-index:60;
   max-width:520px;background:rgba(10,14,28,.92);border:1px solid rgba(120,140,190,.35);border-radius:10px;
   padding:12px 16px;font-family:ui-monospace,monospace;color:#e9edfa;backdrop-filter:blur(4px)"><div id="tourTitle" style="font-size:13px;color:#ffcf6b;letter-spacing:.06em;margin-bottom:5px"></div> <div id="tourText" style="font-size:11.5px;line-height:1.55;color:#c8cfE2"></div> <div style="display:flex;gap:8px;margin-top:9px;align-items:center"><button id="tourPrev" class="tbtn">◀</button> <span id="tourStep" style="font-size:10px;color:#8a93ad"></span> <button id="tourNext" class="tbtn">Next ▶</button> <span style="flex:1"></span> <button id="tourEnd" class="tbtn">✕ End tour</button></div></div>`, 1);
 function App($$anchor, $$props) {
@@ -48443,17 +48752,48 @@ function App($$anchor, $$props) {
 		}
 	];
 	let closed = proxy({});
-	function mob(c) {
-		const B = document.body.classList;
-		for (const x of [
-			"mob-left",
-			"mob-right",
-			"mob-time"
-		]) if (x !== c) B.remove(x);
-		B.toggle(c);
+	let mobPanel = /* @__PURE__ */ state(null);
+	let showTime = /* @__PURE__ */ state(false);
+	let sheetBody = /* @__PURE__ */ state(null);
+	const movedNodes = [];
+	function openSheet(which) {
+		set(mobPanel, get(mobPanel) === which ? null : which, true);
+	}
+	function toggleTime() {
+		set(showTime, !get(showTime));
+		set(mobPanel, null);
+	}
+	user_effect(() => {
+		document.body.classList.toggle("mob-time", get(showTime));
+	});
+	user_effect(() => {
+		while (movedNodes.length) {
+			const m = movedNodes.pop();
+			m.parent.insertBefore(m.el, m.next);
+		}
+		if (get(mobPanel) && get(sheetBody)) {
+			const ids = get(mobPanel) === "layers" ? ["hud-ctl", "hud-tr"] : ["hud-tl", "hud-search"];
+			for (const id of ids) {
+				const el = document.getElementById(id);
+				if (el) {
+					movedNodes.push({
+						el,
+						parent: el.parentNode,
+						next: el.nextSibling
+					});
+					get(sheetBody).appendChild(el);
+				}
+			}
+		}
+	});
+	function sheetClick(e) {
+		if (e.target && e.target.closest && e.target.closest("#suggest")) setTimeout(() => {
+			set(mobPanel, null);
+		}, 50);
 	}
 	function startTour() {
-		document.body.classList.remove("mob-left", "mob-right", "mob-time");
+		set(mobPanel, null);
+		set(showTime, false);
 		const b = document.getElementById("tourBtn");
 		if (b) b.click();
 	}
@@ -48461,7 +48801,7 @@ function App($$anchor, $$props) {
 		const b = document.getElementById("resetBtn");
 		if (b) b.click();
 	}
-	var fragment = root_2();
+	var fragment = root_3();
 	var div = first_child(fragment);
 	var div_1 = sibling(child(div), 4);
 	var div_2 = child(div_1);
@@ -48508,15 +48848,44 @@ function App($$anchor, $$props) {
 	reset(div);
 	var div_9 = sibling(div, 2);
 	var div_10 = child(div_9);
+	let classes_2;
 	var div_11 = sibling(div_10, 2);
+	let classes_3;
 	var div_12 = sibling(div_11, 2);
+	let classes_4;
 	var div_13 = sibling(div_12, 2);
 	reset(div_9);
+	var node_2 = sibling(div_9, 2);
+	var consequent = ($$anchor) => {
+		var div_14 = root_2();
+		var div_15 = child(div_14);
+		var span_1 = child(div_15);
+		var text = child(span_1, true);
+		reset(span_1);
+		var button_1 = sibling(span_1, 2);
+		reset(div_15);
+		bind_this(sibling(div_15, 2), ($$value) => set(sheetBody, $$value), () => get(sheetBody));
+		reset(div_14);
+		template_effect(() => set_text(text, get(mobPanel) === "layers" ? "☰ Layers" : "🔍 Search & info"));
+		delegated("click", div_14, sheetClick);
+		delegated("click", button_1, () => {
+			set(mobPanel, null);
+		});
+		append($$anchor, div_14);
+	};
+	if_block(node_2, ($$render) => {
+		if (get(mobPanel)) $$render(consequent);
+	});
 	next(2);
+	template_effect(() => {
+		classes_2 = set_class(div_10, 1, "mb", null, classes_2, { active: get(mobPanel) === "search" });
+		classes_3 = set_class(div_11, 1, "mb", null, classes_3, { active: get(mobPanel) === "layers" });
+		classes_4 = set_class(div_12, 1, "mb", null, classes_4, { active: get(showTime) });
+	});
 	delegated("click", button, resetView);
-	delegated("click", div_10, () => mob("mob-left"));
-	delegated("click", div_11, () => mob("mob-right"));
-	delegated("click", div_12, () => mob("mob-time"));
+	delegated("click", div_10, () => openSheet("search"));
+	delegated("click", div_11, () => openSheet("layers"));
+	delegated("click", div_12, toggleTime);
 	delegated("click", div_13, startTour);
 	append($$anchor, fragment);
 	pop();

@@ -3,11 +3,27 @@
   import { api } from './lib/engine.js';
   const groups = [{"h": "☀️ Solar system", "items": [{"id": "t-moons", "label": "Moons (solar system)", "on": true}, {"id": "t-ast", "label": "Asteroids &amp; comets", "on": true}, {"id": "t-belt", "label": "Asteroid field", "on": true}, {"id": "t-tno", "label": "Trans-Neptunian &amp; Centaurs", "on": true}, {"id": "t-probes", "label": "Spacecraft (Voyager…)", "on": true}, {"id": "t-helio", "label": "Heliosphere", "on": true}, {"id": "t-size", "label": "Size = planet radius", "on": true}]}, {"h": "⭐ Stars", "items": [{"id": "t-hyg", "label": "Stars (HYG)", "on": true}, {"id": "t-gpu", "label": "GPU stars", "on": true}, {"id": "t-gaia", "label": "Gaia stars (&lt;100 pc)", "on": true}, {"id": "t-ob", "label": "OB stars (arm tracers)", "on": true}, {"id": "t-var", "label": "Variable stars", "on": true}, {"id": "t-pm", "label": "Proper motion", "on": false}]}, {"h": "💫 Deep sky &amp; galaxy", "items": [{"id": "t-dso", "label": "Nebulae &amp; clusters", "on": true}, {"id": "t-oclu", "label": "Clusters · globulars · FRBs", "on": true}, {"id": "t-psr", "label": "Pulsars (neutron stars)", "on": true}, {"id": "t-con", "label": "Constellations", "on": true}, {"id": "t-mw", "label": "Milky Way · Sgr A*", "on": true}, {"id": "t-mw3d", "label": "Milky Way structure (3D)", "on": true}, {"id": "t-hz", "label": "Habitable zone", "on": true}]}, {"h": "🔭 Cosmos", "items": [{"id": "t-gal", "label": "Show galaxies", "on": true}, {"id": "t-web", "label": "Cosmic web (2MRS)", "on": true}, {"id": "t-qso", "label": "Quasars", "on": true}, {"id": "t-edge", "label": "Observable universe (CMB)", "on": true}]}, {"h": "🎛️ View", "items": [{"id": "t-real", "label": "Real scale", "on": false}, {"id": "t-rot", "label": "Auto-rotation", "on": false}, {"id": "t-freelook", "label": "Free-look flight", "on": false}, {"id": "t-veil", "label": "Red veil", "on": true}, {"id": "t-rings", "label": "Distance rings", "on": true}]}];
   let closed = $state({});
-  function mob(c){ const B=document.body.classList;
-    for(const x of ['mob-left','mob-right','mob-time']) if(x!==c) B.remove(x);
-    B.toggle(c); }
-  function startTour(){ const B=document.body.classList;
-    B.remove('mob-left','mob-right','mob-time');
+  // mobile navigation: bar -> full-screen sheets (pure Svelte state, no CSS class chains)
+  let mobPanel = $state(null);          // null | 'search' | 'layers'
+  let showTime = $state(false);
+  let sheetBody = $state(null);
+  const movedNodes = [];
+  function openSheet(which){ mobPanel = (mobPanel===which) ? null : which; }
+  function toggleTime(){ showTime=!showTime; mobPanel=null; }
+  $effect(()=>{ document.body.classList.toggle('mob-time', showTime); });
+  $effect(()=>{
+    // put the panels back where they came from, then move the wanted ones into the sheet
+    while(movedNodes.length){ const m=movedNodes.pop(); m.parent.insertBefore(m.el,m.next); }
+    if(mobPanel && sheetBody){
+      const ids = mobPanel==='layers' ? ['hud-ctl','hud-tr'] : ['hud-tl','hud-search'];
+      for(const id of ids){ const el=document.getElementById(id);
+        if(el){ movedNodes.push({el,parent:el.parentNode,next:el.nextSibling}); sheetBody.appendChild(el); } }
+    }
+  });
+  function sheetClick(e){    // picking a search suggestion should reveal the map
+    if(e.target && e.target.closest && e.target.closest('#suggest')) setTimeout(()=>{ mobPanel=null; },50);
+  }
+  function startTour(){ mobPanel=null; showTime=false;
     const b=document.getElementById('tourBtn'); if(b) b.click(); }
   function resetView(){ const b=document.getElementById('resetBtn'); if(b) b.click(); }
 </script>
@@ -156,11 +172,21 @@
 
 </div>
 <div id="mobbar">
-  <div class="mb" id="mbSearch" onclick={()=>mob("mob-left")}><span>🔍</span>Search</div>
-  <div class="mb" id="mbLayers" onclick={()=>mob("mob-right")}><span>☰</span>Layers</div>
-  <div class="mb" id="mbTime" onclick={()=>mob("mob-time")}><span>🕐</span>Time</div>
+  <div class="mb" id="mbSearch" class:active={mobPanel==='search'} onclick={()=>openSheet("search")}><span>🔍</span>Search</div>
+  <div class="mb" id="mbLayers" class:active={mobPanel==='layers'} onclick={()=>openSheet("layers")}><span>☰</span>Layers</div>
+  <div class="mb" id="mbTime" class:active={showTime} onclick={toggleTime}><span>🕐</span>Time</div>
   <div class="mb" id="mbTour" onclick={startTour}><span>🧭</span>Tour</div>
 </div>
+
+{#if mobPanel}
+<div id="mobsheet" onclick={sheetClick}>
+  <div class="ms-head">
+    <span>{mobPanel==='layers' ? '☰ Layers' : '🔍 Search & info'}</span>
+    <button class="ms-x" onclick={()=>{mobPanel=null}}>✕ Close</button>
+  </div>
+  <div class="ms-body" bind:this={sheetBody}></div>
+</div>
+{/if}
 <div id="tourPanel" style="display:none;position:fixed;left:50%;bottom:70px;transform:translateX(-50%);z-index:60;
   max-width:520px;background:rgba(10,14,28,.92);border:1px solid rgba(120,140,190,.35);border-radius:10px;
   padding:12px 16px;font-family:ui-monospace,monospace;color:#e9edfa;backdrop-filter:blur(4px)">
