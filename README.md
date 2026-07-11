@@ -314,3 +314,22 @@ python3 build_belt.py          # sb_*.json (SBDB Query API) -> site/data/belt.bi
 The bundled `*-raw.csv` files are the raw dumps; `site/data/data.json` is
 computed from them (RA/Dec/distance → Cartesian coordinates, Sun at the origin).
 Constellation lines come from `constlines.json` (d3-celestial).
+
+## License
+
+The code in this repository is released under the [MIT License](LICENSE).
+
+The bundled astronomical data comes from third-party catalogues, each with its
+own terms — they are **not** covered by the MIT license:
+
+- **NASA Exoplanet Archive, JPL Horizons / SBDB** — US government data, freely
+  usable with acknowledgement.
+- **Gaia DR3** — ESA/Gaia/DPAC, [CC BY-SA 3.0 IGO](https://creativecommons.org/licenses/by-sa/3.0/igo/);
+  credit: "This work has made use of data from the European Space Agency (ESA)
+  mission Gaia, processed by the Gaia Data Processing and Analysis Consortium (DPAC)."
+- **HYG database** (astronexus) — [CC BY-SA](https://github.com/astronexus/HYG-Database#license).
+- **VizieR catalogues** (Local Volume, 2MRS, Milliquas, ATNF pulsars,
+  Cantat-Gaudin clusters, …) — free for scholarly/non-commercial use with
+  citation of the original papers (linked above).
+- **Constellation lines** — from [d3-celestial](https://github.com/ofrohn/d3-celestial)
+  (BSD-3-Clause).
