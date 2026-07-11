@@ -59,8 +59,11 @@ as a fourth dimension.
   between the solar system and the nearest star stays visible as a true gap.
   *(Physical object sizes are necessarily symbolic across 13 decades — glyphs
   scale by real* relative *radius, so e.g. Jupiter > Earth stays recognisable.)*
-- **Tech:** a single `index.html` with its own 3D renderer (no external
-  libraries). Stars render on the **GPU via WebGL 2**: the binary catalogues
+- **Tech:** Svelte 5 + Vite for the UI chrome; the renderer is a
+  framework-free module (`src/lib/engine.js`) that Svelte binds to via a thin
+  store bridge. Build: `npm install && npm run build` → static `site/`
+  (committed — Pages needs no CI build); `npm run build:artifact` emits the
+  self-contained single-file HTML. Stars render on the **GPU via WebGL 2**: the binary catalogues
   (Gaia, asteroid field, 2MRS, quasars, …) are uploaded to the GPU
   **byte-for-byte** and decoded in the vertex shader (8 bytes/star — no CPU
   decode, 5× less GPU memory), point layers accumulate in a **half-float HDR

@@ -4075,7 +4075,7 @@ function __run() {
 	const DATA = window.__DATA__, META = DATA.meta, STARS = DATA.stars;
 	const PC2LY = 3.261564;
 	const cv = document.getElementById("sky"), ctx = cv.getContext("2d");
-	let W = 0, H = 0, DPR = 1;
+	let W = 0, H = 0, DPR = 1, GLDPR = 1;
 	const dists = STARS.map((s) => s.d).slice().sort((a, b) => a - b);
 	const R0 = dists[Math.floor(dists.length * .9)] || META.maxDist;
 	META.maxDist;
@@ -44257,21 +44257,42 @@ function __run() {
 		camDist = Math.hypot(camPos[0], camPos[1], camPos[2]);
 	}
 	if (matchMedia("(prefers-reduced-motion: reduce)").matches) S.autorot = false, syncToggle("t-rot", false);
-	let glOK = false, GL = null, glProg = null, glBuf = null, glLoc = {}, glN = 0, glcv = null, glBufG = null, glNG = 0, glBuf2m = null, glN2m = 0, glBufQ = null, glNQ = 0, glBufB = null, glNB = 0;
-	let gaiaRaw = null, gaiaRange = 100, webRaw = null, qsoRaw = null, beltRaw = null, beltEpoch = 0;
-	let glBufH = null, glNH = 0, glBufP = null, glNP = 0, glBufC = null, glNC = 0, glBufO = null, glNO = 0, glBufV = null, glNV = 0;
+	let glOK = false, GL = null, glcv = null;
+	let progF = null, progU = null, progT = null;
+	let hdrOK = false, hdrFB = null, hdrTex = null, glMaxPt = 64;
+	let glBuf = null, glBufH = null, glBufP = null, glBufC = null;
+	const CL = {
+		G: null,
+		B: null,
+		W: null,
+		Q: null,
+		O: null,
+		V: null
+	};
+	let gaiaRaw = null, gaiaRange = 100, webRaw = null, qsoRaw = null, beltRaw = null, obRaw = null, varRaw = null, beltEpoch = 0;
+	let exactPx = null;
 	function resize() {
-		DPR = Math.min(devicePixelRatio || 1, 2);
+		const raw = devicePixelRatio || 1;
 		W = innerWidth;
 		H = innerHeight;
-		cv.width = W * DPR;
-		cv.height = H * DPR;
+		const px2 = exactPx && raw <= 3.02 ? exactPx : null;
+		cv.width = px2 ? px2[0] : Math.round(W * Math.min(raw, 3));
+		cv.height = px2 ? px2[1] : Math.round(H * Math.min(raw, 3));
 		cv.style.width = W + "px";
 		cv.style.height = H + "px";
-		ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+		DPR = cv.width / W;
+		ctx.setTransform(DPR, 0, 0, cv.height / H, 0, 0);
 		glResize();
+		dirty = true;
 	}
 	addEventListener("resize", resize);
+	if (window.ResizeObserver) try {
+		new ResizeObserver((es) => {
+			const s = es[es.length - 1].devicePixelContentBoxSize;
+			if (s && s[0]) exactPx = [s[0].inlineSize, s[0].blockSize];
+			resize();
+		}).observe(cv, { box: "device-pixel-content-box" });
+	} catch (_) {}
 	resize();
 	function tempColor(t) {
 		if (!t) return [
@@ -44421,7 +44442,10 @@ function __run() {
 		order.sort((a, b) => a._z2 - b._z2);
 		projectHyg();
 		if (glStars()) glRender();
-		else drawHyg();
+		else {
+			glClearCanvas();
+			drawHyg();
+		}
 		const sp = project(0, 0, 0);
 		const gpuH = glStars() && glBufH;
 		for (const s of order) {
@@ -47035,41 +47059,15 @@ function __run() {
 		solStop();
 	});
 	setSolDate();
-	const GL_VS = `
-attribute vec3 a_dir; attribute float a_dist; attribute float a_mag;
-attribute vec3 a_color; attribute vec2 a_pm;
-uniform float u_yaw,u_pitch,u_camZ,u_foc,u_dpr,u_LOG0,u_KDEC,u_REALK,u_pmYears,u_cull,u_minPx,u_isBelt,u_beltDt,u_hostMode,u_year,u_facColor,u_sizeOn,u_veil,u_bnd,u_glow,u_alphaK;
-uniform float u_facVis[8]; uniform vec3 u_pal[8];
+	const GL_UNI = `
+uniform float u_yaw,u_pitch,u_camZ,u_foc,u_dpr,u_LOG0,u_KDEC,u_REALK,u_cull,u_minPx,u_alphaK,u_maxPt;
 uniform vec3 u_ctr; uniform vec2 u_res; uniform bool u_real;
-varying vec3 v_color; varying float v_alpha;
+out vec3 v_color; out float v_alpha;
 float scl(float pc){ if(u_real) return pc*u_REALK; return max(0.0,(log(pc)/2.302585093 - u_LOG0)*u_KDEC); }
-void main(){
-  vec3 dir=a_dir;
-  if(u_pmYears!=0.0 && u_hostMode<0.5){
-    float cd=max(1e-6, length(a_dir.xy));
-    float mas=3.14159265/(180.0*3600.0*1000.0);
-    float tE=a_pm.x*u_pmYears*mas, tN=a_pm.y*u_pmYears*mas;
-    vec3 east=vec3(-a_dir.y/cd, a_dir.x/cd, 0.0);
-    vec3 north=vec3(-a_dir.z*a_dir.x/cd, -a_dir.z*a_dir.y/cd, cd);
-    dir=normalize(a_dir + east*tE + north*tN);
-  }
-  if(u_isBelt>0.5 && u_beltDt!=0.0){
-    // approximate Kepler drift: circular mean motion at the body's heliocentric distance
-    float rAU=max(0.05, a_dist/0.0000048481368);
-    float ang=0.0172021242/pow(rAU,1.5)*u_beltDt;
-    float ca=cos(ang), sa=sin(ang);
-    dir=vec3(dir.x*ca - dir.z*sa, dir.y, dir.x*sa + dir.z*ca);   // world y = ecliptic pole
-  }
-  vec3 col=a_color; float rs=1.0; float host=u_hostMode;
-  if(host>0.5){
-    float fy=a_pm.y;                                     // discovery-year filter on the GPU
-    if(fy>u_year+0.5 && fy>0.5){ gl_Position=vec4(2.0,0.0,0.0,1.0); gl_PointSize=0.0; return; }
-    int ci=int(a_pm.x+0.5);                              // facility category
-    if(u_facVis[ci]<0.5){ gl_Position=vec4(2.0,0.0,0.0,1.0); gl_PointSize=0.0; return; }
-    if(u_facColor>0.5) col=u_pal[ci];
-    if(u_sizeOn>0.5) rs=a_mag;                           // a_mag carries radiusScale for hosts
-  }
-  float R=scl(a_dist);
+`;
+	function glTail(host) {
+		return `
+  float R=scl(dist);
   vec3 p=dir*R - u_ctr;
   float c=cos(u_yaw), sy=sin(u_yaw);
   float x1=p.x*c + p.z*sy;
@@ -47080,105 +47078,242 @@ void main(){
   float z2=y1*sp + z1*cp;
   float depth=u_camZ - z2;
   float focCss=u_foc/u_dpr;
-  float bright=max(0.0, 6.8 - a_mag);
+  float bright=max(0.0, 6.8 - mg);
   float sizeCss;
-  if(host>0.5) sizeCss=min(20.0, max(0.7, focCss*0.0075/depth*rs));
-  else sizeCss=clamp((0.4+bright*0.34)*focCss*0.0032/depth, 0.0, 3.6);
+  ${host ? `if(u_hostMode>0.5) sizeCss=min(20.0, max(0.7, focCss*0.0075/depth*rs));
+  else ` : ""}sizeCss=clamp((0.4+bright*0.34)*focCss*0.0032/depth, 0.0, 3.6);
   float nearP=u_real?u_camZ*0.02:0.05; if(depth<=nearP || sizeCss<u_cull){ gl_Position=vec4(2.0,0.0,0.0,1.0); gl_PointSize=0.0; return; }
   float px=max(sizeCss, u_minPx);
-  if(u_glow>0.5){
-    if(a_mag>2.6){ gl_Position=vec4(2.0,0.0,0.0,1.0); gl_PointSize=0.0; return; }
+  ${host ? `if(u_glow>0.5){
+    if(mg>2.6){ gl_Position=vec4(2.0,0.0,0.0,1.0); gl_PointSize=0.0; return; }
     px=min(sizeCss*6.0, 26.0);                           // soft halo for the brightest stars
-  }
+  }` : ""}
   float dvx=u_res.x*0.5 + u_foc*x1/depth;
   float dvy=u_res.y*0.5 - u_foc*y2/depth;
   gl_Position=vec4(dvx/u_res.x*2.0-1.0, 1.0-dvy/u_res.y*2.0, 0.0, 1.0);
-  gl_PointSize=px*u_dpr;
+  gl_PointSize=min(px*u_dpr, u_maxPt);
   v_color=col;
-  if(host>0.5){
+  ${host ? `if(u_hostMode>0.5){
     float av=clamp(1.9-depth*0.55, 0.12, 1.0);
-    if(u_veil>0.5 && a_dist>u_bnd){                      // red veil beyond the charted edge
-      float t=min(1.0,(a_dist-u_bnd)/(u_bnd*1.6));
+    if(u_veil>0.5 && dist>u_bnd){                        // red veil beyond the charted edge
+      float t=min(1.0,(dist-u_bnd)/(u_bnd*1.6));
       v_color=mix(v_color, vec3(0.9098,0.2275,0.1961), t*0.85); av*=(1.0-t*0.4);
     }
     if(a_pm.y>0.5 && abs(a_pm.y-u_year)<0.5){ v_color=vec3(0.3098,0.8392,0.7843); av=1.0; }
     v_alpha=av;
-  } else {
+  } else {` : "{"}
     float fade=clamp(1.9-depth*0.4, 0.22, 1.0);
     v_alpha=clamp((0.28+bright*0.12)*fade, 0.0, 1.0);
     if(u_minPx>0.0) v_alpha=max(v_alpha, 0.17);          // Gaia: keep faint dwarfs visible
   }
-  if(u_glow>0.5) v_alpha*=0.05;
+  ${host ? `if(u_glow>0.5) v_alpha*=0.05;` : ""}
   v_alpha*=u_alphaK;
+`;
+	}
+	const GL_VSF = `#version 300 es
+precision highp float;
+in vec3 a_dir; in float a_dist; in float a_mag; in vec3 a_color; in vec2 a_pm;
+${GL_UNI}
+uniform float u_pmYears,u_hostMode,u_year,u_facColor,u_sizeOn,u_veil,u_bnd,u_glow;
+uniform float u_facVis[8]; uniform vec3 u_pal[8];
+void main(){
+  vec3 dir=a_dir;
+  if(u_pmYears!=0.0 && u_hostMode<0.5){
+    float cd=max(1e-6, length(a_dir.xy));
+    float mas=3.14159265/(180.0*3600.0*1000.0);
+    float tE=a_pm.x*u_pmYears*mas, tN=a_pm.y*u_pmYears*mas;
+    vec3 east=vec3(-a_dir.y/cd, a_dir.x/cd, 0.0);
+    vec3 north=vec3(-a_dir.z*a_dir.x/cd, -a_dir.z*a_dir.y/cd, cd);
+    dir=normalize(a_dir + east*tE + north*tN);
+  }
+  vec3 col=a_color; float rs=1.0;
+  if(u_hostMode>0.5){
+    float fy=a_pm.y;                                     // discovery-year filter on the GPU
+    if(fy>u_year+0.5 && fy>0.5){ gl_Position=vec4(2.0,0.0,0.0,1.0); gl_PointSize=0.0; return; }
+    int ci=int(a_pm.x+0.5);                              // facility category
+    if(u_facVis[ci]<0.5){ gl_Position=vec4(2.0,0.0,0.0,1.0); gl_PointSize=0.0; return; }
+    if(u_facColor>0.5) col=u_pal[ci];
+    if(u_sizeOn>0.5) rs=a_mag;                           // a_mag carries radiusScale for hosts
+  }
+  float dist=a_dist, mg=a_mag;
+  ${glTail(true)}
 }`;
-	const GL_FS = `
+	const GL_VSU = `#version 300 es
+precision highp float;
+in uvec4 a_rec;                                          // one raw 8-byte catalogue record
+${GL_UNI}
+uniform float u_decDist,u_colMode,u_isBelt,u_beltDt;
+uniform vec2 u_decMag; uniform vec3 u_colFix; uniform vec3 u_decPal[4];
+vec3 gaiaCol(float bprp){                                // bp_rp -> Teff (Ballesteros) -> colour
+  float t=4600.0*(1.0/(0.92*bprp+1.7)+1.0/(0.92*bprp+0.62));
+  if(t>=30000.0) return vec3(0.608,0.690,1.0);
+  if(t>=10000.0) return vec3(0.667,0.749,1.0);
+  if(t>=7500.0)  return vec3(0.792,0.843,1.0);
+  if(t>=6000.0)  return vec3(0.973,0.969,1.0);
+  if(t>=5200.0)  return vec3(1.0,0.957,0.910);
+  if(t>=3700.0)  return vec3(1.0,0.824,0.631);
+  return vec3(1.0,0.710,0.424);
+}
+void main(){
+  float D2R=0.017453292519943295;
+  float rr=float(a_rec.x)*(360.0/65535.0)*D2R;
+  float dr=(float(a_rec.y)*(180.0/65535.0)-90.0)*D2R;
+  float u=float(a_rec.z)*(1.0/65535.0);
+  float b6=float(a_rec.w & 255u), b7=float(a_rec.w >> 8);
+  float cd=cos(dr);
+  vec3 dir=vec3(cd*cos(rr), cd*sin(rr), sin(dr));
+  float dist=u*u_decDist;
+  float mg=(b6/255.0)*u_decMag.x + u_decMag.y;
+  vec3 col = u_colMode<0.5 ? u_colFix
+           : u_colMode<1.5 ? gaiaCol((b7/255.0)*6.0-1.0)
+           : u_decPal[int(min(b7,3.0))];
+  if(u_isBelt>0.5 && u_beltDt!=0.0){
+    // approximate Kepler drift: circular mean motion at the body's heliocentric distance
+    float rAU=max(0.05, dist/0.0000048481368);
+    float ang=0.0172021242/pow(rAU,1.5)*u_beltDt;
+    float ca=cos(ang), sa=sin(ang);
+    dir=vec3(dir.x*ca - dir.z*sa, dir.y, dir.x*sa + dir.z*ca);   // world y = ecliptic pole
+  }
+  ${glTail(false)}
+}`;
+	const GL_FSP = `#version 300 es
 precision mediump float;
-varying vec3 v_color; varying float v_alpha;
+in vec3 v_color; in float v_alpha;
+out vec4 o;
 void main(){
   float r=length(gl_PointCoord-vec2(0.5));
   if(r>0.5) discard;
-  gl_FragColor=vec4(v_color, v_alpha*smoothstep(0.5,0.12,r));
+  float a=v_alpha*smoothstep(0.5,0.12,r);
+  o=vec4(v_color*a, a);                                  // premultiplied additive (ONE, ONE)
+}`;
+	const TM_VS = `#version 300 es
+void main(){                                             // fullscreen triangle from gl_VertexID
+  vec2 p=vec2(float((gl_VertexID<<1)&2), float(gl_VertexID&2));
+  gl_Position=vec4(p*2.0-1.0, 0.0, 1.0);
+}`;
+	const TM_FS = `#version 300 es
+precision mediump float;
+uniform sampler2D u_tex; out vec4 o;
+void main(){                                             // soft shoulder above 0.55: dense star
+  vec3 x=texelFetch(u_tex, ivec2(gl_FragCoord.xy), 0).rgb;   // fields roll off instead of clipping
+  vec3 hi=vec3(0.55) + 0.45*(1.0-exp(-(x-vec3(0.55))/0.45));
+  o=vec4(mix(x, hi, step(vec3(0.55), x)), 1.0);
 }`;
 	function glCompile(gl, type, src) {
 		const sh = gl.createShader(type);
 		gl.shaderSource(sh, src);
 		gl.compileShader(sh);
-		if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) return null;
+		if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) {
+			try {
+				console.error("shader:", gl.getShaderInfoLog(sh));
+			} catch (_) {}
+			return null;
+		}
 		return sh;
+	}
+	function mkProg(gl, vsSrc, fsSrc) {
+		const vs = glCompile(gl, gl.VERTEX_SHADER, vsSrc), fs = glCompile(gl, gl.FRAGMENT_SHADER, fsSrc);
+		if (!vs || !fs) return null;
+		const p = gl.createProgram();
+		gl.attachShader(p, vs);
+		gl.attachShader(p, fs);
+		gl.linkProgram(p);
+		if (!gl.getProgramParameter(p, gl.LINK_STATUS)) {
+			try {
+				console.error("link:", gl.getProgramInfoLog(p));
+			} catch (_) {}
+			return null;
+		}
+		const o = {
+			p,
+			loc: {},
+			attr: {}
+		};
+		const nu = gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS);
+		for (let i = 0; i < nu; i++) {
+			const u = gl.getActiveUniform(p, i);
+			o.loc[u.name.replace(/\[0\]$/, "")] = gl.getUniformLocation(p, u.name);
+		}
+		const na = gl.getProgramParameter(p, gl.ACTIVE_ATTRIBUTES);
+		for (let i = 0; i < na; i++) {
+			const a = gl.getActiveAttrib(p, i);
+			o.attr[a.name] = gl.getAttribLocation(p, a.name);
+		}
+		return o;
+	}
+	function mkFloatVAO(gl, arr) {
+		const buf = gl.createBuffer();
+		gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+		gl.bufferData(gl.ARRAY_BUFFER, arr, gl.STATIC_DRAW);
+		const vao = gl.createVertexArray();
+		gl.bindVertexArray(vao);
+		const A = progF.attr;
+		gl.enableVertexAttribArray(A.a_dir);
+		gl.vertexAttribPointer(A.a_dir, 3, gl.FLOAT, false, 40, 0);
+		gl.enableVertexAttribArray(A.a_dist);
+		gl.vertexAttribPointer(A.a_dist, 1, gl.FLOAT, false, 40, 12);
+		gl.enableVertexAttribArray(A.a_mag);
+		gl.vertexAttribPointer(A.a_mag, 1, gl.FLOAT, false, 40, 16);
+		gl.enableVertexAttribArray(A.a_color);
+		gl.vertexAttribPointer(A.a_color, 3, gl.FLOAT, false, 40, 20);
+		gl.enableVertexAttribArray(A.a_pm);
+		gl.vertexAttribPointer(A.a_pm, 2, gl.FLOAT, false, 40, 32);
+		gl.bindVertexArray(null);
+		return {
+			vao,
+			n: arr.length / 10
+		};
 	}
 	function initGL() {
 		try {
 			glcv = document.getElementById("gl");
 			if (!glcv) return;
-			const gl = glcv.getContext("webgl", {
+			const gl = glcv.getContext("webgl2", {
 				alpha: false,
-				antialias: true
-			}) || glcv.getContext("experimental-webgl");
-			if (!gl || !gl.createShader) return;
-			const vs = glCompile(gl, gl.VERTEX_SHADER, GL_VS), fs = glCompile(gl, gl.FRAGMENT_SHADER, GL_FS);
-			if (!vs || !fs) return;
-			const p = gl.createProgram();
-			gl.attachShader(p, vs);
-			gl.attachShader(p, fs);
-			gl.linkProgram(p);
-			if (!gl.getProgramParameter(p, gl.LINK_STATUS)) return;
+				antialias: false,
+				depth: false,
+				stencil: false,
+				powerPreference: "high-performance"
+			});
+			if (!gl) return;
 			GL = gl;
-			glProg = p;
-			for (const a of [
-				"a_dir",
-				"a_dist",
-				"a_mag",
-				"a_color",
-				"a_pm"
-			]) glLoc[a] = gl.getAttribLocation(p, a);
-			for (const u of [
-				"u_yaw",
-				"u_pitch",
-				"u_camZ",
-				"u_foc",
-				"u_dpr",
-				"u_LOG0",
-				"u_KDEC",
-				"u_REALK",
-				"u_pmYears",
-				"u_ctr",
-				"u_res",
-				"u_real",
-				"u_cull",
-				"u_minPx",
-				"u_isBelt",
-				"u_beltDt",
-				"u_hostMode",
-				"u_year",
-				"u_facColor",
-				"u_sizeOn",
-				"u_veil",
-				"u_bnd",
-				"u_glow",
-				"u_alphaK",
-				"u_facVis",
-				"u_pal"
-			]) glLoc[u] = gl.getUniformLocation(p, u);
+			if (!glcv.__loss) {
+				glcv.__loss = 1;
+				glcv.addEventListener("webglcontextlost", (e) => {
+					e.preventDefault();
+					glOK = false;
+					dirty = true;
+				});
+				glcv.addEventListener("webglcontextrestored", () => {
+					initGL();
+					glRestoreClouds();
+					dirty = true;
+				});
+			}
+			progF = mkProg(gl, GL_VSF, GL_FSP);
+			progU = mkProg(gl, GL_VSU, GL_FSP);
+			progT = mkProg(gl, TM_VS, TM_FS);
+			if (!progF || !progU) return;
+			glMaxPt = (gl.getParameter(gl.ALIASED_POINT_SIZE_RANGE) || [1, 64])[1] || 64;
+			hdrOK = false;
+			if (progT && gl.getExtension("EXT_color_buffer_float")) {
+				hdrTex = gl.createTexture();
+				gl.bindTexture(gl.TEXTURE_2D, hdrTex);
+				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+				gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, 4, 4, 0, gl.RGBA, gl.HALF_FLOAT, null);
+				hdrFB = gl.createFramebuffer();
+				gl.bindFramebuffer(gl.FRAMEBUFFER, hdrFB);
+				gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, hdrTex, 0);
+				hdrOK = gl.checkFramebufferStatus(gl.FRAMEBUFFER) === gl.FRAMEBUFFER_COMPLETE;
+				gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+				if (progT.loc.u_tex) {
+					gl.useProgram(progT.p);
+					gl.uniform1i(progT.loc.u_tex, 0);
+				}
+			}
 			const arr = new Float32Array(HYG.length * 10);
 			for (let i = 0; i < HYG.length; i++) {
 				const st = HYG[i], o = i * 10;
@@ -47193,10 +47328,7 @@ void main(){
 				arr[o + 8] = st.pr || 0;
 				arr[o + 9] = st.pd || 0;
 			}
-			glN = HYG.length;
-			glBuf = gl.createBuffer();
-			gl.bindBuffer(gl.ARRAY_BUFFER, glBuf);
-			gl.bufferData(gl.ARRAY_BUFFER, arr, gl.STATIC_DRAW);
+			glBuf = mkFloatVAO(gl, arr);
 			const FACIDX = {
 				kepler: 0,
 				tess: 1,
@@ -47223,10 +47355,7 @@ void main(){
 				ha[o + 8] = FACIDX[st2.fac] !== void 0 ? FACIDX[st2.fac] : 7;
 				ha[o + 9] = st2.fy || 0;
 			}
-			glNH = STARS.length;
-			glBufH = gl.createBuffer();
-			gl.bindBuffer(gl.ARRAY_BUFFER, glBufH);
-			gl.bufferData(gl.ARRAY_BUFFER, ha, gl.STATIC_DRAW);
+			glBufH = mkFloatVAO(gl, ha);
 			const mkPts = (list, mag, cFn) => {
 				const a2 = new Float32Array(list.length * 10);
 				for (let i = 0; i < list.length; i++) {
@@ -47242,20 +47371,15 @@ void main(){
 					a2[o + 8] = 0;
 					a2[o + 9] = 0;
 				}
-				const b2 = gl.createBuffer();
-				gl.bindBuffer(gl.ARRAY_BUFFER, b2);
-				gl.bufferData(gl.ARRAY_BUFFER, a2, gl.STATIC_DRAW);
-				return b2;
+				return mkFloatVAO(gl, a2);
 			};
 			glBufP = mkPts(PULSARS, 4.6, () => [
 				150,
 				220,
 				255
 			]);
-			glNP = PULSARS.length;
 			glBufC = mkPts(CLUSTERS, 4.2, (q) => CLU_T[q.ct || 0].c);
-			glNC = CLUSTERS.length;
-			gl.useProgram(p);
+			gl.useProgram(progF.p);
 			const pal = [];
 			for (const k of [
 				"kepler",
@@ -47270,10 +47394,10 @@ void main(){
 				const c3 = FAC[k].c;
 				pal.push(c3[0] / 255, c3[1] / 255, c3[2] / 255);
 			}
-			gl.uniform3fv(glLoc.u_pal, pal);
+			gl.uniform3fv(progF.loc.u_pal, pal);
 			gl.clearColor(.027, .035, .07, 1);
 			gl.enable(gl.BLEND);
-			gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
+			gl.blendFunc(gl.ONE, gl.ONE);
 			glOK = true;
 			glResize();
 		} catch (e) {
@@ -47282,249 +47406,214 @@ void main(){
 	}
 	function glResize() {
 		if (!glOK || !glcv) return;
-		glcv.width = W * DPR;
-		glcv.height = H * DPR;
+		const raw = devicePixelRatio || 1, px = exactPx && raw <= 2.02 ? exactPx : null;
+		glcv.width = px ? px[0] : Math.round(W * Math.min(raw, 2));
+		glcv.height = px ? px[1] : Math.round(H * Math.min(raw, 2));
 		glcv.style.width = W + "px";
 		glcv.style.height = H + "px";
+		GLDPR = glcv.width / W;
 		GL.viewport(0, 0, glcv.width, glcv.height);
+		if (hdrOK) {
+			GL.bindTexture(GL.TEXTURE_2D, hdrTex);
+			GL.texImage2D(GL.TEXTURE_2D, 0, GL.RGBA16F, glcv.width, glcv.height, 0, GL.RGBA, GL.HALF_FLOAT, null);
+		}
+		dirty = true;
+	}
+	function glClearCanvas() {
+		if (!glOK) return;
+		GL.bindFramebuffer(GL.FRAMEBUFFER, null);
+		GL.clear(GL.COLOR_BUFFER_BIT);
 	}
 	function glStars() {
 		return glOK && S.gpu;
 	}
-	function gaiaColor(bprp) {
-		const t = 4600 * (1 / (.92 * bprp + 1.7) + 1 / (.92 * bprp + .62));
-		if (t >= 3e4) return [
-			155,
-			176,
-			255
-		];
-		if (t >= 1e4) return [
-			170,
-			191,
-			255
-		];
-		if (t >= 7500) return [
-			202,
-			215,
-			255
-		];
-		if (t >= 6e3) return [
-			248,
-			247,
-			255
-		];
-		if (t >= 5200) return [
-			255,
-			244,
-			232
-		];
-		if (t >= 3700) return [
-			255,
-			210,
-			161
-		];
-		return [
-			255,
-			181,
-			108
-		];
-	}
-	function buildGaia(bytes) {
-		if (!glOK || !bytes || bytes.length < 8) return;
-		const gl = GL, n = bytes.length / 8 | 0, D2R = Math.PI / 180;
-		const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-		const arr = new Float32Array(n * 10);
-		for (let i = 0; i < n; i++) {
-			const b = i * 8;
-			const ra = dv.getUint16(b, true) / 65535 * 360, dec = dv.getUint16(b + 2, true) / 65535 * 180 - 90;
-			const dist = dv.getUint16(b + 4, true) / 65535 * 100;
-			const mag = dv.getUint8(b + 6) / 255 * 28 - 2, bprp = dv.getUint8(b + 7) / 255 * 6 - 1;
-			const rr = ra * D2R, dr = dec * D2R, cd = Math.cos(dr), col = gaiaColor(bprp), o = i * 10;
-			arr[o] = cd * Math.cos(rr);
-			arr[o + 1] = cd * Math.sin(rr);
-			arr[o + 2] = Math.sin(dr);
-			arr[o + 3] = dist;
-			arr[o + 4] = mag;
-			arr[o + 5] = col[0] / 255;
-			arr[o + 6] = col[1] / 255;
-			arr[o + 7] = col[2] / 255;
-			arr[o + 8] = 0;
-			arr[o + 9] = 0;
+	const CLOUD_DEC = {
+		gaia: {
+			dist: 100,
+			mag: [28, -2],
+			mode: 1
+		},
+		gaiabig: {
+			dist: 150,
+			mag: [28, -2],
+			mode: 1
+		},
+		belt: {
+			dist: 120 * 484814e-11,
+			mag: [0, 5.6],
+			mode: 2,
+			pal: [
+				[
+					176,
+					166,
+					148
+				],
+				[
+					160,
+					148,
+					172
+				],
+				[
+					255,
+					150,
+					120
+				],
+				[
+					140,
+					172,
+					224
+				]
+			],
+			belt: 1
+		},
+		vars: {
+			dist: 2e4,
+			mag: [0, 5],
+			mode: 2,
+			pal: [[
+				255,
+				214,
+				120
+			], [
+				200,
+				160,
+				255
+			]]
+		},
+		ob: {
+			dist: 4e3,
+			mag: [0, 5.2],
+			mode: 0,
+			fix: [
+				168,
+				205,
+				255
+			]
+		},
+		web: {
+			dist: 6e8,
+			mag: [16, -5.2],
+			mode: 0,
+			fix: [
+				190,
+				200,
+				228
+			]
+		},
+		qso: {
+			dist: 13e9,
+			mag: [0, 5],
+			mode: 0,
+			fix: [
+				212,
+				150,
+				255
+			]
 		}
-		gaiaRaw = bytes;
-		gaiaRange = 100;
-		glNG = n;
-		glBufG = gl.createBuffer();
-		gl.bindBuffer(gl.ARRAY_BUFFER, glBufG);
-		gl.bufferData(gl.ARRAY_BUFFER, arr, gl.STATIC_DRAW);
-		dirty = true;
-		const el = document.getElementById("t-gaia");
-		if (el) el.querySelector("span").textContent = "Gaia stars (" + (n >= 1e3 ? (n / 1e3 | 0) + "k" : n) + " <100 pc)";
-	}
-	function buildCloudBuf(bytes, decode) {
+	};
+	function buildCloudBuf(bytes, key) {
 		if (!glOK || !bytes || bytes.length < 8) return null;
-		const gl = GL, n = bytes.length / 8 | 0, D2R = Math.PI / 180;
-		const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-		const arr = new Float32Array(n * 10);
-		for (let i = 0; i < n; i++) {
-			const b = i * 8;
-			const ra = dv.getUint16(b, true) / 65535 * 360, dec = dv.getUint16(b + 2, true) / 65535 * 180 - 90;
-			const d = decode(dv.getUint16(b + 4, true) / 65535, dv.getUint8(b + 6), dv.getUint8(b + 7));
-			const rr = ra * D2R, dr = dec * D2R, cd = Math.cos(dr), o = i * 10;
-			arr[o] = cd * Math.cos(rr);
-			arr[o + 1] = cd * Math.sin(rr);
-			arr[o + 2] = Math.sin(dr);
-			arr[o + 3] = d.dist;
-			arr[o + 4] = d.mag;
-			arr[o + 5] = d.col[0] / 255;
-			arr[o + 6] = d.col[1] / 255;
-			arr[o + 7] = d.col[2] / 255;
-			arr[o + 8] = 0;
-			arr[o + 9] = 0;
-		}
+		const gl = GL, n = bytes.length / 8 | 0;
 		const buf = gl.createBuffer();
 		gl.bindBuffer(gl.ARRAY_BUFFER, buf);
-		gl.bufferData(gl.ARRAY_BUFFER, arr, gl.STATIC_DRAW);
+		gl.bufferData(gl.ARRAY_BUFFER, bytes, gl.STATIC_DRAW);
+		const vao = gl.createVertexArray();
+		gl.bindVertexArray(vao);
+		const a = progU.attr.a_rec;
+		gl.enableVertexAttribArray(a);
+		gl.vertexAttribIPointer(a, 4, gl.UNSIGNED_SHORT, 8, 0);
+		gl.bindVertexArray(null);
 		dirty = true;
 		return {
-			buf,
-			n
+			vao,
+			n,
+			key
 		};
 	}
-	const BELT_COL = [
-		[
-			176,
-			166,
-			148
-		],
-		[
-			160,
-			148,
-			172
-		],
-		[
-			255,
-			150,
-			120
-		],
-		[
-			140,
-			172,
-			224
-		]
-	];
-	const BELT_DEC = (u, h, cls) => ({
-		dist: u * 120 * 484814e-11,
-		mag: 5.6,
-		col: BELT_COL[cls] || BELT_COL[0]
-	});
+	function cloudLabel(id, txt) {
+		const el = document.getElementById(id);
+		if (el) el.querySelector("span").textContent = txt;
+	}
+	function buildGaia(bytes) {
+		const r = buildCloudBuf(bytes, "gaia");
+		if (!r) return;
+		CL.G = r;
+		gaiaRaw = bytes;
+		gaiaRange = 100;
+		cloudLabel("t-gaia", "Gaia stars (" + (r.n >= 1e3 ? (r.n / 1e3 | 0) + "k" : r.n) + " <100 pc)");
+	}
+	function buildGaiaBig(bytes) {
+		const r = buildCloudBuf(bytes, "gaiabig");
+		if (!r) return;
+		CL.G = r;
+		gaiaRaw = bytes;
+		gaiaRange = 150;
+		cloudLabel("t-gaia", "Gaia stars (" + (r.n / 1e6).toFixed(1) + "M <150 pc)");
+	}
 	function buildBelt(bytes) {
 		if (!bytes || bytes.length < 16) return;
 		beltEpoch = new DataView(bytes.buffer, bytes.byteOffset, 8).getFloat64(0, true) || 0;
 		bytes = bytes.subarray(8);
-		const r = buildCloudBuf(bytes, BELT_DEC);
-		if (r) {
-			beltRaw = bytes;
-			glBufB = r.buf;
-			glNB = r.n;
-			const el = document.getElementById("t-belt");
-			if (el) el.querySelector("span").textContent = "Asteroid field (" + (r.n / 1e3 | 0) + "k)";
-		}
+		const r = buildCloudBuf(bytes, "belt");
+		if (!r) return;
+		CL.B = r;
+		beltRaw = bytes;
+		cloudLabel("t-belt", "Asteroid field (" + (r.n / 1e3 | 0) + "k)");
 	}
-	const VAR_COL = [[
-		255,
-		214,
-		120
-	], [
-		200,
-		160,
-		255
-	]];
-	const VAR_DEC = (u, m2, typ) => ({
-		dist: u * 2e4,
-		mag: 5,
-		col: VAR_COL[typ] || VAR_COL[0]
-	});
 	function buildVars(bytes) {
-		const r = buildCloudBuf(bytes, VAR_DEC);
-		if (r) {
-			glBufV = r.buf;
-			glNV = r.n;
-			const el = document.getElementById("t-var");
-			if (el) el.querySelector("span").textContent = "Variable stars (" + (r.n / 1e3 | 0) + "k Cepheids·RR Lyr)";
-		}
+		const r = buildCloudBuf(bytes, "vars");
+		if (!r) return;
+		CL.V = r;
+		varRaw = bytes;
+		cloudLabel("t-var", "Variable stars (" + (r.n / 1e3 | 0) + "k Cepheids·RR Lyr)");
 	}
-	const OB_DEC = (u, m2, x2) => ({
-		dist: u * 4e3,
-		mag: 5.2,
-		col: [
-			168,
-			205,
-			255
-		]
-	});
 	function buildOB(bytes) {
-		const r = buildCloudBuf(bytes, OB_DEC);
-		if (r) {
-			glBufO = r.buf;
-			glNO = r.n;
-			const el = document.getElementById("t-ob");
-			if (el) el.querySelector("span").textContent = "OB stars (" + (r.n / 1e3 | 0) + "k arm tracers)";
-		}
+		const r = buildCloudBuf(bytes, "ob");
+		if (!r) return;
+		CL.O = r;
+		obRaw = bytes;
+		cloudLabel("t-ob", "OB stars (" + (r.n / 1e3 | 0) + "k arm tracers)");
 	}
-	const WEB_DEC = (u, k, z) => ({
-		dist: u * 600 * 1e6,
-		mag: k / 255 * 16 - 5.2,
-		col: [
-			190,
-			200,
-			228
-		]
-	});
-	const QSO_DEC = (u, z, p) => ({
-		dist: u * 13e3 * 1e6,
-		mag: 5,
-		col: [
-			212,
-			150,
-			255
-		]
-	});
 	function buildWeb(bytes) {
-		const r = buildCloudBuf(bytes, WEB_DEC);
-		if (r) {
-			webRaw = bytes;
-			glBuf2m = r.buf;
-			glN2m = r.n;
-			const el = document.getElementById("t-web");
-			if (el) el.querySelector("span").textContent = "Cosmic web (" + (r.n / 1e3 | 0) + "k galaxies)";
-		}
+		const r = buildCloudBuf(bytes, "web");
+		if (!r) return;
+		CL.W = r;
+		webRaw = bytes;
+		cloudLabel("t-web", "Cosmic web (" + (r.n / 1e3 | 0) + "k galaxies)");
 	}
 	function buildQso(bytes) {
-		if (bytes && bytes.length / 8 <= glNQ) return;
-		const r = buildCloudBuf(bytes, QSO_DEC);
-		if (r) {
-			qsoRaw = bytes;
-			glBufQ = r.buf;
-			glNQ = r.n;
-			const el = document.getElementById("t-qso");
-			if (el) el.querySelector("span").textContent = "Quasars (" + (r.n / 1e3 | 0) + "k)";
-		}
+		if (bytes && CL.Q && bytes.length / 8 <= CL.Q.n) return;
+		const r = buildCloudBuf(bytes, "qso");
+		if (!r) return;
+		CL.Q = r;
+		qsoRaw = bytes;
+		cloudLabel("t-qso", "Quasars (" + (r.n / 1e3 | 0) + "k)");
 	}
-	const GAIABIG_DEC = (u, mg, bp) => ({
-		dist: u * 150,
-		mag: mg / 255 * 28 - 2,
-		col: gaiaColor(bp / 255 * 6 - 1)
-	});
-	function buildGaiaBig(bytes) {
-		const r = buildCloudBuf(bytes, GAIABIG_DEC);
-		if (r) {
-			gaiaRaw = bytes;
-			gaiaRange = 150;
-			glBufG = r.buf;
-			glNG = r.n;
-			const el = document.getElementById("t-gaia");
-			if (el) el.querySelector("span").textContent = "Gaia stars (" + (r.n / 1e6).toFixed(1) + "M <150 pc)";
+	function glRestoreClouds() {
+		if (!glOK) return;
+		if (gaiaRaw) {
+			const r = buildCloudBuf(gaiaRaw, gaiaRange > 100 ? "gaiabig" : "gaia");
+			if (r) CL.G = r;
+		}
+		if (beltRaw) {
+			const r = buildCloudBuf(beltRaw, "belt");
+			if (r) CL.B = r;
+		}
+		if (webRaw) {
+			const r = buildCloudBuf(webRaw, "web");
+			if (r) CL.W = r;
+		}
+		if (qsoRaw) {
+			const r = buildCloudBuf(qsoRaw, "qso");
+			if (r) CL.Q = r;
+		}
+		if (obRaw) {
+			const r = buildCloudBuf(obRaw, "ob");
+			if (r) CL.O = r;
+		}
+		if (varRaw) {
+			const r = buildCloudBuf(varRaw, "vars");
+			if (r) CL.V = r;
 		}
 	}
 	function loadExtragal() {
@@ -47586,79 +47675,73 @@ void main(){
 			}).catch(() => {});
 		} catch (e) {}
 	}
-	function glBind(gl, buf) {
-		gl.bindBuffer(gl.ARRAY_BUFFER, buf);
-		gl.enableVertexAttribArray(glLoc.a_dir);
-		gl.vertexAttribPointer(glLoc.a_dir, 3, gl.FLOAT, false, 40, 0);
-		gl.enableVertexAttribArray(glLoc.a_dist);
-		gl.vertexAttribPointer(glLoc.a_dist, 1, gl.FLOAT, false, 40, 12);
-		gl.enableVertexAttribArray(glLoc.a_mag);
-		gl.vertexAttribPointer(glLoc.a_mag, 1, gl.FLOAT, false, 40, 16);
-		gl.enableVertexAttribArray(glLoc.a_color);
-		gl.vertexAttribPointer(glLoc.a_color, 3, gl.FLOAT, false, 40, 20);
-		gl.enableVertexAttribArray(glLoc.a_pm);
-		gl.vertexAttribPointer(glLoc.a_pm, 2, gl.FLOAT, false, 40, 32);
+	function glShared(L) {
+		const gl = GL, foc = Math.min(W, H) * .62;
+		gl.uniform1f(L.u_yaw, S.yaw);
+		gl.uniform1f(L.u_pitch, S.pitch);
+		gl.uniform1f(L.u_camZ, S.camZ);
+		gl.uniform1f(L.u_foc, foc * GLDPR);
+		gl.uniform1f(L.u_dpr, GLDPR);
+		gl.uniform1f(L.u_LOG0, LOG0);
+		gl.uniform1f(L.u_KDEC, KDEC);
+		gl.uniform1f(L.u_REALK, REALK);
+		gl.uniform3f(L.u_ctr, ctr.x, ctr.y, ctr.z);
+		gl.uniform2f(L.u_res, glcv.width, glcv.height);
+		gl.uniform1i(L.u_real, S.realScale ? 1 : 0);
+		gl.uniform1f(L.u_maxPt, glMaxPt);
+		gl.uniform1f(L.u_alphaK, 1);
+	}
+	function drawCloud(h, cull, minPx, alphaK, beltDt) {
+		const gl = GL, L = progU.loc, d = CLOUD_DEC[h.key];
+		gl.uniform1f(L.u_cull, cull);
+		gl.uniform1f(L.u_minPx, minPx);
+		gl.uniform1f(L.u_alphaK, alphaK || 1);
+		gl.uniform1f(L.u_decDist, d.dist);
+		gl.uniform2f(L.u_decMag, d.mag[0], d.mag[1]);
+		gl.uniform1f(L.u_colMode, d.mode);
+		if (d.fix) gl.uniform3f(L.u_colFix, d.fix[0] / 255, d.fix[1] / 255, d.fix[2] / 255);
+		if (d.pal) {
+			const pa = [];
+			for (let i = 0; i < 4; i++) {
+				const c = d.pal[i] || d.pal[0];
+				pa.push(c[0] / 255, c[1] / 255, c[2] / 255);
+			}
+			gl.uniform3fv(L.u_decPal, pa);
+		}
+		gl.uniform1f(L.u_isBelt, d.belt ? 1 : 0);
+		gl.uniform1f(L.u_beltDt, d.belt ? beltDt || 0 : 0);
+		gl.bindVertexArray(h.vao);
+		gl.drawArrays(gl.POINTS, 0, h.n);
 	}
 	function glRender() {
-		const gl = GL, foc = Math.min(W, H) * .62;
+		const gl = GL;
+		if (hdrOK) gl.bindFramebuffer(gl.FRAMEBUFFER, hdrFB);
 		gl.clear(gl.COLOR_BUFFER_BIT);
-		gl.useProgram(glProg);
-		gl.uniform1f(glLoc.u_yaw, S.yaw);
-		gl.uniform1f(glLoc.u_pitch, S.pitch);
-		gl.uniform1f(glLoc.u_camZ, S.camZ);
-		gl.uniform1f(glLoc.u_foc, foc * DPR);
-		gl.uniform1f(glLoc.u_dpr, DPR);
-		gl.uniform1f(glLoc.u_LOG0, LOG0);
-		gl.uniform1f(glLoc.u_KDEC, KDEC);
-		gl.uniform1f(glLoc.u_REALK, REALK);
-		gl.uniform1f(glLoc.u_pmYears, S.pm ? S.pmYears : 0);
-		gl.uniform3f(glLoc.u_ctr, ctr.x, ctr.y, ctr.z);
-		gl.uniform2f(glLoc.u_res, glcv.width, glcv.height);
-		gl.uniform1i(glLoc.u_real, S.realScale ? 1 : 0);
-		gl.uniform1f(glLoc.u_isBelt, 0);
-		gl.uniform1f(glLoc.u_beltDt, 0);
-		gl.uniform1f(glLoc.u_hostMode, 0);
-		gl.uniform1f(glLoc.u_glow, 0);
-		gl.uniform1f(glLoc.u_alphaK, 1);
+		gl.useProgram(progU.p);
+		glShared(progU.loc);
 		if (solarA < .5) {
-			if (glBuf2m && S.web) {
-				gl.uniform1f(glLoc.u_cull, .05);
-				gl.uniform1f(glLoc.u_minPx, 1.1);
-				glBind(gl, glBuf2m);
-				gl.drawArrays(gl.POINTS, 0, glN2m);
-			}
-			if (glBufQ && S.qso) {
-				gl.uniform1f(glLoc.u_cull, .05);
-				gl.uniform1f(glLoc.u_minPx, 1.15);
-				glBind(gl, glBufQ);
-				gl.drawArrays(gl.POINTS, 0, glNQ);
-			}
+			if (CL.W && S.web) drawCloud(CL.W, .05, 1.1);
+			if (CL.Q && S.qso) drawCloud(CL.Q, .05, 1.15);
 		}
-		if (glBufB && S.belt && solarA > .05) {
-			gl.uniform1f(glLoc.u_cull, .03);
-			gl.uniform1f(glLoc.u_minPx, 1.05);
-			gl.uniform1f(glLoc.u_isBelt, 1);
-			gl.uniform1f(glLoc.u_beltDt, beltEpoch ? solarJD() - beltEpoch : 0);
-			glBind(gl, glBufB);
-			gl.drawArrays(gl.POINTS, 0, glNB);
-			gl.uniform1f(glLoc.u_isBelt, 0);
-			gl.uniform1f(glLoc.u_beltDt, 0);
+		if (CL.B && S.belt && solarA > .05) drawCloud(CL.B, .03, 1.05, 1, beltEpoch ? solarJD() - beltEpoch : 0);
+		if (CL.G && S.gaia) drawCloud(CL.G, .12, 1.2, hdrOK ? 1 : .85);
+		if (solarA < .5 && sysA < .5) {
+			if (CL.O && S.ob) drawCloud(CL.O, .05, 1, .8);
+			if (CL.V && S.vars) drawCloud(CL.V, .05, 1);
 		}
-		if (glBufG && S.gaia) {
-			gl.uniform1f(glLoc.u_cull, .12);
-			gl.uniform1f(glLoc.u_minPx, 1.2);
-			gl.uniform1f(glLoc.u_alphaK, .85);
-			glBind(gl, glBufG);
-			gl.drawArrays(gl.POINTS, 0, glNG);
-			gl.uniform1f(glLoc.u_alphaK, 1);
-		}
+		const L = progF.loc;
+		gl.useProgram(progF.p);
+		glShared(L);
+		gl.uniform1f(L.u_pmYears, S.pm ? S.pmYears : 0);
+		gl.uniform1f(L.u_hostMode, 0);
+		gl.uniform1f(L.u_glow, 0);
 		if (glBufH) {
-			gl.uniform1f(glLoc.u_hostMode, 1);
-			gl.uniform1f(glLoc.u_year, S.year);
-			gl.uniform1f(glLoc.u_facColor, S.facColor ? 1 : 0);
-			gl.uniform1f(glLoc.u_sizeOn, S.size ? 1 : 0);
-			gl.uniform1f(glLoc.u_veil, S.veil ? 1 : 0);
-			gl.uniform1f(glLoc.u_bnd, BND);
+			gl.uniform1f(L.u_hostMode, 1);
+			gl.uniform1f(L.u_year, S.year);
+			gl.uniform1f(L.u_facColor, S.facColor ? 1 : 0);
+			gl.uniform1f(L.u_sizeOn, S.size ? 1 : 0);
+			gl.uniform1f(L.u_veil, S.veil ? 1 : 0);
+			gl.uniform1f(L.u_bnd, BND);
 			const fv = [];
 			for (const k of [
 				"kepler",
@@ -47670,43 +47753,42 @@ void main(){
 				"ground",
 				"other"
 			]) fv.push(S.facHidden.has(k) ? 0 : 1);
-			gl.uniform1fv(glLoc.u_facVis, fv);
-			gl.uniform1f(glLoc.u_cull, 0);
-			gl.uniform1f(glLoc.u_minPx, 0);
-			glBind(gl, glBufH);
-			gl.drawArrays(gl.POINTS, 0, glNH);
-			gl.uniform1f(glLoc.u_hostMode, 0);
+			gl.uniform1fv(L.u_facVis, fv);
+			gl.uniform1f(L.u_cull, 0);
+			gl.uniform1f(L.u_minPx, 0);
+			gl.bindVertexArray(glBufH.vao);
+			gl.drawArrays(gl.POINTS, 0, glBufH.n);
+			gl.uniform1f(L.u_hostMode, 0);
 		}
 		if (solarA < .5 && sysA < .5) {
-			gl.uniform1f(glLoc.u_cull, .05);
-			gl.uniform1f(glLoc.u_minPx, 1);
+			gl.uniform1f(L.u_cull, .05);
+			gl.uniform1f(L.u_minPx, 1);
 			if (glBufP && S.psr) {
-				glBind(gl, glBufP);
-				gl.drawArrays(gl.POINTS, 0, glNP);
+				gl.bindVertexArray(glBufP.vao);
+				gl.drawArrays(gl.POINTS, 0, glBufP.n);
 			}
 			if (glBufC && S.oclu) {
-				glBind(gl, glBufC);
-				gl.drawArrays(gl.POINTS, 0, glNC);
-			}
-			if (glBufO && S.ob) {
-				gl.uniform1f(glLoc.u_alphaK, .8);
-				glBind(gl, glBufO);
-				gl.drawArrays(gl.POINTS, 0, glNO);
-				gl.uniform1f(glLoc.u_alphaK, 1);
-			}
-			if (glBufV && S.vars) {
-				glBind(gl, glBufV);
-				gl.drawArrays(gl.POINTS, 0, glNV);
+				gl.bindVertexArray(glBufC.vao);
+				gl.drawArrays(gl.POINTS, 0, glBufC.n);
 			}
 		}
-		gl.uniform1f(glLoc.u_cull, .34);
-		gl.uniform1f(glLoc.u_minPx, 0);
-		if (S.hyg) {
-			glBind(gl, glBuf);
-			gl.drawArrays(gl.POINTS, 0, glN);
-			gl.uniform1f(glLoc.u_glow, 1);
-			gl.drawArrays(gl.POINTS, 0, glN);
-			gl.uniform1f(glLoc.u_glow, 0);
+		gl.uniform1f(L.u_cull, .34);
+		gl.uniform1f(L.u_minPx, 0);
+		if (S.hyg && glBuf) {
+			gl.bindVertexArray(glBuf.vao);
+			gl.drawArrays(gl.POINTS, 0, glBuf.n);
+			gl.uniform1f(L.u_glow, 1);
+			gl.drawArrays(gl.POINTS, 0, glBuf.n);
+			gl.uniform1f(L.u_glow, 0);
+		}
+		gl.bindVertexArray(null);
+		if (hdrOK) {
+			gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+			gl.disable(gl.BLEND);
+			gl.useProgram(progT.p);
+			gl.bindTexture(gl.TEXTURE_2D, hdrTex);
+			gl.drawArrays(gl.TRIANGLES, 0, 3);
+			gl.enable(gl.BLEND);
 		}
 	}
 	let last = 0;
