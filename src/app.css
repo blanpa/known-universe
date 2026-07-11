@@ -335,3 +335,6 @@ input[type=range]::-webkit-slider-thumb{width:18px;height:18px}
 .ms-head{font-family:var(--ui);font-weight:650;letter-spacing:.02em;text-transform:none;color:var(--txt-1)}
 #mobsheet{background:rgba(10,13,22,.98)}
 @media (pointer:coarse){ .toggle,.colby{padding:11px 4px;font-size:14px} }
+/* panels placed inside the mobile sheet must flow, not float */
+.ms-body .panel{position:relative!important;top:auto!important;left:auto!important;right:auto!important;
+  width:auto!important;max-width:none!important;max-height:none!important;overflow:visible!important}

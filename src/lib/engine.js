@@ -8,6 +8,9 @@ function __run(){
 const DATA = window.__DATA__, META = DATA.meta, STARS = DATA.stars;
 const PC2LY = 3.261564;
 const cv = document.getElementById('sky'), ctx = cv.getContext('2d');
+// UI api FIRST: layer toggles + search stay usable even if a later boot step fails
+api.clickToggle=clickToggle; api.doSearch=doSearch; api.suggest=suggestList;
+api.toggleFac=toggleFac; api.facColorToggle=facColorToggle;
 let W=0,H=0,DPR=1,GLDPR=1;
 
 // ---- precompute direction + radius, normalization ----

@@ -4790,6 +4790,11 @@ function __run() {
 	const DATA = window.__DATA__, META = DATA.meta, STARS = DATA.stars;
 	const PC2LY = 3.261564;
 	const cv = document.getElementById("sky"), ctx = cv.getContext("2d");
+	api.clickToggle = clickToggle;
+	api.doSearch = doSearch;
+	api.suggest = suggestList;
+	api.toggleFac = toggleFac;
+	api.facColorToggle = facColorToggle;
 	let W = 0, H = 0, DPR = 1, GLDPR = 1;
 	const dists = STARS.map((s) => s.d).slice().sort((a, b) => a - b);
 	const R0 = dists[Math.floor(dists.length * .9)] || META.maxDist;
@@ -49773,6 +49778,18 @@ function App($$anchor) {
 }
 //#endregion
 //#region src/main.js
+function showErr(msg) {
+	let b = document.getElementById("errbar");
+	if (!b) {
+		b = document.createElement("div");
+		b.id = "errbar";
+		b.style.cssText = "position:fixed;top:0;left:0;right:0;z-index:9999;background:#7f1d1d;color:#fff;font:12px monospace;padding:8px 12px;white-space:pre-wrap;max-height:40vh;overflow:auto";
+		document.body.appendChild(b);
+	}
+	b.textContent += msg + "\n";
+}
+window.addEventListener("error", (e) => showErr("⚠ " + (e.message || e.type) + " @ " + (e.filename || "").split("/").pop() + ":" + e.lineno));
+window.addEventListener("unhandledrejection", (e) => showErr("⚠ promise: " + (e.reason && e.reason.message || e.reason)));
 mount(App, { target: document.getElementById("app") });
 UI.syncToggle = (id, on) => toggleState.update((m) => ({
 	...m,
