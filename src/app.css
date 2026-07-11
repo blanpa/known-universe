@@ -352,3 +352,10 @@ input[type=range]::-webkit-slider-thumb{width:18px;height:18px}
   #hud-tr .leg-row{font-size:10px}
   .chips{max-height:120px;overflow-y:auto}
 }
+/* bullet-proof geometry for everything inside the mobile sheet */
+#mobsheet .panel,#mobsheet .ctl-group,#mobsheet .toggle,#mobsheet .ctl-h{
+  position:static!important;display:block!important;visibility:visible!important;opacity:1!important;
+  transform:none!important;height:auto!important;min-height:0!important;width:auto!important;
+  max-height:none!important;overflow:visible!important;columns:auto!important}
+#mobsheet .toggle,#mobsheet .colby{display:flex!important;font-size:14px;padding:11px 4px}
+#mobsheet .ctl-h{display:flex!important}

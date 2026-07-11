@@ -49334,11 +49334,11 @@ function MwMap($$anchor) {
 }
 //#endregion
 //#region src/components/Controls.svelte
-var root$7 = /* @__PURE__ */ from_html(`<div class="panel" id="hud-tr"><div class="label">Star colour = temperature</div> <div class="spectrum"></div> <div class="spectrum-ax"><span>hot · 30,000 K</span><span>cool · 3,000 K</span></div> <div class="leg-row"><span style="display:flex;align-items:center;gap:5px;flex:0 0 auto"><span class="mk" style="width:4px;height:4px;background:var(--dim)"></span><span class="mk" style="width:11px;height:11px;background:var(--dim)"></span></span>Size = planet radius</div> <div class="leg-row"><span class="mk" style="background:#eafffb;box-shadow:0 0 8px #fff"></span>Sun — you are here</div> <div class="leg-row"><span class="mk" style="background:var(--cyan)"></span>discovered in the selected year</div> <div class="leg-row"><span class="mk" style="background:#e6473c;box-shadow:0 0 8px #e6473c"></span>beyond the neighbourhood</div> <div class="leg-row"><span class="mk" style="width:5px;height:5px;background:#cfe0ff"></span>real stars · HYG catalogue</div> <div class="leg-row" style="margin-top:13px;border-top:1px solid var(--line);padding-top:11px;flex-wrap:wrap"><span style="display:flex;gap:5px;flex:0 0 auto"><span class="mk" style="background:#c7dbff"></span> <span class="mk" style="background:#ffdeb0"></span> <span class="mk" style="background:#acc6ee"></span></span>Galaxies: spiral · elliptical · irregular</div> <div class="leg-row" style="flex-wrap:wrap"><span style="display:flex;gap:5px;flex:0 0 auto"><span class="mk" style="background:#ce966c"></span><span class="mk" style="background:#6ec4b8"></span> <span class="mk" style="background:#6e96e0"></span><span class="mk" style="background:#e2b484"></span></span>Planets: rocky · super-Earth · Neptune · gas giant</div> <div class="leg-row" style="flex-wrap:wrap"><span style="display:flex;gap:5px;flex:0 0 auto"><span class="mk" style="background:#96beff"></span><span class="mk" style="background:#ffe2a0"></span> <span class="mk" style="background:#ff7676"></span><span class="mk" style="background:#6ee6c6"></span></span>Deep-sky: open · globular · nebula · planetary</div></div>`);
+var root$7 = /* @__PURE__ */ from_html(`<div class="panel"><div class="label">Star colour = temperature</div> <div class="spectrum"></div> <div class="spectrum-ax"><span>hot · 30,000 K</span><span>cool · 3,000 K</span></div> <div class="leg-row"><span style="display:flex;align-items:center;gap:5px;flex:0 0 auto"><span class="mk" style="width:4px;height:4px;background:var(--dim)"></span><span class="mk" style="width:11px;height:11px;background:var(--dim)"></span></span>Size = planet radius</div> <div class="leg-row"><span class="mk" style="background:#eafffb;box-shadow:0 0 8px #fff"></span>Sun — you are here</div> <div class="leg-row"><span class="mk" style="background:var(--cyan)"></span>discovered in the selected year</div> <div class="leg-row"><span class="mk" style="background:#e6473c;box-shadow:0 0 8px #e6473c"></span>beyond the neighbourhood</div> <div class="leg-row"><span class="mk" style="width:5px;height:5px;background:#cfe0ff"></span>real stars · HYG catalogue</div> <div class="leg-row" style="margin-top:13px;border-top:1px solid var(--line);padding-top:11px;flex-wrap:wrap"><span style="display:flex;gap:5px;flex:0 0 auto"><span class="mk" style="background:#c7dbff"></span> <span class="mk" style="background:#ffdeb0"></span> <span class="mk" style="background:#acc6ee"></span></span>Galaxies: spiral · elliptical · irregular</div> <div class="leg-row" style="flex-wrap:wrap"><span style="display:flex;gap:5px;flex:0 0 auto"><span class="mk" style="background:#ce966c"></span><span class="mk" style="background:#6ec4b8"></span> <span class="mk" style="background:#6e96e0"></span><span class="mk" style="background:#e2b484"></span></span>Planets: rocky · super-Earth · Neptune · gas giant</div> <div class="leg-row" style="flex-wrap:wrap"><span style="display:flex;gap:5px;flex:0 0 auto"><span class="mk" style="background:#96beff"></span><span class="mk" style="background:#ffe2a0"></span> <span class="mk" style="background:#ff7676"></span><span class="mk" style="background:#6ee6c6"></span></span>Deep-sky: open · globular · nebula · planetary</div></div>`);
 var root_1$1 = /* @__PURE__ */ from_html(`<div><span></span><span class="sw"></span></div>`);
 var root_2$1 = /* @__PURE__ */ from_html(`<div><div class="ctl-h"></div> <!></div>`);
 var root_3 = /* @__PURE__ */ from_html(`<div><span class="cdot"></span> <span> </span><span class="cn"> </span></div>`);
-var root_4 = /* @__PURE__ */ from_html(`<!> <div class="panel" id="hud-ctl"><!> <div class="ctl-inst"><div class="label" style="margin-bottom:8px">Discovery instrument</div> <div><span>colour by it</span><span class="sw"></span></div> <div class="chips"></div></div> <div class="hint" style="font-size:10px;color:var(--dim);margin-top:6px;font-style:italic;line-height:1.6">Drag rotate · right-drag pan · WASD fly<br/>Scroll/pinch zoom to cursor · click to travel<br/>🧭 tour · 📏 measure · 🔗 share view</div></div>`, 1);
+var root_4 = /* @__PURE__ */ from_html(`<!> <div class="panel"><!> <div class="ctl-inst"><div class="label" style="margin-bottom:8px">Discovery instrument</div> <div><span>colour by it</span><span class="sw"></span></div> <div class="chips"></div></div> <div class="hint" style="font-size:10px;color:var(--dim);margin-top:6px;font-style:italic;line-height:1.6">Drag rotate · right-drag pan · WASD fly<br/>Scroll/pinch zoom to cursor · click to travel<br/>🧭 tour · 📏 measure · 🔗 share view</div></div>`, 1);
 function Controls($$anchor, $$props) {
 	push($$props, true);
 	const $toggleState = () => store_get(toggleState, "$toggleState", $$stores);
@@ -49549,7 +49549,9 @@ function Controls($$anchor, $$props) {
 	var fragment = root_4();
 	var node = first_child(fragment);
 	var consequent = ($$anchor) => {
-		append($$anchor, root$7());
+		var div = root$7();
+		template_effect(() => set_attribute(div, "id", legend() ? "hud-tr" : void 0));
+		append($$anchor, div);
 	};
 	if_block(node, ($$render) => {
 		if (legend()) $$render(consequent);
@@ -49609,7 +49611,10 @@ function Controls($$anchor, $$props) {
 	reset(div_5);
 	next(2);
 	reset(div_1);
-	template_effect(() => classes_2 = set_class(div_6, 1, "colby", null, classes_2, { on: $facColor() }));
+	template_effect(() => {
+		set_attribute(div_1, "id", legend() ? "hud-ctl" : void 0);
+		classes_2 = set_class(div_6, 1, "colby", null, classes_2, { on: $facColor() });
+	});
 	delegated("click", div_6, colby);
 	append($$anchor, fragment);
 	pop();
@@ -49653,7 +49658,7 @@ function TourPanel($$anchor) {
 //#endregion
 //#region src/components/MobileNav.svelte
 var root$1 = /* @__PURE__ */ from_html(`<!> <div class="ms-actions"><button>☉ Solar system</button> <button>🧭 Cosmic tour</button> <button>🔗 Share view</button> <button>⟲ Reset view</button></div>`, 1);
-var root_1 = /* @__PURE__ */ from_html(`<div id="mobsheet"><div class="ms-head"><span> </span> <button class="ms-x">✕ Close</button></div> <div class="ms-body"><!></div></div>`);
+var root_1 = /* @__PURE__ */ from_html(`<div id="mobsheet"><div class="ms-head"><span> <small style="opacity:.5">· b18:40</small></span> <button class="ms-x">✕ Close</button></div> <div class="ms-body"><!></div></div>`);
 var root_2 = /* @__PURE__ */ from_html(`<div id="mobbar"><div><span>🔍</span>Search</div> <div><span>☰</span>Layers</div> <div><span>🕐</span>Time</div> <div class="mb"><span>🧭</span>Tour</div></div> <!>`, 1);
 function MobileNav($$anchor, $$props) {
 	push($$props, true);
@@ -49689,7 +49694,8 @@ function MobileNav($$anchor, $$props) {
 		var div_5 = root_1();
 		var div_6 = child(div_5);
 		var span = child(div_6);
-		var text = child(span, true);
+		var text = child(span);
+		next();
 		reset(span);
 		var button = sibling(span, 2);
 		reset(div_6);
@@ -49725,7 +49731,7 @@ function MobileNav($$anchor, $$props) {
 		});
 		reset(div_7);
 		reset(div_5);
-		template_effect(() => set_text(text, get(mobPanel) === "layers" ? "☰ Layers" : "🔍 Search"));
+		template_effect(() => set_text(text, `${get(mobPanel) === "layers" ? "☰ Layers" : "🔍 Search"} `));
 		delegated("click", button, () => {
 			set(mobPanel, null);
 		});

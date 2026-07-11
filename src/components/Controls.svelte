@@ -14,7 +14,7 @@
 </script>
 
 {#if legend}
-<div class="panel" id="hud-tr">
+<div class="panel" id={legend ? "hud-tr" : undefined}>
     <div class="label">Star colour = temperature</div>
     <div class="spectrum"></div>
     <div class="spectrum-ax"><span>hot · 30,000 K</span><span>cool · 3,000 K</span></div>
@@ -42,7 +42,7 @@
   </div>
 {/if}
 
-<div class="panel" id="hud-ctl">
+<div class="panel" id={legend ? "hud-ctl" : undefined}>
   {#each groups as g, gi}
     <div class="ctl-group" class:closed={closed[gi]}>
       <div class="ctl-h" onclick={() => { closed[gi] = !closed[gi]; }}>{@html g.h}</div>
