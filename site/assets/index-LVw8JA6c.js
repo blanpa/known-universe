@@ -47354,9 +47354,18 @@ function __run() {
 				const p2 = [...ptrs.values()];
 				const d = Math.hypot(p2[0][0] - p2[1][0], p2[0][1] - p2[1][1]);
 				if (pinchD > 4 && d > 4) {
-					tgtCamZ *= pinchD / d;
-					const zmin = S.realScale ? 1e-7 : .9, zmax = S.realScale ? 6e7 : 16;
-					tgtCamZ = Math.max(zmin, Math.min(zmax, tgtCamZ));
+					let ax = (p2[0][0] + p2[1][0]) / 2, ay = (p2[0][1] + p2[1][1]) / 2;
+					if (S.pinned) {
+						const w = objWorld(S.pinned);
+						if (w) {
+							const pp = project(w[0], w[1], w[2]);
+							if (pp.depth > NEAR && pp.x > 0 && pp.x < W && pp.y > 0 && pp.y < H) {
+								ax = pp.x;
+								ay = pp.y;
+							}
+						}
+					}
+					zoomFactorAt(ax, ay, pinchD / d);
 				}
 				pinchD = d;
 			}
@@ -47446,8 +47455,11 @@ function __run() {
 		let d = delta === true ? -100 : delta === false ? 100 : delta * (deltaMode === 1 ? 33 : deltaMode === 2 ? 400 : 1);
 		d = Math.max(-200, Math.min(200, d));
 		const k = S.realScale ? .0026 : 88e-5;
+		zoomFactorAt(mx, my, Math.exp(k * d));
+	}
+	function zoomFactorAt(mx, my, f) {
 		const before = tgtCamZ;
-		tgtCamZ *= Math.exp(k * d);
+		tgtCamZ *= f;
 		const zmin = S.realScale ? 1e-7 : .9, zmax = S.realScale ? 6e7 : 16;
 		tgtCamZ = Math.max(zmin, Math.min(zmax, tgtCamZ));
 		if (tgtCamZ < before) {
