@@ -49255,6 +49255,7 @@ var searchMsg = writable("");
 var facList = writable([]);
 var facHidden = writable(/* @__PURE__ */ new Set());
 var facColor = writable(false);
+var timeBar = writable(false);
 //#endregion
 //#region src/components/SearchBox.svelte
 var root$9 = /* @__PURE__ */ from_html(`<div> <span> </span></div>`);
@@ -49341,6 +49342,7 @@ var root_3 = /* @__PURE__ */ from_html(`<div><span class="cdot"></span> <span> <
 var root_4 = /* @__PURE__ */ from_html(`<!> <div class="panel"><!> <div class="ctl-inst"><div class="label" style="margin-bottom:8px">Discovery instrument</div> <div><span>colour by it</span><span class="sw"></span></div> <div class="chips"></div></div> <div class="hint" style="font-size:10px;color:var(--dim);margin-top:6px;font-style:italic;line-height:1.6">Drag rotate · right-drag pan · WASD fly<br/>Scroll/pinch zoom to cursor · click to travel<br/>🧭 tour · 📏 measure · 🔗 share view</div></div>`, 1);
 function Controls($$anchor, $$props) {
 	push($$props, true);
+	const $timeBar = () => store_get(timeBar, "$timeBar", $$stores);
 	const $toggleState = () => store_get(toggleState, "$toggleState", $$stores);
 	const $labels = () => store_get(labels, "$labels", $$stores);
 	const $facColor = () => store_get(facColor, "$facColor", $$stores);
@@ -49526,12 +49528,22 @@ function Controls($$anchor, $$props) {
 					"id": "t-rings",
 					"label": "Distance rings",
 					"on": true
+				},
+				{
+					"id": "t-timebar",
+					"label": "Time bar",
+					"on": false,
+					"ui": 1
 				}
 			]
 		}
 	];
 	let closed = proxy({});
 	function tgl(id) {
+		if (id === "t-timebar") {
+			timeBar.update((v) => !v);
+			return;
+		}
 		if (api.clickToggle) api.clickToggle(id);
 	}
 	function chip(k) {
@@ -49572,7 +49584,7 @@ function Controls($$anchor, $$props) {
 			reset(span);
 			next();
 			reset(div_4);
-			template_effect(() => classes_1 = set_class(div_4, 1, "toggle", null, classes_1, { on: $toggleState()[get(d).id] ?? get(d).on }));
+			template_effect(() => classes_1 = set_class(div_4, 1, "toggle", null, classes_1, { on: get(d).ui ? $timeBar() : $toggleState()[get(d).id] ?? get(d).on }));
 			delegated("click", div_4, () => tgl(get(d).id));
 			append($$anchor, div_4);
 		});
@@ -49662,17 +49674,18 @@ var root_1 = /* @__PURE__ */ from_html(`<div id="mobsheet"><div class="ms-head">
 var root_2 = /* @__PURE__ */ from_html(`<div id="mobbar"><div><span>🔍</span>Search</div> <div><span>☰</span>Layers</div> <div><span>🕐</span>Time</div> <div class="mb"><span>🧭</span>Tour</div></div> <!>`, 1);
 function MobileNav($$anchor, $$props) {
 	push($$props, true);
+	const $timeBar = () => store_get(timeBar, "$timeBar", $$stores);
+	const [$$stores, $$cleanup] = setup_stores();
 	let mobPanel = /* @__PURE__ */ state(null);
-	let showTime = /* @__PURE__ */ state(false);
 	function openSheet(w) {
 		set(mobPanel, get(mobPanel) === w ? null : w, true);
 	}
 	function toggleTime() {
-		set(showTime, !get(showTime));
+		timeBar.update((v) => !v);
 		set(mobPanel, null);
 	}
 	user_effect(() => {
-		document.body.classList.toggle("mob-time", get(showTime));
+		document.body.classList.toggle("show-time", $timeBar());
 	});
 	function press(id) {
 		const b = document.getElementById(id);
@@ -49743,7 +49756,7 @@ function MobileNav($$anchor, $$props) {
 	template_effect(() => {
 		classes = set_class(div_1, 1, "mb", null, classes, { active: get(mobPanel) === "search" });
 		classes_1 = set_class(div_2, 1, "mb", null, classes_1, { active: get(mobPanel) === "layers" });
-		classes_2 = set_class(div_3, 1, "mb", null, classes_2, { active: get(showTime) });
+		classes_2 = set_class(div_3, 1, "mb", null, classes_2, { active: $timeBar() });
 	});
 	delegated("click", div_1, () => openSheet("search"));
 	delegated("click", div_2, () => openSheet("layers"));
@@ -49751,6 +49764,7 @@ function MobileNav($$anchor, $$props) {
 	delegated("click", div_4, () => press("tourBtn"));
 	append($$anchor, fragment);
 	pop();
+	$$cleanup();
 }
 delegate(["click"]);
 //#endregion

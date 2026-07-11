@@ -6,3 +6,4 @@ export const searchMsg = writable('');            // search/measure/share feedba
 export const facList = writable([]);              // discovery-instrument chips
 export const facHidden = writable(new Set());
 export const facColor = writable(false);
+export const timeBar = writable(false);       // time bar hidden unless enabled in options
