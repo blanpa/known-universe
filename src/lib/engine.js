@@ -432,6 +432,7 @@ function blobSprite(r,g,b,a0,a1){
 }
 function render(){
   cx=W/2; cy=H/2; foc=Math.min(W,H)*0.62;
+  gwOnScreen=false;
   ctx.clearRect(0,0,W,H);
   // subtle vignette background (gradient cached per canvas size)
   if(!_vig||_vigW!==W||_vigH!==H){
@@ -452,6 +453,7 @@ function render(){
     const sd=Math.hypot(camPos[0]-focusSysW[0],camPos[1]-focusSysW[1],camPos[2]-focusSysW[2]);
     sysA=lodA(sd, 8e-6, 8e-4);
   }
+  calcLens();                                    // Sgr A* lensing (needs camBasis + foc)
 
   if(S.rings) drawRings();
   if(S.veil) drawVeilSphere();
@@ -539,6 +541,14 @@ function render(){
   // galaxies in front of the local cloud, on top
   drawGalaxies(frontG);
   if(solarA<0.5 && sysA<0.5){ drawConstellations(); drawDSO(); drawPulsars(); drawClusters(); if(S.mw3d) drawGalaxyModel(); drawMW(); drawS2(); if(S.edge) drawEdge(); }
+  if(lensPar && lensPar.e>12){                   // Einstein ring marker around Sgr A*
+    ctx.beginPath(); ctx.arc(lensPar.x,lensPar.y,lensPar.e,0,6.2832);
+    ctx.setLineDash([2,6]); ctx.strokeStyle='rgba(255,215,150,0.35)'; ctx.lineWidth=1;
+    ctx.stroke(); ctx.setLineDash([]);
+    ctx.font='9px ui-monospace,monospace'; ctx.fillStyle='rgba(255,215,150,0.6)';
+    ctx.fillText('Einstein ring · lensing exaggerated ×'+LENS_EXAG,
+      lensPar.x+lensPar.e*0.72, lensPar.y-lensPar.e*0.72);
+  }
   if(S.galaxies && sp.depth>NEAR && solarA<0.5){
     ctx.globalAlpha=1-solarA*2;
     ctx.font='10px ui-monospace,monospace'; ctx.fillStyle='rgba(233,237,250,.55)';
@@ -859,6 +869,7 @@ function drawSolar(alpha){
       });
     }
   }
+  if(S.lag) drawLagrange(A);
   // belt labels
   const bl=project(orbitR(2.7),0,0);
   if(bl.depth>NEAR){ ctx.font='9px ui-monospace,monospace'; ctx.fillStyle=`rgba(170,158,130,${A*0.6})`;
@@ -927,6 +938,76 @@ function drawSmall(A, jd){
     solarProj.push({o,x:p.x,y:p.y,px:Math.max(6,px)});
     if((A>0.5||sel)&&(!bulk||sel)){ ctx.font=(sel?'10px':'8.5px')+' ui-monospace,monospace';
       ctx.fillStyle=`rgba(${c[0]},${c[1]},${c[2]},${sel?1:0.72})`; ctx.fillText(o.n, p.x+px+3, p.y+3); }
+  }
+}
+
+// ---- gravity structure: Lagrange points + Hill spheres (real, time-aware) ----
+// mass ratio m = M_planet/M_sun → Hill radius r_H = r·(m/3)^(1/3); the L-points
+// derive from the same ratio and the planets' true current positions.
+const MASS_RATIO={Mercury:1.66e-7,Venus:2.447e-6,Earth:3.003e-6,Mars:3.227e-7,
+  Jupiter:9.545e-4,Saturn:2.858e-4,Uranus:4.366e-5,Neptune:5.151e-5};
+const LAG_NOTE={
+  'L1 · Sun–Earth':'sunward · SOHO & DSCOVR station here',
+  'L2 · Sun–Earth':'anti-sunward · JWST & Gaia orbit here',
+  'L3 · Sun–Earth':'forever hidden behind the Sun',
+  'L4 · Sun–Earth':'stable · leads Earth by 60°',
+  'L5 · Sun–Earth':'stable · trails Earth by 60°',
+  'L4 · Sun–Jupiter':'the "Greek camp" — thousands of trojans gather here',
+  'L5 · Sun–Jupiter':'the "Trojan camp" — thousands of trojans gather here'};
+const LAG_PTS=[];   // persistent objects so hover/pin identity survives frames
+for(const [pl,pts] of [['Earth',['L1','L2','L3','L4','L5']],['Jupiter',['L4','L5']]])
+  for(const L of pts) LAG_PTS.push({n:L+' · Sun–'+pl, lp:true, pl, L,
+    kind:'Lagrange point', note:LAG_NOTE[L+' · Sun–'+pl]});
+function drawLagrange(A){
+  const byName={}; for(const b of SOLAR_BODIES) byName[b.n]=b;
+  // Hill spheres: dashed circle in the ecliptic plane, TRUE radius — sub-pixel
+  // from afar (as in reality), grows into view as you zoom toward a planet
+  for(const b of SOLAR_BODIES){
+    const m=MASS_RATIO[b.n]; if(!m||!b._e) continue;
+    const rH=b._r*Math.cbrt(m/3);
+    const pc=project.apply(null,eclToWorld(b._e[0],b._e[1],b._e[2]));
+    if(pc.depth<=NEAR) continue;
+    const edge=project.apply(null,eclToWorld(b._e[0]+rH,b._e[1],b._e[2]));
+    const rp=Math.hypot(edge.x-pc.x,edge.y-pc.y);
+    if(rp<6) continue;                           // invisible at this zoom
+    ctx.beginPath(); let first=true;
+    for(let k=0;k<=48;k++){ const th=k/48*6.2832;
+      const w=eclToWorld(b._e[0]+Math.cos(th)*rH, b._e[1]+Math.sin(th)*rH, b._e[2]);
+      const p=project(w[0],w[1],w[2]);
+      if(p.depth<=NEAR){first=true;continue;}
+      if(first){ctx.moveTo(p.x,p.y);first=false;}else ctx.lineTo(p.x,p.y);
+    }
+    ctx.strokeStyle=`rgba(150,205,255,${A*0.4})`; ctx.lineWidth=1;
+    ctx.setLineDash([3,5]); ctx.stroke(); ctx.setLineDash([]);
+    if(rp>30){ ctx.font='9px ui-monospace,monospace'; ctx.fillStyle=`rgba(150,205,255,${A*0.7})`;
+      const km=rH*149.6;                         // AU → million km
+      ctx.fillText('Hill sphere · '+(km<1?Math.round(km*1000).toLocaleString('en-US')+',000 km':km.toFixed(1)+' M km'),
+        pc.x+rp*0.72, pc.y-rp*0.72); }
+  }
+  // Lagrange points of the Sun–Earth and Sun–Jupiter systems
+  const c60=0.5, s60=0.8660254;
+  for(const q of LAG_PTS){
+    const b=byName[q.pl]; if(!b||!b._e){ q._e=null; continue; }
+    const m=MASS_RATIO[q.pl], f=Math.cbrt(m/3), e=b._e;
+    q._e = q.L==='L1' ? [e[0]*(1-f),e[1]*(1-f),e[2]*(1-f)]
+         : q.L==='L2' ? [e[0]*(1+f),e[1]*(1+f),e[2]*(1+f)]
+         : q.L==='L3' ? [-e[0]*(1+7*m/12),-e[1]*(1+7*m/12),-e[2]*(1+7*m/12)]
+         : q.L==='L4' ? [e[0]*c60-e[1]*s60, e[0]*s60+e[1]*c60, e[2]]   // 60° ahead
+         :              [e[0]*c60+e[1]*s60,-e[0]*s60+e[1]*c60, e[2]];  // 60° behind
+    const w=eclToWorld(q._e[0],q._e[1],q._e[2]), p=project(w[0],w[1],w[2]);
+    if(p.depth<=NEAR) continue;
+    if(q.L==='L1'||q.L==='L2'){                  // hug the planet — draw only when resolvable
+      const pp=project.apply(null,eclToWorld(e[0],e[1],e[2]));
+      if(pp.depth>NEAR && Math.hypot(p.x-pp.x,p.y-pp.y)<13) continue;
+    }
+    const sel=(q===S.hover||q===S.pinned), r=sel?4.5:3;
+    ctx.beginPath(); ctx.moveTo(p.x,p.y-r); ctx.lineTo(p.x+r,p.y); ctx.lineTo(p.x,p.y+r); ctx.lineTo(p.x-r,p.y); ctx.closePath();
+    ctx.strokeStyle=`rgba(196,170,255,${A*0.9})`; ctx.lineWidth=1.1; ctx.stroke();
+    if(sel){ ctx.beginPath(); ctx.arc(p.x,p.y,r+5,0,6.2832);
+      ctx.strokeStyle='rgba(79,214,200,.9)'; ctx.lineWidth=1.1; ctx.stroke(); }
+    solarProj.push({o:q,x:p.x,y:p.y,px:7});
+    ctx.font='9px ui-monospace,monospace'; ctx.fillStyle=`rgba(196,170,255,${A*(sel?1:0.78)})`;
+    ctx.fillText(q.L+(q.pl==='Jupiter'?' · Jupiter':''), p.x+r+3, p.y+3);
   }
 }
 
@@ -1021,6 +1102,7 @@ function drawConstellations(){
 let dsoProj=[];
 let pulsarProj=[];
 let cluProj=[];
+let gwOnScreen=false;    // a GW event is visible → frame loop keeps the ripples moving
 function drawDSO(){
   dsoProj.length=0; if(!S.dso) return;
   for(const o of DSO){
@@ -1032,6 +1114,13 @@ function drawDSO(){
     const sel=(o===S.hover||o===S.pinned);
     o._sx=p.x; o._sy=p.y;
     ctx.drawImage(blobSprite(c[0],c[1],c[2],0.62,0.24), p.x-sz*1.9, p.y-sz*1.9, sz*3.8, sz*3.8);
+    if(o.t==='GW'){                              // spacetime ripples spreading from the merger
+      gwOnScreen=true;
+      const ph=(performance.now()/2600)%1;
+      for(let k=0;k<3;k++){ const f=(ph+k/3)%1, rr=sz*(0.9+f*3.6);
+        ctx.beginPath(); ctx.arc(p.x,p.y,rr,0,6.2832);
+        ctx.strokeStyle=`rgba(130,255,220,${(1-f)*0.5})`; ctx.lineWidth=1.2; ctx.stroke(); }
+    }
     if(o.t==='GC'||o.t==='OC'){                 // clusters: a sprinkle of stars
       const n=o.t==='GC'?10:6;
       for(let k=0;k<n;k++){ const a=k*2.399, rr=sz*(0.25+0.6*(((k*7)%5)/5));
@@ -1148,6 +1237,24 @@ function drawEdge(){
   const lp=project(R,0,0);
   if(lp.depth>NEAR){ ctx.font='9px ui-monospace,monospace'; ctx.fillStyle='rgba(140,165,255,0.5)';
     ctx.fillText('observable universe · CMB ~46 Gly', lp.x+5, lp.y); }
+}
+// ---- gravitational lensing at Sgr A* (GPU point clouds bend around the BH) ----
+// Einstein angle θE = √(2·r_s/D) for the camera's TRUE distance D to Sgr A*;
+// drawn ×300 exaggerated (the real ring is arcsecond-scale even up close).
+// Deflection itself happens in the shared vertex shader (u_lens / u_lensOn).
+const LENS_EXAG=300, SGRA_RS=4.1e-7;             // Schwarzschild radius of Sgr A* in pc
+let lensPar=null;
+function calcLens(){
+  lensPar=null; if(!S.lens) return;
+  const R=scale(SGRA.d);
+  const p=project(SGRA._dir[0]*R,SGRA._dir[1]*R,SGRA._dir[2]*R);
+  if(p.depth<=NEAR) return;
+  const c=camPhysPos();
+  const D=Math.max(1e-9,Math.hypot(SGRA._dir[0]*SGRA.d-c[0],
+    SGRA._dir[1]*SGRA.d-c[1], SGRA._dir[2]*SGRA.d-c[2]));
+  const px=foc*Math.sqrt(2*SGRA_RS/D)*LENS_EXAG;
+  if(px<0.7) return;                             // too far away — no visible effect
+  lensPar={x:p.x,y:p.y,e:Math.min(px,Math.min(W,H)*0.22),depth:p.depth};
 }
 // ---- Milky Way: galactic plane band + Sgr A* ----
 let sgraScreen=null;
@@ -1380,6 +1487,19 @@ function showInfo(s){
     h+=links([{t:'ATNF',u:'https://www.atnf.csiro.au/research/pulsar/psrcat/'},
       {t:'SIMBAD',u:`https://simbad.cds.unistra.fr/simbad/sim-coo?Coord=${s[0].toFixed(4)}%20${s[1].toFixed(4)}&Radius=5&Radius.unit=arcmin`}]);
     h+=`<div class="hint">${S.pinned?'Click empty space to release':'Click to pin'}</div>`;
+    el.innerHTML=h; el.classList.add('show'); return;
+  }
+  if(s.lp){                // ---- Lagrange point ----
+    const rAU=s._e?Math.hypot(s._e[0],s._e[1],s._e[2]):0;
+    let h=`<div class="nm"><span class="mk" style="color:#c4aaff;background:#c4aaff"></span>${s.n}</div>
+      <div class="rows">
+        <div class="r"><span class="rk">Type</span><span class="rv">Lagrange point · gravity balance</span></div>
+        <div class="r"><span class="rk">System</span><span class="rv">Sun–${s.pl}</span></div>
+        <div class="r"><span class="rk">Distance</span><span class="rv">${rAU.toFixed(2)} AU from the Sun</span></div>
+        ${s.note?`<div class="r"><span class="rk">Note</span><span class="rv">${s.note}</span></div>`:''}
+      </div>`;
+    h+=links([{t:'Wikipedia',u:'https://en.wikipedia.org/wiki/Lagrange_point'}]);
+    h+=`<div class="hint">where the Sun's and ${s.pl}'s gravity balance the orbit</div>`;
     el.innerHTML=h; el.classList.add('show'); return;
   }
   if(s.rk!==undefined){   // ---- solar-system body ----
@@ -1673,7 +1793,7 @@ cv.addEventListener('pointerup',e=>{
 });
 // keyboard free-flight (WASD / arrows, R·F up·down)
 addEventListener('keydown',e=>{
-  if(document.activeElement===searchEl) return;
+  const ae=document.activeElement; if(ae&&ae.tagName==='INPUT') return;
   const k=e.key.toLowerCase();
   if('wasdrf'.includes(k)||e.key.startsWith('Arrow')){ keys.add(k==='arrowup'?'w':k==='arrowdown'?'s':k==='arrowleft'?'a':k==='arrowright'?'d':k); e.preventDefault(); }
 });
@@ -1735,10 +1855,11 @@ bindToggle('t-mw3d','mw3d');
 bindToggle('t-psr','psr');
 bindToggle('t-oclu','oclu');
 // real ↔ logarithmic scale — remap camera to keep the same physical framing
-document.getElementById('t-real').addEventListener('click',()=>{
-  const physCam=invScale(S.camZ);
-  const cm=Math.hypot(ctr.x,ctr.y,ctr.z), physCtr=cm>0?invScale(cm):0;
-  S.realScale=!S.realScale; syncToggle('t-real',S.realScale);
+bindToggle('t-real','realScale',()=>{
+  const wasReal=!S.realScale;                       // clickToggle already flipped S
+  const inv=v=> wasReal ? v/REALK : Math.pow(10, v/KDEC + LOG0);
+  const physCam=inv(S.camZ);
+  const cm=Math.hypot(ctr.x,ctr.y,ctr.z), physCtr=cm>0?inv(cm):0;
   S.camZ=tgtCamZ=scale(physCam);
   if(cm>0){ const nm=scale(physCtr)/cm; ctr.x*=nm;ctr.y*=nm;ctr.z*=nm;
     tgtCtr.x=ctr.x;tgtCtr.y=ctr.y;tgtCtr.z=ctr.z; }
@@ -1759,9 +1880,8 @@ const pmTime=document.getElementById('pmTime'), pmVal=document.getElementById('p
 function setPmVal(){ const y=S.pmYears;
   pmVal.textContent = y===0?'today':(y>0?'+':'−')+Math.abs(y).toLocaleString('en-US')+' years';
   pmTime.style.setProperty('--pct',((y+50000)/100000*100)+'%'); }
-document.getElementById('t-pm').addEventListener('click',()=>{
-  S.pm=!S.pm; syncToggle('t-pm',S.pm);
-  document.getElementById('hud-pm').style.display=S.pm?'block':'none';
+bindToggle('t-pm','pm',()=>{
+  const el=document.getElementById('hud-pm'); if(el) el.style.display=S.pm?'block':'none';
   if(!S.pm){ S.pmYears=0; pmTime.value=0; setPmVal(); }
 });
 pmTime.addEventListener('input',e=>{ S.pmYears=+e.target.value; setPmVal(); });
@@ -1817,9 +1937,9 @@ document.getElementById('resetBtn').addEventListener('click',()=>{
 });
 
 // instrument colour switch + filter chips
-document.getElementById('t-fac').addEventListener('click',e=>{
-  S.facColor=!S.facColor; e.currentTarget.classList.toggle('on',S.facColor);
-});
+function facColorToggle(){ S.facColor=!S.facColor; if(UI.facColor) UI.facColor(S.facColor); dirty=true; return S.facColor; }
+{ const tf=document.getElementById('t-fac');
+  if(tf&&tf.addEventListener) tf.addEventListener('click',e=>{ facColorToggle(); if(e.currentTarget.classList) e.currentTarget.classList.toggle('on',S.facColor); }); }
 // fly into / out of the solar system — pure camera move along the unified scale
 const solarBtn=document.getElementById('solarBtn');
 function enterSolar(){ S.pinned=null; S.hover=null; tgtCamZ=camSolar(); tgtPitch=-0.5;
@@ -1843,8 +1963,13 @@ function syncSolarBtn(){
 }
 
 const facCount={}; for(const s of STARS) facCount[s.fac]=(facCount[s.fac]||0)+1;
+const facList=Object.keys(FAC).filter(k=>facCount[k]).sort((a,b)=>facCount[b]-facCount[a])
+  .map(k=>({k, l:FAC[k].l, c:FAC[k].c, n:facCount[k]}));
+function toggleFac(k){ if(S.facHidden.has(k)) S.facHidden.delete(k); else S.facHidden.add(k);
+  dirty=true; return S.facHidden.has(k); }
+if(UI.fac) UI.fac(facList);
 const facEl=document.getElementById('facChips');
-Object.keys(FAC).filter(k=>facCount[k]).sort((a,b)=>facCount[b]-facCount[a]).forEach(k=>{
+if(!UI.fac&&facEl&&facEl.appendChild) Object.keys(FAC).filter(k=>facCount[k]).sort((a,b)=>facCount[b]-facCount[a]).forEach(k=>{
   const f=FAC[k], div=document.createElement('div');
   div.className='chip'; div.dataset.k=k;
   div.innerHTML=`<span class="cdot" style="background:rgb(${f.c[0]},${f.c[1]},${f.c[2]})"></span>`+
@@ -1883,7 +2008,10 @@ function startPlay(){
 document.getElementById('play').addEventListener('click',()=>{playing?stopPlay():startPlay();});
 
 // search
-const searchEl=document.getElementById('search'), searchMsg=document.getElementById('searchMsg');
+let _lastMsg='';
+const searchMsg={ set textContent(v){ _lastMsg=v; if(UI.msg) UI.msg(v);
+    const el=document.getElementById('searchMsg'); if(el&&!UI.msg) el.textContent=v; },
+  get textContent(){ return _lastMsg; } };
 function doSearch(q){
   q=q.trim().toLowerCase(); if(!q){searchMsg.textContent='';return;}
   const eq=s=>s&&s.toLowerCase()===q, has=s=>s&&s.toLowerCase().includes(q);
@@ -1972,8 +2100,6 @@ function focusOnHyg(s){
   S.pinned=s; S.focusStar=null; focusSys=null;
   const dr=compress(s.d); aim(s.dx*dr,s.dy*dr,s.dz*dr, scale(s.d*0.2));
 }
-searchEl.addEventListener('keydown',e=>{if(e.key==='Enter'){doSearch(searchEl.value);sugEl.style.display='none';}if(e.key==='Escape')sugEl.style.display='none';});
-searchEl.addEventListener('input',()=>{showSuggest(searchEl.value);if(searchEl.value.trim().length>2)doSearch(searchEl.value);});
 
 // ---- solar-system time travel ----
 const solTime=document.getElementById('solTime'), solDate=document.getElementById('solDate'),
@@ -1997,6 +2123,7 @@ setSolDate();
 const GL_UNI=`
 uniform float u_yaw,u_pitch,u_camZ,u_foc,u_dpr,u_LOG0,u_KDEC,u_REALK,u_cull,u_minPx,u_alphaK,u_maxPt;
 uniform vec3 u_ctr; uniform vec2 u_res; uniform bool u_real;
+uniform vec4 u_lens; uniform float u_lensOn;   // xy: lens device px · z: Einstein radius px · w: lens depth
 out vec3 v_color; out float v_alpha;
 float scl(float pc){ if(u_real) return pc*u_REALK; return max(0.0,(log(pc)/2.302585093 - u_LOG0)*u_KDEC); }
 `;
@@ -2024,6 +2151,12 @@ function glTail(host){ return `
   }`:''}
   float dvx=u_res.x*0.5 + u_foc*x1/depth;
   float dvy=u_res.y*0.5 - u_foc*y2/depth;
+  if(u_lensOn>0.5 && depth>u_lens.w){            // gravitational lens: sources behind
+    vec2 lv=vec2(dvx,dvy)-u_lens.xy;             // Sgr A* deflect outward (point-mass
+    float lr=max(length(lv),1e-3);               // lens equation, exaggerated scale)
+    float lm=0.5*(lr+sqrt(lr*lr+4.0*u_lens.z*u_lens.z))/lr;
+    dvx=u_lens.x+lv.x*lm; dvy=u_lens.y+lv.y*lm;
+  }
   gl_Position=vec4(dvx/u_res.x*2.0-1.0, 1.0-dvy/u_res.y*2.0, 0.0, 1.0);
   gl_PointSize=min(px*u_dpr, u_maxPt);
   v_color=col;
@@ -2259,7 +2392,8 @@ function buildCloudBuf(bytes,key){   // raw bytes -> GPU verbatim (uvec4 attribu
   gl.bindVertexArray(null);
   dirty=true; return {vao,n,key};
 }
-function cloudLabel(id,txt){ const el=document.getElementById(id); if(el) el.querySelector('span').textContent=txt; }
+function cloudLabel(id,txt){ if(UI.setLabel){ UI.setLabel(id,txt); return; }
+  const el=document.getElementById(id); if(el&&el.querySelector) el.querySelector('span').textContent=txt; }
 function buildGaia(bytes){ const r=buildCloudBuf(bytes,'gaia'); if(!r) return;
   CL.G=r; gaiaRaw=bytes; gaiaRange=100;
   cloudLabel('t-gaia','Gaia stars ('+(r.n>=1000?((r.n/1000)|0)+'k':r.n)+' <100 pc)'); }
@@ -2328,6 +2462,9 @@ function glShared(L){                // per-frame camera/scale uniforms, per pro
   gl.uniform2f(L.u_res,glcv.width,glcv.height);
   gl.uniform1i(L.u_real,S.realScale?1:0);
   gl.uniform1f(L.u_maxPt,glMaxPt); gl.uniform1f(L.u_alphaK,1);
+  if(lensPar && L.u_lensOn){ gl.uniform1f(L.u_lensOn,1);
+    gl.uniform4f(L.u_lens, lensPar.x*GLDPR, lensPar.y*GLDPR, lensPar.e*GLDPR, lensPar.depth); }
+  else if(L.u_lensOn) gl.uniform1f(L.u_lensOn,0);
 }
 function drawCloud(h,cull,minPx,alphaK,beltDt){
   const gl=GL, L=progU.loc, d=CLOUD_DEC[h.key];
@@ -2396,7 +2533,7 @@ function glRender(){
 }
 
 // ---- loop ----
-let last=0;
+let last=0, lastGw=0;
 function frame(t){
   const dt=Math.min(0.05,(t-last)/1000||0); last=t;
   if(S.autorot&&!dragging) tgtYaw+=dt*0.10;
@@ -2424,6 +2561,8 @@ function frame(t){
     tgtCtr.x+=mx*step; tgtCtr.y+=my*step; tgtCtr.z+=mz*step;
     S.autorot=false; S.pinned=null;
   } else flySpeed=1;
+  // GW ripples: keep animating at ~14 fps while a GW event is on screen
+  if(gwOnScreen && t-lastGw>70){ lastGw=t; dirty=true; }
   // render only when the view is changing or something is dirty (idle → ~0 CPU)
   const cs=Math.abs(ctr.x)+Math.abs(ctr.y)+Math.abs(ctr.z)+1;
   const anim=(S.autorot&&!dragging)||dragging||playing||solPlaying||keys.size>0
@@ -2511,7 +2650,7 @@ function tourShow(i){
 }
 function tourEnd(){ tourIdx=-1; document.getElementById('tourPanel').style.display='none'; S.pinned=null; dirty=true; }
 document.getElementById('tourBtn').addEventListener('click',()=>{
-  if(S.realScale) document.getElementById('t-real').click();   // tour runs in log scale
+  if(S.realScale) clickToggle('t-real');   // tour runs in log scale
   tourShow(0);
 });
 document.getElementById('tourNext').addEventListener('click',()=>{ if(tourIdx>=TOUR.length-1) tourEnd(); else tourShow(tourIdx+1); });
@@ -2576,7 +2715,6 @@ function sugIndex(){
   PULSARS.forEach(p=>add(p.n,'Pulsar'));
   return _sugIdx=ix;
 }
-const sugEl=document.getElementById('suggest');
 function suggestList(q){                                  // shared by desktop dropdown + mobile sheet
   q=(q||'').trim().toLowerCase();
   if(!q||q.length<2) return [];
@@ -2585,16 +2723,6 @@ function suggestList(q){                                  // shared by desktop d
   if(out.length<6) for(const e of ix){ if(!e[1].startsWith(q)&&e[1].includes(q)){ out.push(e); if(out.length>=6) break; } }
   return out;
 }
-function showSuggest(q){
-  const out=suggestList(q);
-  if(!out.length){ sugEl.style.display='none'; sugEl.innerHTML=''; return; }
-  sugEl.innerHTML=out.map(e=>`<div data-n="${e[0].replace(/"/g,'&quot;')}">${e[0]}<span>${e[2]}</span></div>`).join('');
-  sugEl.style.display='block';
-}
-if(sugEl&&sugEl.addEventListener) sugEl.addEventListener('mousedown',e=>{
-  const d=e.target.closest?e.target.closest('[data-n]'):null;
-  if(d){ searchEl.value=d.dataset.n; doSearch(d.dataset.n); sugEl.style.display='none'; e.preventDefault(); }
-});
 // ---- collapsible control groups ----
 if(document.querySelectorAll) document.querySelectorAll('.ctl-h').forEach(h=>
   h.addEventListener('click',()=>h.parentElement.classList.toggle('closed')));
@@ -2617,7 +2745,9 @@ if(document.querySelectorAll) document.querySelectorAll('.ctl-h').forEach(h=>
   }catch(e){}
 })();
 api.clickToggle=clickToggle; api.doSearch=doSearch; api.getS=()=>S; api.suggest=suggestList;
-api.searchMsgText=()=>searchMsg.textContent;
+api.searchMsgText=()=>searchMsg.textContent; api.toggleFac=toggleFac; api.facColorToggle=facColorToggle;
+api.facList=()=>facList; api.searchInput=q=>{ if(q&&q.trim().length>2) doSearch(q); };
+if(UI.fac) UI.fac(facList);
 applyHash();
 try{console.log('Known Universe build 2026-07-11 16:53');}catch(e){}
 initGL();
