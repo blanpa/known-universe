@@ -6,20 +6,24 @@
   // mobile navigation: bar -> full-screen sheets (pure Svelte state, no CSS class chains)
   let mobPanel = $state(null);          // null | 'search' | 'layers'
   let showTime = $state(false);
-  let sheetBody = $state(null);
-  const movedNodes = [];
   function openSheet(which){ mobPanel = (mobPanel===which) ? null : which; }
   function toggleTime(){ showTime=!showTime; mobPanel=null; }
   $effect(()=>{ document.body.classList.toggle('mob-time', showTime); });
-  $effect(()=>{
-    // put the panels back where they came from, then move the wanted ones into the sheet
-    while(movedNodes.length){ const m=movedNodes.pop(); m.parent.insertBefore(m.el,m.next); }
-    if(mobPanel && sheetBody){
-      const ids = mobPanel==='layers' ? ['hud-ctl','hud-tr'] : ['hud-tl','hud-search'];
+  // svelte action: runs synchronously when the sheet body mounts — moves the real
+  // panels in (engine bindings survive), puts them back on close/switch
+  function fillSheet(node, which){
+    const moved=[];
+    function restore(){ while(moved.length){ const m=moved.pop(); m.parent.insertBefore(m.el,m.next); } }
+    function apply(w){
+      restore();
+      const ids = w==='layers' ? ['hud-ctl','hud-tr'] : ['hud-tl','hud-search'];
       for(const id of ids){ const el=document.getElementById(id);
-        if(el){ movedNodes.push({el,parent:el.parentNode,next:el.nextSibling}); sheetBody.appendChild(el); } }
+        if(el&&el.parentNode!==node){ moved.push({el,parent:el.parentNode,next:el.nextSibling}); node.appendChild(el); } }
+      if(!node.children.length){ node.innerHTML='<div style="color:#e9edfa;font-family:monospace;padding:1em">panels not found — please report</div>'; }
     }
-  });
+    apply(which);
+    return { update: apply, destroy: restore };
+  }
   function sheetClick(e){    // picking a search suggestion should reveal the map
     if(e.target && e.target.closest && e.target.closest('#suggest')) setTimeout(()=>{ mobPanel=null; },50);
   }
@@ -184,7 +188,7 @@
     <span>{mobPanel==='layers' ? '☰ Layers' : '🔍 Search & info'}</span>
     <button class="ms-x" onclick={()=>{mobPanel=null}}>✕ Close</button>
   </div>
-  <div class="ms-body" bind:this={sheetBody}></div>
+  <div class="ms-body" use:fillSheet={mobPanel}></div>
 </div>
 {/if}
 <div id="tourPanel" style="display:none;position:fixed;left:50%;bottom:70px;transform:translateX(-50%);z-index:60;

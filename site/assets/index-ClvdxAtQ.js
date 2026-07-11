@@ -3240,6 +3240,46 @@ function untrack(fn) {
 	}
 }
 /**
+* Possibly traverse an object and read all its properties so that they're all reactive in case this is `$state`.
+* Does only check first level of an object for performance reasons (heuristic should be good for 99% of all cases).
+* @param {any} value
+* @returns {void}
+*/
+function deep_read_state(value) {
+	if (typeof value !== "object" || !value || value instanceof EventTarget) return;
+	if (STATE_SYMBOL in value) deep_read(value);
+	else if (!Array.isArray(value)) for (let key in value) {
+		const prop = value[key];
+		if (typeof prop === "object" && prop && STATE_SYMBOL in prop) deep_read(prop);
+	}
+}
+/**
+* Deeply traverse an object and read all its properties
+* so that they're all reactive in case this is `$state`
+* @param {any} value
+* @param {Set<any>} visited
+* @returns {void}
+*/
+function deep_read(value, visited = /* @__PURE__ */ new Set()) {
+	if (typeof value === "object" && value !== null && !(value instanceof EventTarget) && !visited.has(value)) {
+		visited.add(value);
+		if (value instanceof Date) value.getTime();
+		for (let key in value) try {
+			deep_read(value[key], visited);
+		} catch (e) {}
+		const proto = get_prototype_of(value);
+		if (proto !== Object.prototype && proto !== Array.prototype && proto !== Map.prototype && proto !== Set.prototype && proto !== Date.prototype) {
+			const descriptors = get_descriptors(proto);
+			for (let key in descriptors) {
+				const get = descriptors[key].get;
+				if (get) try {
+					get.call(value);
+				} catch (e) {}
+			}
+		}
+	}
+}
+/**
 * Subset of delegated events which should be passive by default.
 * These two are already passive via browser defaults on window, document and body.
 * But since
@@ -4210,6 +4250,36 @@ function html(node, get_value, is_controlled = false, svg = false, mathml = fals
 	});
 }
 //#endregion
+//#region node_modules/svelte/src/internal/client/dom/elements/actions.js
+/** @import { ActionPayload } from '#client' */
+/**
+* @template P
+* @param {Element} dom
+* @param {(dom: Element, value?: P) => ActionPayload<P>} action
+* @param {() => P} [get_value]
+* @returns {void}
+*/
+function action(dom, action, get_value) {
+	effect(() => {
+		var payload = untrack(() => action(dom, get_value?.()) || {});
+		if (get_value && payload?.update) {
+			var inited = false;
+			/** @type {P} */
+			var prev = {};
+			render_effect(() => {
+				var value = get_value();
+				deep_read_state(value);
+				if (inited && safe_not_equal(prev, value)) {
+					prev = value;
+					/** @type {Function} */ payload.update(value);
+				}
+			});
+			inited = true;
+		}
+		if (payload?.destroy) return () => payload.destroy();
+	});
+}
+//#endregion
 //#region node_modules/svelte/src/internal/shared/attributes.js
 var whitespace = [..." 	\n\r\f\xA0\v﻿"];
 /**
@@ -4314,58 +4384,6 @@ function get_setters(element) {
 		proto = get_prototype_of(proto);
 	}
 	return setters;
-}
-//#endregion
-//#region node_modules/svelte/src/internal/client/dom/elements/bindings/this.js
-/** @import { ComponentContext, Effect } from '#client' */
-/**
-* @param {any} bound_value
-* @param {Element} element_or_component
-* @returns {boolean}
-*/
-function is_bound_this(bound_value, element_or_component) {
-	return bound_value === element_or_component || bound_value?.[STATE_SYMBOL] === element_or_component;
-}
-/**
-* @param {any} element_or_component
-* @param {(value: unknown, ...parts: unknown[]) => void} update
-* @param {(...parts: unknown[]) => unknown} get_value
-* @param {() => unknown[]} [get_parts] Set if the this binding is used inside an each block,
-* 										returns all the parts of the each block context that are used in the expression
-* @returns {void}
-*/
-function bind_this(element_or_component = {}, update, get_value, get_parts) {
-	var component_effect = component_context.r;
-	var parent = active_effect;
-	effect(() => {
-		/** @type {unknown[]} */
-		var old_parts;
-		/** @type {unknown[]} */
-		var parts;
-		render_effect(() => {
-			old_parts = parts;
-			parts = get_parts?.() || [];
-			untrack(() => {
-				if (!is_bound_this(get_value(...parts), element_or_component)) {
-					update(element_or_component, ...parts);
-					if (old_parts && is_bound_this(get_value(...old_parts), element_or_component)) update(null, ...old_parts);
-				}
-			});
-		});
-		return () => {
-			let p = parent;
-			while (p !== component_effect && p.parent !== null && p.parent.f & 33554432) p = p.parent;
-			const teardown = () => {
-				if (parts && is_bound_this(get_value(...parts), element_or_component)) update(null, ...parts);
-			};
-			const original_teardown = p.teardown;
-			p.teardown = () => {
-				teardown();
-				original_teardown?.();
-			};
-		};
-	});
-	return element_or_component;
 }
 if (typeof HTMLElement === "function");
 //#endregion
@@ -48754,8 +48772,6 @@ function App($$anchor, $$props) {
 	let closed = proxy({});
 	let mobPanel = /* @__PURE__ */ state(null);
 	let showTime = /* @__PURE__ */ state(false);
-	let sheetBody = /* @__PURE__ */ state(null);
-	const movedNodes = [];
 	function openSheet(which) {
 		set(mobPanel, get(mobPanel) === which ? null : which, true);
 	}
@@ -48766,26 +48782,36 @@ function App($$anchor, $$props) {
 	user_effect(() => {
 		document.body.classList.toggle("mob-time", get(showTime));
 	});
-	user_effect(() => {
-		while (movedNodes.length) {
-			const m = movedNodes.pop();
-			m.parent.insertBefore(m.el, m.next);
+	function fillSheet(node, which) {
+		const moved = [];
+		function restore() {
+			while (moved.length) {
+				const m = moved.pop();
+				m.parent.insertBefore(m.el, m.next);
+			}
 		}
-		if (get(mobPanel) && get(sheetBody)) {
-			const ids = get(mobPanel) === "layers" ? ["hud-ctl", "hud-tr"] : ["hud-tl", "hud-search"];
+		function apply(w) {
+			restore();
+			const ids = w === "layers" ? ["hud-ctl", "hud-tr"] : ["hud-tl", "hud-search"];
 			for (const id of ids) {
 				const el = document.getElementById(id);
-				if (el) {
-					movedNodes.push({
+				if (el && el.parentNode !== node) {
+					moved.push({
 						el,
 						parent: el.parentNode,
 						next: el.nextSibling
 					});
-					get(sheetBody).appendChild(el);
+					node.appendChild(el);
 				}
 			}
+			if (!node.children.length) node.innerHTML = "<div style=\"color:#e9edfa;font-family:monospace;padding:1em\">panels not found — please report</div>";
 		}
-	});
+		apply(which);
+		return {
+			update: apply,
+			destroy: restore
+		};
+	}
 	function sheetClick(e) {
 		if (e.target && e.target.closest && e.target.closest("#suggest")) setTimeout(() => {
 			set(mobPanel, null);
@@ -48855,7 +48881,7 @@ function App($$anchor, $$props) {
 	let classes_4;
 	var div_13 = sibling(div_12, 2);
 	reset(div_9);
-	var node_2 = sibling(div_9, 2);
+	var node_3 = sibling(div_9, 2);
 	var consequent = ($$anchor) => {
 		var div_14 = root_2();
 		var div_15 = child(div_14);
@@ -48864,7 +48890,7 @@ function App($$anchor, $$props) {
 		reset(span_1);
 		var button_1 = sibling(span_1, 2);
 		reset(div_15);
-		bind_this(sibling(div_15, 2), ($$value) => set(sheetBody, $$value), () => get(sheetBody));
+		action(sibling(div_15, 2), ($$node, $$action_arg) => fillSheet?.($$node, $$action_arg), () => get(mobPanel));
 		reset(div_14);
 		template_effect(() => set_text(text, get(mobPanel) === "layers" ? "☰ Layers" : "🔍 Search & info"));
 		delegated("click", div_14, sheetClick);
@@ -48873,7 +48899,7 @@ function App($$anchor, $$props) {
 		});
 		append($$anchor, div_14);
 	};
-	if_block(node_2, ($$render) => {
+	if_block(node_3, ($$render) => {
 		if (get(mobPanel)) $$render(consequent);
 	});
 	next(2);
