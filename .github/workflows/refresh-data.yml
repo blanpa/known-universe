@@ -1,0 +1,40 @@
+name: Weekly data refresh
+on:
+  schedule:
+    - cron: "17 4 * * 1"   # Mondays 04:17 UTC
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: Fetch fresh catalogues
+        run: |
+          curl -sG "https://exoplanetarchive.ipac.caltech.edu/TAP/sync" \
+            --data-urlencode "query=select pl_name,hostname,ra,dec,sy_dist,disc_year,discoverymethod,disc_facility,st_teff,st_spectype,st_mass,st_lum,st_rad,pl_rade,pl_bmasse,pl_orbsmax,pl_orbper,pl_tranmid,sy_pnum from pscomppars where sy_dist is not null and ra is not null and dec is not null" \
+            --data-urlencode "format=csv" -o data-raw.csv
+          curl -sG "https://tapvizier.cds.unistra.fr/TAPVizieR/tap/sync" \
+            --data-urlencode "REQUEST=doQuery" --data-urlencode "LANG=ADQL" --data-urlencode "FORMAT=csv" \
+            --data-urlencode 'QUERY=SELECT * FROM "J/AJ/145/101/catalog" WHERE Dist IS NOT NULL AND Dist>0' \
+            -o galaxies-raw.csv
+          curl -sL "https://raw.githubusercontent.com/astronexus/HYG-Database/main/hyg/CURRENT/hygdata_v41.csv" -o hyg-raw.csv
+          SB="https://ssd-api.jpl.nasa.gov/sbdb_query.api?fields=a,e,i,om,w,ma,epoch,H&"
+          curl -s "${SB}sb-class=MBA&limit=30000" -o sb_mba.json
+          curl -s "${SB}sb-class=TJN&limit=8000"  -o sb_tjn.json
+          curl -s "${SB}sb-group=neo&limit=8000"  -o sb_neo.json
+          curl -s "${SB}sb-class=TNO&limit=3000"  -o sb_tno.json
+      - name: Rebuild data.json + belt.bin
+        run: |
+          python3 build_data.py
+          python3 build_belt.py
+      - name: Commit refreshed data
+        run: |
+          git config user.name "galactica-bot"
+          git config user.email "actions@github.com"
+          git add site/data/data.json site/data/belt.bin
+          git diff --cached --quiet || git commit -m "Weekly data refresh"
+          git push

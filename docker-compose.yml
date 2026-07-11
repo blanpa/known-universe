@@ -1,0 +1,27 @@
+services:
+  web:
+    build: .
+    image: galactica:latest
+    container_name: galactica
+    ports:
+      - "8477:80"
+    volumes:
+      # serves the (auto-updated) data.json from the host
+      - "./site/data:/usr/share/nginx/html/data:ro"
+    restart: unless-stopped
+
+  # Optional: weekly fetches fresh data and rebuilds data.json.
+  # Omit (docker compose up web) for a snapshot-only instance.
+  updater:
+    image: python:3-slim
+    container_name: galactica-updater
+    volumes:
+      - "./site/data:/out"
+      - "./build_data.py:/app/build_data.py:ro"
+      - "./build_belt.py:/app/build_belt.py:ro"
+      - "./updater/updater.py:/app/updater.py:ro"
+    environment:
+      - UPDATE_INTERVAL=604800   # 7 days
+      - DST=/out/data.json
+    command: ["python", "/app/updater.py"]
+    restart: unless-stopped

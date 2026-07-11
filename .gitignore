@@ -1,0 +1,22 @@
+# large raw catalogue dumps (regenerable via the fetch commands in README)
+gaia_100pc.csv
+gaia_150pc.csv
+milliquas_full.csv
+obstars.csv
+leda_pa.csv
+chime_frb.csv
+cepheids.csv
+rrlyrae.csv
+twomrs_raw.csv
+quasars_raw.csv
+pulsars_raw.csv
+openclusters_raw.csv
+data-raw.csv
+galaxies-raw.csv
+hyg-raw.csv
+harris.dat
+baumgardt.txt
+horizons_mb.txt
+sb_*.json
+satvec/
+gwosc_probe.txt

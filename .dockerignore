@@ -1,0 +1,9 @@
+README.md
+*.md
+data-raw.csv
+galaxies-raw.csv
+hyg-raw.csv
+build_data.py
+updater/
+.git
+.gitignore
