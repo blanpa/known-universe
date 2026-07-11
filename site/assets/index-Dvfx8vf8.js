@@ -92,6 +92,7 @@ var REACTION_IS_UPDATING = 1 << 21;
 var ASYNC = 1 << 22;
 var ERROR_VALUE = 1 << 23;
 var STATE_SYMBOL = Symbol("$state");
+var LEGACY_PROPS = Symbol("legacy props");
 var LOADING_ATTR_SYMBOL = Symbol("");
 var ATTRIBUTES_CACHE = Symbol("attributes");
 var CLASS_CACHE = Symbol("class");
@@ -152,6 +153,14 @@ function effect_orphan(rune) {
 */
 function effect_update_depth_exceeded() {
 	throw new Error(`https://svelte.dev/e/effect_update_depth_exceeded`);
+}
+/**
+* Cannot do `bind:%key%={undefined}` when `%key%` has a fallback value
+* @param {string} key
+* @returns {never}
+*/
+function props_invalid_value(key) {
+	throw new Error(`https://svelte.dev/e/props_invalid_value`);
 }
 /**
 * Property descriptors defined on `$state` objects must contain `value` and always be `enumerable`, `configurable` and `writable`.
@@ -311,6 +320,9 @@ function safe_equals(value) {
 var async_mode_flag = false;
 /** True if we're not certain that we only have Svelte 5 code in the compilation */
 var legacy_mode_flag = false;
+function enable_legacy_mode_flag() {
+	legacy_mode_flag = true;
+}
 //#endregion
 //#region node_modules/svelte/src/internal/client/context.js
 /** @import { ComponentContext, DevStackEntry, Effect } from '#client' */
@@ -582,6 +594,12 @@ function get$1(store) {
 * schedule effects if the update takes place inside a `$:` effect
 */
 var legacy_is_updating_store = false;
+/**
+* Whether or not the prop currently being read is a store binding, as in
+* `<Child bind:x={$y} />`. If it is, we treat the prop as mutable even in
+* runes mode, and skip `binding_property_non_reactive` validation
+*/
+var is_store_binding = false;
 var IS_UNMOUNTED = Symbol("unmounted");
 /**
 * Gets the current value of a store. If the store isn't subscribed to yet, it will create a proxy
@@ -634,6 +652,23 @@ function setup_stores() {
 		});
 	}
 	return [stores, cleanup];
+}
+/**
+* Returns a tuple that indicates whether `fn()` reads a prop that is a store binding.
+* Used to prevent `binding_property_non_reactive` validation false positives and
+* ensure that these props are treated as mutable even in runes mode
+* @template T
+* @param {() => T} fn
+* @returns {[T, boolean]}
+*/
+function capture_store_binding(fn) {
+	var previous_is_store_binding = is_store_binding;
+	try {
+		is_store_binding = false;
+		return [fn(), is_store_binding];
+	} finally {
+		is_store_binding = previous_is_store_binding;
+	}
 }
 //#endregion
 //#region node_modules/svelte/src/reactivity/create-subscriber.js
@@ -3509,21 +3544,6 @@ function from_html(content, flags) {
 	};
 }
 /**
-* @returns {TemplateNode | DocumentFragment}
-*/
-function comment() {
-	if (hydrating) {
-		assign_nodes(hydrate_node, null);
-		return hydrate_node;
-	}
-	var frag = document.createDocumentFragment();
-	var start = document.createComment("");
-	var anchor = create_text();
-	frag.append(start, anchor);
-	assign_nodes(start, anchor);
-	return frag;
-}
-/**
 * Assign the created (or in hydration mode, traversed) dom elements to the current block
 * and insert the elements into the dom (in client mode).
 * @param {Text | Comment | Element} anchor
@@ -4307,7 +4327,31 @@ function html(node, get_value, is_controlled = false, svg = false, mathml = fals
 	});
 }
 //#endregion
+//#region node_modules/clsx/dist/clsx.mjs
+function r(e) {
+	var t, f, n = "";
+	if ("string" == typeof e || "number" == typeof e) n += e;
+	else if ("object" == typeof e) if (Array.isArray(e)) {
+		var o = e.length;
+		for (t = 0; t < o; t++) e[t] && (f = r(e[t])) && (n && (n += " "), n += f);
+	} else for (f in e) e[f] && (n && (n += " "), n += f);
+	return n;
+}
+function clsx$1() {
+	for (var e, t, f = 0, n = "", o = arguments.length; f < o; f++) (e = arguments[f]) && (t = r(e)) && (n && (n += " "), n += t);
+	return n;
+}
+//#endregion
 //#region node_modules/svelte/src/internal/shared/attributes.js
+/**
+* Small wrapper around clsx to preserve Svelte's (weird) handling of falsy values.
+* TODO Svelte 6 revisit this, and likely turn all falsy values into the empty string (what clsx also does)
+* @param  {any} value
+*/
+function clsx(value) {
+	if (typeof value === "object") return clsx$1(value);
+	else return value ?? "";
+}
 var whitespace = [..." 	\n\r\f\xA0\v﻿"];
 /**
 * @param {any} value
@@ -4331,6 +4375,90 @@ function to_class(value, hash, directives) {
 		}
 	}
 	return classname === "" ? null : classname;
+}
+/**
+*
+* @param {Record<string,any>} styles
+* @param {boolean} important
+*/
+function append_styles(styles, important = false) {
+	var separator = important ? " !important;" : ";";
+	var css = "";
+	for (var key of Object.keys(styles)) {
+		var value = styles[key];
+		if (value != null && value !== "") css += " " + key + ": " + value + separator;
+	}
+	return css;
+}
+/**
+* @param {string} name
+* @returns {string}
+*/
+function to_css_name(name) {
+	if (name[0] !== "-" || name[1] !== "-") return name.toLowerCase();
+	return name;
+}
+/**
+* @param {any} value
+* @param {Record<string, any> | [Record<string, any>, Record<string, any>]} [styles]
+* @returns {string | null}
+*/
+function to_style(value, styles) {
+	if (styles) {
+		var new_style = "";
+		/** @type {Record<string,any> | undefined} */
+		var normal_styles;
+		/** @type {Record<string,any> | undefined} */
+		var important_styles;
+		if (Array.isArray(styles)) {
+			normal_styles = styles[0];
+			important_styles = styles[1];
+		} else normal_styles = styles;
+		if (value) {
+			value = String(value).replaceAll(/\s*\/\*.*?\*\/\s*/g, "").trim();
+			/** @type {boolean | '"' | "'"} */
+			var in_str = false;
+			var in_apo = 0;
+			var in_comment = false;
+			var reserved_names = [];
+			if (normal_styles) reserved_names.push(...Object.keys(normal_styles).map(to_css_name));
+			if (important_styles) reserved_names.push(...Object.keys(important_styles).map(to_css_name));
+			var start_index = 0;
+			var name_index = -1;
+			const len = value.length;
+			for (var i = 0; i < len; i++) {
+				var c = value[i];
+				if (in_comment) {
+					if (c === "/" && value[i - 1] === "*") in_comment = false;
+				} else if (in_str) {
+					if (in_str === c) in_str = false;
+				} else if (c === "/" && value[i + 1] === "*") in_comment = true;
+				else if (c === "\"" || c === "'") in_str = c;
+				else if (c === "(") in_apo++;
+				else if (c === ")") in_apo--;
+				if (!in_comment && in_str === false && in_apo === 0) {
+					if (c === ":" && name_index === -1) name_index = i;
+					else if (c === ";" || i === len - 1) {
+						if (name_index !== -1) {
+							var name = to_css_name(value.substring(start_index, name_index).trim());
+							if (!reserved_names.includes(name)) {
+								if (c !== ";") i++;
+								var property = value.substring(start_index, i).trim();
+								new_style += " " + property + ";";
+							}
+						}
+						start_index = i + 1;
+						name_index = -1;
+					}
+				}
+			}
+		}
+		if (normal_styles) new_style += append_styles(normal_styles);
+		if (important_styles) new_style += append_styles(important_styles, true);
+		new_style = new_style.trim();
+		return new_style === "" ? null : new_style;
+	}
+	return value == null ? null : String(value);
 }
 //#endregion
 //#region node_modules/svelte/src/internal/client/dom/elements/class.js
@@ -4356,6 +4484,40 @@ function set_class(dom, is_html, value, hash, prev_classes, next_classes) {
 		if (prev_classes == null || is_present !== !!prev_classes[key]) dom.classList.toggle(key, is_present);
 	}
 	return next_classes;
+}
+//#endregion
+//#region node_modules/svelte/src/internal/client/dom/elements/style.js
+/**
+* @param {Element & ElementCSSInlineStyle} dom
+* @param {Record<string, any>} prev
+* @param {Record<string, any>} next
+* @param {string} [priority]
+*/
+function update_styles(dom, prev = {}, next, priority) {
+	for (var key in next) {
+		var value = next[key];
+		if (prev[key] !== value) if (next[key] == null) dom.style.removeProperty(key);
+		else dom.style.setProperty(key, value, priority);
+	}
+}
+/**
+* @param {Element & ElementCSSInlineStyle} dom
+* @param {string | null} value
+* @param {Record<string, any> | [Record<string, any>, Record<string, any>]} [prev_styles]
+* @param {Record<string, any> | [Record<string, any>, Record<string, any>]} [next_styles]
+*/
+function set_style(dom, value, prev_styles, next_styles) {
+	var prev = dom[STYLE_CACHE];
+	if (hydrating || prev !== value) {
+		var next_style_attr = to_style(value, next_styles);
+		if (!hydrating || next_style_attr !== dom.getAttribute("style")) if (next_style_attr == null) dom.removeAttribute("style");
+		else dom.style.cssText = next_style_attr;
+		/** @type {any} */ dom[STYLE_CACHE] = value;
+	} else if (next_styles) if (Array.isArray(next_styles)) {
+		update_styles(dom, prev_styles?.[0], next_styles[0]);
+		update_styles(dom, prev_styles?.[1], next_styles[1], "important");
+	} else update_styles(dom, prev_styles, next_styles);
+	return next_styles;
 }
 //#endregion
 //#region node_modules/svelte/src/internal/client/dom/elements/attributes.js
@@ -4502,13 +4664,119 @@ function is_numberlike_input(input) {
 function to_number(value) {
 	return value === "" ? null : +value;
 }
+//#endregion
+//#region node_modules/svelte/src/internal/client/reactivity/props.js
+/** @import { Derived, Effect, Source } from './types.js' */
+/**
+* This function is responsible for synchronizing a possibly bound prop with the inner component state.
+* It is used whenever the compiler sees that the component writes to the prop, or when it has a default prop_value.
+* @template V
+* @param {Record<string, unknown>} props
+* @param {string} key
+* @param {number} flags
+* @param {V | (() => V)} [fallback]
+* @returns {(() => V | ((arg: V) => V) | ((arg: V, mutation: boolean) => V))}
+*/
+function prop(props, key, flags, fallback) {
+	var runes = !legacy_mode_flag || (flags & 2) !== 0;
+	var bindable = (flags & 8) !== 0;
+	var lazy = (flags & 16) !== 0;
+	var fallback_value = fallback;
+	var fallback_dirty = true;
+	var fallback_signal = void 0;
+	var get_fallback = () => {
+		if (lazy && runes) {
+			fallback_signal ??= /* @__PURE__ */ derived(fallback);
+			return get(fallback_signal);
+		}
+		if (fallback_dirty) {
+			fallback_dirty = false;
+			fallback_value = lazy ? untrack(fallback) : fallback;
+		}
+		return fallback_value;
+	};
+	/** @type {((v: V) => void) | undefined} */
+	let setter;
+	if (bindable) {
+		var is_entry_props = STATE_SYMBOL in props || LEGACY_PROPS in props;
+		setter = get_descriptor(props, key)?.set ?? (is_entry_props && key in props ? (v) => props[key] = v : void 0);
+	}
+	/** @type {V} */
+	var initial_value;
+	var is_store_sub = false;
+	if (bindable) [initial_value, is_store_sub] = capture_store_binding(() => props[key]);
+	else initial_value = props[key];
+	if (initial_value === void 0 && fallback !== void 0) {
+		initial_value = get_fallback();
+		if (setter) {
+			if (runes) props_invalid_value(key);
+			setter(initial_value);
+		}
+	}
+	/** @type {() => V} */
+	var getter;
+	if (runes) getter = () => {
+		var value = props[key];
+		if (value === void 0) return get_fallback();
+		fallback_dirty = true;
+		return value;
+	};
+	else getter = () => {
+		var value = props[key];
+		if (value !== void 0) fallback_value = void 0;
+		return value === void 0 ? fallback_value : value;
+	};
+	if (runes && (flags & 4) === 0) return getter;
+	if (setter) {
+		var legacy_parent = props.$$legacy;
+		return (function(value, mutation) {
+			if (arguments.length > 0) {
+				if (!runes || !mutation || legacy_parent || is_store_sub)
+ /** @type {Function} */ setter(mutation ? getter() : value);
+				return value;
+			}
+			return getter();
+		});
+	}
+	var overridden = false;
+	var d = ((flags & 1) !== 0 ? derived : derived_safe_equal)(() => {
+		overridden = false;
+		return getter();
+	});
+	if (bindable) get(d);
+	var parent_effect = active_effect;
+	return (function(value, mutation) {
+		if (arguments.length > 0) {
+			const new_value = mutation ? get(d) : runes && bindable ? proxy(value) : value;
+			set(d, new_value);
+			overridden = true;
+			if (fallback_value !== void 0) fallback_value = new_value;
+			return value;
+		}
+		if (is_destroying_effect && overridden || (parent_effect.f & 16384) !== 0) return d.v;
+		return get(d);
+	});
+}
 if (typeof HTMLElement === "function");
 //#endregion
 //#region node_modules/svelte/src/internal/disclose-version.js
 if (typeof window !== "undefined") ((window.__svelte ??= {}).v ??= /* @__PURE__ */ new Set()).add("5");
 //#endregion
-//#region src/lib/stores.js
-var toggleState = writable({});
+//#region node_modules/svelte/src/internal/flags/legacy.js
+enable_legacy_mode_flag();
+//#endregion
+//#region src/components/TopPanel.svelte
+var root$10 = /* @__PURE__ */ from_html(`<div class="panel" id="hud-tl"><h1><span class="dot"></span>Known Universe</h1> <div class="sub">One scale from the solar system to the galaxies — <b style="color:var(--ink);font-weight:600">scroll</b> to cross the orders of magnitude. Data: NASA · HYG · Local Volume.</div> <div class="stats"><div class="stat"><div class="k mono" id="s-sys">0</div><div class="l">Systems visible</div></div> <div class="stat"><div class="k mono" id="s-pl">0</div><div class="l">Planets</div></div> <div class="stat"><div class="k mono" id="s-near">—</div><div class="l">Nearest (ly)</div></div> <div class="stat"><div class="k mono" id="s-far">—</div><div class="l">Farthest (ly)</div></div></div> <button id="solarBtn">☉ Into the solar system</button> <div id="btnGrid"><button id="tourBtn" title="A guided flight from Earth to the edge of the observable universe">🧭 Tour</button> <button id="shareBtn" title="Copy a link to this exact view">🔗 Share</button> <button id="measureBtn" title="Click two objects to measure the real distance between them">📏 Measure</button> <button id="resetBtn2" title="Back to the full view">⟲ Reset</button></div></div>`);
+function TopPanel($$anchor) {
+	var div = root$10();
+	var div_1 = sibling(child(div), 8);
+	var button = sibling(child(div_1), 6);
+	reset(div_1);
+	reset(div);
+	delegated("click", button, resetView);
+	append($$anchor, div);
+}
+delegate(["click"]);
 //#endregion
 //#region src/lib/engine.js
 var UI = {};
@@ -44830,6 +45098,7 @@ function __run() {
 		cx = W / 2;
 		cy = H / 2;
 		foc = Math.min(W, H) * .62;
+		gwOnScreen = false;
 		ctx.clearRect(0, 0, W, H);
 		if (!_vig || _vigW !== W || _vigH !== H) {
 			_vig = ctx.createRadialGradient(cx, cy * .9, 0, cx, cy, Math.max(W, H) * .75);
@@ -44845,6 +45114,7 @@ function __run() {
 		solarA = lodA(camDist, .001, .1);
 		sysA = 0;
 		if (focusSys && focusSysW) sysA = lodA(Math.hypot(camPos[0] - focusSysW[0], camPos[1] - focusSysW[1], camPos[2] - focusSysW[2]), 8e-6, 8e-4);
+		calcLens();
 		if (S.rings) drawRings();
 		if (S.veil) drawVeilSphere();
 		projectGalaxies();
@@ -44967,6 +45237,18 @@ function __run() {
 			drawMW();
 			drawS2();
 			if (S.edge) drawEdge();
+		}
+		if (lensPar && lensPar.e > 12) {
+			ctx.beginPath();
+			ctx.arc(lensPar.x, lensPar.y, lensPar.e, 0, 6.2832);
+			ctx.setLineDash([2, 6]);
+			ctx.strokeStyle = "rgba(255,215,150,0.35)";
+			ctx.lineWidth = 1;
+			ctx.stroke();
+			ctx.setLineDash([]);
+			ctx.font = "9px ui-monospace,monospace";
+			ctx.fillStyle = "rgba(255,215,150,0.6)";
+			ctx.fillText("Einstein ring · lensing exaggerated ×" + LENS_EXAG, lensPar.x + lensPar.e * .72, lensPar.y - lensPar.e * .72);
 		}
 		if (S.galaxies && sp.depth > NEAR && solarA < .5) {
 			ctx.globalAlpha = 1 - solarA * 2;
@@ -45459,6 +45741,7 @@ function __run() {
 				});
 			}
 		}
+		if (S.lag) drawLagrange(A);
 		const bl = project(orbitR(2.7), 0, 0);
 		if (bl.depth > NEAR) {
 			ctx.font = "9px ui-monospace,monospace";
@@ -45617,6 +45900,142 @@ function __run() {
 			}
 		}
 	}
+	const MASS_RATIO = {
+		Mercury: 166e-9,
+		Venus: 2447e-9,
+		Earth: 3003e-9,
+		Mars: 3.227e-7,
+		Jupiter: 9545e-7,
+		Saturn: 2858e-7,
+		Uranus: 4366e-8,
+		Neptune: 5151e-8
+	};
+	const LAG_NOTE = {
+		"L1 · Sun–Earth": "sunward · SOHO & DSCOVR station here",
+		"L2 · Sun–Earth": "anti-sunward · JWST & Gaia orbit here",
+		"L3 · Sun–Earth": "forever hidden behind the Sun",
+		"L4 · Sun–Earth": "stable · leads Earth by 60°",
+		"L5 · Sun–Earth": "stable · trails Earth by 60°",
+		"L4 · Sun–Jupiter": "the \"Greek camp\" — thousands of trojans gather here",
+		"L5 · Sun–Jupiter": "the \"Trojan camp\" — thousands of trojans gather here"
+	};
+	const LAG_PTS = [];
+	for (const [pl, pts] of [["Earth", [
+		"L1",
+		"L2",
+		"L3",
+		"L4",
+		"L5"
+	]], ["Jupiter", ["L4", "L5"]]]) for (const L of pts) LAG_PTS.push({
+		n: L + " · Sun–" + pl,
+		lp: true,
+		pl,
+		L,
+		kind: "Lagrange point",
+		note: LAG_NOTE[L + " · Sun–" + pl]
+	});
+	function drawLagrange(A) {
+		const byName = {};
+		for (const b of SOLAR_BODIES) byName[b.n] = b;
+		for (const b of SOLAR_BODIES) {
+			const m = MASS_RATIO[b.n];
+			if (!m || !b._e) continue;
+			const rH = b._r * Math.cbrt(m / 3);
+			const pc = project.apply(null, eclToWorld(b._e[0], b._e[1], b._e[2]));
+			if (pc.depth <= NEAR) continue;
+			const edge = project.apply(null, eclToWorld(b._e[0] + rH, b._e[1], b._e[2]));
+			const rp = Math.hypot(edge.x - pc.x, edge.y - pc.y);
+			if (rp < 6) continue;
+			ctx.beginPath();
+			let first = true;
+			for (let k = 0; k <= 48; k++) {
+				const th = k / 48 * 6.2832;
+				const w = eclToWorld(b._e[0] + Math.cos(th) * rH, b._e[1] + Math.sin(th) * rH, b._e[2]);
+				const p = project(w[0], w[1], w[2]);
+				if (p.depth <= NEAR) {
+					first = true;
+					continue;
+				}
+				if (first) {
+					ctx.moveTo(p.x, p.y);
+					first = false;
+				} else ctx.lineTo(p.x, p.y);
+			}
+			ctx.strokeStyle = `rgba(150,205,255,${A * .4})`;
+			ctx.lineWidth = 1;
+			ctx.setLineDash([3, 5]);
+			ctx.stroke();
+			ctx.setLineDash([]);
+			if (rp > 30) {
+				ctx.font = "9px ui-monospace,monospace";
+				ctx.fillStyle = `rgba(150,205,255,${A * .7})`;
+				const km = rH * 149.6;
+				ctx.fillText("Hill sphere · " + (km < 1 ? Math.round(km * 1e3).toLocaleString("en-US") + ",000 km" : km.toFixed(1) + " M km"), pc.x + rp * .72, pc.y - rp * .72);
+			}
+		}
+		const c60 = .5, s60 = .8660254;
+		for (const q of LAG_PTS) {
+			const b = byName[q.pl];
+			if (!b || !b._e) {
+				q._e = null;
+				continue;
+			}
+			const m = MASS_RATIO[q.pl], f = Math.cbrt(m / 3), e = b._e;
+			q._e = q.L === "L1" ? [
+				e[0] * (1 - f),
+				e[1] * (1 - f),
+				e[2] * (1 - f)
+			] : q.L === "L2" ? [
+				e[0] * (1 + f),
+				e[1] * (1 + f),
+				e[2] * (1 + f)
+			] : q.L === "L3" ? [
+				-e[0] * (1 + 7 * m / 12),
+				-e[1] * (1 + 7 * m / 12),
+				-e[2] * (1 + 7 * m / 12)
+			] : q.L === "L4" ? [
+				e[0] * c60 - e[1] * s60,
+				e[0] * s60 + e[1] * c60,
+				e[2]
+			] : [
+				e[0] * c60 + e[1] * s60,
+				-e[0] * s60 + e[1] * c60,
+				e[2]
+			];
+			const w = eclToWorld(q._e[0], q._e[1], q._e[2]), p = project(w[0], w[1], w[2]);
+			if (p.depth <= NEAR) continue;
+			if (q.L === "L1" || q.L === "L2") {
+				const pp = project.apply(null, eclToWorld(e[0], e[1], e[2]));
+				if (pp.depth > NEAR && Math.hypot(p.x - pp.x, p.y - pp.y) < 13) continue;
+			}
+			const sel = q === S.hover || q === S.pinned, r = sel ? 4.5 : 3;
+			ctx.beginPath();
+			ctx.moveTo(p.x, p.y - r);
+			ctx.lineTo(p.x + r, p.y);
+			ctx.lineTo(p.x, p.y + r);
+			ctx.lineTo(p.x - r, p.y);
+			ctx.closePath();
+			ctx.strokeStyle = `rgba(196,170,255,${A * .9})`;
+			ctx.lineWidth = 1.1;
+			ctx.stroke();
+			if (sel) {
+				ctx.beginPath();
+				ctx.arc(p.x, p.y, r + 5, 0, 6.2832);
+				ctx.strokeStyle = "rgba(79,214,200,.9)";
+				ctx.lineWidth = 1.1;
+				ctx.stroke();
+			}
+			solarProj.push({
+				o: q,
+				x: p.x,
+				y: p.y,
+				px: 7
+			});
+			ctx.font = "9px ui-monospace,monospace";
+			ctx.fillStyle = `rgba(196,170,255,${A * (sel ? 1 : .78)})`;
+			ctx.fillText(q.L + (q.pl === "Jupiter" ? " · Jupiter" : ""), p.x + r + 3, p.y + 3);
+		}
+	}
 	let sysProj = [];
 	function planetColor(r) {
 		if (!r) return [
@@ -45772,6 +46191,7 @@ function __run() {
 	let dsoProj = [];
 	let pulsarProj = [];
 	let cluProj = [];
+	let gwOnScreen = false;
 	function drawDSO() {
 		dsoProj.length = 0;
 		if (!S.dso) return;
@@ -45788,6 +46208,18 @@ function __run() {
 			o._sx = p.x;
 			o._sy = p.y;
 			ctx.drawImage(blobSprite(c[0], c[1], c[2], .62, .24), p.x - sz * 1.9, p.y - sz * 1.9, sz * 3.8, sz * 3.8);
+			if (o.t === "GW") {
+				gwOnScreen = true;
+				const ph = performance.now() / 2600 % 1;
+				for (let k = 0; k < 3; k++) {
+					const f = (ph + k / 3) % 1, rr = sz * (.9 + f * 3.6);
+					ctx.beginPath();
+					ctx.arc(p.x, p.y, rr, 0, 6.2832);
+					ctx.strokeStyle = `rgba(130,255,220,${(1 - f) * .5})`;
+					ctx.lineWidth = 1.2;
+					ctx.stroke();
+				}
+			}
 			if (o.t === "GC" || o.t === "OC") {
 				const n = o.t === "GC" ? 10 : 6;
 				for (let k = 0; k < n; k++) {
@@ -45999,6 +46431,25 @@ function __run() {
 			ctx.fillStyle = "rgba(140,165,255,0.5)";
 			ctx.fillText("observable universe · CMB ~46 Gly", lp.x + 5, lp.y);
 		}
+	}
+	const LENS_EXAG = 300, SGRA_RS = 41e-8;
+	let lensPar = null;
+	function calcLens() {
+		lensPar = null;
+		if (!S.lens) return;
+		const R = scale(SGRA.d);
+		const p = project(SGRA._dir[0] * R, SGRA._dir[1] * R, SGRA._dir[2] * R);
+		if (p.depth <= NEAR) return;
+		const c = camPhysPos();
+		const D = Math.max(1e-9, Math.hypot(SGRA._dir[0] * SGRA.d - c[0], SGRA._dir[1] * SGRA.d - c[1], SGRA._dir[2] * SGRA.d - c[2]));
+		const px = foc * Math.sqrt(2 * SGRA_RS / D) * LENS_EXAG;
+		if (px < .7) return;
+		lensPar = {
+			x: p.x,
+			y: p.y,
+			e: Math.min(px, Math.min(W, H) * .22),
+			depth: p.depth
+		};
 	}
 	let sgraScreen = null;
 	const MW_R0 = 8178;
@@ -46504,6 +46955,24 @@ function __run() {
 			el.classList.add("show");
 			return;
 		}
+		if (s.lp) {
+			const rAU = s._e ? Math.hypot(s._e[0], s._e[1], s._e[2]) : 0;
+			let h = `<div class="nm"><span class="mk" style="color:#c4aaff;background:#c4aaff"></span>${s.n}</div>
+      <div class="rows">
+        <div class="r"><span class="rk">Type</span><span class="rv">Lagrange point · gravity balance</span></div>
+        <div class="r"><span class="rk">System</span><span class="rv">Sun–${s.pl}</span></div>
+        <div class="r"><span class="rk">Distance</span><span class="rv">${rAU.toFixed(2)} AU from the Sun</span></div>
+        ${s.note ? `<div class="r"><span class="rk">Note</span><span class="rv">${s.note}</span></div>` : ""}
+      </div>`;
+			h += links([{
+				t: "Wikipedia",
+				u: "https://en.wikipedia.org/wiki/Lagrange_point"
+			}]);
+			h += `<div class="hint">where the Sun's and ${s.pl}'s gravity balance the orbit</div>`;
+			el.innerHTML = h;
+			el.classList.add("show");
+			return;
+		}
 		if (s.rk !== void 0) {
 			const c = s.c, er = s.rk / 6371, probe = s.kind === "Spacecraft";
 			let dist = s.am !== void 0 ? `${fmt(s.am * 1e3)} km from ${s.parent}` : s._r !== void 0 ? `${s._r.toFixed(2)} AU from the Sun` : s.a !== void 0 ? `${s.a} AU (semi-major axis)` : "—";
@@ -46951,7 +47420,8 @@ function __run() {
 		}
 	});
 	addEventListener("keydown", (e) => {
-		if (document.activeElement === searchEl) return;
+		const ae = document.activeElement;
+		if (ae && ae.tagName === "INPUT") return;
 		const k = e.key.toLowerCase();
 		if ("wasdrf".includes(k) || e.key.startsWith("Arrow")) {
 			keys.add(k === "arrowup" ? "w" : k === "arrowdown" ? "s" : k === "arrowleft" ? "a" : k === "arrowright" ? "d" : k);
@@ -47052,11 +47522,11 @@ function __run() {
 	bindToggle("t-mw3d", "mw3d");
 	bindToggle("t-psr", "psr");
 	bindToggle("t-oclu", "oclu");
-	document.getElementById("t-real").addEventListener("click", () => {
-		const physCam = invScale(S.camZ);
-		const cm = Math.hypot(ctr.x, ctr.y, ctr.z), physCtr = cm > 0 ? invScale(cm) : 0;
-		S.realScale = !S.realScale;
-		syncToggle("t-real", S.realScale);
+	bindToggle("t-real", "realScale", () => {
+		const wasReal = !S.realScale;
+		const inv = (v) => wasReal ? v / REALK : Math.pow(10, v / KDEC + LOG0);
+		const physCam = inv(S.camZ);
+		const cm = Math.hypot(ctr.x, ctr.y, ctr.z), physCtr = cm > 0 ? inv(cm) : 0;
 		S.camZ = tgtCamZ = scale(physCam);
 		if (cm > 0) {
 			const nm = scale(physCtr) / cm;
@@ -47085,10 +47555,9 @@ function __run() {
 		pmVal.textContent = y === 0 ? "today" : (y > 0 ? "+" : "−") + Math.abs(y).toLocaleString("en-US") + " years";
 		pmTime.style.setProperty("--pct", (y + 5e4) / 1e5 * 100 + "%");
 	}
-	document.getElementById("t-pm").addEventListener("click", () => {
-		S.pm = !S.pm;
-		syncToggle("t-pm", S.pm);
-		document.getElementById("hud-pm").style.display = S.pm ? "block" : "none";
+	bindToggle("t-pm", "pm", () => {
+		const el = document.getElementById("hud-pm");
+		if (el) el.style.display = S.pm ? "block" : "none";
 		if (!S.pm) {
 			S.pmYears = 0;
 			pmTime.value = 0;
@@ -47187,10 +47656,19 @@ function __run() {
 		S.autorot = false;
 		syncToggle("t-rot", false);
 	});
-	document.getElementById("t-fac").addEventListener("click", (e) => {
+	function facColorToggle() {
 		S.facColor = !S.facColor;
-		e.currentTarget.classList.toggle("on", S.facColor);
-	});
+		if (UI.facColor) UI.facColor(S.facColor);
+		dirty = true;
+		return S.facColor;
+	}
+	{
+		const tf = document.getElementById("t-fac");
+		if (tf && tf.addEventListener) tf.addEventListener("click", (e) => {
+			facColorToggle();
+			if (e.currentTarget.classList) e.currentTarget.classList.toggle("on", S.facColor);
+		});
+	}
 	const solarBtn = document.getElementById("solarBtn");
 	function enterSolar() {
 		S.pinned = null;
@@ -47222,8 +47700,21 @@ function __run() {
 	}
 	const facCount = {};
 	for (const s of STARS) facCount[s.fac] = (facCount[s.fac] || 0) + 1;
+	const facList = Object.keys(FAC).filter((k) => facCount[k]).sort((a, b) => facCount[b] - facCount[a]).map((k) => ({
+		k,
+		l: FAC[k].l,
+		c: FAC[k].c,
+		n: facCount[k]
+	}));
+	function toggleFac(k) {
+		if (S.facHidden.has(k)) S.facHidden.delete(k);
+		else S.facHidden.add(k);
+		dirty = true;
+		return S.facHidden.has(k);
+	}
+	if (UI.fac) UI.fac(facList);
 	const facEl = document.getElementById("facChips");
-	Object.keys(FAC).filter((k) => facCount[k]).sort((a, b) => facCount[b] - facCount[a]).forEach((k) => {
+	if (!UI.fac && facEl && facEl.appendChild) Object.keys(FAC).filter((k) => facCount[k]).sort((a, b) => facCount[b] - facCount[a]).forEach((k) => {
 		const f = FAC[k], div = document.createElement("div");
 		div.className = "chip";
 		div.dataset.k = k;
@@ -47270,7 +47761,18 @@ function __run() {
 	document.getElementById("play").addEventListener("click", () => {
 		playing ? stopPlay() : startPlay();
 	});
-	const searchEl = document.getElementById("search"), searchMsg = document.getElementById("searchMsg");
+	let _lastMsg = "";
+	const searchMsg = {
+		set textContent(v) {
+			_lastMsg = v;
+			if (UI.msg) UI.msg(v);
+			const el = document.getElementById("searchMsg");
+			if (el && !UI.msg) el.textContent = v;
+		},
+		get textContent() {
+			return _lastMsg;
+		}
+	};
 	function doSearch(q) {
 		q = q.trim().toLowerCase();
 		if (!q) {
@@ -47462,17 +47964,6 @@ function __run() {
 		const dr = compress(s.d);
 		aim(s.dx * dr, s.dy * dr, s.dz * dr, scale(s.d * .2));
 	}
-	searchEl.addEventListener("keydown", (e) => {
-		if (e.key === "Enter") {
-			doSearch(searchEl.value);
-			sugEl.style.display = "none";
-		}
-		if (e.key === "Escape") sugEl.style.display = "none";
-	});
-	searchEl.addEventListener("input", () => {
-		showSuggest(searchEl.value);
-		if (searchEl.value.trim().length > 2) doSearch(searchEl.value);
-	});
 	const solTime = document.getElementById("solTime"), solDate = document.getElementById("solDate"), solIcon = document.getElementById("solIcon");
 	let solPlaying = false;
 	function setSolDate() {
@@ -47509,6 +48000,7 @@ function __run() {
 	const GL_UNI = `
 uniform float u_yaw,u_pitch,u_camZ,u_foc,u_dpr,u_LOG0,u_KDEC,u_REALK,u_cull,u_minPx,u_alphaK,u_maxPt;
 uniform vec3 u_ctr; uniform vec2 u_res; uniform bool u_real;
+uniform vec4 u_lens; uniform float u_lensOn;   // xy: lens device px · z: Einstein radius px · w: lens depth
 out vec3 v_color; out float v_alpha;
 float scl(float pc){ if(u_real) return pc*u_REALK; return max(0.0,(log(pc)/2.302585093 - u_LOG0)*u_KDEC); }
 `;
@@ -47537,6 +48029,12 @@ float scl(float pc){ if(u_real) return pc*u_REALK; return max(0.0,(log(pc)/2.302
   }` : ""}
   float dvx=u_res.x*0.5 + u_foc*x1/depth;
   float dvy=u_res.y*0.5 - u_foc*y2/depth;
+  if(u_lensOn>0.5 && depth>u_lens.w){            // gravitational lens: sources behind
+    vec2 lv=vec2(dvx,dvy)-u_lens.xy;             // Sgr A* deflect outward (point-mass
+    float lr=max(length(lv),1e-3);               // lens equation, exaggerated scale)
+    float lm=0.5*(lr+sqrt(lr*lr+4.0*u_lens.z*u_lens.z))/lr;
+    dvx=u_lens.x+lv.x*lm; dvy=u_lens.y+lv.y*lm;
+  }
   gl_Position=vec4(dvx/u_res.x*2.0-1.0, 1.0-dvy/u_res.y*2.0, 0.0, 1.0);
   gl_PointSize=min(px*u_dpr, u_maxPt);
   v_color=col;
@@ -47978,8 +48476,12 @@ void main(){                                             // soft shoulder above 
 		};
 	}
 	function cloudLabel(id, txt) {
+		if (UI.setLabel) {
+			UI.setLabel(id, txt);
+			return;
+		}
 		const el = document.getElementById(id);
-		if (el) el.querySelector("span").textContent = txt;
+		if (el && el.querySelector) el.querySelector("span").textContent = txt;
 	}
 	function buildGaia(bytes) {
 		const r = buildCloudBuf(bytes, "gaia");
@@ -48137,6 +48639,10 @@ void main(){                                             // soft shoulder above 
 		gl.uniform1i(L.u_real, S.realScale ? 1 : 0);
 		gl.uniform1f(L.u_maxPt, glMaxPt);
 		gl.uniform1f(L.u_alphaK, 1);
+		if (lensPar && L.u_lensOn) {
+			gl.uniform1f(L.u_lensOn, 1);
+			gl.uniform4f(L.u_lens, lensPar.x * GLDPR, lensPar.y * GLDPR, lensPar.e * GLDPR, lensPar.depth);
+		} else if (L.u_lensOn) gl.uniform1f(L.u_lensOn, 0);
 	}
 	function drawCloud(h, cull, minPx, alphaK, beltDt) {
 		const gl = GL, L = progU.loc, d = CLOUD_DEC[h.key];
@@ -48238,7 +48744,7 @@ void main(){                                             // soft shoulder above 
 			gl.enable(gl.BLEND);
 		}
 	}
-	let last = 0;
+	let last = 0, lastGw = 0;
 	function frame(t) {
 		const dt = Math.min(.05, (t - last) / 1e3 || 0);
 		last = t;
@@ -48301,6 +48807,10 @@ void main(){                                             // soft shoulder above 
 			S.autorot = false;
 			S.pinned = null;
 		} else flySpeed = 1;
+		if (gwOnScreen && t - lastGw > 70) {
+			lastGw = t;
+			dirty = true;
+		}
 		const cs = Math.abs(ctr.x) + Math.abs(ctr.y) + Math.abs(ctr.z) + 1;
 		const anim = S.autorot && !dragging || dragging || playing || solPlaying || keys.size > 0 || Math.abs(tgtYaw - S.yaw) > 1e-4 || Math.abs(tgtPitch - S.pitch) > 1e-4 || Math.abs(tgtCamZ - S.camZ) > S.camZ * 2e-4 + 1e-12 || Math.abs(tgtCtr.x - ctr.x) + Math.abs(tgtCtr.y - ctr.y) + Math.abs(tgtCtr.z - ctr.z) > cs * 1e-5;
 		if (dirty || anim) {
@@ -48528,7 +49038,7 @@ void main(){                                             // soft shoulder above 
 		dirty = true;
 	}
 	document.getElementById("tourBtn").addEventListener("click", () => {
-		if (S.realScale) document.getElementById("t-real").click();
+		if (S.realScale) clickToggle("t-real");
 		tourShow(0);
 	});
 	document.getElementById("tourNext").addEventListener("click", () => {
@@ -48662,7 +49172,6 @@ void main(){                                             // soft shoulder above 
 		PULSARS.forEach((p) => add(p.n, "Pulsar"));
 		return _sugIdx = ix;
 	}
-	const sugEl = document.getElementById("suggest");
 	function suggestList(q) {
 		q = (q || "").trim().toLowerCase();
 		if (!q || q.length < 2) return [];
@@ -48679,25 +49188,6 @@ void main(){                                             // soft shoulder above 
 		}
 		return out;
 	}
-	function showSuggest(q) {
-		const out = suggestList(q);
-		if (!out.length) {
-			sugEl.style.display = "none";
-			sugEl.innerHTML = "";
-			return;
-		}
-		sugEl.innerHTML = out.map((e) => `<div data-n="${e[0].replace(/"/g, "&quot;")}">${e[0]}<span>${e[2]}</span></div>`).join("");
-		sugEl.style.display = "block";
-	}
-	if (sugEl && sugEl.addEventListener) sugEl.addEventListener("mousedown", (e) => {
-		const d = e.target.closest ? e.target.closest("[data-n]") : null;
-		if (d) {
-			searchEl.value = d.dataset.n;
-			doSearch(d.dataset.n);
-			sugEl.style.display = "none";
-			e.preventDefault();
-		}
-	});
 	if (document.querySelectorAll) document.querySelectorAll(".ctl-h").forEach((h) => h.addEventListener("click", () => h.parentElement.classList.toggle("closed")));
 	(function() {
 		const B = document.body;
@@ -48729,6 +49219,13 @@ void main(){                                             // soft shoulder above 
 	api.getS = () => S;
 	api.suggest = suggestList;
 	api.searchMsgText = () => searchMsg.textContent;
+	api.toggleFac = toggleFac;
+	api.facColorToggle = facColorToggle;
+	api.facList = () => facList;
+	api.searchInput = (q) => {
+		if (q && q.trim().length > 2) doSearch(q);
+	};
+	if (UI.fac) UI.fac(facList);
 	applyHash();
 	try {
 		console.log("Known Universe build 2026-07-11 16:53");
@@ -48742,21 +49239,106 @@ function runEngine() {
 	__run();
 }
 //#endregion
-//#region src/App.svelte
-var root = /* @__PURE__ */ from_html(`<div><span></span><span class="sw"></span></div>`);
-var root_1 = /* @__PURE__ */ from_html(`<div><div class="ctl-h"></div> <!></div>`);
-var root_2 = /* @__PURE__ */ from_html(`<div class="ms-sug"> <span> </span></div>`);
-var root_3 = /* @__PURE__ */ from_html(`<div class="ms-sugs"></div>`);
-var root_4 = /* @__PURE__ */ from_html(`<div class="ms-msg"> </div>`);
-var root_5 = /* @__PURE__ */ from_html(`<input class="ms-search" type="text" placeholder="Search: Earth, Sirius, TRAPPIST-1, Andromeda …"/> <!> <!> <div class="ms-actions"><button>☉ Solar system</button> <button>🧭 Cosmic tour</button> <button>🔗 Share view</button> <button>⟲ Reset view</button></div>`, 1);
-var root_6 = /* @__PURE__ */ from_html(`<div id="mobsheet"><div class="ms-head"><span> </span> <button class="ms-x">✕ Close</button></div> <div class="ms-body"><!></div></div>`);
-var root_7 = /* @__PURE__ */ from_html(`<div id="stage"><canvas id="gl"></canvas> <canvas id="sky"></canvas> <div id="left-col"><div class="panel" id="hud-tl"><h1><span class="dot"></span>Known Universe</h1> <div class="sub">One scale from the solar system to the galaxies — <b style="color:var(--ink);font-weight:600">scroll</b> to cross the orders of magnitude. Data: NASA · HYG · Local Volume.</div> <div class="stats"><div class="stat"><div class="k mono" id="s-sys">0</div><div class="l">Systems visible</div></div> <div class="stat"><div class="k mono" id="s-pl">0</div><div class="l">Planets</div></div> <div class="stat"><div class="k mono" id="s-near">—</div><div class="l">Nearest (ly)</div></div> <div class="stat"><div class="k mono" id="s-far">—</div><div class="l">Farthest (ly)</div></div></div> <button id="solarBtn">☉ Into the solar system</button> <div id="btnGrid"><button id="tourBtn" title="A guided flight from Earth to the edge of the observable universe">🧭 Tour</button> <button id="shareBtn" title="Copy a link to this exact view">🔗 Share</button> <button id="measureBtn" title="Click two objects to measure the real distance between them">📏 Measure</button> <button id="resetBtn2" title="Back to the full view">⟲ Reset</button></div></div> <div class="panel" id="hud-search"><input id="search" placeholder="Search… Sirius, TRAPPIST-1, Andromeda" autocomplete="off" spellcheck="false"/> <div id="suggest"></div> <div id="searchMsg"></div></div> <div class="panel" id="hud-mwmap"><div class="label">Milky Way · top-down</div> <canvas id="mwmap" width="198" height="150" style="width:198px;height:150px;display:block"></canvas> <div class="mwcap">Schematic · ~100,000 light-years across</div></div></div> <div id="right-col"><div class="panel" id="hud-tr"><div class="label">Star colour = temperature</div> <div class="spectrum"></div> <div class="spectrum-ax"><span>hot · 30,000 K</span><span>cool · 3,000 K</span></div> <div class="leg-row"><span style="display:flex;align-items:center;gap:5px;flex:0 0 auto"><span class="mk" style="width:4px;height:4px;background:var(--dim)"></span><span class="mk" style="width:11px;height:11px;background:var(--dim)"></span></span>Size = planet radius</div> <div class="leg-row"><span class="mk" style="background:#eafffb;box-shadow:0 0 8px #fff"></span>Sun — you are here</div> <div class="leg-row"><span class="mk" style="background:var(--cyan)"></span>discovered in the selected year</div> <div class="leg-row"><span class="mk" style="background:#e6473c;box-shadow:0 0 8px #e6473c"></span>beyond the neighbourhood</div> <div class="leg-row"><span class="mk" style="width:5px;height:5px;background:#cfe0ff"></span>real stars · HYG catalogue</div> <div class="leg-row" style="margin-top:13px;border-top:1px solid var(--line);padding-top:11px;flex-wrap:wrap"><span style="display:flex;gap:5px;flex:0 0 auto"><span class="mk" style="background:#c7dbff"></span> <span class="mk" style="background:#ffdeb0"></span> <span class="mk" style="background:#acc6ee"></span></span>Galaxies: spiral · elliptical · irregular</div> <div class="leg-row" style="flex-wrap:wrap"><span style="display:flex;gap:5px;flex:0 0 auto"><span class="mk" style="background:#ce966c"></span><span class="mk" style="background:#6ec4b8"></span> <span class="mk" style="background:#6e96e0"></span><span class="mk" style="background:#e2b484"></span></span>Planets: rocky · super-Earth · Neptune · gas giant</div> <div class="leg-row" style="flex-wrap:wrap"><span style="display:flex;gap:5px;flex:0 0 auto"><span class="mk" style="background:#96beff"></span><span class="mk" style="background:#ffe2a0"></span> <span class="mk" style="background:#ff7676"></span><span class="mk" style="background:#6ee6c6"></span></span>Deep-sky: open · globular · nebula · planetary</div></div> <div class="panel" id="hud-ctl"><!> <button id="resetBtn" style="display:none">Reset view</button> <div class="ctl-inst"><div class="label" style="margin-bottom:8px">Discovery instrument</div> <div class="colby" id="t-fac"><span>colour by it</span><span class="sw"></span></div> <div class="chips" id="facChips"></div></div> <div class="hint" style="font-size:10px;color:var(--dim);margin-top:6px;font-style:italic;line-height:1.6">Drag rotate · right-drag pan · WASD fly<br/>Scroll/pinch zoom to cursor · click to travel<br/>🧭 tour · 📏 measure · 🔗 share view</div></div></div> <div class="panel" id="hud-time"><div class="time-head"><div class="yr">Year <span class="live" id="yrVal">2026</span></div> <div class="meta" id="yrMeta"></div> <div class="time-min" title="Minimize">–</div></div> <div class="time-row"><button id="play" aria-label="Play time"><svg id="playIcon" viewBox="0 0 16 16"><path d="M3 2l11 6L3 14z"></path></svg></button> <div class="track"><input type="range" id="year" min="1992" max="2026" value="2026" step="1"/> <div class="ticks"><span>1992</span><span>2000</span><span>2009</span><span>2017</span><span>2026</span></div></div></div></div> <div class="panel" id="hud-soltime" style="display:none"><div class="time-head"><div class="yr">Solar system · <span class="live" id="solDate">–</span></div> <div class="meta">Time travel · planets on their orbits</div> <div class="time-min" title="Minimize">–</div></div> <div class="time-row"><button id="solPlay" aria-label="Play time"><svg id="solIcon" viewBox="0 0 16 16"><path d="M3 2l11 6L3 14z"></path></svg></button> <div class="track"><input type="range" id="solTime" min="-36525" max="36525" value="0" step="1"/> <div class="ticks"><span>−100 yr</span><span>−50</span><span>today</span><span>+50</span><span>+100 yr</span></div></div> <button id="solNow">today</button></div></div> <div class="panel" id="hud-pm" style="display:none"><div class="pm-head"><span class="label" style="margin:0">Night sky · proper motion</span> <span class="mono" id="pmVal">today</span></div> <input type="range" id="pmTime" min="-50000" max="50000" value="0" step="100"/> <div class="ticks"><span>−50,000 yr</span><span>today</span><span>+50,000 yr</span></div></div> <div class="panel" id="hud-nav" style="display:none"><div class="nav-head"><span class="label" style="margin:0">▸ Navigation · course</span> <span id="navClose" title="Clear course">✕</span></div> <div id="navName">–</div> <div class="nav-cells"><div class="nav-cell"><div id="navDist" class="mono nv">–</div><div class="nl">Distance</div></div> <div class="nav-cell"><div id="navLight" class="mono nv">–</div><div class="nl">Light travel time</div></div> <div class="nav-cell"><div id="navHead" class="mono nv">–</div><div class="nl">Bearing</div></div></div> <button id="navGo">Engage course ▸</button></div> <div class="panel" id="info"></div></div> <div id="mobbar"><div id="mbSearch"><span>🔍</span>Search</div> <div id="mbLayers"><span>☰</span>Layers</div> <div id="mbTime"><span>🕐</span>Time</div> <div class="mb" id="mbTour"><span>🧭</span>Tour</div></div> <!> <div id="tourPanel" style="display:none;position:fixed;left:50%;bottom:70px;transform:translateX(-50%);z-index:60;
-  max-width:520px;background:rgba(10,14,28,.92);border:1px solid rgba(120,140,190,.35);border-radius:10px;
-  padding:12px 16px;font-family:ui-monospace,monospace;color:#e9edfa;backdrop-filter:blur(4px)"><div id="tourTitle" style="font-size:13px;color:#ffcf6b;letter-spacing:.06em;margin-bottom:5px"></div> <div id="tourText" style="font-size:11.5px;line-height:1.55;color:#c8cfE2"></div> <div style="display:flex;gap:8px;margin-top:9px;align-items:center"><button id="tourPrev" class="tbtn">◀</button> <span id="tourStep" style="font-size:10px;color:#8a93ad"></span> <button id="tourNext" class="tbtn">Next ▶</button> <span style="flex:1"></span> <button id="tourEnd" class="tbtn">✕ End tour</button></div></div>`, 1);
-function App($$anchor, $$props) {
+//#region src/lib/stores.js
+var toggleState = writable({});
+var labels = writable({});
+var searchMsg = writable("");
+var facList = writable([]);
+var facHidden = writable(/* @__PURE__ */ new Set());
+var facColor = writable(false);
+//#endregion
+//#region src/components/SearchBox.svelte
+var root$9 = /* @__PURE__ */ from_html(`<div> <span> </span></div>`);
+var root_1$2 = /* @__PURE__ */ from_html(`<div class="sugbox"></div>`);
+var root_2$2 = /* @__PURE__ */ from_html(`<div class="searchMsg"> </div>`);
+var root_3$1 = /* @__PURE__ */ from_html(`<div><input class="searchIn" type="text" spellcheck="false" placeholder="Search: Earth, Sirius, TRAPPIST-1, PSR J0332…"/> <!> <!></div>`);
+function SearchBox($$anchor, $$props) {
+	push($$props, true);
+	const $searchMsg = () => store_get(searchMsg, "$searchMsg", $$stores);
+	const [$$stores, $$cleanup] = setup_stores();
+	let mode = prop($$props, "mode", 3, "desktop"), onpick = prop($$props, "onpick", 3, () => {});
+	let q = /* @__PURE__ */ state("");
+	let sugs = /* @__PURE__ */ user_derived(() => get(q).trim().length >= 2 && api.suggest ? api.suggest(get(q)) : []);
+	function go(name) {
+		if (api.doSearch) api.doSearch(name);
+		set(q, "");
+		onpick()(name);
+	}
+	function key(e) {
+		if (e.key === "Enter" && get(q).trim()) go(get(q).trim());
+		if (e.key === "Escape") set(q, "");
+	}
+	var div = root_3$1();
+	var input = child(div);
+	remove_input_defaults(input);
+	var node = sibling(input, 2);
+	var consequent = ($$anchor) => {
+		var div_1 = root_1$2();
+		each(div_1, 21, () => get(sugs), (sg) => sg[0] + sg[2], ($$anchor, sg) => {
+			var div_2 = root$9();
+			var text = child(div_2, true);
+			var span = sibling(text);
+			var text_1 = child(span, true);
+			reset(span);
+			reset(div_2);
+			template_effect(() => {
+				set_text(text, get(sg)[0]);
+				set_text(text_1, get(sg)[2]);
+			});
+			delegated("click", div_2, () => go(get(sg)[0]));
+			append($$anchor, div_2);
+		});
+		reset(div_1);
+		append($$anchor, div_1);
+	};
+	if_block(node, ($$render) => {
+		if (get(sugs).length) $$render(consequent);
+	});
+	var node_1 = sibling(node, 2);
+	var consequent_1 = ($$anchor) => {
+		var div_3 = root_2$2();
+		var text_2 = child(div_3, true);
+		reset(div_3);
+		template_effect(() => set_text(text_2, $searchMsg()));
+		append($$anchor, div_3);
+	};
+	if_block(node_1, ($$render) => {
+		if ($searchMsg()) $$render(consequent_1);
+	});
+	reset(div);
+	template_effect(() => {
+		set_class(div, 1, clsx(mode() === "desktop" ? "panel" : ""));
+		set_attribute(div, "id", mode() === "desktop" ? "hud-search" : void 0);
+	});
+	delegated("keydown", input, key);
+	bind_value(input, () => get(q), ($$value) => set(q, $$value));
+	append($$anchor, div);
+	pop();
+	$$cleanup();
+}
+delegate(["keydown", "click"]);
+//#endregion
+//#region src/components/MwMap.svelte
+var root$8 = /* @__PURE__ */ from_html(`<div class="panel" id="hud-mwmap"><div class="label">Milky Way · top-down</div> <canvas id="mwmap" width="198" height="150" style="width:198px;height:150px;display:block"></canvas> <div class="mwcap">Schematic · ~100,000 light-years across</div></div>`);
+function MwMap($$anchor) {
+	append($$anchor, root$8());
+}
+//#endregion
+//#region src/components/Controls.svelte
+var root$7 = /* @__PURE__ */ from_html(`<div class="panel" id="hud-tr"><div class="label">Star colour = temperature</div> <div class="spectrum"></div> <div class="spectrum-ax"><span>hot · 30,000 K</span><span>cool · 3,000 K</span></div> <div class="leg-row"><span style="display:flex;align-items:center;gap:5px;flex:0 0 auto"><span class="mk" style="width:4px;height:4px;background:var(--dim)"></span><span class="mk" style="width:11px;height:11px;background:var(--dim)"></span></span>Size = planet radius</div> <div class="leg-row"><span class="mk" style="background:#eafffb;box-shadow:0 0 8px #fff"></span>Sun — you are here</div> <div class="leg-row"><span class="mk" style="background:var(--cyan)"></span>discovered in the selected year</div> <div class="leg-row"><span class="mk" style="background:#e6473c;box-shadow:0 0 8px #e6473c"></span>beyond the neighbourhood</div> <div class="leg-row"><span class="mk" style="width:5px;height:5px;background:#cfe0ff"></span>real stars · HYG catalogue</div> <div class="leg-row" style="margin-top:13px;border-top:1px solid var(--line);padding-top:11px;flex-wrap:wrap"><span style="display:flex;gap:5px;flex:0 0 auto"><span class="mk" style="background:#c7dbff"></span> <span class="mk" style="background:#ffdeb0"></span> <span class="mk" style="background:#acc6ee"></span></span>Galaxies: spiral · elliptical · irregular</div> <div class="leg-row" style="flex-wrap:wrap"><span style="display:flex;gap:5px;flex:0 0 auto"><span class="mk" style="background:#ce966c"></span><span class="mk" style="background:#6ec4b8"></span> <span class="mk" style="background:#6e96e0"></span><span class="mk" style="background:#e2b484"></span></span>Planets: rocky · super-Earth · Neptune · gas giant</div> <div class="leg-row" style="flex-wrap:wrap"><span style="display:flex;gap:5px;flex:0 0 auto"><span class="mk" style="background:#96beff"></span><span class="mk" style="background:#ffe2a0"></span> <span class="mk" style="background:#ff7676"></span><span class="mk" style="background:#6ee6c6"></span></span>Deep-sky: open · globular · nebula · planetary</div></div>`);
+var root_1$1 = /* @__PURE__ */ from_html(`<div><span></span><span class="sw"></span></div>`);
+var root_2$1 = /* @__PURE__ */ from_html(`<div><div class="ctl-h"></div> <!></div>`);
+var root_3 = /* @__PURE__ */ from_html(`<div><span class="cdot"></span> <span> </span><span class="cn"> </span></div>`);
+var root_4 = /* @__PURE__ */ from_html(`<!> <div class="panel" id="hud-ctl"><!> <div class="ctl-inst"><div class="label" style="margin-bottom:8px">Discovery instrument</div> <div><span>colour by it</span><span class="sw"></span></div> <div class="chips"></div></div> <div class="hint" style="font-size:10px;color:var(--dim);margin-top:6px;font-style:italic;line-height:1.6">Drag rotate · right-drag pan · WASD fly<br/>Scroll/pinch zoom to cursor · click to travel<br/>🧭 tour · 📏 measure · 🔗 share view</div></div>`, 1);
+function Controls($$anchor, $$props) {
 	push($$props, true);
 	const $toggleState = () => store_get(toggleState, "$toggleState", $$stores);
+	const $labels = () => store_get(labels, "$labels", $$stores);
+	const $facColor = () => store_get(facColor, "$facColor", $$stores);
+	const $facList = () => store_get(facList, "$facList", $$stores);
+	const $facHidden = () => store_get(facHidden, "$facHidden", $$stores);
 	const [$$stores, $$cleanup] = setup_stores();
+	let legend = prop($$props, "legend", 3, true);
 	const groups = [
 		{
 			"h": "☀️ Solar system",
@@ -48792,8 +49374,18 @@ function App($$anchor, $$props) {
 					"on": true
 				},
 				{
+					"id": "t-lag",
+					"label": "Lagrange points &amp; Hill spheres",
+					"on": true
+				},
+				{
 					"id": "t-size",
 					"label": "Size = planet radius",
+					"on": true
+				},
+				{
+					"id": "t-lag",
+					"label": "Lagrange points",
 					"on": true
 				}
 			]
@@ -48867,8 +49459,18 @@ function App($$anchor, $$props) {
 					"on": true
 				},
 				{
+					"id": "t-lens",
+					"label": "Lensing at Sgr A*",
+					"on": true
+				},
+				{
 					"id": "t-hz",
 					"label": "Habitable zone",
+					"on": true
+				},
+				{
+					"id": "t-lens",
+					"label": "Lensing at Sgr A*",
 					"on": true
 				}
 			]
@@ -48930,10 +49532,136 @@ function App($$anchor, $$props) {
 		}
 	];
 	let closed = proxy({});
+	function tgl(id) {
+		if (api.clickToggle) api.clickToggle(id);
+	}
+	function chip(k) {
+		if (!api.toggleFac) return;
+		const hidden = api.toggleFac(k);
+		facHidden.update((s) => {
+			const n = new Set(s);
+			hidden ? n.add(k) : n.delete(k);
+			return n;
+		});
+	}
+	function colby() {
+		if (api.facColorToggle) facColor.set(api.facColorToggle());
+	}
+	var fragment = root_4();
+	var node = first_child(fragment);
+	var consequent = ($$anchor) => {
+		append($$anchor, root$7());
+	};
+	if_block(node, ($$render) => {
+		if (legend()) $$render(consequent);
+	});
+	var div_1 = sibling(node, 2);
+	var node_1 = child(div_1);
+	each(node_1, 17, () => groups, index, ($$anchor, g, gi) => {
+		var div_2 = root_2$1();
+		let classes;
+		var div_3 = child(div_2);
+		html(div_3, () => get(g).h, true);
+		reset(div_3);
+		each(sibling(div_3, 2), 17, () => get(g).items, (d) => d.id, ($$anchor, d) => {
+			var div_4 = root_1$1();
+			let classes_1;
+			var span = child(div_4);
+			html(span, () => $labels()[get(d).id] ?? get(d).label, true);
+			reset(span);
+			next();
+			reset(div_4);
+			template_effect(() => classes_1 = set_class(div_4, 1, "toggle", null, classes_1, { on: $toggleState()[get(d).id] ?? get(d).on }));
+			delegated("click", div_4, () => tgl(get(d).id));
+			append($$anchor, div_4);
+		});
+		reset(div_2);
+		template_effect(() => classes = set_class(div_2, 1, "ctl-group", null, classes, { closed: closed[gi] }));
+		delegated("click", div_3, () => {
+			closed[gi] = !closed[gi];
+		});
+		append($$anchor, div_2);
+	});
+	var div_5 = sibling(node_1, 2);
+	var div_6 = sibling(child(div_5), 2);
+	let classes_2;
+	var div_7 = sibling(div_6, 2);
+	each(div_7, 5, $facList, (f) => f.k, ($$anchor, f) => {
+		var div_8 = root_3();
+		let classes_3;
+		var span_1 = child(div_8);
+		var span_2 = sibling(span_1, 2);
+		var text = child(span_2, true);
+		reset(span_2);
+		var span_3 = sibling(span_2);
+		var text_1 = child(span_3, true);
+		reset(span_3);
+		reset(div_8);
+		template_effect(($0, $1) => {
+			classes_3 = set_class(div_8, 1, "chip", null, classes_3, $0);
+			set_style(span_1, `background:rgb(${get(f).c[0] ?? ""},${get(f).c[1] ?? ""},${get(f).c[2] ?? ""})`);
+			set_text(text, get(f).l);
+			set_text(text_1, $1);
+		}, [() => ({ off: $facHidden().has(get(f).k) }), () => get(f).n.toLocaleString("en-US")]);
+		delegated("click", div_8, () => chip(get(f).k));
+		append($$anchor, div_8);
+	});
+	reset(div_7);
+	reset(div_5);
+	next(2);
+	reset(div_1);
+	template_effect(() => classes_2 = set_class(div_6, 1, "colby", null, classes_2, { on: $facColor() }));
+	delegated("click", div_6, colby);
+	append($$anchor, fragment);
+	pop();
+	$$cleanup();
+}
+delegate(["click"]);
+//#endregion
+//#region src/components/InfoHost.svelte
+var root$6 = /* @__PURE__ */ from_html(`<div class="panel" id="info"></div>`);
+function InfoHost($$anchor) {
+	append($$anchor, root$6());
+}
+//#endregion
+//#region src/components/NavConsole.svelte
+var root$5 = /* @__PURE__ */ from_html(`<div class="panel" id="hud-nav" style="display:none"><div class="nav-head"><span class="label" style="margin:0">▸ Navigation · course</span> <span id="navClose" title="Clear course">✕</span></div> <div id="navName">–</div> <div class="nav-cells"><div class="nav-cell"><div id="navDist" class="mono nv">–</div><div class="nl">Distance</div></div> <div class="nav-cell"><div id="navLight" class="mono nv">–</div><div class="nl">Light travel time</div></div> <div class="nav-cell"><div id="navHead" class="mono nv">–</div><div class="nl">Bearing</div></div></div> <button id="navGo">Engage course ▸</button></div>`);
+function NavConsole($$anchor) {
+	append($$anchor, root$5());
+}
+//#endregion
+//#region src/components/PmPanel.svelte
+var root$4 = /* @__PURE__ */ from_html(`<div class="panel" id="hud-pm" style="display:none"><div class="pm-head"><span class="label" style="margin:0">Night sky · proper motion</span> <span class="mono" id="pmVal">today</span></div> <input type="range" id="pmTime" min="-50000" max="50000" value="0" step="100"/> <div class="ticks"><span>−50,000 yr</span><span>today</span><span>+50,000 yr</span></div></div>`);
+function PmPanel($$anchor) {
+	append($$anchor, root$4());
+}
+//#endregion
+//#region src/components/TimeBars.svelte
+var root$3 = /* @__PURE__ */ from_html(`<div class="panel" id="hud-time"><div class="time-head"><div class="yr">Year <span class="live" id="yrVal">2026</span></div> <div class="meta" id="yrMeta"></div> <div class="time-min" title="Minimize">–</div></div> <div class="time-row"><button id="play" aria-label="Play time"><svg id="playIcon" viewBox="0 0 16 16"><path d="M3 2l11 6L3 14z"></path></svg></button> <div class="track"><input type="range" id="year" min="1992" max="2026" value="2026" step="1"/> <div class="ticks"><span>1992</span><span>2000</span><span>2009</span><span>2017</span><span>2026</span></div></div></div></div> <div class="panel" id="hud-soltime" style="display:none"><div class="time-head"><div class="yr">Solar system · <span class="live" id="solDate">–</span></div> <div class="meta">Time travel · planets on their orbits</div> <div class="time-min" title="Minimize">–</div></div> <div class="time-row"><button id="solPlay" aria-label="Play time"><svg id="solIcon" viewBox="0 0 16 16"><path d="M3 2l11 6L3 14z"></path></svg></button> <div class="track"><input type="range" id="solTime" min="-36525" max="36525" value="0" step="1"/> <div class="ticks"><span>−100 yr</span><span>−50</span><span>today</span><span>+50</span><span>+100 yr</span></div></div> <button id="solNow">today</button></div></div>`, 1);
+function TimeBars($$anchor) {
+	var fragment = root$3();
+	next(2);
+	append($$anchor, fragment);
+}
+//#endregion
+//#region src/components/TourPanel.svelte
+var root$2 = /* @__PURE__ */ from_html(`<div id="tourPanel" style="display:none;position:fixed;left:50%;bottom:70px;transform:translateX(-50%);z-index:60;
+  max-width:520px;background:rgba(10,14,28,.92);border:1px solid rgba(120,140,190,.35);border-radius:10px;
+  padding:12px 16px;font-family:ui-monospace,monospace;color:#e9edfa;backdrop-filter:blur(4px)"><div id="tourTitle" style="font-size:13px;color:#ffcf6b;letter-spacing:.06em;margin-bottom:5px"></div> <div id="tourText" style="font-size:11.5px;line-height:1.55;color:#c8cfE2"></div> <div style="display:flex;gap:8px;margin-top:9px;align-items:center"><button id="tourPrev" class="tbtn">◀</button> <span id="tourStep" style="font-size:10px;color:#8a93ad"></span> <button id="tourNext" class="tbtn">Next ▶</button> <span style="flex:1"></span> <button id="tourEnd" class="tbtn">✕ End tour</button></div></div>`);
+function TourPanel($$anchor) {
+	append($$anchor, root$2());
+}
+//#endregion
+//#region src/components/MobileNav.svelte
+var root$1 = /* @__PURE__ */ from_html(`<!> <div class="ms-actions"><button>☉ Solar system</button> <button>🧭 Cosmic tour</button> <button>🔗 Share view</button> <button>⟲ Reset view</button></div>`, 1);
+var root_1 = /* @__PURE__ */ from_html(`<div id="mobsheet"><div class="ms-head"><span> </span> <button class="ms-x">✕ Close</button></div> <div class="ms-body"><!></div></div>`);
+var root_2 = /* @__PURE__ */ from_html(`<div id="mobbar"><div><span>🔍</span>Search</div> <div><span>☰</span>Layers</div> <div><span>🕐</span>Time</div> <div class="mb"><span>🧭</span>Tour</div></div> <!>`, 1);
+function MobileNav($$anchor, $$props) {
+	push($$props, true);
 	let mobPanel = /* @__PURE__ */ state(null);
 	let showTime = /* @__PURE__ */ state(false);
-	function openSheet(which) {
-		set(mobPanel, get(mobPanel) === which ? null : which, true);
+	function openSheet(w) {
+		set(mobPanel, get(mobPanel) === w ? null : w, true);
 	}
 	function toggleTime() {
 		set(showTime, !get(showTime));
@@ -48942,217 +49670,113 @@ function App($$anchor, $$props) {
 	user_effect(() => {
 		document.body.classList.toggle("mob-time", get(showTime));
 	});
-	let mq = /* @__PURE__ */ state("");
-	let mMsg = /* @__PURE__ */ state("");
-	let mSugs = /* @__PURE__ */ user_derived(() => api.suggest ? api.suggest(get(mq)) : []);
-	function mSearch(name) {
-		if (api.doSearch) {
-			api.doSearch(name);
-			set(mMsg, api.searchMsgText ? api.searchMsgText() : "", true);
-		}
-		set(mq, "");
-		set(mobPanel, null);
-	}
 	function press(id) {
 		const b = document.getElementById(id);
 		if (b) b.click();
 		set(mobPanel, null);
 	}
-	function sheetClick(e) {
-		if (e.target && e.target.closest && e.target.closest("#suggest")) setTimeout(() => {
-			set(mobPanel, null);
-		}, 50);
-	}
-	function startTour() {
-		set(mobPanel, null);
-		set(showTime, false);
-		const b = document.getElementById("tourBtn");
-		if (b) b.click();
-	}
-	function resetView() {
-		const b = document.getElementById("resetBtn");
-		if (b) b.click();
-	}
-	var fragment = root_7();
+	var fragment = root_2();
 	var div = first_child(fragment);
-	var div_1 = sibling(child(div), 4);
-	var div_2 = child(div_1);
-	var div_3 = sibling(child(div_2), 8);
-	var button = sibling(child(div_3), 6);
-	reset(div_3);
-	reset(div_2);
-	next(4);
-	reset(div_1);
-	var div_4 = sibling(div_1, 2);
-	var div_5 = sibling(child(div_4), 2);
-	each(child(div_5), 17, () => groups, index, ($$anchor, g, gi) => {
-		var div_6 = root_1();
-		let classes;
-		var div_7 = child(div_6);
-		html(div_7, () => get(g).h, true);
-		reset(div_7);
-		each(sibling(div_7, 2), 17, () => get(g).items, (d) => d.id, ($$anchor, d) => {
-			var div_8 = root();
-			let classes_1;
-			var span = child(div_8);
-			html(span, () => get(d).label, true);
-			reset(span);
-			next();
-			reset(div_8);
-			template_effect(() => {
-				classes_1 = set_class(div_8, 1, "toggle", null, classes_1, { on: $toggleState()[get(d).id] ?? get(d).on });
-				set_attribute(div_8, "id", get(d).id);
-			});
-			delegated("click", div_8, () => api.clickToggle && api.clickToggle(get(d).id));
-			append($$anchor, div_8);
-		});
-		reset(div_6);
-		template_effect(() => classes = set_class(div_6, 1, "ctl-group", null, classes, { closed: closed[gi] }));
-		delegated("click", div_7, () => {
-			closed[gi] = !closed[gi];
-		});
-		append($$anchor, div_6);
-	});
-	next(6);
-	reset(div_5);
-	reset(div_4);
-	next(10);
-	reset(div);
-	var div_9 = sibling(div, 2);
-	var div_10 = child(div_9);
+	var div_1 = child(div);
+	let classes;
+	var div_2 = sibling(div_1, 2);
+	let classes_1;
+	var div_3 = sibling(div_2, 2);
 	let classes_2;
-	var div_11 = sibling(div_10, 2);
-	let classes_3;
-	var div_12 = sibling(div_11, 2);
-	let classes_4;
-	var div_13 = sibling(div_12, 2);
-	reset(div_9);
-	var node_2 = sibling(div_9, 2);
-	var consequent_3 = ($$anchor) => {
-		var div_14 = root_6();
-		var div_15 = child(div_14);
-		var span_1 = child(div_15);
-		var text = child(span_1, true);
-		reset(span_1);
-		var button_1 = sibling(span_1, 2);
-		reset(div_15);
-		var div_16 = sibling(div_15, 2);
-		var node_3 = child(div_16);
+	var div_4 = sibling(div_3, 2);
+	reset(div);
+	var node = sibling(div, 2);
+	var consequent_1 = ($$anchor) => {
+		var div_5 = root_1();
+		var div_6 = child(div_5);
+		var span = child(div_6);
+		var text = child(span, true);
+		reset(span);
+		var button = sibling(span, 2);
+		reset(div_6);
+		var div_7 = sibling(div_6, 2);
+		var node_1 = child(div_7);
 		var consequent = ($$anchor) => {
-			var fragment_1 = comment();
-			each(first_child(fragment_1), 17, () => groups, index, ($$anchor, g, gi) => {
-				var div_17 = root_1();
-				let classes_5;
-				var div_18 = child(div_17);
-				html(div_18, () => get(g).h, true);
-				reset(div_18);
-				each(sibling(div_18, 2), 17, () => get(g).items, (d) => d.id, ($$anchor, d) => {
-					var div_19 = root();
-					let classes_6;
-					var span_2 = child(div_19);
-					html(span_2, () => get(d).label, true);
-					reset(span_2);
-					next();
-					reset(div_19);
-					template_effect(() => classes_6 = set_class(div_19, 1, "toggle", null, classes_6, { on: $toggleState()[get(d).id] ?? get(d).on }));
-					delegated("click", div_19, () => api.clickToggle && api.clickToggle(get(d).id));
-					append($$anchor, div_19);
-				});
-				reset(div_17);
-				template_effect(() => classes_5 = set_class(div_17, 1, "ctl-group ms-grp", null, classes_5, { closed: closed[gi] }));
-				delegated("click", div_18, () => {
-					closed[gi] = !closed[gi];
-				});
-				append($$anchor, div_17);
-			});
-			append($$anchor, fragment_1);
+			Controls($$anchor, { legend: false });
 		};
 		var alternate = ($$anchor) => {
-			var fragment_2 = root_5();
-			var input_3 = first_child(fragment_2);
-			remove_input_defaults(input_3);
-			var node_6 = sibling(input_3, 2);
-			var consequent_1 = ($$anchor) => {
-				var div_20 = root_3();
-				each(div_20, 21, () => get(mSugs), index, ($$anchor, sg) => {
-					var div_21 = root_2();
-					var text_1 = child(div_21, true);
-					var span_3 = sibling(text_1);
-					var text_2 = child(span_3, true);
-					reset(span_3);
-					reset(div_21);
-					template_effect(() => {
-						set_text(text_1, get(sg)[0]);
-						set_text(text_2, get(sg)[2]);
-					});
-					delegated("click", div_21, () => mSearch(get(sg)[0]));
-					append($$anchor, div_21);
-				});
-				reset(div_20);
-				append($$anchor, div_20);
-			};
-			if_block(node_6, ($$render) => {
-				if (get(mSugs).length) $$render(consequent_1);
+			var fragment_2 = root$1();
+			var node_2 = first_child(fragment_2);
+			SearchBox(node_2, {
+				mode: "sheet",
+				onpick: () => {
+					set(mobPanel, null);
+				}
 			});
-			var node_7 = sibling(node_6, 2);
-			var consequent_2 = ($$anchor) => {
-				var div_22 = root_4();
-				var text_3 = child(div_22, true);
-				reset(div_22);
-				template_effect(() => set_text(text_3, get(mMsg)));
-				append($$anchor, div_22);
-			};
-			if_block(node_7, ($$render) => {
-				if (get(mMsg)) $$render(consequent_2);
-			});
-			var div_23 = sibling(node_7, 2);
-			var button_2 = child(div_23);
+			var div_8 = sibling(node_2, 2);
+			var button_1 = child(div_8);
+			var button_2 = sibling(button_1, 2);
 			var button_3 = sibling(button_2, 2);
 			var button_4 = sibling(button_3, 2);
-			var button_5 = sibling(button_4, 2);
-			reset(div_23);
-			delegated("keydown", input_3, (e) => {
-				if (e.key === "Enter" && get(mq)) mSearch(get(mq));
-			});
-			bind_value(input_3, () => get(mq), ($$value) => set(mq, $$value));
-			delegated("click", button_2, () => press("solarBtn"));
-			delegated("click", button_3, () => press("tourBtn"));
-			delegated("click", button_4, () => press("shareBtn"));
-			delegated("click", button_5, () => press("resetBtn"));
+			reset(div_8);
+			delegated("click", button_1, () => press("solarBtn"));
+			delegated("click", button_2, () => press("tourBtn"));
+			delegated("click", button_3, () => press("shareBtn"));
+			delegated("click", button_4, () => press("resetBtn"));
 			append($$anchor, fragment_2);
 		};
-		if_block(node_3, ($$render) => {
+		if_block(node_1, ($$render) => {
 			if (get(mobPanel) === "layers") $$render(consequent);
 			else $$render(alternate, -1);
 		});
-		reset(div_16);
-		reset(div_14);
-		template_effect(() => set_text(text, get(mobPanel) === "layers" ? "☰ Layers" : "🔍 Search & info"));
-		delegated("click", div_14, sheetClick);
-		delegated("click", button_1, () => {
+		reset(div_7);
+		reset(div_5);
+		template_effect(() => set_text(text, get(mobPanel) === "layers" ? "☰ Layers" : "🔍 Search"));
+		delegated("click", button, () => {
 			set(mobPanel, null);
 		});
-		append($$anchor, div_14);
+		append($$anchor, div_5);
 	};
-	if_block(node_2, ($$render) => {
-		if (get(mobPanel)) $$render(consequent_3);
+	if_block(node, ($$render) => {
+		if (get(mobPanel)) $$render(consequent_1);
 	});
-	next(2);
 	template_effect(() => {
-		classes_2 = set_class(div_10, 1, "mb", null, classes_2, { active: get(mobPanel) === "search" });
-		classes_3 = set_class(div_11, 1, "mb", null, classes_3, { active: get(mobPanel) === "layers" });
-		classes_4 = set_class(div_12, 1, "mb", null, classes_4, { active: get(showTime) });
+		classes = set_class(div_1, 1, "mb", null, classes, { active: get(mobPanel) === "search" });
+		classes_1 = set_class(div_2, 1, "mb", null, classes_1, { active: get(mobPanel) === "layers" });
+		classes_2 = set_class(div_3, 1, "mb", null, classes_2, { active: get(showTime) });
 	});
-	delegated("click", button, resetView);
-	delegated("click", div_10, () => openSheet("search"));
-	delegated("click", div_11, () => openSheet("layers"));
-	delegated("click", div_12, toggleTime);
-	delegated("click", div_13, startTour);
+	delegated("click", div_1, () => openSheet("search"));
+	delegated("click", div_2, () => openSheet("layers"));
+	delegated("click", div_3, toggleTime);
+	delegated("click", div_4, () => press("tourBtn"));
 	append($$anchor, fragment);
 	pop();
-	$$cleanup();
 }
-delegate(["click", "keydown"]);
+delegate(["click"]);
+//#endregion
+//#region src/App.svelte
+var root = /* @__PURE__ */ from_html(`<canvas id="gl"></canvas> <canvas id="sky"></canvas> <div id="left-col"><!> <!> <!> <!></div> <div id="right-col"><!></div> <!> <!> <!> <!> <!> <button id="resetBtn" style="display:none" aria-hidden="true"></button>`, 1);
+function App($$anchor) {
+	var fragment = root();
+	var div = sibling(first_child(fragment), 4);
+	var node = child(div);
+	TopPanel(node, {});
+	var node_1 = sibling(node, 2);
+	SearchBox(node_1, {});
+	var node_2 = sibling(node_1, 2);
+	MwMap(node_2, {});
+	InfoHost(sibling(node_2, 2), {});
+	reset(div);
+	var div_1 = sibling(div, 2);
+	Controls(child(div_1), {});
+	reset(div_1);
+	var node_5 = sibling(div_1, 2);
+	NavConsole(node_5, {});
+	var node_6 = sibling(node_5, 2);
+	PmPanel(node_6, {});
+	var node_7 = sibling(node_6, 2);
+	TimeBars(node_7, {});
+	var node_8 = sibling(node_7, 2);
+	TourPanel(node_8, {});
+	MobileNav(sibling(node_8, 2), {});
+	next(2);
+	append($$anchor, fragment);
+}
 //#endregion
 //#region src/main.js
 mount(App, { target: document.getElementById("app") });
@@ -49160,6 +49784,12 @@ UI.syncToggle = (id, on) => toggleState.update((m) => ({
 	...m,
 	[id]: on
 }));
+UI.setLabel = (id, txt) => labels.update((m) => ({
+	...m,
+	[id]: txt
+}));
+UI.msg = (txt) => searchMsg.set(txt);
+UI.fac = (list) => facList.set(list);
 if (window.__DATA__) runEngine();
 else fetch("data/data.json").then((r) => r.json()).then((d) => {
 	window.__DATA__ = d;
