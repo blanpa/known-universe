@@ -197,6 +197,16 @@
     #hud-tl{max-width:210px;padding:12px 13px}
     #info{display:none}
   }
+  .time-min{position:absolute;top:6px;right:10px;cursor:pointer;color:var(--dim);font-size:15px;
+    line-height:1;padding:2px 7px;border-radius:5px;user-select:none}
+  .time-min:hover{color:var(--amber);background:rgba(255,207,107,.12)}
+  #hud-time,#hud-soltime{position:relative}
+  body.time-mini #hud-time,body.time-mini #hud-soltime{
+    padding:6px 14px!important;cursor:pointer;min-width:0;width:auto}
+  body.time-mini #hud-time .time-row,body.time-mini #hud-time .meta,
+  body.time-mini #hud-soltime .time-row,body.time-mini #hud-soltime .meta{display:none}
+  body.time-mini .time-min{position:static;padding:0 0 0 8px;display:inline}
+  body.time-mini .time-min::after{content:''}
   /* ---- mobile (≤720px): drawers + floating action buttons ---- */
   .fab{display:none}
   @media (max-width:720px){
@@ -350,6 +360,7 @@
     <div class="time-head">
       <div class="yr">Year <span class="live" id="yrVal">2026</span></div>
       <div class="meta" id="yrMeta"></div>
+      <div class="time-min" title="Minimize">–</div>
     </div>
     <div class="time-row">
       <button id="play" aria-label="Play time"><svg id="playIcon" viewBox="0 0 16 16"><path d="M3 2l11 6L3 14z"/></svg></button>
@@ -364,6 +375,7 @@
     <div class="time-head">
       <div class="yr">Solar system · <span class="live" id="solDate">–</span></div>
       <div class="meta">Time travel · planets on their orbits</div>
+      <div class="time-min" title="Minimize">–</div>
     </div>
     <div class="time-row">
       <button id="solPlay" aria-label="Play time"><svg id="solIcon" viewBox="0 0 16 16"><path d="M3 2l11 6L3 14z"/></svg></button>
@@ -2873,6 +2885,16 @@ if(sugEl&&sugEl.addEventListener) sugEl.addEventListener('mousedown',e=>{
 // ---- collapsible control groups ----
 if(document.querySelectorAll) document.querySelectorAll('.ctl-h').forEach(h=>
   h.addEventListener('click',()=>h.parentElement.classList.toggle('closed')));
+// ---- collapsible time bar ----
+(function(){
+  const B=document.body;
+  const setMini=v=>{ if(B.classList){ B.classList.toggle('time-mini',v); dirty=true; } };
+  if(document.querySelectorAll) document.querySelectorAll('.time-min').forEach(el=>
+    el.addEventListener('click',e=>{ if(e.stopPropagation)e.stopPropagation(); setMini(!(B.classList&&B.classList.contains('time-mini'))); }));
+  for(const id of ['hud-time','hud-soltime']){ const p=document.getElementById(id);
+    if(p&&p.addEventListener) p.addEventListener('click',()=>{ if(B.classList&&B.classList.contains('time-mini')) setMini(false); }); }
+  try{ if(matchMedia('(max-width:720px)').matches) setMini(true); }catch(e){}
+})();
 // ---- mobile drawers ----
 (function(){
   const B=document.body;
