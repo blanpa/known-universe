@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <meta charset="utf-8">
 <title>Known Universe — a real-data map of everything we’ve found</title>
+<!-- build 2026-07-11 16:53 -->
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <style>
   :root{
@@ -409,8 +410,10 @@
   <div class="panel" id="info"></div>
 
 </div>
-<div class="fab" id="fabSearch" title="Search & info">🔍</div>
-<div class="fab" id="fabLayers" title="Layers">☰</div>
+<div class="fab" id="fabSearch" title="Search & info"
+  onclick="document.body.classList.toggle('mob-left');document.body.classList.remove('mob-right')">🔍</div>
+<div class="fab" id="fabLayers" title="Layers"
+  onclick="document.body.classList.toggle('mob-right');document.body.classList.remove('mob-left')">☰</div>
 <div id="tourPanel" style="display:none;position:fixed;left:50%;bottom:70px;transform:translateX(-50%);z-index:60;
   max-width:520px;background:rgba(10,14,28,.92);border:1px solid rgba(120,140,190,.35);border-radius:10px;
   padding:12px 16px;font-family:ui-monospace,monospace;color:#e9edfa;backdrop-filter:blur(4px)">
@@ -2898,17 +2901,14 @@ if(document.querySelectorAll) document.querySelectorAll('.ctl-h').forEach(h=>
 // ---- mobile drawers ----
 (function(){
   const B=document.body;
-  const fs=document.getElementById('fabSearch'), fl=document.getElementById('fabLayers');
-  const tap=(el,fn)=>{ if(el&&el.addEventListener) el.addEventListener('pointerdown',e=>{
-    if(e.preventDefault)e.preventDefault(); if(e.stopPropagation)e.stopPropagation(); fn(); },{passive:false}); };
-  tap(fs,()=>{ if(B.classList){B.classList.toggle('mob-left');B.classList.remove('mob-right');} });
-  tap(fl,()=>{ if(B.classList){B.classList.toggle('mob-right');B.classList.remove('mob-left');} });
+  // FAB toggling is inline onclick on the elements (parse-time, mobile-safe)
   try{
     if(matchMedia('(max-width:720px)').matches && B.appendChild)
       B.appendChild(document.getElementById('info'));   // bottom sheet must escape the hidden drawer
   }catch(e){}
 })();
 applyHash();
+try{console.log('Known Universe build 2026-07-11 16:53');}catch(e){}
 initGL();
 loadGaia();
 loadExtragal();
