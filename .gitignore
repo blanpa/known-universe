@@ -20,3 +20,6 @@ horizons_mb.txt
 sb_*.json
 satvec/
 gwosc_probe.txt
+node_modules/
+dist/
+dist-artifact/
