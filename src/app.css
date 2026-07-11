@@ -338,3 +338,17 @@ input[type=range]::-webkit-slider-thumb{width:18px;height:18px}
 /* panels placed inside the mobile sheet must flow, not float */
 .ms-body .panel{position:relative!important;top:auto!important;left:auto!important;right:auto!important;
   width:auto!important;max-width:none!important;max-height:none!important;overflow:visible!important}
+/* desktop: fit the full layer list on one screen — two-column controls, denser rows */
+@media (min-width:721px){
+  #right-col{width:440px}
+  #hud-ctl{columns:2;column-gap:20px;overflow-y:auto}
+  .ctl-group{break-inside:avoid;margin-bottom:6px}
+  .ctl-inst,#hud-ctl .hint{column-span:all}
+  .toggle,.colby{padding:3.5px 2px;font-size:11.5px}
+  .sw{width:30px;height:18px;flex:0 0 30px}
+  .sw::after{width:13px;height:13px;top:2.5px;left:2.5px}
+  .toggle.on .sw::after,.colby.on .sw::after{transform:translateX(12px)}
+  .ctl-h{padding:6px 2px 5px;font-size:11px}
+  #hud-tr .leg-row{font-size:10px}
+  .chips{max-height:120px;overflow-y:auto}
+}
