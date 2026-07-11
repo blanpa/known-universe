@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Auto-updater for the Galactica container.
+"""Auto-updater for the Known Universe container.
 
 Periodically fetches fresh raw data (exoplanets, galaxies, HYG stars), runs
 build_data.py and writes data.json into the shared volume that

@@ -1,4 +1,4 @@
-# Galactica
+# Known Universe
 
 A spatial 3D map of humanity's confirmed exoplanets, the real stars of the
 solar neighbourhood **and** the measured galaxies of the local universe — all

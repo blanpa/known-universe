@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <meta charset="utf-8">
-<title>Galactica — Map of the Discovered Worlds</title>
+<title>Known Universe — a real-data map of everything we’ve found</title>
 <style>
   :root{
     --void:#070912; --void2:#0a0e1c;
@@ -192,7 +192,7 @@
 
   <div id="left-col">
   <div class="panel" id="hud-tl">
-    <h1><span class="dot"></span>Galactica</h1>
+    <h1><span class="dot"></span>Known Universe</h1>
     <div class="sub">One scale from the solar system to the galaxies — <b style="color:var(--ink);font-weight:600">scroll</b> to cross the orders of magnitude. Data: NASA · HYG · Local Volume.</div>
     <div class="stats">
       <div class="stat"><div class="k mono" id="s-sys">0</div><div class="l">Systems visible</div></div>
@@ -474,7 +474,7 @@ function camDir2(v){                               // world direction -> screen 
 }
 const EXTRA_MOONS={"Jupiter":[{"n":"Metis","am":128.1,"rk":21.5},{"n":"Adrastea","am":129.0,"rk":8.2},{"n":"Thebe","am":218.7,"rk":49.3},{"n":"Themisto","am":8678.0,"rk":5},{"n":"Elara","am":9861.8,"rk":40.0},{"n":"Leda","am":10997.3,"rk":5.0},{"n":"Lysithea","am":11280.2,"rk":12.0},{"n":"Pandia","am":11643.9,"rk":5},{"n":"Himalia","am":12167.6,"rk":85.0},{"n":"Ersa","am":12615.4,"rk":5},{"n":"Dia","am":15522.8,"rk":5},{"n":"Philophrosyne","am":15869.1,"rk":5},{"n":"Iocaste","am":15893.3,"rk":5},{"n":"Valetudo","am":16858.0,"rk":5},{"n":"Euporie","am":17175.7,"rk":5},{"n":"S2017 J3","am":17187.6,"rk":5},{"n":"Pasithee","am":17501.5,"rk":5},{"n":"Erinome","am":17893.2,"rk":5},{"n":"Chaldene","am":18160.4,"rk":5},{"n":"S2011 J1","am":19091.8,"rk":5},{"n":"Harpalyke","am":19222.6,"rk":5},{"n":"Thelxinoe","am":19259.0,"rk":5},{"n":"Praxidike","am":19262.4,"rk":5},{"n":"S2003 J18","am":19309.0,"rk":5},{"n":"Eirene","am":19825.3,"rk":5},{"n":"Kale","am":20192.3,"rk":5},{"n":"S2017 J2","am":20650.4,"rk":5},{"n":"Ananke","am":20755.1,"rk":10.0},{"n":"Eupheme","am":21120.2,"rk":5},{"n":"Thyone","am":21507.4,"rk":5},{"n":"Callirrhoe","am":21635.7,"rk":5},{"n":"Autonoe","am":21735.3,"rk":5},{"n":"S2016 J1","am":22067.5,"rk":5},{"n":"Pasiphae","am":22313.3,"rk":18.0},{"n":"Helike","am":22559.4,"rk":5},{"n":"Orthosie","am":22898.2,"rk":5},{"n":"Carme","am":23280.2,"rk":15.0},{"n":"Hermippe","am":23504.2,"rk":5},{"n":"S2003 J19","am":23678.4,"rk":5},{"n":"Kalyke","am":23686.9,"rk":5},{"n":"Aoede","am":23851.9,"rk":5},{"n":"Euanthe","am":23985.3,"rk":5},{"n":"Eukelade","am":24152.2,"rk":5},{"n":"S2011 J2","am":24200.7,"rk":5},{"n":"S2017 J7","am":24356.2,"rk":5},{"n":"S2017 J9","am":24509.5,"rk":5},{"n":"S2017 J5","am":24662.5,"rk":5},{"n":"Hegemone","am":24878.0,"rk":5},{"n":"Carpo","am":25507.2,"rk":5},{"n":"Cyllene","am":25709.3,"rk":5},{"n":"Sinope","am":26053.7,"rk":14.0},{"n":"Isonoe","am":26769.0,"rk":5},{"n":"S2017 J8","am":26965.0,"rk":5},{"n":"Eurydome","am":27077.9,"rk":5},{"n":"S2010 J2","am":27710.1,"rk":5},{"n":"Megaclite","am":27731.3,"rk":5},{"n":"Herse","am":27917.8,"rk":5},{"n":"Mneme","am":27959.3,"rk":5},{"n":"S2017 J6","am":28101.0,"rk":5},{"n":"Arche","am":28224.2,"rk":5},{"n":"S2017 J1","am":28906.1,"rk":5},{"n":"Taygete","am":28919.2,"rk":5},{"n":"Sponde","am":28923.7,"rk":5},{"n":"S2010 J1","am":28978.4,"rk":5},{"n":"Aitne","am":29679.0,"rk":5},{"n":"Kallichore","am":29986.4,"rk":5},{"n":"Kore","am":31781.9,"rk":5}],"Saturn":[{"n":"Pan","am":133.6,"rk":17.2},{"n":"Atlas","am":137.7,"rk":20.5},{"n":"Prometheus","am":139.4,"rk":68.2},{"n":"Pandora","am":141.2,"rk":52.2},{"n":"Epimetheus","am":150.0,"rk":64.9},{"n":"Janus","am":151.4,"rk":101.7},{"n":"Aegaeon","am":167.5,"rk":5},{"n":"Methone","am":194.0,"rk":5},{"n":"Anthe","am":197.7,"rk":5},{"n":"Pallene","am":212.2,"rk":5},{"n":"Telesto","am":294.6,"rk":16.3},{"n":"Calypso","am":294.7,"rk":15.3},{"n":"Helene","am":379.8,"rk":16.0},{"n":"Polydeuces","am":383.6,"rk":5},{"n":"Hyperion","am":1434.2,"rk":133.0},{"n":"Paaliaq","am":6458.7,"rk":5},{"n":"Gerd","am":9140.7,"rk":5},{"n":"Bebhionn","am":9838.7,"rk":5},{"n":"Kiviuq","am":9946.3,"rk":5},{"n":"S2004 S29","am":10857.3,"rk":5},{"n":"Erriapus","am":11144.2,"rk":5},{"n":"Geirrod","am":11520.0,"rk":5},{"n":"Phoebe","am":13411.8,"rk":106.6},{"n":"Skoll","am":14694.5,"rk":5},{"n":"Narvi","am":14734.1,"rk":5},{"n":"Gridr","am":15860.6,"rk":5},{"n":"Ijiraq","am":15983.0,"rk":5},{"n":"Ymir","am":16342.5,"rk":5},{"n":"Angrboda","am":16774.6,"rk":5},{"n":"Eggther","am":17150.2,"rk":5},{"n":"Jarnsaxa","am":17266.1,"rk":5},{"n":"Greip","am":18012.2,"rk":5},{"n":"Tarqeq","am":18983.5,"rk":5},{"n":"Hyrrokkin","am":19037.3,"rk":5},{"n":"Skathi","am":19386.6,"rk":5},{"n":"Fenrir","am":19476.0,"rk":5},{"n":"Fornjot","am":19841.7,"rk":5},{"n":"Gunnlod","am":20171.5,"rk":5},{"n":"Surtur","am":20471.5,"rk":5},{"n":"Suttungr","am":21002.0,"rk":5},{"n":"Tarvos","am":21181.0,"rk":5},{"n":"Thrymr","am":21236.3,"rk":5},{"n":"S2004 S34","am":21667.7,"rk":5},{"n":"Hati","am":22019.8,"rk":5},{"n":"Bergelmir","am":22063.1,"rk":5},{"n":"Mundilfari","am":22201.7,"rk":5},{"n":"Beli","am":22242.7,"rk":5},{"n":"Farbauti","am":23548.3,"rk":5},{"n":"Aegir","am":24034.2,"rk":5},{"n":"Siarnaq","am":24339.1,"rk":5},{"n":"Loge","am":24782.5,"rk":5},{"n":"Alvaldi","am":24922.9,"rk":5},{"n":"Albiorix","am":26064.5,"rk":5},{"n":"Skrymir","am":28494.5,"rk":5},{"n":"S2004 S26","am":29063.4,"rk":5},{"n":"Bestla","am":29924.6,"rk":5},{"n":"Kari","am":31178.6,"rk":5},{"n":"Thiazzi","am":34265.7,"rk":5}],"Uranus":[{"n":"Cordelia","am":49.7,"rk":13.0},{"n":"Ophelia","am":53.7,"rk":16.0},{"n":"Bianca","am":59.1,"rk":22.0},{"n":"Cressida","am":61.6,"rk":33.0},{"n":"Desdemona","am":62.8,"rk":29.0},{"n":"Juliet","am":64.7,"rk":42.0},{"n":"Portia","am":66.1,"rk":55.0},{"n":"Rosalind","am":70.1,"rk":29.0},{"n":"Cupid","am":74.8,"rk":5},{"n":"Belinda","am":75.3,"rk":34.0},{"n":"Perdita","am":76.6,"rk":5},{"n":"Puck","am":85.5,"rk":77.0},{"n":"Mab","am":97.4,"rk":5},{"n":"Francisco","am":4617.2,"rk":5},{"n":"Stephano","am":6713.3,"rk":5},{"n":"Caliban","am":7141.4,"rk":5},{"n":"Trinculo","am":10132.7,"rk":5},{"n":"Sycorax","am":14479.9,"rk":5},{"n":"Setebos","am":16347.5,"rk":5},{"n":"Margaret","am":20504.6,"rk":5},{"n":"Prospero","am":22034.3,"rk":5},{"n":"Ferdinand","am":27381.9,"rk":5}],"Neptune":[{"n":"Naiad","am":48.2,"rk":29.0},{"n":"Thalassa","am":50.1,"rk":40.0},{"n":"Despina","am":52.5,"rk":74.0},{"n":"Galatea","am":61.9,"rk":79.0},{"n":"Larissa","am":73.5,"rk":96.0},{"n":"Hippocamp","am":105.2,"rk":5},{"n":"Halimede","am":16290.5,"rk":5},{"n":"Sao","am":24377.0,"rk":5},{"n":"Laomedeia","am":33110.0,"rk":5},{"n":"Psamathe","am":57254.5,"rk":5},{"n":"Neso","am":85266.7,"rk":5}],"Pluto":[{"n":"Styx","am":40.4,"rk":5.2},{"n":"Kerberos","am":56.5,"rk":6.0}]};
 for(const b of [...PLANETS,...DWARFS]){ const ex=EXTRA_MOONS[b.n];
-  if(ex) for(const m of ex){ m.minor=true; b.moons.push(m); } }
+  if(ex) for(const m of ex){ m.minor=true; m.c=[152,152,158]; b.moons.push(m); } }
 const SUNHIT={sunhit:true};
 PLANETS.forEach(p=>{p.kind='Planet'; p.moons.forEach(m=>{m.kind='Moon'; m.parent=p.n; m.pc=p.c;});});
 DWARFS.forEach(p=>{p.kind='Dwarf planet'; p.moons.forEach(m=>{m.kind='Moon'; m.parent=p.n; m.pc=p.c;});});
@@ -2038,6 +2038,7 @@ function zoomAt(mx,my,dirIn){
     tgtCtr.x+=(Px-tgtCtr.x)*(1-k); tgtCtr.y+=(Py-tgtCtr.y)*(1-k); tgtCtr.z+=(Pz-tgtCtr.z)*(1-k);
   }
 }
+cv.addEventListener('pointercancel',e=>{ ptrs.delete(e.pointerId); if(ptrs.size<2){pinching=false;pinchD=0;} dragging=false; });
 cv.addEventListener('wheel',e=>{e.preventDefault();
   zoomAt(e.clientX,e.clientY,e.deltaY<0);
 },{passive:false});
@@ -2648,7 +2649,8 @@ function frame(t){
   if(dirty||anim){
     ctr.x+=(tgtCtr.x-ctr.x)*0.18; ctr.y+=(tgtCtr.y-ctr.y)*0.18; ctr.z+=(tgtCtr.z-ctr.z)*0.18;
     S.yaw+=(tgtYaw-S.yaw)*0.12; S.pitch+=(tgtPitch-S.pitch)*0.12; S.camZ+=(tgtCamZ-S.camZ)*0.12;
-    render(); dirty=false;
+    try{ render(); }catch(err){ if(!window.__rerr){ window.__rerr=1; console.error('render error:',err); } }
+    dirty=false;
   }
   requestAnimationFrame(frame);
 }
@@ -2772,5 +2774,5 @@ loadGaia();
 loadExtragal();
 requestAnimationFrame(frame);
 }
-fetch('data/data.json').then(r=>r.json()).then(d=>{window.__DATA__=d;__run();}).catch(e=>{document.body.innerHTML='<p>Error: '+e+'</p>';});
+fetch('data/data.json').then(r=>r.json()).then(d=>{window.__DATA__=d;__run();}).catch(e=>{});
 </script>
