@@ -60,11 +60,16 @@ as a fourth dimension.
   *(Physical object sizes are necessarily symbolic across 13 decades — glyphs
   scale by real* relative *radius, so e.g. Jupiter > Earth stays recognisable.)*
 - **Tech:** a single `index.html` with its own 3D renderer (no external
-  libraries). Stars render on the **GPU via WebGL** (a point cloud of >550k
-  stars projected entirely in the vertex shader) and fall back automatically to
-  the Canvas 2D renderer where WebGL is unavailable. Data in
-  `site/data/data.json`; the Gaia point cloud in `site/data/gaia.bin` (a compact
-  8-bytes-per-star binary). Toggle **GPU stars** / **Gaia stars** in the panel.
+  libraries). Stars render on the **GPU via WebGL 2**: the binary catalogues
+  (Gaia, asteroid field, 2MRS, quasars, …) are uploaded to the GPU
+  **byte-for-byte** and decoded in the vertex shader (8 bytes/star — no CPU
+  decode, 5× less GPU memory), point layers accumulate in a **half-float HDR
+  buffer with tonemapping** (dense star fields saturate softly instead of
+  clipping to white), and the renderer **survives GPU context loss** (all
+  layers rebuild automatically). Falls back to the Canvas 2D renderer where
+  WebGL 2 is unavailable. Data in `site/data/data.json`; the Gaia point cloud
+  in `site/data/gaia.bin` (a compact 8-bytes-per-star binary). Toggle
+  **GPU stars** / **Gaia stars** in the panel.
 
 ## Controls
 
