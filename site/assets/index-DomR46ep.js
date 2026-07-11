@@ -49278,7 +49278,7 @@ function SearchBox($$anchor, $$props) {
 	var node = sibling(input, 2);
 	var consequent = ($$anchor) => {
 		var div_1 = root_1$2();
-		each(div_1, 21, () => get(sugs), (sg) => sg[0] + sg[2], ($$anchor, sg) => {
+		each(div_1, 21, () => get(sugs), index, ($$anchor, sg) => {
 			var div_2 = root$9();
 			var text = child(div_2, true);
 			var span = sibling(text);
@@ -49386,11 +49386,6 @@ function Controls($$anchor, $$props) {
 					"id": "t-size",
 					"label": "Size = planet radius",
 					"on": true
-				},
-				{
-					"id": "t-lag",
-					"label": "Lagrange points",
-					"on": true
 				}
 			]
 		},
@@ -49470,11 +49465,6 @@ function Controls($$anchor, $$props) {
 				{
 					"id": "t-hz",
 					"label": "Habitable zone",
-					"on": true
-				},
-				{
-					"id": "t-lens",
-					"label": "Lensing at Sgr A*",
 					"on": true
 				}
 			]

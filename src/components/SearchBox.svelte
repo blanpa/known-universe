@@ -20,7 +20,7 @@
          bind:value={q} onkeydown={key}>
   {#if sugs.length}
     <div class="sugbox">
-      {#each sugs as sg (sg[0] + sg[2])}
+      {#each sugs as sg, si (si)}
         <div onclick={() => go(sg[0])}>{sg[0]}<span>{sg[2]}</span></div>
       {/each}
     </div>

@@ -1,6 +1,7 @@
 {
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^7.2.0",
+    "happy-dom": "^20.10.6",
     "svelte": "^5.56.4",
     "vite": "^8.1.4",
     "vite-plugin-singlefile": "^2.3.3"
@@ -8,6 +9,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build && rm -rf site/assets && cp dist/index.html site/index.html && cp -r dist/assets site/assets",
-    "build:artifact": "vite build -c vite.artifact.config.js && python3 tools/build_artifact.py"
+    "build:artifact": "vite build -c vite.artifact.config.js && python3 tools/build_artifact.py",
+    "test:mount": "node tools/mounttest.mjs"
   }
 }
