@@ -408,3 +408,17 @@ body:not(.show-time) #hud-uni{display:none!important}
 .lv-src{font-family:var(--mono);font-size:8.5px;color:var(--dim);opacity:.7;margin-top:7px;
   letter-spacing:.04em}
 #mobsheet .live-panel{margin-top:10px}
+/* zoom wheel: hold +/- for continuous zoom, drag the jog strip like a wheel */
+#zoomctl{position:fixed;right:10px;top:50%;transform:translateY(-50%);z-index:70;
+  display:flex;flex-direction:column;align-items:center;gap:4px;
+  background:rgba(12,15,26,.88);border:1px solid var(--line);border-radius:12px;padding:6px}
+#zoomctl button{width:34px;height:34px;border-radius:9px;font-size:16px;line-height:1;
+  background:rgba(255,255,255,.07);border:1px solid var(--line-strong);color:var(--txt-1);
+  cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:none;user-select:none}
+#zoomctl button:hover{background:var(--acc-soft);border-color:var(--acc)}
+#zoomctl .jog{width:34px;height:86px;border-radius:9px;background:rgba(255,255,255,.045);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;
+  cursor:ns-resize;touch-action:none;user-select:none}
+#zoomctl .jog span{width:16px;height:2px;border-radius:1px;background:var(--txt-2);opacity:.55}
+#zoomctl .jog:active span{background:var(--acc);opacity:1}
+@media (max-width:720px){ #zoomctl{right:8px;top:auto;bottom:130px;transform:none} }

@@ -42,6 +42,10 @@ var array_prototype = Array.prototype;
 var get_prototype_of = Object.getPrototypeOf;
 var is_extensible = Object.isExtensible;
 var noop = () => {};
+/** @param {Function} fn */
+function run(fn) {
+	return fn();
+}
 /** @param {Array<() => void>} arr */
 function run_all(arr) {
 	for (var i = 0; i < arr.length; i++) arr[i]();
@@ -2743,6 +2747,15 @@ function create_user_effect(fn) {
 	return create_effect(4 | USER_EFFECT, fn);
 }
 /**
+* Internal representation of `$effect.pre(...)`
+* @param {() => void | (() => void)} fn
+* @returns {Effect}
+*/
+function user_pre_effect(fn) {
+	validate_effect("$effect.pre");
+	return create_effect(8 | USER_EFFECT, fn);
+}
+/**
 * An effect root whose children can transition out
 * @param {() => void} fn
 * @returns {(options?: { outro?: boolean }) => Promise<void>}
@@ -3357,6 +3370,46 @@ function untrack(fn) {
 	}
 }
 /**
+* Possibly traverse an object and read all its properties so that they're all reactive in case this is `$state`.
+* Does only check first level of an object for performance reasons (heuristic should be good for 99% of all cases).
+* @param {any} value
+* @returns {void}
+*/
+function deep_read_state(value) {
+	if (typeof value !== "object" || !value || value instanceof EventTarget) return;
+	if (STATE_SYMBOL in value) deep_read(value);
+	else if (!Array.isArray(value)) for (let key in value) {
+		const prop = value[key];
+		if (typeof prop === "object" && prop && STATE_SYMBOL in prop) deep_read(prop);
+	}
+}
+/**
+* Deeply traverse an object and read all its properties
+* so that they're all reactive in case this is `$state`
+* @param {any} value
+* @param {Set<any>} visited
+* @returns {void}
+*/
+function deep_read(value, visited = /* @__PURE__ */ new Set()) {
+	if (typeof value === "object" && value !== null && !(value instanceof EventTarget) && !visited.has(value)) {
+		visited.add(value);
+		if (value instanceof Date) value.getTime();
+		for (let key in value) try {
+			deep_read(value[key], visited);
+		} catch (e) {}
+		const proto = get_prototype_of(value);
+		if (proto !== Object.prototype && proto !== Array.prototype && proto !== Map.prototype && proto !== Set.prototype && proto !== Date.prototype) {
+			const descriptors = get_descriptors(proto);
+			for (let key in descriptors) {
+				const get = descriptors[key].get;
+				if (get) try {
+					get.call(value);
+				} catch (e) {}
+			}
+		}
+	}
+}
+/**
 * Subset of delegated events which should be passive by default.
 * These two are already passive via browser defaults on window, document and body.
 * But since
@@ -3384,6 +3437,46 @@ var event_symbol = Symbol("events");
 var all_registered_events = /* @__PURE__ */ new Set();
 /** @type {Set<(events: Array<string>) => void>} */
 var root_event_handles = /* @__PURE__ */ new Set();
+/**
+* @param {string} event_name
+* @param {EventTarget} dom
+* @param {EventListener} [handler]
+* @param {AddEventListenerOptions} [options]
+*/
+function create_event(event_name, dom, handler, options = {}) {
+	/**
+	* @this {EventTarget}
+	*/
+	function target_handler(event) {
+		if (!options.capture) handle_event_propagation.call(dom, event);
+		if (!event.cancelBubble) return without_reactive_context(() => {
+			return handler?.call(this, event);
+		});
+	}
+	if (event_name.startsWith("pointer") || event_name.startsWith("touch") || event_name === "wheel") queue_micro_task(() => {
+		dom.addEventListener(event_name, target_handler, options);
+	});
+	else dom.addEventListener(event_name, target_handler, options);
+	return target_handler;
+}
+/**
+* @param {string} event_name
+* @param {Element} dom
+* @param {EventListener} [handler]
+* @param {boolean} [capture]
+* @param {boolean} [passive]
+* @returns {void}
+*/
+function event(event_name, dom, handler, capture, passive) {
+	var options = {
+		capture,
+		passive
+	};
+	var target_handler = create_event(event_name, dom, handler, options);
+	if (dom === document.body || dom === window || dom === document || dom instanceof HTMLMediaElement) teardown(() => {
+		dom.removeEventListener(event_name, target_handler, options);
+	});
+}
 /**
 * @param {string} event_name
 * @param {Element} element
@@ -4680,6 +4773,58 @@ function to_number(value) {
 	return value === "" ? null : +value;
 }
 //#endregion
+//#region node_modules/svelte/src/internal/client/dom/legacy/lifecycle.js
+/** @import { ComponentContextLegacy } from '#client' */
+/**
+* Legacy-mode only: Call `onMount` callbacks and set up `beforeUpdate`/`afterUpdate` effects
+* @param {boolean} [immutable]
+*/
+function init(immutable = false) {
+	const context = component_context;
+	const callbacks = context.l.u;
+	if (!callbacks) return;
+	let props = () => deep_read_state(context.s);
+	if (immutable) {
+		let version = 0;
+		let prev = {};
+		const d = /* @__PURE__ */ derived(() => {
+			let changed = false;
+			const props = context.s;
+			for (const key in props) if (props[key] !== prev[key]) {
+				prev[key] = props[key];
+				changed = true;
+			}
+			if (changed) version++;
+			return version;
+		});
+		props = () => get(d);
+	}
+	if (callbacks.b.length) user_pre_effect(() => {
+		observe_all(context, props);
+		run_all(callbacks.b);
+	});
+	user_effect(() => {
+		const fns = untrack(() => callbacks.m.map(run));
+		return () => {
+			for (const fn of fns) if (typeof fn === "function") fn();
+		};
+	});
+	if (callbacks.a.length) user_effect(() => {
+		observe_all(context, props);
+		run_all(callbacks.a);
+	});
+}
+/**
+* Invoke the getter of all signals associated with a component
+* so they can be registered to the effect this function is called in.
+* @param {ComponentContextLegacy} context
+* @param {(() => void)} props
+*/
+function observe_all(context, props) {
+	if (context.l.s) for (const signal of context.l.s) get(signal);
+	props();
+}
+//#endregion
 //#region node_modules/svelte/src/internal/client/reactivity/props.js
 /** @import { Derived, Effect, Source } from './types.js' */
 /**
@@ -4781,13 +4926,13 @@ if (typeof window !== "undefined") ((window.__svelte ??= {}).v ??= /* @__PURE__ 
 enable_legacy_mode_flag();
 //#endregion
 //#region src/components/TopPanel.svelte
-var root$11 = /* @__PURE__ */ from_html(`<div class="panel" id="hud-tl"><h1><span class="dot"></span>Known Universe</h1> <div class="sub">One scale from the solar system to the galaxies — <b style="color:var(--ink);font-weight:600">scroll</b> to cross the orders of magnitude. Data: NASA · HYG · Local Volume.</div> <div class="stats"><div class="stat"><div class="k mono" id="s-sys">0</div><div class="l">Systems visible</div></div> <div class="stat"><div class="k mono" id="s-pl">0</div><div class="l">Planets</div></div> <div class="stat"><div class="k mono" id="s-near">—</div><div class="l">Nearest (ly)</div></div> <div class="stat"><div class="k mono" id="s-far">—</div><div class="l">Farthest (ly)</div></div></div> <button id="solarBtn">☉ Into the solar system</button> <div id="btnGrid"><button id="tourBtn" title="A guided flight from Earth to the edge of the observable universe">🧭 Tour</button> <button id="shareBtn" title="Copy a link to this exact view">🔗 Share</button> <button id="measureBtn" title="Click two objects to measure the real distance between them">📏 Measure</button> <button id="resetBtn2" title="Back to the full view">⟲ Reset</button></div></div>`);
+var root$12 = /* @__PURE__ */ from_html(`<div class="panel" id="hud-tl"><h1><span class="dot"></span>Known Universe</h1> <div class="sub">One scale from the solar system to the galaxies — <b style="color:var(--ink);font-weight:600">scroll</b> to cross the orders of magnitude. Data: NASA · HYG · Local Volume.</div> <div class="stats"><div class="stat"><div class="k mono" id="s-sys">0</div><div class="l">Systems visible</div></div> <div class="stat"><div class="k mono" id="s-pl">0</div><div class="l">Planets</div></div> <div class="stat"><div class="k mono" id="s-near">—</div><div class="l">Nearest (ly)</div></div> <div class="stat"><div class="k mono" id="s-far">—</div><div class="l">Farthest (ly)</div></div></div> <button id="solarBtn">☉ Into the solar system</button> <div id="btnGrid"><button id="tourBtn" title="A guided flight from Earth to the edge of the observable universe">🧭 Tour</button> <button id="shareBtn" title="Copy a link to this exact view">🔗 Share</button> <button id="measureBtn" title="Click two objects to measure the real distance between them">📏 Measure</button> <button id="resetBtn2" title="Back to the full view">⟲ Reset</button></div></div>`);
 function TopPanel($$anchor) {
 	function resetView() {
 		const b = document.getElementById("resetBtn");
 		if (b) b.click();
 	}
-	var div = root$11();
+	var div = root$12();
 	var div_1 = sibling(child(div), 8);
 	var button = sibling(child(div_1), 6);
 	reset(div_1);
@@ -49633,6 +49778,21 @@ void main(){                                             // soft shoulder above 
 			if (matchMedia("(max-width:720px)").matches && B.appendChild) B.appendChild(document.getElementById("info"));
 		} catch (e) {}
 	})();
+	api.zoomBy = (f) => {
+		let ax = W / 2, ay = H / 2;
+		if (S.pinned) {
+			const w = objWorld(S.pinned);
+			if (w) {
+				const p = project(w[0], w[1], w[2]);
+				if (p.depth > NEAR && p.x > 0 && p.x < W && p.y > 0 && p.y < H) {
+					ax = p.x;
+					ay = p.y;
+				}
+			}
+		}
+		zoomFactorAt(ax, ay, f);
+		dirty = true;
+	};
 	const uniEl = document.getElementById("uniTime"), uniVal = document.getElementById("uniVal");
 	const uniPlayBtn = document.getElementById("uniPlay"), uniNowBtn = document.getElementById("uniNow");
 	function setUni(v) {
@@ -49731,7 +49891,7 @@ var facColor = writable(false);
 var timeBar = writable(false);
 //#endregion
 //#region src/components/SearchBox.svelte
-var root$10 = /* @__PURE__ */ from_html(`<div> <span> </span></div>`);
+var root$11 = /* @__PURE__ */ from_html(`<div> <span> </span></div>`);
 var root_1$3 = /* @__PURE__ */ from_html(`<div class="sugbox"></div>`);
 var root_2$3 = /* @__PURE__ */ from_html(`<div class="searchMsg"> </div>`);
 var root_3$2 = /* @__PURE__ */ from_html(`<div><input class="searchIn" type="text" spellcheck="false" placeholder="Search: Earth, Sirius, TRAPPIST-1, PSR J0332…"/> <!> <!></div>`);
@@ -49758,7 +49918,7 @@ function SearchBox($$anchor, $$props) {
 	var consequent = ($$anchor) => {
 		var div_1 = root_1$3();
 		each(div_1, 21, () => get(sugs), index, ($$anchor, sg) => {
-			var div_2 = root$10();
+			var div_2 = root$11();
 			var text = child(div_2, true);
 			var span = sibling(text);
 			var text_1 = child(span, true);
@@ -49802,13 +49962,13 @@ function SearchBox($$anchor, $$props) {
 delegate(["keydown", "click"]);
 //#endregion
 //#region src/components/MwMap.svelte
-var root$9 = /* @__PURE__ */ from_html(`<div class="panel" id="hud-mwmap"><div class="label">Milky Way · top-down</div> <canvas id="mwmap" width="198" height="150" style="width:198px;height:150px;display:block"></canvas> <div class="mwcap">Schematic · ~100,000 light-years across</div></div>`);
+var root$10 = /* @__PURE__ */ from_html(`<div class="panel" id="hud-mwmap"><div class="label">Milky Way · top-down</div> <canvas id="mwmap" width="198" height="150" style="width:198px;height:150px;display:block"></canvas> <div class="mwcap">Schematic · ~100,000 light-years across</div></div>`);
 function MwMap($$anchor) {
-	append($$anchor, root$9());
+	append($$anchor, root$10());
 }
 //#endregion
 //#region src/components/Controls.svelte
-var root$8 = /* @__PURE__ */ from_html(`<div class="panel"><div class="label">Star colour = temperature</div> <div class="spectrum"></div> <div class="spectrum-ax"><span>hot · 30,000 K</span><span>cool · 3,000 K</span></div> <div class="leg-row"><span style="display:flex;align-items:center;gap:5px;flex:0 0 auto"><span class="mk" style="width:4px;height:4px;background:var(--dim)"></span><span class="mk" style="width:11px;height:11px;background:var(--dim)"></span></span>Size = planet radius</div> <div class="leg-row"><span class="mk" style="background:#eafffb;box-shadow:0 0 8px #fff"></span>Sun — you are here</div> <div class="leg-row"><span class="mk" style="background:var(--cyan)"></span>discovered in the selected year</div> <div class="leg-row"><span class="mk" style="background:#e6473c;box-shadow:0 0 8px #e6473c"></span>beyond the neighbourhood</div> <div class="leg-row"><span class="mk" style="width:5px;height:5px;background:#cfe0ff"></span>real stars · HYG catalogue</div> <div class="leg-row" style="margin-top:13px;border-top:1px solid var(--line);padding-top:11px;flex-wrap:wrap"><span style="display:flex;gap:5px;flex:0 0 auto"><span class="mk" style="background:#c7dbff"></span> <span class="mk" style="background:#ffdeb0"></span> <span class="mk" style="background:#acc6ee"></span></span>Galaxies: spiral · elliptical · irregular</div> <div class="leg-row" style="flex-wrap:wrap"><span style="display:flex;gap:5px;flex:0 0 auto"><span class="mk" style="background:#ce966c"></span><span class="mk" style="background:#6ec4b8"></span> <span class="mk" style="background:#6e96e0"></span><span class="mk" style="background:#e2b484"></span></span>Planets: rocky · super-Earth · Neptune · gas giant</div> <div class="leg-row" style="flex-wrap:wrap"><span style="display:flex;gap:5px;flex:0 0 auto"><span class="mk" style="background:#96beff"></span><span class="mk" style="background:#ffe2a0"></span> <span class="mk" style="background:#ff7676"></span><span class="mk" style="background:#6ee6c6"></span></span>Deep-sky: open · globular · nebula · planetary</div></div>`);
+var root$9 = /* @__PURE__ */ from_html(`<div class="panel"><div class="label">Star colour = temperature</div> <div class="spectrum"></div> <div class="spectrum-ax"><span>hot · 30,000 K</span><span>cool · 3,000 K</span></div> <div class="leg-row"><span style="display:flex;align-items:center;gap:5px;flex:0 0 auto"><span class="mk" style="width:4px;height:4px;background:var(--dim)"></span><span class="mk" style="width:11px;height:11px;background:var(--dim)"></span></span>Size = planet radius</div> <div class="leg-row"><span class="mk" style="background:#eafffb;box-shadow:0 0 8px #fff"></span>Sun — you are here</div> <div class="leg-row"><span class="mk" style="background:var(--cyan)"></span>discovered in the selected year</div> <div class="leg-row"><span class="mk" style="background:#e6473c;box-shadow:0 0 8px #e6473c"></span>beyond the neighbourhood</div> <div class="leg-row"><span class="mk" style="width:5px;height:5px;background:#cfe0ff"></span>real stars · HYG catalogue</div> <div class="leg-row" style="margin-top:13px;border-top:1px solid var(--line);padding-top:11px;flex-wrap:wrap"><span style="display:flex;gap:5px;flex:0 0 auto"><span class="mk" style="background:#c7dbff"></span> <span class="mk" style="background:#ffdeb0"></span> <span class="mk" style="background:#acc6ee"></span></span>Galaxies: spiral · elliptical · irregular</div> <div class="leg-row" style="flex-wrap:wrap"><span style="display:flex;gap:5px;flex:0 0 auto"><span class="mk" style="background:#ce966c"></span><span class="mk" style="background:#6ec4b8"></span> <span class="mk" style="background:#6e96e0"></span><span class="mk" style="background:#e2b484"></span></span>Planets: rocky · super-Earth · Neptune · gas giant</div> <div class="leg-row" style="flex-wrap:wrap"><span style="display:flex;gap:5px;flex:0 0 auto"><span class="mk" style="background:#96beff"></span><span class="mk" style="background:#ffe2a0"></span> <span class="mk" style="background:#ff7676"></span><span class="mk" style="background:#6ee6c6"></span></span>Deep-sky: open · globular · nebula · planetary</div></div>`);
 var root_1$2 = /* @__PURE__ */ from_html(`<div><span></span><span class="sw"></span></div>`);
 var root_2$2 = /* @__PURE__ */ from_html(`<div><div class="ctl-h"></div> <!></div>`);
 var root_3$1 = /* @__PURE__ */ from_html(`<div><span class="cdot"></span> <span> </span><span class="cn"> </span></div>`);
@@ -50039,7 +50199,7 @@ function Controls($$anchor, $$props) {
 	var fragment = root_4$1();
 	var node = first_child(fragment);
 	var consequent = ($$anchor) => {
-		var div = root$8();
+		var div = root$9();
 		template_effect(() => set_attribute(div, "id", legend() ? "hud-tr" : void 0));
 		append($$anchor, div);
 	};
@@ -50113,41 +50273,41 @@ function Controls($$anchor, $$props) {
 delegate(["click"]);
 //#endregion
 //#region src/components/InfoHost.svelte
-var root$7 = /* @__PURE__ */ from_html(`<div class="panel" id="info"></div>`);
+var root$8 = /* @__PURE__ */ from_html(`<div class="panel" id="info"></div>`);
 function InfoHost($$anchor) {
-	append($$anchor, root$7());
+	append($$anchor, root$8());
 }
 //#endregion
 //#region src/components/NavConsole.svelte
-var root$6 = /* @__PURE__ */ from_html(`<div class="panel" id="hud-nav" style="display:none"><div class="nav-head"><span class="label" style="margin:0">▸ Navigation · course</span> <span id="navClose" title="Clear course">✕</span></div> <div id="navName">–</div> <div class="nav-cells"><div class="nav-cell"><div id="navDist" class="mono nv">–</div><div class="nl">Distance</div></div> <div class="nav-cell"><div id="navLight" class="mono nv">–</div><div class="nl">Light travel time</div></div> <div class="nav-cell"><div id="navHead" class="mono nv">–</div><div class="nl">Bearing</div></div></div> <button id="navGo">Engage course ▸</button></div>`);
+var root$7 = /* @__PURE__ */ from_html(`<div class="panel" id="hud-nav" style="display:none"><div class="nav-head"><span class="label" style="margin:0">▸ Navigation · course</span> <span id="navClose" title="Clear course">✕</span></div> <div id="navName">–</div> <div class="nav-cells"><div class="nav-cell"><div id="navDist" class="mono nv">–</div><div class="nl">Distance</div></div> <div class="nav-cell"><div id="navLight" class="mono nv">–</div><div class="nl">Light travel time</div></div> <div class="nav-cell"><div id="navHead" class="mono nv">–</div><div class="nl">Bearing</div></div></div> <button id="navGo">Engage course ▸</button></div>`);
 function NavConsole($$anchor) {
-	append($$anchor, root$6());
+	append($$anchor, root$7());
 }
 //#endregion
 //#region src/components/PmPanel.svelte
-var root$5 = /* @__PURE__ */ from_html(`<div class="panel" id="hud-pm" style="display:none"><div class="pm-head"><span class="label" style="margin:0">Night sky · proper motion</span> <span class="mono" id="pmVal">today</span></div> <input type="range" id="pmTime" min="-50000" max="50000" value="0" step="100"/> <div class="ticks"><span>−50,000 yr</span><span>today</span><span>+50,000 yr</span></div></div>`);
+var root$6 = /* @__PURE__ */ from_html(`<div class="panel" id="hud-pm" style="display:none"><div class="pm-head"><span class="label" style="margin:0">Night sky · proper motion</span> <span class="mono" id="pmVal">today</span></div> <input type="range" id="pmTime" min="-50000" max="50000" value="0" step="100"/> <div class="ticks"><span>−50,000 yr</span><span>today</span><span>+50,000 yr</span></div></div>`);
 function PmPanel($$anchor) {
-	append($$anchor, root$5());
+	append($$anchor, root$6());
 }
 //#endregion
 //#region src/components/TimeBars.svelte
-var root$4 = /* @__PURE__ */ from_html(`<div class="panel" id="hud-uni"><button id="uniPlay" title="Play time">▶</button> <button id="uniNow" title="Back to today">⟲</button> <span id="uniVal" class="live">today</span> <div class="track" style="flex:1"><input type="range" id="uniTime" min="-1000" max="1000" value="0" step="1"/></div> <span class="uniCap">−50,000 yr&nbsp;·&nbsp;+50,000 yr</span></div> <div style="display:none" aria-hidden="true"><div class="panel" id="hud-time"><div class="time-head"><div class="yr">Year <span class="live" id="yrVal">2026</span></div> <div class="meta" id="yrMeta"></div> <div class="time-min" title="Minimize">–</div></div> <div class="time-row"><button id="play" aria-label="Play time"><svg id="playIcon" viewBox="0 0 16 16"><path d="M3 2l11 6L3 14z"></path></svg></button> <div class="track"><input type="range" id="year" min="1992" max="2026" value="2026" step="1"/> <div class="ticks"><span>1992</span><span>2000</span><span>2009</span><span>2017</span><span>2026</span></div></div></div></div> <div class="panel" id="hud-soltime" style="display:none"><div class="time-head"><div class="yr">Solar system · <span class="live" id="solDate">–</span></div> <div class="meta">Time travel · planets on their orbits</div> <div class="time-min" title="Minimize">–</div></div> <div class="time-row"><button id="solPlay" aria-label="Play time"><svg id="solIcon" viewBox="0 0 16 16"><path d="M3 2l11 6L3 14z"></path></svg></button> <div class="track"><input type="range" id="solTime" min="-36525" max="36525" value="0" step="1"/> <div class="ticks"><span>−100 yr</span><span>−50</span><span>today</span><span>+50</span><span>+100 yr</span></div></div> <button id="solNow">today</button></div></div></div>`, 1);
+var root$5 = /* @__PURE__ */ from_html(`<div class="panel" id="hud-uni"><button id="uniPlay" title="Play time">▶</button> <button id="uniNow" title="Back to today">⟲</button> <span id="uniVal" class="live">today</span> <div class="track" style="flex:1"><input type="range" id="uniTime" min="-1000" max="1000" value="0" step="1"/></div> <span class="uniCap">−50,000 yr&nbsp;·&nbsp;+50,000 yr</span></div> <div style="display:none" aria-hidden="true"><div class="panel" id="hud-time"><div class="time-head"><div class="yr">Year <span class="live" id="yrVal">2026</span></div> <div class="meta" id="yrMeta"></div> <div class="time-min" title="Minimize">–</div></div> <div class="time-row"><button id="play" aria-label="Play time"><svg id="playIcon" viewBox="0 0 16 16"><path d="M3 2l11 6L3 14z"></path></svg></button> <div class="track"><input type="range" id="year" min="1992" max="2026" value="2026" step="1"/> <div class="ticks"><span>1992</span><span>2000</span><span>2009</span><span>2017</span><span>2026</span></div></div></div></div> <div class="panel" id="hud-soltime" style="display:none"><div class="time-head"><div class="yr">Solar system · <span class="live" id="solDate">–</span></div> <div class="meta">Time travel · planets on their orbits</div> <div class="time-min" title="Minimize">–</div></div> <div class="time-row"><button id="solPlay" aria-label="Play time"><svg id="solIcon" viewBox="0 0 16 16"><path d="M3 2l11 6L3 14z"></path></svg></button> <div class="track"><input type="range" id="solTime" min="-36525" max="36525" value="0" step="1"/> <div class="ticks"><span>−100 yr</span><span>−50</span><span>today</span><span>+50</span><span>+100 yr</span></div></div> <button id="solNow">today</button></div></div></div>`, 1);
 function TimeBars($$anchor) {
-	var fragment = root$4();
+	var fragment = root$5();
 	next(2);
 	append($$anchor, fragment);
 }
 //#endregion
 //#region src/components/TourPanel.svelte
-var root$3 = /* @__PURE__ */ from_html(`<div id="tourPanel" style="display:none;position:fixed;left:50%;bottom:70px;transform:translateX(-50%);z-index:60;
+var root$4 = /* @__PURE__ */ from_html(`<div id="tourPanel" style="display:none;position:fixed;left:50%;bottom:70px;transform:translateX(-50%);z-index:60;
   max-width:520px;background:rgba(10,14,28,.92);border:1px solid rgba(120,140,190,.35);border-radius:10px;
   padding:12px 16px;font-family:ui-monospace,monospace;color:#e9edfa;backdrop-filter:blur(4px)"><div id="tourTitle" style="font-size:13px;color:#ffcf6b;letter-spacing:.06em;margin-bottom:5px"></div> <div id="tourText" style="font-size:11.5px;line-height:1.55;color:#c8cfE2"></div> <div style="display:flex;gap:8px;margin-top:9px;align-items:center"><button id="tourPrev" class="tbtn">◀</button> <span id="tourStep" style="font-size:10px;color:#8a93ad"></span> <button id="tourNext" class="tbtn">Next ▶</button> <span style="flex:1"></span> <button id="tourEnd" class="tbtn">✕ End tour</button></div></div>`);
 function TourPanel($$anchor) {
-	append($$anchor, root$3());
+	append($$anchor, root$4());
 }
 //#endregion
 //#region src/components/LivePanel.svelte
-var root$2 = /* @__PURE__ */ from_html(`<div class="lv-wx"><span class="lv-chip">Kp <b> </b></span> <span class="lv-chip">wind <b> </b> km/s</span> <span class="lv-chip">Bz <b> </b> nT</span> <span class="lv-chip">X-ray <b> </b></span></div>`);
+var root$3 = /* @__PURE__ */ from_html(`<div class="lv-wx"><span class="lv-chip">Kp <b> </b></span> <span class="lv-chip">wind <b> </b> km/s</span> <span class="lv-chip">Bz <b> </b> nT</span> <span class="lv-chip">X-ray <b> </b></span></div>`);
 var root_1$1 = /* @__PURE__ */ from_html(`<b style="color:#ffab6e">· Earth-directed!</b>`);
 var root_2$1 = /* @__PURE__ */ from_html(`<div class="lv-row"><span class="lv-dot"></span> <span class="lv-nm"> </span> <span class="lv-val"> </span></div>`);
 var root_3 = /* @__PURE__ */ from_html(`<div class="lv-sub"> <!></div> <!>`, 1);
@@ -50187,7 +50347,7 @@ function LivePanel($$anchor, $$props) {
 		var div = root_8();
 		var node_1 = sibling(child(div), 2);
 		var consequent = ($$anchor) => {
-			var div_1 = root$2();
+			var div_1 = root$3();
 			var span = child(div_1);
 			var b = sibling(child(span));
 			var text = child(b, true);
@@ -50336,7 +50496,7 @@ function LivePanel($$anchor, $$props) {
 delegate(["click", "keydown"]);
 //#endregion
 //#region src/components/MobileNav.svelte
-var root$1 = /* @__PURE__ */ from_html(`<!> <div class="ms-actions"><button>☉ Solar system</button> <button>🧭 Cosmic tour</button> <button>🔗 Share view</button> <button>⟲ Reset view</button></div> <!>`, 1);
+var root$2 = /* @__PURE__ */ from_html(`<!> <div class="ms-actions"><button>☉ Solar system</button> <button>🧭 Cosmic tour</button> <button>🔗 Share view</button> <button>⟲ Reset view</button></div> <!>`, 1);
 var root_1 = /* @__PURE__ */ from_html(`<div id="mobsheet"><div class="ms-head"><span> <small style="opacity:.5">· b19:03</small></span> <button class="ms-x">✕ Close</button></div> <div class="ms-body"><!></div></div>`);
 var root_2 = /* @__PURE__ */ from_html(`<div id="mobbar"><div><span>🔍</span>Search</div> <div><span>☰</span>Layers</div> <div><span>🕐</span>Time</div> <div class="mb"><span>🧭</span>Tour</div></div> <!>`, 1);
 function MobileNav($$anchor, $$props) {
@@ -50385,7 +50545,7 @@ function MobileNav($$anchor, $$props) {
 			Controls($$anchor, { legend: false });
 		};
 		var alternate = ($$anchor) => {
-			var fragment_2 = root$1();
+			var fragment_2 = root$2();
 			var node_2 = first_child(fragment_2);
 			SearchBox(node_2, {
 				mode: "sheet",
@@ -50438,8 +50598,67 @@ function MobileNav($$anchor, $$props) {
 }
 delegate(["click"]);
 //#endregion
+//#region src/components/ZoomControl.svelte
+var root$1 = /* @__PURE__ */ from_html(`<div id="zoomctl"><button>＋</button> <div class="jog"><span></span><span></span><span></span><span></span><span></span></div> <button>−</button></div>`);
+function ZoomControl($$anchor, $$props) {
+	push($$props, false);
+	let timer = null;
+	let lastY = 0;
+	let jogging = false;
+	function hold(f) {
+		stop();
+		api.zoomBy && api.zoomBy(f);
+		timer = setInterval(() => api.zoomBy && api.zoomBy(f), 40);
+	}
+	function stop() {
+		if (timer) {
+			clearInterval(timer);
+			timer = null;
+		}
+	}
+	function jogDown(e) {
+		jogging = true;
+		lastY = e.clientY;
+		e.target.setPointerCapture && e.target.setPointerCapture(e.pointerId);
+	}
+	function jogMove(e) {
+		if (!jogging) return;
+		const dy = e.clientY - lastY;
+		lastY = e.clientY;
+		if (dy && api.zoomBy) api.zoomBy(Math.exp(dy * .006));
+	}
+	function jogUp() {
+		jogging = false;
+	}
+	init();
+	var div = root$1();
+	var button = child(div);
+	var div_1 = sibling(button, 2);
+	var button_1 = sibling(div_1, 2);
+	reset(div);
+	delegated("pointerdown", button, () => hold(.965));
+	delegated("pointerup", button, stop);
+	event("pointerleave", button, stop);
+	event("pointercancel", button, stop);
+	delegated("pointerdown", div_1, jogDown);
+	delegated("pointermove", div_1, jogMove);
+	delegated("pointerup", div_1, jogUp);
+	event("pointercancel", div_1, jogUp);
+	delegated("pointerdown", button_1, () => hold(1.036));
+	delegated("pointerup", button_1, stop);
+	event("pointerleave", button_1, stop);
+	event("pointercancel", button_1, stop);
+	append($$anchor, div);
+	pop();
+}
+delegate([
+	"pointerdown",
+	"pointerup",
+	"pointermove"
+]);
+//#endregion
 //#region src/App.svelte
-var root = /* @__PURE__ */ from_html(`<canvas id="gl"></canvas> <canvas id="sky"></canvas> <div id="left-col"><!> <!> <!> <!> <!></div> <div id="right-col"><!></div> <!> <!> <!> <!> <!> <button id="resetBtn" style="display:none" aria-hidden="true"></button>`, 1);
+var root = /* @__PURE__ */ from_html(`<canvas id="gl"></canvas> <canvas id="sky"></canvas> <div id="left-col"><!> <!> <!> <!> <!></div> <div id="right-col"><!></div> <!> <!> <!> <!> <!> <!> <button id="resetBtn" style="display:none" aria-hidden="true"></button>`, 1);
 function App($$anchor) {
 	var fragment = root();
 	var div = sibling(first_child(fragment), 4);
@@ -50464,7 +50683,9 @@ function App($$anchor) {
 	TimeBars(node_8, {});
 	var node_9 = sibling(node_8, 2);
 	TourPanel(node_9, {});
-	MobileNav(sibling(node_9, 2), {});
+	var node_10 = sibling(node_9, 2);
+	ZoomControl(node_10, {});
+	MobileNav(sibling(node_10, 2), {});
 	next(2);
 	append($$anchor, fragment);
 }

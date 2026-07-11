@@ -2858,6 +2858,11 @@ if(document.querySelectorAll) document.querySelectorAll('.ctl-h').forEach(h=>
       B.appendChild(document.getElementById('info'));   // bottom sheet must escape the hidden drawer
   }catch(e){}
 })();
+api.zoomBy=f=>{ let ax=W/2, ay=H/2;
+  if(S.pinned){ const w=objWorld(S.pinned);
+    if(w){ const p=project(w[0],w[1],w[2]);
+      if(p.depth>NEAR&&p.x>0&&p.x<W&&p.y>0&&p.y<H){ ax=p.x; ay=p.y; } } }
+  zoomFactorAt(ax,ay,f); dirty=true; };
 // ---- unified timeline: one number line drives solar ephemeris + stellar proper motion ----
 const uniEl=document.getElementById('uniTime'), uniVal=document.getElementById('uniVal');
 const uniPlayBtn=document.getElementById('uniPlay'), uniNowBtn=document.getElementById('uniNow');

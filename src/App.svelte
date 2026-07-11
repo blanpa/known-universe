@@ -9,6 +9,7 @@
   import TimeBars from './components/TimeBars.svelte';
   import TourPanel from './components/TourPanel.svelte';
   import MobileNav from './components/MobileNav.svelte';
+  import ZoomControl from './components/ZoomControl.svelte';
   import LivePanel from './components/LivePanel.svelte';
 </script>
 
@@ -31,6 +32,7 @@
 <PmPanel />
 <TimeBars />
 <TourPanel />
+<ZoomControl />
 <MobileNav />
 
 <!-- engine-bound hidden action target (proxied by ⟲ Reset in TopPanel) -->
