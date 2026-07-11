@@ -255,3 +255,83 @@
     .ctl-h{padding:9px 0 6px}
     .tbtn,#btnGrid button{padding:8px 10px}
   }
+
+/* ============================================================
+   UI refresh — standard elements, single design language.
+   Appended layer: same selectors, later in the cascade wins.
+   ============================================================ */
+:root{
+  --ui: system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --bg-1: rgba(15,18,30,.88);
+  --line: rgba(255,255,255,.09);
+  --line-strong: rgba(255,255,255,.16);
+  --txt-1:#E8EBF4; --txt-2:#9AA3B8;
+  --acc:#8FB3FF; --acc-soft:rgba(143,179,255,.16);
+}
+.panel{background:var(--bg-1);border:1px solid var(--line);border-radius:14px;
+  box-shadow:0 8px 28px rgba(0,0,0,.42);padding:14px 16px;font-family:var(--ui);color:var(--txt-1)}
+h1{font-family:var(--ui);font-weight:650;letter-spacing:.01em}
+.label,.meta,.hint,.leg-row{font-family:var(--ui);color:var(--txt-2)}
+/* section headers with disclosure caret */
+.ctl-h{font-family:var(--ui);font-size:11.5px;font-weight:600;letter-spacing:.04em;
+  text-transform:none;color:var(--txt-1);display:flex;align-items:center;justify-content:space-between;
+  padding:9px 2px 7px;border-bottom:1px solid var(--line)}
+.ctl-h::after{content:'▾';color:var(--txt-2);transition:transform .15s}
+.ctl-group.closed .ctl-h::after{transform:rotate(-90deg)}
+/* toggle rows with real switches */
+.toggle,.colby{font-family:var(--ui);font-size:12.5px;color:var(--txt-1);padding:7px 2px;border-radius:8px}
+.toggle:hover,.colby:hover{background:rgba(255,255,255,.045)}
+.sw{width:36px;height:21px;flex:0 0 36px;border-radius:999px;background:rgba(255,255,255,.14);
+  border:none;position:relative;transition:background .18s}
+.sw::after{content:'';position:absolute;top:2.5px;left:3px;width:16px;height:16px;border-radius:50%;
+  background:#fff;opacity:.85;transition:transform .18s,opacity .18s;box-shadow:0 1px 3px rgba(0,0,0,.4)}
+.toggle.on .sw,.colby.on .sw{background:var(--acc)}
+.toggle.on .sw::after,.colby.on .sw::after{transform:translateX(14px);opacity:1}
+/* buttons: one tonal system */
+#solarBtn,#shareBtn,#tourBtn,#measureBtn,.tbtn,#btnGrid button,.ms-x,.ms-actions button,#navGo,#navClose{
+  font-family:var(--ui);font-size:12.5px;font-weight:550;letter-spacing:0;
+  background:rgba(255,255,255,.07);border:1px solid var(--line-strong);color:var(--txt-1);
+  border-radius:10px;padding:9px 12px;cursor:pointer;transition:background .15s,border-color .15s}
+#solarBtn:hover,#shareBtn:hover,#tourBtn:hover,#measureBtn:hover,.tbtn:hover,#btnGrid button:hover,
+.ms-x:hover,.ms-actions button:hover,#navGo:hover,#navClose:hover{
+  background:var(--acc-soft);border-color:var(--acc)}
+#solarBtn{background:var(--acc-soft);border-color:rgba(143,179,255,.45)}
+#solarBtn.active{color:var(--acc)}
+#measureBtn.active{background:var(--acc-soft);border-color:var(--acc);color:var(--acc)}
+/* search field */
+.searchIn{font-family:var(--ui);font-size:13px;background:rgba(255,255,255,.06);
+  border:1px solid var(--line-strong);border-radius:10px;padding:10px 12px;color:var(--txt-1)}
+.searchIn:focus{border-color:var(--acc);box-shadow:0 0 0 3px var(--acc-soft);outline:none}
+.sugbox{border:1px solid var(--line);border-radius:10px;background:var(--bg-1)}
+.sugbox div{font-family:var(--ui);font-size:12.5px;padding:9px 12px}
+.sugbox div:hover{background:var(--acc-soft);color:var(--txt-1)}
+.searchMsg{font-family:var(--ui);color:var(--acc)}
+/* instrument chips as pills */
+.chip{font-family:var(--ui);border:1px solid var(--line-strong);border-radius:999px;
+  padding:5px 10px;background:rgba(255,255,255,.05)}
+.chip:hover{border-color:var(--acc)}
+.chip.off{opacity:.38}
+.cn{color:var(--txt-2)}
+/* time bars + sliders */
+.yr,.time-head{font-family:var(--ui)}
+.live{font-family:var(--mono);color:var(--acc)}
+input[type=range]{accent-color:var(--acc);height:22px}
+input[type=range]::-webkit-slider-thumb{width:18px;height:18px}
+/* info & nav cards: title + key/value grid */
+#info .nm{font-family:var(--ui);font-size:14px;font-weight:650}
+#info .rk{font-family:var(--ui);color:var(--txt-2)}
+#info .rv{font-family:var(--mono);font-variant-numeric:tabular-nums;color:var(--txt-1)}
+#info .links a{font-family:var(--ui);border:1px solid var(--line-strong);border-radius:8px;
+  padding:5px 10px;background:rgba(255,255,255,.05);color:var(--txt-1);text-decoration:none}
+#info .links a:hover{background:var(--acc-soft);border-color:var(--acc)}
+#info .hint{font-style:normal}
+#hud-nav,#tourPanel{font-family:var(--ui);border-radius:14px;border:1px solid var(--line)}
+#tourTitle{font-family:var(--ui)!important;font-weight:650}
+#tourText{font-family:var(--ui)!important}
+/* mobile bar + sheets */
+#mobbar{background:rgba(12,15,26,.96);border-top:1px solid var(--line)}
+.mb{font-family:var(--ui);font-size:10px;color:var(--txt-2)}
+.mb.active{color:var(--acc)}
+.ms-head{font-family:var(--ui);font-weight:650;letter-spacing:.02em;text-transform:none;color:var(--txt-1)}
+#mobsheet{background:rgba(10,13,22,.98)}
+@media (pointer:coarse){ .toggle,.colby{padding:11px 4px;font-size:14px} }
