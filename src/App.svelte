@@ -9,21 +9,15 @@
   function openSheet(which){ mobPanel = (mobPanel===which) ? null : which; }
   function toggleTime(){ showTime=!showTime; mobPanel=null; }
   $effect(()=>{ document.body.classList.toggle('mob-time', showTime); });
-  // svelte action: runs synchronously when the sheet body mounts — moves the real
-  // panels in (engine bindings survive), puts them back on close/switch
-  function fillSheet(node, which){
-    const moved=[];
-    function restore(){ while(moved.length){ const m=moved.pop(); m.parent.insertBefore(m.el,m.next); } }
-    function apply(w){
-      restore();
-      const ids = w==='layers' ? ['hud-ctl','hud-tr'] : ['hud-tl','hud-search'];
-      for(const id of ids){ const el=document.getElementById(id);
-        if(el&&el.parentNode!==node){ moved.push({el,parent:el.parentNode,next:el.nextSibling}); node.appendChild(el); } }
-      if(!node.children.length){ node.innerHTML='<div style="color:#e9edfa;font-family:monospace;padding:1em">panels not found — please report</div>'; }
-    }
-    apply(which);
-    return { update: apply, destroy: restore };
+  // mobile sheet content is rendered natively in Svelte (store-synced with desktop)
+  let mq = $state('');            // sheet search query
+  let mMsg = $state('');
+  let mSugs = $derived(api.suggest ? api.suggest(mq) : []);
+  function mSearch(name){
+    if(api.doSearch){ api.doSearch(name); mMsg=api.searchMsgText?api.searchMsgText():''; }
+    mq=''; mobPanel=null;         // reveal the map for the flight
   }
+  function press(id){ const b=document.getElementById(id); if(b) b.click(); mobPanel=null; }
   function sheetClick(e){    // picking a search suggestion should reveal the map
     if(e.target && e.target.closest && e.target.closest('#suggest')) setTimeout(()=>{ mobPanel=null; },50);
   }
@@ -188,7 +182,38 @@
     <span>{mobPanel==='layers' ? '☰ Layers' : '🔍 Search & info'}</span>
     <button class="ms-x" onclick={()=>{mobPanel=null}}>✕ Close</button>
   </div>
-  <div class="ms-body" use:fillSheet={mobPanel}></div>
+  <div class="ms-body">
+    {#if mobPanel==='layers'}
+      {#each groups as g, gi}
+      <div class="ctl-group ms-grp" class:closed={closed[gi]}>
+        <div class="ctl-h" onclick={()=>{closed[gi]=!closed[gi]}}>{@html g.h}</div>
+        {#each g.items as d (d.id)}
+          <div class="toggle" class:on={$toggleState[d.id] ?? d.on}
+               onclick={()=>api.clickToggle && api.clickToggle(d.id)}>
+            <span>{@html d.label}</span><span class="sw"></span>
+          </div>
+        {/each}
+      </div>
+      {/each}
+    {:else}
+      <input class="ms-search" type="text" placeholder="Search: Earth, Sirius, TRAPPIST-1, Andromeda …"
+             bind:value={mq} onkeydown={(e)=>{ if(e.key==='Enter'&&mq) mSearch(mq); }}>
+      {#if mSugs.length}
+        <div class="ms-sugs">
+          {#each mSugs as sg}
+            <div class="ms-sug" onclick={()=>mSearch(sg[0])}>{sg[0]}<span>{sg[2]}</span></div>
+          {/each}
+        </div>
+      {/if}
+      {#if mMsg}<div class="ms-msg">{mMsg}</div>{/if}
+      <div class="ms-actions">
+        <button onclick={()=>press('solarBtn')}>☉ Solar system</button>
+        <button onclick={()=>press('tourBtn')}>🧭 Cosmic tour</button>
+        <button onclick={()=>press('shareBtn')}>🔗 Share view</button>
+        <button onclick={()=>press('resetBtn')}>⟲ Reset view</button>
+      </div>
+    {/if}
+  </div>
 </div>
 {/if}
 <div id="tourPanel" style="display:none;position:fixed;left:50%;bottom:70px;transform:translateX(-50%);z-index:60;

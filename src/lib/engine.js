@@ -25,7 +25,7 @@ STARS.forEach(s=>{
 const S={ yaw:0.5, pitch:-0.5, camZ:3.0, year:2026, tOffsetDays:0,
   autorot:false, freelook:false, rings:true, veil:true, size:true, galaxies:true,
   hyg:true, gpu:true, gaia:true, web:true, qso:true, ob:true, vars:true, edge:true, facColor:false, facHidden:new Set(),
-  solar:true, moons:true, mw:true, mw3d:true, dso:true, psr:true, oclu:true, ast:true, tno:true, probes:true, helio:true, belt:true, con:true, hz:true, pm:false, pmYears:0,
+  solar:true, moons:true, mw:true, mw3d:true, dso:true, psr:true, oclu:true, ast:true, tno:true, probes:true, helio:true, belt:true, con:true, hz:true, lag:true, lens:true, pm:false, pmYears:0,
   realScale:false,
   hover:null, pinned:null, focusStar:null, focusT:0 };
 
@@ -1752,6 +1752,8 @@ bindToggle('t-tno','tno');
 bindToggle('t-probes','probes');
 bindToggle('t-helio','helio');
 bindToggle('t-belt','belt');
+bindToggle('t-lag','lag');
+bindToggle('t-lens','lens');
 // proper motion: reveal a deep-time slider when enabled
 const pmTime=document.getElementById('pmTime'), pmVal=document.getElementById('pmVal');
 function setPmVal(){ const y=S.pmYears;
@@ -2516,8 +2518,13 @@ document.getElementById('tourNext').addEventListener('click',()=>{ if(tourIdx>=T
 document.getElementById('tourPrev').addEventListener('click',()=>tourShow(tourIdx-1));
 document.getElementById('tourEnd').addEventListener('click',tourEnd);
 // ---- shareable views: encode camera + layers in the URL hash ----
+// fixed bit order: the original keys in their historical (sorted) positions,
+// later additions appended — so old share links keep decoding correctly
+const HASH_KEYS=['ast','autorot','belt','con','dso','edge','freelook','gaia','galaxies',
+  'gpu','helio','hyg','hz','moons','mw','mw3d','ob','oclu','probes','psr','qso','rings',
+  'size','tno','vars','veil','web','lag','lens'];
 function viewHash(){
-  const keys=Object.keys(TOGGLE_REG).sort();
+  const keys=HASH_KEYS;
   let m=0; keys.forEach((k,i)=>{ if(S[k]) m|=(1<<i); });
   return 'v1_'+[S.yaw.toFixed(4),S.pitch.toFixed(4),S.camZ.toExponential(4),
     ctr.x.toExponential(4),ctr.y.toExponential(4),ctr.z.toExponential(4),
@@ -2532,8 +2539,9 @@ function applyHash(){
     ctr.x=tgtCtr.x=+p[4]; ctr.y=tgtCtr.y=+p[5]; ctr.z=tgtCtr.z=+p[6];
     S.realScale=p[7]==='1'; syncToggle('t-real',S.realScale);
     S.tOffsetDays=+p[8]||0;
-    const m=parseInt(p[9],36)||0, keys=Object.keys(TOGGLE_REG).sort();
-    keys.forEach((k,i)=>{ const v=!!(m&(1<<i)); S[k]=v; syncToggle(TOGGLE_REG[k],v); });
+    const m=parseInt(p[9],36)||0;
+    HASH_KEYS.forEach((k,i)=>{ if(!TOGGLE_REG[k]) return;
+      const v=!!(m&(1<<i)); S[k]=v; syncToggle(TOGGLE_REG[k],v); });
     document.getElementById('hud-mwmap').style.display=S.mw?'block':'none';
     dirty=true;
   }catch(e){}
@@ -2569,13 +2577,17 @@ function sugIndex(){
   return _sugIdx=ix;
 }
 const sugEl=document.getElementById('suggest');
-function showSuggest(q){
-  q=q.trim().toLowerCase();
-  if(!q||q.length<2){ sugEl.style.display='none'; sugEl.innerHTML=''; return; }
+function suggestList(q){                                  // shared by desktop dropdown + mobile sheet
+  q=(q||'').trim().toLowerCase();
+  if(!q||q.length<2) return [];
   const ix=sugIndex(), out=[];
   for(const e of ix){ if(e[1].startsWith(q)){ out.push(e); if(out.length>=6) break; } }
   if(out.length<6) for(const e of ix){ if(!e[1].startsWith(q)&&e[1].includes(q)){ out.push(e); if(out.length>=6) break; } }
-  if(!out.length){ sugEl.style.display='none'; return; }
+  return out;
+}
+function showSuggest(q){
+  const out=suggestList(q);
+  if(!out.length){ sugEl.style.display='none'; sugEl.innerHTML=''; return; }
   sugEl.innerHTML=out.map(e=>`<div data-n="${e[0].replace(/"/g,'&quot;')}">${e[0]}<span>${e[2]}</span></div>`).join('');
   sugEl.style.display='block';
 }
@@ -2604,7 +2616,8 @@ if(document.querySelectorAll) document.querySelectorAll('.ctl-h').forEach(h=>
       B.appendChild(document.getElementById('info'));   // bottom sheet must escape the hidden drawer
   }catch(e){}
 })();
-api.clickToggle=clickToggle; api.doSearch=doSearch; api.getS=()=>S;
+api.clickToggle=clickToggle; api.doSearch=doSearch; api.getS=()=>S; api.suggest=suggestList;
+api.searchMsgText=()=>searchMsg.textContent;
 applyHash();
 try{console.log('Known Universe build 2026-07-11 16:53');}catch(e){}
 initGL();
