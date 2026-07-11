@@ -1,3 +1,7 @@
+<script>
+  function resetView(){ const b=document.getElementById('resetBtn'); if(b) b.click(); }
+</script>
+
 <div class="panel" id="hud-tl">
     <h1><span class="dot"></span>Known Universe</h1>
     <div class="sub">One scale from the solar system to the galaxies — <b style="color:var(--ink);font-weight:600">scroll</b> to cross the orders of magnitude. Data: NASA · HYG · Local Volume.</div>
