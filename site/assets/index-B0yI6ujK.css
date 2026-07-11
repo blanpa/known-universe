@@ -362,3 +362,16 @@ input[type=range]::-webkit-slider-thumb{width:18px;height:18px}
 
 /* time bar is opt-in via the View options (and the mobile clock button) */
 body:not(.show-time) #hud-time,body:not(.show-time) #hud-soltime{display:none!important}
+/* time bar = docked full-width timeline strip at the bottom */
+#hud-time,#hud-soltime{position:fixed;left:0;right:0;bottom:0;top:auto;transform:none;
+  width:auto;max-width:none!important;border-radius:0;border:0;border-top:1px solid var(--line);
+  background:rgba(10,13,22,.94);backdrop-filter:blur(8px);
+  padding:7px 16px;display:flex;align-items:center;gap:14px;z-index:50;box-shadow:none}
+#hud-time .time-head,#hud-soltime .time-head{display:flex;align-items:center;gap:8px;flex:0 0 auto;margin:0;padding:0}
+#hud-time .meta,#hud-soltime .meta,.time-min{display:none!important}
+#hud-time .time-row,#hud-soltime .time-row{flex:1;display:flex;align-items:center;gap:10px;margin:0}
+#hud-time .track,#hud-soltime .track{flex:1}
+@media (max-width:720px){
+  #hud-time,#hud-soltime{bottom:calc(56px + env(safe-area-inset-bottom,0));padding:6px 12px}
+  #hud-time .ticks,#hud-soltime .ticks{display:none}
+}
