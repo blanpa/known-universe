@@ -3544,6 +3544,21 @@ function from_html(content, flags) {
 	};
 }
 /**
+* @returns {TemplateNode | DocumentFragment}
+*/
+function comment() {
+	if (hydrating) {
+		assign_nodes(hydrate_node, null);
+		return hydrate_node;
+	}
+	var frag = document.createDocumentFragment();
+	var start = document.createComment("");
+	var anchor = create_text();
+	frag.append(start, anchor);
+	assign_nodes(start, anchor);
+	return frag;
+}
+/**
 * Assign the created (or in hydration mode, traversed) dom elements to the current block
 * and insert the elements into the dom (in client mode).
 * @param {Text | Comment | Element} anchor
@@ -4766,13 +4781,13 @@ if (typeof window !== "undefined") ((window.__svelte ??= {}).v ??= /* @__PURE__ 
 enable_legacy_mode_flag();
 //#endregion
 //#region src/components/TopPanel.svelte
-var root$10 = /* @__PURE__ */ from_html(`<div class="panel" id="hud-tl"><h1><span class="dot"></span>Known Universe</h1> <div class="sub">One scale from the solar system to the galaxies — <b style="color:var(--ink);font-weight:600">scroll</b> to cross the orders of magnitude. Data: NASA · HYG · Local Volume.</div> <div class="stats"><div class="stat"><div class="k mono" id="s-sys">0</div><div class="l">Systems visible</div></div> <div class="stat"><div class="k mono" id="s-pl">0</div><div class="l">Planets</div></div> <div class="stat"><div class="k mono" id="s-near">—</div><div class="l">Nearest (ly)</div></div> <div class="stat"><div class="k mono" id="s-far">—</div><div class="l">Farthest (ly)</div></div></div> <button id="solarBtn">☉ Into the solar system</button> <div id="btnGrid"><button id="tourBtn" title="A guided flight from Earth to the edge of the observable universe">🧭 Tour</button> <button id="shareBtn" title="Copy a link to this exact view">🔗 Share</button> <button id="measureBtn" title="Click two objects to measure the real distance between them">📏 Measure</button> <button id="resetBtn2" title="Back to the full view">⟲ Reset</button></div></div>`);
+var root$11 = /* @__PURE__ */ from_html(`<div class="panel" id="hud-tl"><h1><span class="dot"></span>Known Universe</h1> <div class="sub">One scale from the solar system to the galaxies — <b style="color:var(--ink);font-weight:600">scroll</b> to cross the orders of magnitude. Data: NASA · HYG · Local Volume.</div> <div class="stats"><div class="stat"><div class="k mono" id="s-sys">0</div><div class="l">Systems visible</div></div> <div class="stat"><div class="k mono" id="s-pl">0</div><div class="l">Planets</div></div> <div class="stat"><div class="k mono" id="s-near">—</div><div class="l">Nearest (ly)</div></div> <div class="stat"><div class="k mono" id="s-far">—</div><div class="l">Farthest (ly)</div></div></div> <button id="solarBtn">☉ Into the solar system</button> <div id="btnGrid"><button id="tourBtn" title="A guided flight from Earth to the edge of the observable universe">🧭 Tour</button> <button id="shareBtn" title="Copy a link to this exact view">🔗 Share</button> <button id="measureBtn" title="Click two objects to measure the real distance between them">📏 Measure</button> <button id="resetBtn2" title="Back to the full view">⟲ Reset</button></div></div>`);
 function TopPanel($$anchor) {
 	function resetView() {
 		const b = document.getElementById("resetBtn");
 		if (b) b.click();
 	}
-	var div = root$10();
+	var div = root$11();
 	var div_1 = sibling(child(div), 8);
 	var button = sibling(child(div_1), 6);
 	reset(div_1);
@@ -4781,6 +4796,175 @@ function TopPanel($$anchor) {
 	append($$anchor, div);
 }
 delegate(["click"]);
+//#endregion
+//#region src/lib/live.js
+var liveData = writable(null);
+var LIVE = {
+	cmes: [],
+	neos: [],
+	wx: null,
+	onUpdate: null
+};
+var AU_KM = 1496e5;
+function nasaKey() {
+	try {
+		return localStorage.getItem("nasa_api_key") || "DEMO_KEY";
+	} catch (e) {
+		return "DEMO_KEY";
+	}
+}
+function j(url) {
+	return fetch(url).then((r) => r.ok ? r.json() : null).catch(() => null);
+}
+function day(off) {
+	return new Date(Date.now() + off * 864e5).toISOString().slice(0, 10);
+}
+function publish() {
+	liveData.set({
+		wx: LIVE.wx,
+		cmes: LIVE.cmes,
+		neos: LIVE.neos,
+		ts: Date.now()
+	});
+	if (LIVE.onUpdate) LIVE.onUpdate();
+}
+async function fetchWeather() {
+	const [kp, sp, mag, xr] = await Promise.all([
+		j("https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json"),
+		j("https://services.swpc.noaa.gov/products/summary/solar-wind-speed.json"),
+		j("https://services.swpc.noaa.gov/products/summary/solar-wind-mag-field.json"),
+		j("https://services.swpc.noaa.gov/json/goes/primary/xrays-6-hour.json")
+	]);
+	const wx = {};
+	if (kp && kp.length) {
+		const l = kp[kp.length - 1];
+		wx.kp = +l.Kp;
+		wx.kpTime = l.time_tag;
+	}
+	if (sp && sp[0]) wx.wind = +sp[0].proton_speed;
+	if (mag && mag[0]) {
+		wx.bt = +mag[0].bt;
+		wx.bz = +mag[0].bz_gsm;
+	}
+	if (xr && xr.length) {
+		const lng = xr.filter((e) => e.energy === "0.1-0.8nm");
+		const f = lng.length ? lng[lng.length - 1].flux : null;
+		if (f != null) {
+			const cls = f >= 1e-4 ? ["X", 1e-4] : f >= 1e-5 ? ["M", 1e-5] : f >= 1e-6 ? ["C", 1e-6] : f >= 1e-7 ? ["B", 1e-7] : ["A", 1e-8];
+			wx.xray = cls[0] + (f / cls[1]).toFixed(1);
+			wx.xflux = f;
+		}
+	}
+	if (Object.keys(wx).length) LIVE.wx = wx;
+}
+async function fetchCmes() {
+	const d = await j(`https://api.nasa.gov/DONKI/CMEAnalysis?startDate=${day(-5)}&endDate=${day(0)}&mostAccurateOnly=true&api_key=${nasaKey()}`);
+	if (!d || !Array.isArray(d)) return;
+	LIVE.cmes = d.filter((c) => c.time21_5 && c.speed && c.latitude != null && c.longitude != null).map((c) => {
+		const t = Date.parse(c.time21_5);
+		const earthDir = Math.abs(c.longitude) <= (c.halfAngle || 30);
+		return {
+			t,
+			lat: +c.latitude,
+			lon: +c.longitude,
+			half: +(c.halfAngle || 30),
+			v: +c.speed,
+			type: c.type || "?",
+			earthDir,
+			eta: earthDir ? t + AU_KM * .9 / c.speed * 1e3 : null
+		};
+	}).sort((a, b) => b.t - a.t);
+}
+function cachedKd(id) {
+	try {
+		const s = localStorage.getItem("ku_neokd_" + id);
+		return s ? JSON.parse(s) : null;
+	} catch (e) {
+		return null;
+	}
+}
+function storeKd(id, kd) {
+	try {
+		localStorage.setItem("ku_neokd_" + id, JSON.stringify(kd));
+	} catch (e) {}
+}
+async function lookupKd(id) {
+	const hit = cachedKd(id);
+	if (hit) return hit;
+	const d = await j(`https://api.nasa.gov/neo/rest/v1/neo/${id}?api_key=${nasaKey()}`);
+	const o = d && d.orbital_data;
+	if (!o || !+o.semi_major_axis || !+o.mean_motion) return null;
+	const kd = {
+		a: +o.semi_major_axis,
+		e: +o.eccentricity,
+		i: +o.inclination,
+		om: +o.ascending_node_longitude,
+		w: +o.perihelion_argument,
+		ma: +o.mean_anomaly,
+		n: +o.mean_motion,
+		ep: +o.epoch_osculation
+	};
+	storeKd(id, kd);
+	return kd;
+}
+async function fetchNeos() {
+	const d = await j(`https://api.nasa.gov/neo/rest/v1/feed?start_date=${day(0)}&end_date=${day(7)}&api_key=${nasaKey()}`);
+	if (!d || !d.near_earth_objects) return;
+	const out = [];
+	for (const date of Object.keys(d.near_earth_objects)) for (const o of d.near_earth_objects[date]) {
+		const ca = (o.close_approach_data || []).find((c) => c.orbiting_body === "Earth") || (o.close_approach_data || [])[0];
+		if (!ca) continue;
+		const dia = o.estimated_diameter && o.estimated_diameter.meters;
+		const ld = +ca.miss_distance.lunar, vk = +ca.relative_velocity.kilometers_per_second;
+		const pha = !!o.is_potentially_hazardous_asteroid, sentry = !!o.is_sentry_object;
+		const ldStr = ld < 10 ? ld.toFixed(1) : Math.round(ld);
+		out.push({
+			id: o.id,
+			n: (o.name || "").replace(/[()]/g, ""),
+			t: ca.epoch_date_close_approach,
+			ld,
+			km: +ca.miss_distance.kilometers,
+			vkms: vk,
+			dia: dia ? (dia.estimated_diameter_min + dia.estimated_diameter_max) / 2 : null,
+			pha,
+			sentry,
+			rk: dia ? (dia.estimated_diameter_min + dia.estimated_diameter_max) / 4e3 : .05,
+			kind: "Near-Earth object",
+			c: [
+				255,
+				178,
+				96
+			],
+			note: `closest approach ${new Date(ca.epoch_date_close_approach).toLocaleString("en-US", {
+				month: "short",
+				day: "numeric",
+				hour: "2-digit",
+				minute: "2-digit"
+			})} · ${ldStr} LD · ${vk.toFixed(1)} km/s` + (pha ? " · potentially hazardous (PHA)" : "") + (sentry ? " · Sentry risk list" : "")
+		});
+	}
+	out.sort((a, b) => a.t - b.t);
+	const old = new Map(LIVE.neos.map((o) => [o.id, o]));
+	for (const o of out) {
+		const p = old.get(o.id);
+		if (p && p.kd) o.kd = p.kd;
+	}
+	LIVE.neos = out;
+	publish();
+	const want = out.slice().sort((a, b) => a.ld - b.ld).filter((o) => o.ld <= 30).slice(0, 10);
+	for (const o of want) if (!o.kd) o.kd = await lookupKd(o.id);
+}
+var started = false;
+function startLive() {
+	if (started) return;
+	started = true;
+	const wx = () => fetchWeather().then(publish, () => {});
+	const ev = () => Promise.allSettled([fetchCmes(), fetchNeos()]).then(publish);
+	wx();
+	ev();
+	setInterval(wx, 300 * 1e3);
+	setInterval(ev, 1800 * 1e3);
+}
 //#endregion
 //#region src/lib/engine.js
 var UI = {};
@@ -4848,6 +5032,8 @@ function __run() {
 		lens: true,
 		pm: false,
 		pmYears: 0,
+		cme: true,
+		neo: true,
 		realScale: false,
 		hover: null,
 		pinned: null,
@@ -45785,6 +45971,8 @@ function __run() {
 			}
 		}
 		if (S.probes) drawProbes(A);
+		if (S.cme) drawCME(A);
+		if (S.neo) drawLiveNeo(A);
 		ctx.globalAlpha = 1;
 	}
 	function outerHidden(b) {
@@ -45907,6 +46095,181 @@ function __run() {
 				ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},${sel ? 1 : .72})`;
 				ctx.fillText(o.n, p.x + px + 3, p.y + 3);
 			}
+		}
+	}
+	function cmeSolarMs() {
+		return (solarJD() - 2440587.5) * 864e5;
+	}
+	function drawCME(A) {
+		if (!LIVE.cmes.length) return;
+		const earth = PLANETS.find((p) => p.n === "Earth");
+		if (!earth || !earth._e) return;
+		const nowMs = cmeSolarMs(), lamE = Math.atan2(earth._e[1], earth._e[0]);
+		const cE = Math.cos(lamE), sE = Math.sin(lamE);
+		for (const c of LIVE.cmes) {
+			const dt = (nowMs - c.t) / 1e3;
+			if (dt <= 0) continue;
+			const rAU = .1 + c.v * dt / 1496e5;
+			if (rAU > 2.6) continue;
+			const fade = Math.max(0, Math.min(1, (2.6 - rAU) / .7));
+			const la = c.lat * D2R, lo = c.lon * D2R, cb = Math.cos(la);
+			const hx = cb * Math.cos(lo), hy = cb * Math.sin(lo), hz = Math.sin(la);
+			const d = [
+				hx * cE - hy * sE,
+				hx * sE + hy * cE,
+				hz
+			];
+			let u = [
+				-d[1],
+				d[0],
+				0
+			];
+			const ul = Math.hypot(u[0], u[1], u[2]) || 1;
+			u = [
+				u[0] / ul,
+				u[1] / ul,
+				u[2] / ul
+			];
+			const v = [
+				d[1] * u[2] - d[2] * u[1],
+				d[2] * u[0] - d[0] * u[2],
+				d[0] * u[1] - d[1] * u[0]
+			];
+			const col = c.v >= 800 ? [
+				255,
+				96,
+				80
+			] : c.v >= 500 ? [
+				255,
+				150,
+				80
+			] : [
+				255,
+				200,
+				110
+			];
+			const H = Math.min(1.2, c.half * D2R), cH = Math.cos(H), sH = Math.sin(H);
+			for (const [rf, aw] of [
+				[1, .55],
+				[.78, .28],
+				[.55, .13]
+			]) {
+				const r = rAU * rf;
+				if (r < .11) continue;
+				ctx.beginPath();
+				let first = true;
+				for (let k = 0; k <= 48; k++) {
+					const th = k / 48 * 6.2832, ct = Math.cos(th), st = Math.sin(th);
+					const w = eclToWorld(r * (cH * d[0] + sH * (ct * u[0] + st * v[0])), r * (cH * d[1] + sH * (ct * u[1] + st * v[1])), r * (cH * d[2] + sH * (ct * u[2] + st * v[2]))), p = project(w[0], w[1], w[2]);
+					if (p.depth <= NEAR) {
+						first = true;
+						continue;
+					}
+					if (first) {
+						ctx.moveTo(p.x, p.y);
+						first = false;
+					} else ctx.lineTo(p.x, p.y);
+				}
+				if (rf === 1) {
+					ctx.fillStyle = `rgba(${col[0]},${col[1]},${col[2]},${A * fade * .07})`;
+					ctx.fill();
+				}
+				ctx.strokeStyle = `rgba(${col[0]},${col[1]},${col[2]},${A * fade * aw})`;
+				ctx.lineWidth = rf === 1 ? 1.4 : .8;
+				ctx.stroke();
+			}
+			const tw = eclToWorld(rAU * d[0], rAU * d[1], rAU * d[2]), tp = project(tw[0], tw[1], tw[2]);
+			if (tp.depth > NEAR) {
+				if (!c._o) c._o = {
+					cme: c,
+					n: "Coronal mass ejection",
+					c: col
+				};
+				const sel = c._o === S.hover || c._o === S.pinned;
+				ctx.font = (sel ? "10px" : "9px") + " ui-monospace,monospace";
+				ctx.fillStyle = `rgba(${col[0]},${col[1]},${col[2]},${A * fade * (sel ? 1 : .85)})`;
+				ctx.fillText(`CME · ${Math.round(c.v)} km/s${c.earthDir ? " · → Earth" : ""}`, tp.x + 6, tp.y - 4);
+				if (sel) {
+					ctx.beginPath();
+					ctx.arc(tp.x, tp.y, 9, 0, 6.2832);
+					ctx.strokeStyle = "rgba(79,214,200,.9)";
+					ctx.lineWidth = 1.1;
+					ctx.stroke();
+				}
+				solarProj.push({
+					o: c._o,
+					x: tp.x,
+					y: tp.y,
+					px: 12
+				});
+			}
+		}
+	}
+	function drawLiveNeo(A) {
+		if (!LIVE.neos.length) return;
+		const jd = solarJD(), nowMs = cmeSolarMs();
+		const earth = PLANETS.find((p) => p.n === "Earth");
+		let ep = null;
+		if (earth && earth._e) {
+			const w = eclToWorld(earth._e[0], earth._e[1], earth._e[2]);
+			const p = project(w[0], w[1], w[2]);
+			if (p.depth > NEAR) ep = p;
+		}
+		for (const o of LIVE.neos) {
+			if (!o.kd) continue;
+			o._el = keplerSB(o.kd, jd);
+			o._e = orbPoint(o._el, o._el.E);
+			o._r = Math.hypot(o._e[0], o._e[1], o._e[2]);
+			const sel = o === S.hover || o === S.pinned;
+			drawOrbitEllipse(o._el, `rgba(255,168,88,${A * (sel ? .55 : .2)})`);
+			const w = eclToWorld(o._e[0], o._e[1], o._e[2]), p = project(w[0], w[1], w[2]);
+			if (p.depth <= NEAR) continue;
+			const dtd = (o.t - nowMs) / 864e5;
+			if (ep && Math.abs(dtd) < 5) {
+				ctx.setLineDash([3, 4]);
+				ctx.strokeStyle = `rgba(255,168,88,${A * .3})`;
+				ctx.lineWidth = .8;
+				ctx.beginPath();
+				ctx.moveTo(ep.x, ep.y);
+				ctx.lineTo(p.x, p.y);
+				ctx.stroke();
+				ctx.setLineDash([]);
+			}
+			const px = sel ? 6 : 4.5;
+			ctx.beginPath();
+			ctx.moveTo(p.x, p.y - px);
+			ctx.lineTo(p.x + px, p.y);
+			ctx.lineTo(p.x, p.y + px);
+			ctx.lineTo(p.x - px, p.y);
+			ctx.closePath();
+			ctx.strokeStyle = `rgba(255,178,96,${A * (sel ? 1 : .9)})`;
+			ctx.lineWidth = 1.3;
+			ctx.stroke();
+			if (o.pha || o.sentry) {
+				ctx.beginPath();
+				ctx.arc(p.x, p.y, px + 3.5, 0, 6.2832);
+				ctx.strokeStyle = `rgba(255,110,90,${A * .7})`;
+				ctx.lineWidth = .9;
+				ctx.stroke();
+			}
+			if (sel) {
+				ctx.beginPath();
+				ctx.arc(p.x, p.y, px + 7, 0, 6.2832);
+				ctx.strokeStyle = "rgba(79,214,200,.9)";
+				ctx.lineWidth = 1.2;
+				ctx.stroke();
+			}
+			const rel = Math.abs(dtd) < .04 ? "now" : dtd > 0 ? `in ${dtd >= 1 ? Math.floor(dtd) + "d " : ""}${Math.round(dtd % 1 * 24)}h` : `${Math.abs(dtd).toFixed(1)}d ago`;
+			const ldStr = o.ld < 10 ? o.ld.toFixed(1) : Math.round(o.ld);
+			ctx.font = (sel ? "10px" : "9px") + " ui-monospace,monospace";
+			ctx.fillStyle = `rgba(255,190,120,${A * (sel ? 1 : .8)})`;
+			ctx.fillText(`${o.n} · ${rel} · ${ldStr} LD`, p.x + px + 4, p.y + 3);
+			solarProj.push({
+				o,
+				x: p.x,
+				y: p.y,
+				px: Math.max(8, px + 3)
+			});
 		}
 	}
 	const MASS_RATIO = {
@@ -46982,6 +47345,39 @@ function __run() {
 			el.classList.add("show");
 			return;
 		}
+		if (s.cme) {
+			const c = s.cme, col = s.c || [
+				255,
+				150,
+				80
+			];
+			const dir = `${c.lat >= 0 ? "N" : "S"}${Math.abs(c.lat).toFixed(0)} ${c.lon >= 0 ? "W" : "E"}${Math.abs(c.lon).toFixed(0)}`;
+			const dt = (o) => new Date(o).toLocaleString("en-US", {
+				month: "short",
+				day: "numeric",
+				hour: "2-digit",
+				minute: "2-digit"
+			});
+			let h = `<div class="nm"><span class="mk" style="color:rgb(${col[0]},${col[1]},${col[2]});background:rgb(${col[0]},${col[1]},${col[2]})"></span>Coronal mass ejection</div>
+      <div class="rows">
+        <div class="r"><span class="rk">Type</span><span class="rv">CME · class ${c.type} · NASA DONKI</span></div>
+        <div class="r"><span class="rk">Erupted</span><span class="rv">${dt(c.t)} UTC (at 21.5 R☉)</span></div>
+        <div class="r"><span class="rk">Speed</span><span class="rv">${Math.round(c.v)} km/s</span></div>
+        <div class="r"><span class="rk">Width</span><span class="rv">±${Math.round(c.half)}° · from ${dir}</span></div>
+        ${c.earthDir ? `<div class="r"><span class="rk">Earth arrival</span><span class="rv">~ ${dt(c.eta)} UTC</span></div>` : `<div class="r"><span class="rk">Direction</span><span class="rv">not Earth-directed</span></div>`}
+      </div>`;
+			h += links([{
+				t: "DONKI",
+				u: "https://kauai.ccmc.gsfc.nasa.gov/DONKI/"
+			}, {
+				t: "SWPC",
+				u: "https://www.swpc.noaa.gov/"
+			}]);
+			h += `<div class="hint">ballistic estimate — real fronts decelerate in the solar wind</div>`;
+			el.innerHTML = h;
+			el.classList.add("show");
+			return;
+		}
 		if (s.rk !== void 0) {
 			const c = s.c, er = s.rk / 6371, probe = s.kind === "Spacecraft";
 			let dist = s.am !== void 0 ? `${fmt(s.am * 1e3)} km from ${s.parent}` : s._r !== void 0 ? `${s._r.toFixed(2)} AU from the Sun` : s.a !== void 0 ? `${s.a} AU (semi-major axis)` : "—";
@@ -47570,6 +47966,8 @@ function __run() {
 	bindToggle("t-belt", "belt");
 	bindToggle("t-lag", "lag");
 	bindToggle("t-lens", "lens");
+	bindToggle("t-cme", "cme");
+	bindToggle("t-neo", "neo");
 	const pmTime = document.getElementById("pmTime"), pmVal = document.getElementById("pmVal");
 	function setPmVal() {
 		const y = S.pmYears;
@@ -49290,10 +49688,29 @@ void main(){                                             // soft shoulder above 
 	api.searchInput = (q) => {
 		if (q && q.trim().length > 2) doSearch(q);
 	};
+	api.liveNeoFocus = (id) => {
+		const o = LIVE.neos.find((n) => n.id === id);
+		if (!o) return;
+		if (o.kd) {
+			o._el = keplerSB(o.kd, solarJD());
+			o._e = orbPoint(o._el, o._el.E);
+			const w = eclToWorld(o._e[0], o._e[1], o._e[2]);
+			S.pinned = o;
+			aim(w[0], w[1], w[2], scale(2.2 * AU_PC));
+		} else {
+			S.pinned = null;
+			enterSolar();
+		}
+		dirty = true;
+	};
+	LIVE.onUpdate = () => {
+		dirty = true;
+	};
+	startLive();
 	if (UI.fac) UI.fac(facList);
 	applyHash();
 	try {
-		console.log("Known Universe build 2026-07-11 16:53");
+		console.log("Known Universe build 2026-07-11 19:03");
 	} catch (e) {}
 	initGL();
 	loadGaia();
@@ -49314,10 +49731,10 @@ var facColor = writable(false);
 var timeBar = writable(false);
 //#endregion
 //#region src/components/SearchBox.svelte
-var root$9 = /* @__PURE__ */ from_html(`<div> <span> </span></div>`);
-var root_1$2 = /* @__PURE__ */ from_html(`<div class="sugbox"></div>`);
-var root_2$2 = /* @__PURE__ */ from_html(`<div class="searchMsg"> </div>`);
-var root_3$1 = /* @__PURE__ */ from_html(`<div><input class="searchIn" type="text" spellcheck="false" placeholder="Search: Earth, Sirius, TRAPPIST-1, PSR J0332…"/> <!> <!></div>`);
+var root$10 = /* @__PURE__ */ from_html(`<div> <span> </span></div>`);
+var root_1$3 = /* @__PURE__ */ from_html(`<div class="sugbox"></div>`);
+var root_2$3 = /* @__PURE__ */ from_html(`<div class="searchMsg"> </div>`);
+var root_3$2 = /* @__PURE__ */ from_html(`<div><input class="searchIn" type="text" spellcheck="false" placeholder="Search: Earth, Sirius, TRAPPIST-1, PSR J0332…"/> <!> <!></div>`);
 function SearchBox($$anchor, $$props) {
 	push($$props, true);
 	const $searchMsg = () => store_get(searchMsg, "$searchMsg", $$stores);
@@ -49334,14 +49751,14 @@ function SearchBox($$anchor, $$props) {
 		if (e.key === "Enter" && get(q).trim()) go(get(q).trim());
 		if (e.key === "Escape") set(q, "");
 	}
-	var div = root_3$1();
+	var div = root_3$2();
 	var input = child(div);
 	remove_input_defaults(input);
 	var node = sibling(input, 2);
 	var consequent = ($$anchor) => {
-		var div_1 = root_1$2();
+		var div_1 = root_1$3();
 		each(div_1, 21, () => get(sugs), index, ($$anchor, sg) => {
-			var div_2 = root$9();
+			var div_2 = root$10();
 			var text = child(div_2, true);
 			var span = sibling(text);
 			var text_1 = child(span, true);
@@ -49362,7 +49779,7 @@ function SearchBox($$anchor, $$props) {
 	});
 	var node_1 = sibling(node, 2);
 	var consequent_1 = ($$anchor) => {
-		var div_3 = root_2$2();
+		var div_3 = root_2$3();
 		var text_2 = child(div_3, true);
 		reset(div_3);
 		template_effect(() => set_text(text_2, $searchMsg()));
@@ -49385,17 +49802,17 @@ function SearchBox($$anchor, $$props) {
 delegate(["keydown", "click"]);
 //#endregion
 //#region src/components/MwMap.svelte
-var root$8 = /* @__PURE__ */ from_html(`<div class="panel" id="hud-mwmap"><div class="label">Milky Way · top-down</div> <canvas id="mwmap" width="198" height="150" style="width:198px;height:150px;display:block"></canvas> <div class="mwcap">Schematic · ~100,000 light-years across</div></div>`);
+var root$9 = /* @__PURE__ */ from_html(`<div class="panel" id="hud-mwmap"><div class="label">Milky Way · top-down</div> <canvas id="mwmap" width="198" height="150" style="width:198px;height:150px;display:block"></canvas> <div class="mwcap">Schematic · ~100,000 light-years across</div></div>`);
 function MwMap($$anchor) {
-	append($$anchor, root$8());
+	append($$anchor, root$9());
 }
 //#endregion
 //#region src/components/Controls.svelte
-var root$7 = /* @__PURE__ */ from_html(`<div class="panel"><div class="label">Star colour = temperature</div> <div class="spectrum"></div> <div class="spectrum-ax"><span>hot · 30,000 K</span><span>cool · 3,000 K</span></div> <div class="leg-row"><span style="display:flex;align-items:center;gap:5px;flex:0 0 auto"><span class="mk" style="width:4px;height:4px;background:var(--dim)"></span><span class="mk" style="width:11px;height:11px;background:var(--dim)"></span></span>Size = planet radius</div> <div class="leg-row"><span class="mk" style="background:#eafffb;box-shadow:0 0 8px #fff"></span>Sun — you are here</div> <div class="leg-row"><span class="mk" style="background:var(--cyan)"></span>discovered in the selected year</div> <div class="leg-row"><span class="mk" style="background:#e6473c;box-shadow:0 0 8px #e6473c"></span>beyond the neighbourhood</div> <div class="leg-row"><span class="mk" style="width:5px;height:5px;background:#cfe0ff"></span>real stars · HYG catalogue</div> <div class="leg-row" style="margin-top:13px;border-top:1px solid var(--line);padding-top:11px;flex-wrap:wrap"><span style="display:flex;gap:5px;flex:0 0 auto"><span class="mk" style="background:#c7dbff"></span> <span class="mk" style="background:#ffdeb0"></span> <span class="mk" style="background:#acc6ee"></span></span>Galaxies: spiral · elliptical · irregular</div> <div class="leg-row" style="flex-wrap:wrap"><span style="display:flex;gap:5px;flex:0 0 auto"><span class="mk" style="background:#ce966c"></span><span class="mk" style="background:#6ec4b8"></span> <span class="mk" style="background:#6e96e0"></span><span class="mk" style="background:#e2b484"></span></span>Planets: rocky · super-Earth · Neptune · gas giant</div> <div class="leg-row" style="flex-wrap:wrap"><span style="display:flex;gap:5px;flex:0 0 auto"><span class="mk" style="background:#96beff"></span><span class="mk" style="background:#ffe2a0"></span> <span class="mk" style="background:#ff7676"></span><span class="mk" style="background:#6ee6c6"></span></span>Deep-sky: open · globular · nebula · planetary</div></div>`);
-var root_1$1 = /* @__PURE__ */ from_html(`<div><span></span><span class="sw"></span></div>`);
-var root_2$1 = /* @__PURE__ */ from_html(`<div><div class="ctl-h"></div> <!></div>`);
-var root_3 = /* @__PURE__ */ from_html(`<div><span class="cdot"></span> <span> </span><span class="cn"> </span></div>`);
-var root_4 = /* @__PURE__ */ from_html(`<!> <div class="panel"><!> <div class="ctl-inst"><div class="label" style="margin-bottom:8px">Discovery instrument</div> <div><span>colour by it</span><span class="sw"></span></div> <div class="chips"></div></div> <div class="hint" style="font-size:10px;color:var(--dim);margin-top:6px;font-style:italic;line-height:1.6">Drag rotate · right-drag pan · WASD fly<br/>Scroll/pinch zoom to cursor · click to travel<br/>🧭 tour · 📏 measure · 🔗 share view</div></div>`, 1);
+var root$8 = /* @__PURE__ */ from_html(`<div class="panel"><div class="label">Star colour = temperature</div> <div class="spectrum"></div> <div class="spectrum-ax"><span>hot · 30,000 K</span><span>cool · 3,000 K</span></div> <div class="leg-row"><span style="display:flex;align-items:center;gap:5px;flex:0 0 auto"><span class="mk" style="width:4px;height:4px;background:var(--dim)"></span><span class="mk" style="width:11px;height:11px;background:var(--dim)"></span></span>Size = planet radius</div> <div class="leg-row"><span class="mk" style="background:#eafffb;box-shadow:0 0 8px #fff"></span>Sun — you are here</div> <div class="leg-row"><span class="mk" style="background:var(--cyan)"></span>discovered in the selected year</div> <div class="leg-row"><span class="mk" style="background:#e6473c;box-shadow:0 0 8px #e6473c"></span>beyond the neighbourhood</div> <div class="leg-row"><span class="mk" style="width:5px;height:5px;background:#cfe0ff"></span>real stars · HYG catalogue</div> <div class="leg-row" style="margin-top:13px;border-top:1px solid var(--line);padding-top:11px;flex-wrap:wrap"><span style="display:flex;gap:5px;flex:0 0 auto"><span class="mk" style="background:#c7dbff"></span> <span class="mk" style="background:#ffdeb0"></span> <span class="mk" style="background:#acc6ee"></span></span>Galaxies: spiral · elliptical · irregular</div> <div class="leg-row" style="flex-wrap:wrap"><span style="display:flex;gap:5px;flex:0 0 auto"><span class="mk" style="background:#ce966c"></span><span class="mk" style="background:#6ec4b8"></span> <span class="mk" style="background:#6e96e0"></span><span class="mk" style="background:#e2b484"></span></span>Planets: rocky · super-Earth · Neptune · gas giant</div> <div class="leg-row" style="flex-wrap:wrap"><span style="display:flex;gap:5px;flex:0 0 auto"><span class="mk" style="background:#96beff"></span><span class="mk" style="background:#ffe2a0"></span> <span class="mk" style="background:#ff7676"></span><span class="mk" style="background:#6ee6c6"></span></span>Deep-sky: open · globular · nebula · planetary</div></div>`);
+var root_1$2 = /* @__PURE__ */ from_html(`<div><span></span><span class="sw"></span></div>`);
+var root_2$2 = /* @__PURE__ */ from_html(`<div><div class="ctl-h"></div> <!></div>`);
+var root_3$1 = /* @__PURE__ */ from_html(`<div><span class="cdot"></span> <span> </span><span class="cn"> </span></div>`);
+var root_4$1 = /* @__PURE__ */ from_html(`<!> <div class="panel"><!> <div class="ctl-inst"><div class="label" style="margin-bottom:8px">Discovery instrument</div> <div><span>colour by it</span><span class="sw"></span></div> <div class="chips"></div></div> <div class="hint" style="font-size:10px;color:var(--dim);margin-top:6px;font-style:italic;line-height:1.6">Drag rotate · right-drag pan · WASD fly<br/>Scroll/pinch zoom to cursor · click to travel<br/>🧭 tour · 📏 measure · 🔗 share view</div></div>`, 1);
 function Controls($$anchor, $$props) {
 	push($$props, true);
 	const $timeBar = () => store_get(timeBar, "$timeBar", $$stores);
@@ -49443,6 +49860,16 @@ function Controls($$anchor, $$props) {
 				{
 					"id": "t-lag",
 					"label": "Lagrange points &amp; Hill spheres",
+					"on": true
+				},
+				{
+					"id": "t-cme",
+					"label": "CME storms (live)",
+					"on": true
+				},
+				{
+					"id": "t-neo",
+					"label": "NEO flybys (live)",
 					"on": true
 				},
 				{
@@ -49609,10 +50036,10 @@ function Controls($$anchor, $$props) {
 	function colby() {
 		if (api.facColorToggle) facColor.set(api.facColorToggle());
 	}
-	var fragment = root_4();
+	var fragment = root_4$1();
 	var node = first_child(fragment);
 	var consequent = ($$anchor) => {
-		var div = root$7();
+		var div = root$8();
 		template_effect(() => set_attribute(div, "id", legend() ? "hud-tr" : void 0));
 		append($$anchor, div);
 	};
@@ -49622,13 +50049,13 @@ function Controls($$anchor, $$props) {
 	var div_1 = sibling(node, 2);
 	var node_1 = child(div_1);
 	each(node_1, 17, () => groups, index, ($$anchor, g, gi) => {
-		var div_2 = root_2$1();
+		var div_2 = root_2$2();
 		let classes;
 		var div_3 = child(div_2);
 		html(div_3, () => get(g).h, true);
 		reset(div_3);
 		each(sibling(div_3, 2), 17, () => get(g).items, (d) => d.id, ($$anchor, d) => {
-			var div_4 = root_1$1();
+			var div_4 = root_1$2();
 			let classes_1;
 			var span = child(div_4);
 			html(span, () => $labels()[get(d).id] ?? get(d).label, true);
@@ -49651,7 +50078,7 @@ function Controls($$anchor, $$props) {
 	let classes_2;
 	var div_7 = sibling(div_6, 2);
 	each(div_7, 5, $facList, (f) => f.k, ($$anchor, f) => {
-		var div_8 = root_3();
+		var div_8 = root_3$1();
 		let classes_3;
 		var span_1 = child(div_8);
 		var span_2 = sibling(span_1, 2);
@@ -49686,42 +50113,231 @@ function Controls($$anchor, $$props) {
 delegate(["click"]);
 //#endregion
 //#region src/components/InfoHost.svelte
-var root$6 = /* @__PURE__ */ from_html(`<div class="panel" id="info"></div>`);
+var root$7 = /* @__PURE__ */ from_html(`<div class="panel" id="info"></div>`);
 function InfoHost($$anchor) {
-	append($$anchor, root$6());
+	append($$anchor, root$7());
 }
 //#endregion
 //#region src/components/NavConsole.svelte
-var root$5 = /* @__PURE__ */ from_html(`<div class="panel" id="hud-nav" style="display:none"><div class="nav-head"><span class="label" style="margin:0">▸ Navigation · course</span> <span id="navClose" title="Clear course">✕</span></div> <div id="navName">–</div> <div class="nav-cells"><div class="nav-cell"><div id="navDist" class="mono nv">–</div><div class="nl">Distance</div></div> <div class="nav-cell"><div id="navLight" class="mono nv">–</div><div class="nl">Light travel time</div></div> <div class="nav-cell"><div id="navHead" class="mono nv">–</div><div class="nl">Bearing</div></div></div> <button id="navGo">Engage course ▸</button></div>`);
+var root$6 = /* @__PURE__ */ from_html(`<div class="panel" id="hud-nav" style="display:none"><div class="nav-head"><span class="label" style="margin:0">▸ Navigation · course</span> <span id="navClose" title="Clear course">✕</span></div> <div id="navName">–</div> <div class="nav-cells"><div class="nav-cell"><div id="navDist" class="mono nv">–</div><div class="nl">Distance</div></div> <div class="nav-cell"><div id="navLight" class="mono nv">–</div><div class="nl">Light travel time</div></div> <div class="nav-cell"><div id="navHead" class="mono nv">–</div><div class="nl">Bearing</div></div></div> <button id="navGo">Engage course ▸</button></div>`);
 function NavConsole($$anchor) {
-	append($$anchor, root$5());
+	append($$anchor, root$6());
 }
 //#endregion
 //#region src/components/PmPanel.svelte
-var root$4 = /* @__PURE__ */ from_html(`<div class="panel" id="hud-pm" style="display:none"><div class="pm-head"><span class="label" style="margin:0">Night sky · proper motion</span> <span class="mono" id="pmVal">today</span></div> <input type="range" id="pmTime" min="-50000" max="50000" value="0" step="100"/> <div class="ticks"><span>−50,000 yr</span><span>today</span><span>+50,000 yr</span></div></div>`);
+var root$5 = /* @__PURE__ */ from_html(`<div class="panel" id="hud-pm" style="display:none"><div class="pm-head"><span class="label" style="margin:0">Night sky · proper motion</span> <span class="mono" id="pmVal">today</span></div> <input type="range" id="pmTime" min="-50000" max="50000" value="0" step="100"/> <div class="ticks"><span>−50,000 yr</span><span>today</span><span>+50,000 yr</span></div></div>`);
 function PmPanel($$anchor) {
-	append($$anchor, root$4());
+	append($$anchor, root$5());
 }
 //#endregion
 //#region src/components/TimeBars.svelte
-var root$3 = /* @__PURE__ */ from_html(`<div class="panel" id="hud-uni"><button id="uniPlay" title="Play time">▶</button> <button id="uniNow" title="Back to today">⟲</button> <span id="uniVal" class="live">today</span> <div class="track" style="flex:1"><input type="range" id="uniTime" min="-1000" max="1000" value="0" step="1"/></div> <span class="uniCap">−50,000 yr&nbsp;·&nbsp;+50,000 yr</span></div> <div style="display:none" aria-hidden="true"><div class="panel" id="hud-time"><div class="time-head"><div class="yr">Year <span class="live" id="yrVal">2026</span></div> <div class="meta" id="yrMeta"></div> <div class="time-min" title="Minimize">–</div></div> <div class="time-row"><button id="play" aria-label="Play time"><svg id="playIcon" viewBox="0 0 16 16"><path d="M3 2l11 6L3 14z"></path></svg></button> <div class="track"><input type="range" id="year" min="1992" max="2026" value="2026" step="1"/> <div class="ticks"><span>1992</span><span>2000</span><span>2009</span><span>2017</span><span>2026</span></div></div></div></div> <div class="panel" id="hud-soltime" style="display:none"><div class="time-head"><div class="yr">Solar system · <span class="live" id="solDate">–</span></div> <div class="meta">Time travel · planets on their orbits</div> <div class="time-min" title="Minimize">–</div></div> <div class="time-row"><button id="solPlay" aria-label="Play time"><svg id="solIcon" viewBox="0 0 16 16"><path d="M3 2l11 6L3 14z"></path></svg></button> <div class="track"><input type="range" id="solTime" min="-36525" max="36525" value="0" step="1"/> <div class="ticks"><span>−100 yr</span><span>−50</span><span>today</span><span>+50</span><span>+100 yr</span></div></div> <button id="solNow">today</button></div></div></div>`, 1);
+var root$4 = /* @__PURE__ */ from_html(`<div class="panel" id="hud-uni"><button id="uniPlay" title="Play time">▶</button> <button id="uniNow" title="Back to today">⟲</button> <span id="uniVal" class="live">today</span> <div class="track" style="flex:1"><input type="range" id="uniTime" min="-1000" max="1000" value="0" step="1"/></div> <span class="uniCap">−50,000 yr&nbsp;·&nbsp;+50,000 yr</span></div> <div style="display:none" aria-hidden="true"><div class="panel" id="hud-time"><div class="time-head"><div class="yr">Year <span class="live" id="yrVal">2026</span></div> <div class="meta" id="yrMeta"></div> <div class="time-min" title="Minimize">–</div></div> <div class="time-row"><button id="play" aria-label="Play time"><svg id="playIcon" viewBox="0 0 16 16"><path d="M3 2l11 6L3 14z"></path></svg></button> <div class="track"><input type="range" id="year" min="1992" max="2026" value="2026" step="1"/> <div class="ticks"><span>1992</span><span>2000</span><span>2009</span><span>2017</span><span>2026</span></div></div></div></div> <div class="panel" id="hud-soltime" style="display:none"><div class="time-head"><div class="yr">Solar system · <span class="live" id="solDate">–</span></div> <div class="meta">Time travel · planets on their orbits</div> <div class="time-min" title="Minimize">–</div></div> <div class="time-row"><button id="solPlay" aria-label="Play time"><svg id="solIcon" viewBox="0 0 16 16"><path d="M3 2l11 6L3 14z"></path></svg></button> <div class="track"><input type="range" id="solTime" min="-36525" max="36525" value="0" step="1"/> <div class="ticks"><span>−100 yr</span><span>−50</span><span>today</span><span>+50</span><span>+100 yr</span></div></div> <button id="solNow">today</button></div></div></div>`, 1);
 function TimeBars($$anchor) {
-	var fragment = root$3();
+	var fragment = root$4();
 	next(2);
 	append($$anchor, fragment);
 }
 //#endregion
 //#region src/components/TourPanel.svelte
-var root$2 = /* @__PURE__ */ from_html(`<div id="tourPanel" style="display:none;position:fixed;left:50%;bottom:70px;transform:translateX(-50%);z-index:60;
+var root$3 = /* @__PURE__ */ from_html(`<div id="tourPanel" style="display:none;position:fixed;left:50%;bottom:70px;transform:translateX(-50%);z-index:60;
   max-width:520px;background:rgba(10,14,28,.92);border:1px solid rgba(120,140,190,.35);border-radius:10px;
   padding:12px 16px;font-family:ui-monospace,monospace;color:#e9edfa;backdrop-filter:blur(4px)"><div id="tourTitle" style="font-size:13px;color:#ffcf6b;letter-spacing:.06em;margin-bottom:5px"></div> <div id="tourText" style="font-size:11.5px;line-height:1.55;color:#c8cfE2"></div> <div style="display:flex;gap:8px;margin-top:9px;align-items:center"><button id="tourPrev" class="tbtn">◀</button> <span id="tourStep" style="font-size:10px;color:#8a93ad"></span> <button id="tourNext" class="tbtn">Next ▶</button> <span style="flex:1"></span> <button id="tourEnd" class="tbtn">✕ End tour</button></div></div>`);
 function TourPanel($$anchor) {
-	append($$anchor, root$2());
+	append($$anchor, root$3());
 }
 //#endregion
+//#region src/components/LivePanel.svelte
+var root$2 = /* @__PURE__ */ from_html(`<div class="lv-wx"><span class="lv-chip">Kp <b> </b></span> <span class="lv-chip">wind <b> </b> km/s</span> <span class="lv-chip">Bz <b> </b> nT</span> <span class="lv-chip">X-ray <b> </b></span></div>`);
+var root_1$1 = /* @__PURE__ */ from_html(`<b style="color:#ffab6e">· Earth-directed!</b>`);
+var root_2$1 = /* @__PURE__ */ from_html(`<div class="lv-row"><span class="lv-dot"></span> <span class="lv-nm"> </span> <span class="lv-val"> </span></div>`);
+var root_3 = /* @__PURE__ */ from_html(`<div class="lv-sub"> <!></div> <!>`, 1);
+var root_4 = /* @__PURE__ */ from_html(`<div class="lv-sub">no CME currently in flight</div>`);
+var root_5 = /* @__PURE__ */ from_html(`<div role="button" tabindex="0"><span class="lv-dot"></span> <span class="lv-nm"> </span> <span class="lv-val"> </span></div>`);
+var root_6 = /* @__PURE__ */ from_html(`<div class="lv-more" role="button" tabindex="0"> </div>`);
+var root_7 = /* @__PURE__ */ from_html(`<div class="label" style="margin-top:10px">☄️ Earth flybys · next 7 days</div> <!> <!>`, 1);
+var root_8 = /* @__PURE__ */ from_html(`<div class="panel live-panel"><div class="label">🌞 Space weather · live</div> <!> <!> <!> <div class="lv-src">NOAA SWPC · NASA DONKI · NeoWs</div></div>`);
+function LivePanel($$anchor, $$props) {
+	push($$props, true);
+	const $liveData = () => store_get(liveData, "$liveData", $$stores);
+	const [$$stores, $$cleanup] = setup_stores();
+	let onpick = prop($$props, "onpick", 3, null);
+	let showAll = /* @__PURE__ */ state(false);
+	const kpCol = (k) => k >= 6 ? "#ff7676" : k >= 4 ? "#ffd27a" : "#7fe08a";
+	const xrCol = (x) => !x ? "var(--dim)" : x[0] === "X" ? "#ff7676" : x[0] === "M" ? "#ffab6e" : x[0] === "C" ? "#ffd27a" : "#9fb0d0";
+	const dt = (t) => new Date(t).toLocaleString("en-US", {
+		month: "short",
+		day: "numeric",
+		hour: "2-digit",
+		minute: "2-digit"
+	});
+	const ldf = (ld) => ld < 10 ? ld.toFixed(1) : Math.round(ld);
+	const dia = (d) => d == null ? "?" : d >= 1e3 ? (d / 1e3).toFixed(1) + " km" : Math.round(d) + " m";
+	let active = /* @__PURE__ */ user_derived(() => $liveData() ? $liveData().cmes.filter((c) => {
+		const r = .1 + c.v * (Date.now() - c.t) / 1e3 / 1496e5;
+		return r > 0 && r < 2.6;
+	}) : []);
+	let neos = /* @__PURE__ */ user_derived(() => $liveData() ? get(showAll) ? $liveData().neos : $liveData().neos.slice(0, 5) : []);
+	function go(id) {
+		if (api.liveNeoFocus) api.liveNeoFocus(id);
+		if (onpick()) onpick()();
+	}
+	var fragment = comment();
+	var node = first_child(fragment);
+	var consequent_5 = ($$anchor) => {
+		var div = root_8();
+		var node_1 = sibling(child(div), 2);
+		var consequent = ($$anchor) => {
+			var div_1 = root$2();
+			var span = child(div_1);
+			var b = sibling(child(span));
+			var text = child(b, true);
+			reset(b);
+			reset(span);
+			var span_1 = sibling(span, 2);
+			var b_1 = sibling(child(span_1));
+			var text_1 = child(b_1, true);
+			reset(b_1);
+			next();
+			reset(span_1);
+			var span_2 = sibling(span_1, 2);
+			var b_2 = sibling(child(span_2));
+			var text_2 = child(b_2, true);
+			reset(b_2);
+			next();
+			reset(span_2);
+			var span_3 = sibling(span_2, 2);
+			var b_3 = sibling(child(span_3));
+			var text_3 = child(b_3, true);
+			reset(b_3);
+			reset(span_3);
+			reset(div_1);
+			template_effect(($0, $1, $2, $3) => {
+				set_style(b, `color:${$0 ?? ""}`);
+				set_text(text, $1);
+				set_text(text_1, $2);
+				set_style(b_2, `color:${($liveData().wx.bz ?? 0) <= -5 ? "#ff7676" : "var(--ink)"}`);
+				set_text(text_2, $liveData().wx.bz ?? "–");
+				set_style(b_3, `color:${$3 ?? ""}`);
+				set_text(text_3, $liveData().wx.xray ?? "–");
+			}, [
+				() => kpCol($liveData().wx.kp ?? 0),
+				() => $liveData().wx.kp?.toFixed(1) ?? "–",
+				() => $liveData().wx.wind ? Math.round($liveData().wx.wind) : "–",
+				() => xrCol($liveData().wx.xray)
+			]);
+			append($$anchor, div_1);
+		};
+		if_block(node_1, ($$render) => {
+			if ($liveData().wx) $$render(consequent);
+		});
+		var node_2 = sibling(node_1, 2);
+		var consequent_2 = ($$anchor) => {
+			var fragment_1 = root_3();
+			var div_2 = first_child(fragment_1);
+			var text_4 = child(div_2);
+			var node_3 = sibling(text_4);
+			var consequent_1 = ($$anchor) => {
+				append($$anchor, root_1$1());
+			};
+			var d_1 = /* @__PURE__ */ user_derived(() => get(active).some((c) => c.earthDir));
+			if_block(node_3, ($$render) => {
+				if (get(d_1)) $$render(consequent_1);
+			});
+			reset(div_2);
+			each(sibling(div_2, 2), 17, () => get(active).slice(0, 3), (c) => c.t + "" + c.lon, ($$anchor, c) => {
+				var div_3 = root_2$1();
+				var span_4 = child(div_3);
+				var span_5 = sibling(span_4, 2);
+				var text_5 = child(span_5, true);
+				reset(span_5);
+				var span_6 = sibling(span_5, 2);
+				var text_6 = child(span_6);
+				reset(span_6);
+				reset(div_3);
+				template_effect(($0, $1, $2) => {
+					set_style(span_4, `background:${get(c).v >= 800 ? "#ff6050" : get(c).v >= 500 ? "#ff9650" : "#ffc86e"}`);
+					set_text(text_5, $0);
+					set_text(text_6, `${$1 ?? ""} km/s${$2 ?? ""}`);
+				}, [
+					() => dt(get(c).t),
+					() => Math.round(get(c).v),
+					() => get(c).earthDir ? ` · Earth ~ ${dt(get(c).eta)}` : ""
+				]);
+				append($$anchor, div_3);
+			});
+			template_effect(() => set_text(text_4, `${get(active).length ?? ""} CME${get(active).length > 1 ? "s" : ""} in flight `));
+			append($$anchor, fragment_1);
+		};
+		var alternate = ($$anchor) => {
+			append($$anchor, root_4());
+		};
+		if_block(node_2, ($$render) => {
+			if (get(active).length) $$render(consequent_2);
+			else $$render(alternate, -1);
+		});
+		var node_5 = sibling(node_2, 2);
+		var consequent_4 = ($$anchor) => {
+			var fragment_2 = root_7();
+			var node_6 = sibling(first_child(fragment_2), 2);
+			each(node_6, 17, () => get(neos), (o) => o.id, ($$anchor, o) => {
+				var div_5 = root_5();
+				let classes;
+				var span_7 = child(div_5);
+				var span_8 = sibling(span_7, 2);
+				var text_7 = child(span_8);
+				reset(span_8);
+				var span_9 = sibling(span_8, 2);
+				var text_8 = child(span_9);
+				reset(span_9);
+				reset(div_5);
+				template_effect(($0, $1, $2) => {
+					classes = set_class(div_5, 1, "lv-row lv-click", null, classes, { "lv-off": !get(o).kd });
+					set_style(span_7, `background:${get(o).pha || get(o).sentry ? "#ff6e5a" : "#ffb260"}`);
+					set_text(text_7, `${get(o).n ?? ""}${get(o).pha ? " ⚠" : ""}`);
+					set_text(text_8, `${$0 ?? ""} · ${$1 ?? ""} LD · ${$2 ?? ""}`);
+				}, [
+					() => dt(get(o).t),
+					() => ldf(get(o).ld),
+					() => dia(get(o).dia)
+				]);
+				delegated("click", div_5, () => go(get(o).id));
+				delegated("keydown", div_5, (e) => e.key === "Enter" && go(get(o).id));
+				append($$anchor, div_5);
+			});
+			var node_7 = sibling(node_6, 2);
+			var consequent_3 = ($$anchor) => {
+				var div_6 = root_6();
+				var text_9 = child(div_6, true);
+				reset(div_6);
+				template_effect(() => set_text(text_9, get(showAll) ? "– fewer" : `+ ${$liveData().neos.length - 5} more`));
+				delegated("click", div_6, () => set(showAll, !get(showAll)));
+				delegated("keydown", div_6, (e) => e.key === "Enter" && set(showAll, !get(showAll)));
+				append($$anchor, div_6);
+			};
+			if_block(node_7, ($$render) => {
+				if ($liveData().neos.length > 5) $$render(consequent_3);
+			});
+			append($$anchor, fragment_2);
+		};
+		if_block(node_5, ($$render) => {
+			if ($liveData().neos.length) $$render(consequent_4);
+		});
+		next(2);
+		reset(div);
+		append($$anchor, div);
+	};
+	if_block(node, ($$render) => {
+		if ($liveData()) $$render(consequent_5);
+	});
+	append($$anchor, fragment);
+	pop();
+	$$cleanup();
+}
+delegate(["click", "keydown"]);
+//#endregion
 //#region src/components/MobileNav.svelte
-var root$1 = /* @__PURE__ */ from_html(`<!> <div class="ms-actions"><button>☉ Solar system</button> <button>🧭 Cosmic tour</button> <button>🔗 Share view</button> <button>⟲ Reset view</button></div>`, 1);
-var root_1 = /* @__PURE__ */ from_html(`<div id="mobsheet"><div class="ms-head"><span> <small style="opacity:.5">· b18:40</small></span> <button class="ms-x">✕ Close</button></div> <div class="ms-body"><!></div></div>`);
+var root$1 = /* @__PURE__ */ from_html(`<!> <div class="ms-actions"><button>☉ Solar system</button> <button>🧭 Cosmic tour</button> <button>🔗 Share view</button> <button>⟲ Reset view</button></div> <!>`, 1);
+var root_1 = /* @__PURE__ */ from_html(`<div id="mobsheet"><div class="ms-head"><span> <small style="opacity:.5">· b19:03</small></span> <button class="ms-x">✕ Close</button></div> <div class="ms-body"><!></div></div>`);
 var root_2 = /* @__PURE__ */ from_html(`<div id="mobbar"><div><span>🔍</span>Search</div> <div><span>☰</span>Layers</div> <div><span>🕐</span>Time</div> <div class="mb"><span>🧭</span>Tour</div></div> <!>`, 1);
 function MobileNav($$anchor, $$props) {
 	push($$props, true);
@@ -49783,6 +50399,9 @@ function MobileNav($$anchor, $$props) {
 			var button_3 = sibling(button_2, 2);
 			var button_4 = sibling(button_3, 2);
 			reset(div_8);
+			LivePanel(sibling(div_8, 2), { onpick: () => {
+				set(mobPanel, null);
+			} });
 			delegated("click", button_1, () => press("solarBtn"));
 			delegated("click", button_2, () => press("tourBtn"));
 			delegated("click", button_3, () => press("shareBtn"));
@@ -49820,7 +50439,7 @@ function MobileNav($$anchor, $$props) {
 delegate(["click"]);
 //#endregion
 //#region src/App.svelte
-var root = /* @__PURE__ */ from_html(`<canvas id="gl"></canvas> <canvas id="sky"></canvas> <div id="left-col"><!> <!> <!> <!></div> <div id="right-col"><!></div> <!> <!> <!> <!> <!> <button id="resetBtn" style="display:none" aria-hidden="true"></button>`, 1);
+var root = /* @__PURE__ */ from_html(`<canvas id="gl"></canvas> <canvas id="sky"></canvas> <div id="left-col"><!> <!> <!> <!> <!></div> <div id="right-col"><!></div> <!> <!> <!> <!> <!> <button id="resetBtn" style="display:none" aria-hidden="true"></button>`, 1);
 function App($$anchor) {
 	var fragment = root();
 	var div = sibling(first_child(fragment), 4);
@@ -49830,20 +50449,22 @@ function App($$anchor) {
 	SearchBox(node_1, {});
 	var node_2 = sibling(node_1, 2);
 	MwMap(node_2, {});
-	InfoHost(sibling(node_2, 2), {});
+	var node_3 = sibling(node_2, 2);
+	LivePanel(node_3, {});
+	InfoHost(sibling(node_3, 2), {});
 	reset(div);
 	var div_1 = sibling(div, 2);
 	Controls(child(div_1), {});
 	reset(div_1);
-	var node_5 = sibling(div_1, 2);
-	NavConsole(node_5, {});
-	var node_6 = sibling(node_5, 2);
-	PmPanel(node_6, {});
+	var node_6 = sibling(div_1, 2);
+	NavConsole(node_6, {});
 	var node_7 = sibling(node_6, 2);
-	TimeBars(node_7, {});
+	PmPanel(node_7, {});
 	var node_8 = sibling(node_7, 2);
-	TourPanel(node_8, {});
-	MobileNav(sibling(node_8, 2), {});
+	TimeBars(node_8, {});
+	var node_9 = sibling(node_8, 2);
+	TourPanel(node_9, {});
+	MobileNav(sibling(node_9, 2), {});
 	next(2);
 	append($$anchor, fragment);
 }

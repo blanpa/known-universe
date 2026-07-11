@@ -1,6 +1,7 @@
 <script>
   import SearchBox from './SearchBox.svelte';
   import Controls from './Controls.svelte';
+  import LivePanel from './LivePanel.svelte';
   import { timeBar } from '../lib/stores.js';
   let mobPanel = $state(null);
   
@@ -20,7 +21,7 @@
 {#if mobPanel}
 <div id="mobsheet">
   <div class="ms-head">
-    <span>{mobPanel === 'layers' ? '☰ Layers' : '🔍 Search'} <small style="opacity:.5">· b18:40</small></span>
+    <span>{mobPanel === 'layers' ? '☰ Layers' : '🔍 Search'} <small style="opacity:.5">· b19:03</small></span>
     <button class="ms-x" onclick={() => { mobPanel = null; }}>✕ Close</button>
   </div>
   <div class="ms-body">
@@ -34,6 +35,7 @@
         <button onclick={() => press('shareBtn')}>🔗 Share view</button>
         <button onclick={() => press('resetBtn')}>⟲ Reset view</button>
       </div>
+      <LivePanel onpick={() => { mobPanel = null; }} />
     {/if}
   </div>
 </div>

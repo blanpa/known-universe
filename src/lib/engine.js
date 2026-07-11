@@ -1,5 +1,6 @@
 // Known Universe engine — the renderer + app logic (framework-free by design).
 // Svelte owns the DOM structure; this module binds to it by element id.
+import { LIVE, startLive } from './live.js';
 export const UI={};
 export const api={};
 
@@ -29,6 +30,7 @@ const S={ yaw:0.5, pitch:-0.5, camZ:3.0, year:2026, tOffsetDays:0,
   autorot:false, freelook:false, rings:true, veil:true, size:true, galaxies:true,
   hyg:true, gpu:true, gaia:true, web:true, qso:true, ob:true, vars:true, edge:true, facColor:false, facHidden:new Set(),
   solar:true, moons:true, mw:true, mw3d:true, dso:true, psr:true, oclu:true, ast:true, tno:true, probes:true, helio:true, belt:true, con:true, hz:true, lag:true, lens:true, pm:false, pmYears:0,
+  cme:true, neo:true,
   realScale:false,
   hover:null, pinned:null, focusStar:null, focusT:0 };
 
@@ -894,6 +896,8 @@ function drawSolar(alpha){
     if(hp2.depth>NEAR){ ctx.fillStyle=`rgba(172,190,244,${A*0.85})`; ctx.fillText('heliopause ~120 AU', hp2.x+4, hp2.y-3); }
   }
   if(S.probes) drawProbes(A);
+  if(S.cme) drawCME(A);
+  if(S.neo) drawLiveNeo(A);
   ctx.globalAlpha=1;
 }
 function outerHidden(b){ return (b.kind==='Trans-Neptunian object'||b.kind==='Centaur') && !S.tno; }
@@ -941,6 +945,87 @@ function drawSmall(A, jd){
     solarProj.push({o,x:p.x,y:p.y,px:Math.max(6,px)});
     if((A>0.5||sel)&&(!bulk||sel)){ ctx.font=(sel?'10px':'8.5px')+' ui-monospace,monospace';
       ctx.fillStyle=`rgba(${c[0]},${c[1]},${c[2]},${sel?1:0.72})`; ctx.fillText(o.n, p.x+px+3, p.y+3); }
+  }
+}
+
+// ---- live layer: CME fronts (NASA DONKI) + upcoming NEO flybys (NASA NeoWs) ----
+// CME direction: DONKI lat/lon are Stonyhurst (Earth at lon 0, west positive).
+// Frame: x̂ = Sun→Earth (ecliptic), ŷ = ẑ×x̂ (solar west ≈ Earth's orbital motion), ẑ = ecliptic north.
+function cmeSolarMs(){ return (solarJD()-2440587.5)*86400000; }
+function drawCME(A){
+  if(!LIVE.cmes.length) return;
+  const earth=PLANETS.find(p=>p.n==='Earth'); if(!earth||!earth._e) return;
+  const nowMs=cmeSolarMs(), lamE=Math.atan2(earth._e[1],earth._e[0]);
+  const cE=Math.cos(lamE), sE=Math.sin(lamE);
+  for(const c of LIVE.cmes){
+    const dt=(nowMs-c.t)/1000; if(dt<=0) continue;               // not yet erupted at this sim time
+    const rAU=0.1 + c.v*dt/1.496e8; if(rAU>2.6) continue;        // front left the inner system
+    const fade=Math.max(0,Math.min(1,(2.6-rAU)/0.7));
+    const la=c.lat*D2R, lo=c.lon*D2R, cb=Math.cos(la);
+    const hx=cb*Math.cos(lo), hy=cb*Math.sin(lo), hz=Math.sin(la);
+    const d=[hx*cE-hy*sE, hx*sE+hy*cE, hz];                      // axis in ecliptic coords
+    // rim basis ⟂ axis
+    let u=[-d[1],d[0],0]; const ul=Math.hypot(u[0],u[1],u[2])||1; u=[u[0]/ul,u[1]/ul,u[2]/ul];
+    const v=[d[1]*u[2]-d[2]*u[1], d[2]*u[0]-d[0]*u[2], d[0]*u[1]-d[1]*u[0]];
+    const col=c.v>=800?[255,96,80]:c.v>=500?[255,150,80]:[255,200,110];
+    const H=Math.min(1.2,c.half*D2R), cH=Math.cos(H), sH=Math.sin(H);
+    // expanding shell + two trailing wake shells
+    for(const [rf,aw] of [[1,0.55],[0.78,0.28],[0.55,0.13]]){
+      const r=rAU*rf; if(r<0.11) continue;
+      ctx.beginPath(); let first=true;
+      for(let k=0;k<=48;k++){ const th=k/48*6.2832, ct=Math.cos(th), st=Math.sin(th);
+        const ex=r*(cH*d[0]+sH*(ct*u[0]+st*v[0])), ey=r*(cH*d[1]+sH*(ct*u[1]+st*v[1])), ez=r*(cH*d[2]+sH*(ct*u[2]+st*v[2]));
+        const w=eclToWorld(ex,ey,ez), p=project(w[0],w[1],w[2]);
+        if(p.depth<=NEAR){first=true;continue;}
+        if(first){ctx.moveTo(p.x,p.y);first=false;}else ctx.lineTo(p.x,p.y);
+      }
+      if(rf===1){ ctx.fillStyle=`rgba(${col[0]},${col[1]},${col[2]},${A*fade*0.07})`; ctx.fill(); }
+      ctx.strokeStyle=`rgba(${col[0]},${col[1]},${col[2]},${A*fade*aw})`;
+      ctx.lineWidth=rf===1?1.4:0.8; ctx.stroke();
+    }
+    // label + pick target at the front's centre
+    const tw=eclToWorld(rAU*d[0],rAU*d[1],rAU*d[2]), tp=project(tw[0],tw[1],tw[2]);
+    if(tp.depth>NEAR){
+      if(!c._o) c._o={cme:c, n:'Coronal mass ejection', c:col};
+      const sel=(c._o===S.hover||c._o===S.pinned);
+      ctx.font=(sel?'10px':'9px')+' ui-monospace,monospace';
+      ctx.fillStyle=`rgba(${col[0]},${col[1]},${col[2]},${A*fade*(sel?1:0.85)})`;
+      ctx.fillText(`CME · ${Math.round(c.v)} km/s${c.earthDir?' · → Earth':''}`, tp.x+6, tp.y-4);
+      if(sel){ ctx.beginPath(); ctx.arc(tp.x,tp.y,9,0,6.2832); ctx.strokeStyle='rgba(79,214,200,.9)'; ctx.lineWidth=1.1; ctx.stroke(); }
+      solarProj.push({o:c._o,x:tp.x,y:tp.y,px:12});
+    }
+  }
+}
+function drawLiveNeo(A){
+  if(!LIVE.neos.length) return;
+  const jd=solarJD(), nowMs=cmeSolarMs();
+  const earth=PLANETS.find(p=>p.n==='Earth');
+  let ep=null;
+  if(earth&&earth._e){ const w=eclToWorld(earth._e[0],earth._e[1],earth._e[2]); const p=project(w[0],w[1],w[2]); if(p.depth>NEAR) ep=p; }
+  for(const o of LIVE.neos){
+    if(!o.kd) continue;
+    o._el=keplerSB(o.kd,jd); o._e=orbPoint(o._el,o._el.E); o._r=Math.hypot(o._e[0],o._e[1],o._e[2]);
+    const sel=(o===S.hover||o===S.pinned);
+    drawOrbitEllipse(o._el, `rgba(255,168,88,${A*(sel?0.55:0.20)})`);
+    const w=eclToWorld(o._e[0],o._e[1],o._e[2]), p=project(w[0],w[1],w[2]);
+    if(p.depth<=NEAR) continue;
+    const dtd=(o.t-nowMs)/86400000;                        // days until closest approach (sim time)
+    if(ep && Math.abs(dtd)<5){                             // approach window: tie to Earth
+      ctx.setLineDash([3,4]); ctx.strokeStyle=`rgba(255,168,88,${A*0.30})`; ctx.lineWidth=0.8;
+      ctx.beginPath(); ctx.moveTo(ep.x,ep.y); ctx.lineTo(p.x,p.y); ctx.stroke(); ctx.setLineDash([]);
+    }
+    const px=sel?6:4.5;                                    // diamond marker
+    ctx.beginPath(); ctx.moveTo(p.x,p.y-px); ctx.lineTo(p.x+px,p.y); ctx.lineTo(p.x,p.y+px); ctx.lineTo(p.x-px,p.y); ctx.closePath();
+    ctx.strokeStyle=`rgba(255,178,96,${A*(sel?1:0.9)})`; ctx.lineWidth=1.3; ctx.stroke();
+    if(o.pha||o.sentry){ ctx.beginPath(); ctx.arc(p.x,p.y,px+3.5,0,6.2832);
+      ctx.strokeStyle=`rgba(255,110,90,${A*0.7})`; ctx.lineWidth=0.9; ctx.stroke(); }
+    if(sel){ ctx.beginPath(); ctx.arc(p.x,p.y,px+7,0,6.2832); ctx.strokeStyle='rgba(79,214,200,.9)'; ctx.lineWidth=1.2; ctx.stroke(); }
+    const rel=Math.abs(dtd)<0.04?'now':dtd>0?`in ${dtd>=1?Math.floor(dtd)+'d ':''}${Math.round(dtd%1*24)}h`:`${Math.abs(dtd).toFixed(1)}d ago`;
+    const ldStr=o.ld<10?o.ld.toFixed(1):Math.round(o.ld);
+    ctx.font=(sel?'10px':'9px')+' ui-monospace,monospace';
+    ctx.fillStyle=`rgba(255,190,120,${A*(sel?1:0.8)})`;
+    ctx.fillText(`${o.n} · ${rel} · ${ldStr} LD`, p.x+px+4, p.y+3);
+    solarProj.push({o,x:p.x,y:p.y,px:Math.max(8,px+3)});
   }
 }
 
@@ -1505,6 +1590,23 @@ function showInfo(s){
     h+=`<div class="hint">where the Sun's and ${s.pl}'s gravity balance the orbit</div>`;
     el.innerHTML=h; el.classList.add('show'); return;
   }
+  if(s.cme){               // ---- live coronal mass ejection (DONKI) ----
+    const c=s.cme, col=s.c||[255,150,80];
+    const dir=`${c.lat>=0?'N':'S'}${Math.abs(c.lat).toFixed(0)} ${c.lon>=0?'W':'E'}${Math.abs(c.lon).toFixed(0)}`;
+    const dt=o=>new Date(o).toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+    let h=`<div class="nm"><span class="mk" style="color:rgb(${col[0]},${col[1]},${col[2]});background:rgb(${col[0]},${col[1]},${col[2]})"></span>Coronal mass ejection</div>
+      <div class="rows">
+        <div class="r"><span class="rk">Type</span><span class="rv">CME · class ${c.type} · NASA DONKI</span></div>
+        <div class="r"><span class="rk">Erupted</span><span class="rv">${dt(c.t)} UTC (at 21.5 R☉)</span></div>
+        <div class="r"><span class="rk">Speed</span><span class="rv">${Math.round(c.v)} km/s</span></div>
+        <div class="r"><span class="rk">Width</span><span class="rv">±${Math.round(c.half)}° · from ${dir}</span></div>
+        ${c.earthDir?`<div class="r"><span class="rk">Earth arrival</span><span class="rv">~ ${dt(c.eta)} UTC</span></div>`:
+          `<div class="r"><span class="rk">Direction</span><span class="rv">not Earth-directed</span></div>`}
+      </div>`;
+    h+=links([{t:'DONKI',u:'https://kauai.ccmc.gsfc.nasa.gov/DONKI/'},{t:'SWPC',u:'https://www.swpc.noaa.gov/'}]);
+    h+=`<div class="hint">ballistic estimate — real fronts decelerate in the solar wind</div>`;
+    el.innerHTML=h; el.classList.add('show'); return;
+  }
   if(s.rk!==undefined){   // ---- solar-system body ----
     const c=s.c, er=(s.rk/6371), probe=s.kind==='Spacecraft';
     let dist = s.am!==undefined ? `${fmt(s.am*1000)} km from ${s.parent}`
@@ -1885,6 +1987,8 @@ bindToggle('t-helio','helio');
 bindToggle('t-belt','belt');
 bindToggle('t-lag','lag');
 bindToggle('t-lens','lens');
+bindToggle('t-cme','cme');
+bindToggle('t-neo','neo');
 // proper motion: reveal a deep-time slider when enabled
 const pmTime=document.getElementById('pmTime'), pmVal=document.getElementById('pmVal');
 function setPmVal(){ const y=S.pmYears;
@@ -2782,9 +2886,20 @@ if(uniEl&&uniEl.addEventListener){
 api.clickToggle=clickToggle; api.doSearch=doSearch; api.getS=()=>S; api.suggest=suggestList;
 api.searchMsgText=()=>searchMsg.textContent; api.toggleFac=toggleFac; api.facColorToggle=facColorToggle;
 api.facList=()=>facList; api.searchInput=q=>{ if(q&&q.trim().length>2) doSearch(q); };
+// live layer: fly to a close-approach NEO from the panel list
+api.liveNeoFocus=id=>{
+  const o=LIVE.neos.find(n=>n.id===id); if(!o) return;
+  if(o.kd){ o._el=keplerSB(o.kd,solarJD()); o._e=orbPoint(o._el,o._el.E);
+    const w=eclToWorld(o._e[0],o._e[1],o._e[2]);
+    S.pinned=o; aim(w[0],w[1],w[2], scale(2.2*AU_PC)); }
+  else { S.pinned=null; enterSolar(); }
+  dirty=true;
+};
+LIVE.onUpdate=()=>{ dirty=true; };
+startLive();
 if(UI.fac) UI.fac(facList);
 applyHash();
-try{console.log('Known Universe build 2026-07-11 16:53');}catch(e){}
+try{console.log('Known Universe build 2026-07-11 19:03');}catch(e){}
 initGL();
 loadGaia();
 loadExtragal();

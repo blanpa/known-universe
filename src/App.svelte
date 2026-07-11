@@ -9,6 +9,7 @@
   import TimeBars from './components/TimeBars.svelte';
   import TourPanel from './components/TourPanel.svelte';
   import MobileNav from './components/MobileNav.svelte';
+  import LivePanel from './components/LivePanel.svelte';
 </script>
 
   <canvas id="gl"></canvas>
@@ -18,6 +19,7 @@
   <TopPanel />
   <SearchBox />
   <MwMap />
+  <LivePanel />
   <InfoHost />
 </div>
 

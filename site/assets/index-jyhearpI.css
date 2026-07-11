@@ -389,3 +389,22 @@ body:not(.show-time) #hud-uni{display:none!important}
   #hud-uni{bottom:calc(56px + env(safe-area-inset-bottom,0));padding:6px 10px}
   .uniCap{display:none}
 }
+/* ---- live layer panel (space weather + NEO flybys) ---- */
+.live-panel{padding:11px 13px;flex:0 1 auto;min-height:0;overflow-y:auto}
+.lv-wx{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px}
+.lv-chip{font-family:var(--mono);font-size:10px;color:var(--dim);background:rgba(120,140,190,.12);
+  border:1px solid var(--line);border-radius:6px;padding:3px 7px;white-space:nowrap}
+.lv-chip b{color:var(--ink);font-weight:600}
+.lv-sub{font-size:10.5px;color:var(--dim);margin:2px 0 4px}
+.lv-row{display:flex;align-items:center;gap:7px;padding:3.5px 0;font-size:11px;color:var(--dim);min-width:0}
+.lv-dot{width:7px;height:7px;border-radius:50%;flex:0 0 auto}
+.lv-nm{color:var(--ink);flex:0 0 auto;font-weight:500}
+.lv-val{font-family:var(--mono);font-size:9.5px;margin-left:auto;text-align:right;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+.lv-click{cursor:pointer;border-radius:6px;margin:0 -5px;padding-left:5px;padding-right:5px}
+.lv-click:hover{background:rgba(120,140,190,.12)}
+.lv-off .lv-nm{color:var(--dim)}
+.lv-more{font-size:10px;color:var(--cyan);cursor:pointer;padding:3px 0;user-select:none}
+.lv-src{font-family:var(--mono);font-size:8.5px;color:var(--dim);opacity:.7;margin-top:7px;
+  letter-spacing:.04em}
+#mobsheet .live-panel{margin-top:10px}
