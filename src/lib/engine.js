@@ -735,7 +735,8 @@ function bodyPx(rk,depth){
   // but scaled by real RELATIVE radius so Jupiter>Earth>Mercury stays recognisable.
   const ratio=rk/6371;
   const de = S.realScale ? (depth/S.camZ)*3.2 : depth;   // real: normalise to the log framing range
-  const sym = Math.max(2.0, Math.min(52,(0.28+Math.pow(ratio,0.42)*0.62)*foc*0.02/de));
+  // cap grows with the viewport (was 52px): diving at a body lets it fill ~a third of the screen
+  const sym = Math.max(2.0, Math.min(Math.min(W,H)*0.32,(0.28+Math.pow(ratio,0.42)*0.62)*foc*0.02/de));
   if(!S.realScale) return sym;
   // real scale: once the TRUE angular size is resolvable it wins — fly at a
   // planet and it grows to a disc, exactly as it would in reality
@@ -2097,7 +2098,9 @@ function zoomAt(mx,my,delta,deltaMode){
 function zoomFactorAt(mx,my,f){
   const before=tgtCamZ;
   tgtCamZ*=f;
-  const zmin=S.realScale?1e-7:0.9, zmax=S.realScale?6e7:16;
+  // log mode used to stop at 0.9 — 0.12 lets you dive at a planet until its glyph
+  // fills the view (satellite shells, moons, sunspots need the room)
+  const zmin=S.realScale?1e-7:0.12, zmax=S.realScale?6e7:16;
   tgtCamZ=Math.max(zmin,Math.min(zmax,tgtCamZ));
   if(tgtCamZ<before){                            // zoom in → anchor on the cursor, not the centre
     const k=tgtCamZ/before;
@@ -3088,7 +3091,7 @@ LIVE.onUpdate=()=>{ dirty=true; };
 startLive();
 if(UI.fac) UI.fac(facList);
 applyHash();
-try{console.log('Known Universe build 2026-07-12 10:24');}catch(e){}
+try{console.log('Known Universe build 2026-07-12 10:40');}catch(e){}
 initGL();
 loadGaia();
 loadExtragal();
