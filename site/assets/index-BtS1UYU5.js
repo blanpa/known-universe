@@ -47994,6 +47994,7 @@ function __run() {
 			drawFireballs(A);
 		}
 		if (S.sat) drawSats(A);
+		if (TRANSFER) drawTransfer(A);
 		ctx.globalAlpha = 1;
 	}
 	function outerHidden(b) {
@@ -48498,6 +48499,220 @@ function __run() {
 				y,
 				px: Math.max(6, rr + 3)
 			});
+		}
+	}
+	const MU_S = .00029591220828559093, AUD2KMS = 1731.456;
+	let TRANSFER = null;
+	function stC(z) {
+		if (z > 1e-6) return (1 - Math.cos(Math.sqrt(z))) / z;
+		if (z < -1e-6) return (Math.cosh(Math.sqrt(-z)) - 1) / -z;
+		return .5 - z / 24;
+	}
+	function stS(z) {
+		if (z > 1e-6) {
+			const s = Math.sqrt(z);
+			return (s - Math.sin(s)) / (s * s * s);
+		}
+		if (z < -1e-6) {
+			const s = Math.sqrt(-z);
+			return (Math.sinh(s) - s) / (s * s * s);
+		}
+		return 1 / 6 - z / 120;
+	}
+	function lambert(r1v, r2v, tof) {
+		const r1 = Math.hypot(r1v[0], r1v[1], r1v[2]), r2 = Math.hypot(r2v[0], r2v[1], r2v[2]);
+		let cosD = (r1v[0] * r2v[0] + r1v[1] * r2v[1] + r1v[2] * r2v[2]) / (r1 * r2);
+		cosD = Math.max(-1, Math.min(1, cosD));
+		let dth = Math.acos(cosD);
+		if (r1v[0] * r2v[1] - r1v[1] * r2v[0] < 0) dth = 2 * Math.PI - dth;
+		const Ac = Math.sin(dth) * Math.sqrt(r1 * r2 / (1 - cosD));
+		if (!isFinite(Ac) || Math.abs(Ac) < 1e-12) return null;
+		const y = (z) => r1 + r2 + Ac * (z * stS(z) - 1) / Math.sqrt(stC(z));
+		const F = (z) => {
+			const yy = y(z);
+			return yy < 0 ? NaN : Math.pow(yy / stC(z), 1.5) * stS(z) + Ac * Math.sqrt(yy) - Math.sqrt(MU_S) * tof;
+		};
+		let zlo = -64, zhi = 4 * Math.PI * Math.PI - 1e-9;
+		while (zlo < zhi && !(y(zlo) > 0 && isFinite(F(zlo)))) zlo += 4;
+		if (!(F(zlo) < 0)) return null;
+		let z = 0;
+		for (let i = 0; i < 80; i++) {
+			z = (zlo + zhi) / 2;
+			const f = F(z);
+			if (isNaN(f) || f < 0) zlo = z;
+			else zhi = z;
+		}
+		const yy = y(z), f = 1 - yy / r1, g = Ac * Math.sqrt(yy / MU_S), gd = 1 - yy / r2;
+		const v1 = [
+			0,
+			0,
+			0
+		], v2 = [
+			0,
+			0,
+			0
+		];
+		for (let i = 0; i < 3; i++) {
+			v1[i] = (r2v[i] - f * r1v[i]) / g;
+			v2[i] = (gd * r2v[i] - r1v[i]) / g;
+		}
+		return {
+			v1,
+			v2
+		};
+	}
+	function propagateUV(r0v, v0v, dt) {
+		const r0 = Math.hypot(r0v[0], r0v[1], r0v[2]), v02 = v0v[0] * v0v[0] + v0v[1] * v0v[1] + v0v[2] * v0v[2];
+		const vr0 = (r0v[0] * v0v[0] + r0v[1] * v0v[1] + r0v[2] * v0v[2]) / r0;
+		const alpha = 2 / r0 - v02 / MU_S, sq = Math.sqrt(MU_S);
+		let x = Math.abs(alpha) > 1e-9 ? sq * Math.abs(alpha) * dt : sq * dt / r0;
+		for (let i = 0; i < 40; i++) {
+			const z = alpha * x * x, C = stC(z), Sz = stS(z);
+			const dx = (r0 * vr0 / sq * x * x * C + (1 - alpha * r0) * x * x * x * Sz + r0 * x - sq * dt) / (r0 * vr0 / sq * x * (1 - z * Sz) + (1 - alpha * r0) * x * x * C + r0);
+			x -= dx;
+			if (Math.abs(dx) < 1e-10) break;
+		}
+		const z = alpha * x * x, f = 1 - x * x / r0 * stC(z), g = dt - x * x * x / sq * stS(z);
+		return [
+			f * r0v[0] + g * v0v[0],
+			f * r0v[1] + g * v0v[1],
+			f * r0v[2] + g * v0v[2]
+		];
+	}
+	function bodyEclAt(b, jd) {
+		const el = b.k ? keplerEcl(b.k, (jd - 2451545) / 36525) : keplerSB(b.kd, jd);
+		return orbPoint(el, el.E);
+	}
+	function bodyVelAt(b, jd) {
+		const p = bodyEclAt(b, jd + .5), m = bodyEclAt(b, jd - .5);
+		return [
+			p[0] - m[0],
+			p[1] - m[1],
+			p[2] - m[2]
+		];
+	}
+	function findWindow(bA, bB, jd0) {
+		const aA = bA.k ? bA.k[0] : bA.kd.a, aB = bB.k ? bB.k[0] : bB.kd.a;
+		const Ta = Math.sqrt(aA * aA * aA) * 365.25, Tb = Math.sqrt(aB * aB * aB) * 365.25;
+		const syn = 1 / Math.max(1e-9, Math.abs(1 / Ta - 1 / Tb));
+		const span = Math.min(1e3, Math.max(420, syn * 1.15));
+		const hoh = Math.PI * Math.sqrt(Math.pow((aA + aB) / 2, 3) / MU_S);
+		const tofLo = hoh * .55, tofHi = Math.min(hoh * 1.6, 73e3);
+		let best = null;
+		const evalPt = (dep, tof) => {
+			const L = lambert(bodyEclAt(bA, dep), bodyEclAt(bB, dep + tof), tof);
+			if (!L) return;
+			const vA = bodyVelAt(bA, dep), vB = bodyVelAt(bB, dep + tof);
+			const dv = (Math.hypot(L.v1[0] - vA[0], L.v1[1] - vA[1], L.v1[2] - vA[2]) + Math.hypot(L.v2[0] - vB[0], L.v2[1] - vB[1], L.v2[2] - vB[2])) * AUD2KMS;
+			if (!best || dv < best.dv) best = {
+				dep,
+				tof,
+				dv,
+				v1: L.v1
+			};
+		};
+		for (let i = 0; i <= 70; i++) for (let j = 0; j <= 20; j++) evalPt(jd0 + i * span / 70, tofLo + j * (tofHi - tofLo) / 20);
+		if (!best) return null;
+		const ds = span / 70, ts = (tofHi - tofLo) / 20, c = {
+			dep: best.dep,
+			tof: best.tof
+		};
+		for (let i = -6; i <= 6; i++) for (let j = -6; j <= 6; j++) evalPt(c.dep + i * ds / 6, Math.max(20, c.tof + j * ts / 6));
+		return best;
+	}
+	function computeTransfer(b) {
+		const earth = PLANETS.find((p) => p.n === "Earth");
+		const w = findWindow(earth, b, solarJD());
+		if (!w) {
+			if (UI.msg) UI.msg("no transfer window found");
+			return;
+		}
+		const r1 = bodyEclAt(earth, w.dep), pts = [], N = 96;
+		for (let i = 0; i <= N; i++) pts.push(propagateUV(r1, w.v1, w.tof * i / N));
+		TRANSFER = {
+			to: b,
+			dep: w.dep,
+			tof: w.tof,
+			dv: w.dv,
+			r1,
+			v1: w.v1,
+			pts
+		};
+		TRANSFER._o = {
+			xfer: true,
+			n: "Earth → " + b.n + " transfer",
+			T: TRANSFER
+		};
+		if (UI.msg) UI.msg(`🚀 launch ${dateStr(w.dep)} · ${Math.round(w.tof)} d · Δv ${w.dv.toFixed(1)} km/s — ride the time slider`);
+		lastInfo = void 0;
+		dirty = true;
+	}
+	function drawTransfer(A) {
+		const T = TRANSFER;
+		if (!T) return;
+		ctx.setLineDash([5, 4]);
+		ctx.beginPath();
+		let first = true;
+		for (const q of T.pts) {
+			const w = eclToWorld(q[0], q[1], q[2]), p = project(w[0], w[1], w[2]);
+			if (p.depth <= NEAR) {
+				first = true;
+				continue;
+			}
+			if (first) {
+				ctx.moveTo(p.x, p.y);
+				first = false;
+			} else ctx.lineTo(p.x, p.y);
+		}
+		ctx.strokeStyle = `rgba(79,214,200,${A * .8})`;
+		ctx.lineWidth = 1.5;
+		ctx.stroke();
+		ctx.setLineDash([]);
+		const ends = [[T.pts[0], `launch ${dateStr(T.dep)} · Δv ${T.dv.toFixed(1)} km/s`], [T.pts[T.pts.length - 1], `${T.to.n} at arrival · ${dateStr(T.dep + T.tof)}`]];
+		ctx.font = "9px ui-monospace,monospace";
+		for (const [q, txt] of ends) {
+			const w = eclToWorld(q[0], q[1], q[2]), p = project(w[0], w[1], w[2]);
+			if (p.depth <= NEAR) continue;
+			ctx.beginPath();
+			ctx.arc(p.x, p.y, 4, 0, 6.2832);
+			ctx.strokeStyle = `rgba(79,214,200,${A * .9})`;
+			ctx.lineWidth = 1.2;
+			ctx.stroke();
+			ctx.fillStyle = `rgba(140,235,225,${A * .85})`;
+			ctx.fillText(txt, p.x + 7, p.y - 4);
+		}
+		const jd = solarJD();
+		if (jd >= T.dep && jd <= T.dep + T.tof) {
+			const q = propagateUV(T.r1, T.v1, jd - T.dep);
+			const w = eclToWorld(q[0], q[1], q[2]), p = project(w[0], w[1], w[2]);
+			if (p.depth > NEAR) {
+				const sel = T._o === S.hover || T._o === S.pinned, sz = sel ? 6 : 5;
+				ctx.beginPath();
+				ctx.moveTo(p.x, p.y - sz);
+				ctx.lineTo(p.x + sz, p.y);
+				ctx.lineTo(p.x, p.y + sz);
+				ctx.lineTo(p.x - sz, p.y);
+				ctx.closePath();
+				ctx.fillStyle = `rgba(120,255,235,${A})`;
+				ctx.fill();
+				if (sel) {
+					ctx.beginPath();
+					ctx.arc(p.x, p.y, sz + 6, 0, 6.2832);
+					ctx.strokeStyle = "rgba(79,214,200,.9)";
+					ctx.lineWidth = 1.2;
+					ctx.stroke();
+				}
+				ctx.font = "10px ui-monospace,monospace";
+				ctx.fillStyle = `rgba(140,255,240,${A * .95})`;
+				const prog = Math.round((jd - T.dep) / T.tof * 100);
+				ctx.fillText(`Earth → ${T.to.n} · ${prog}%`, p.x + sz + 4, p.y + 3);
+				solarProj.push({
+					o: T._o,
+					x: p.x,
+					y: p.y,
+					px: Math.max(8, sz + 3)
+				});
+			}
 		}
 	}
 	const MASS_RATIO = {
@@ -49632,6 +49847,25 @@ function __run() {
 			el.classList.add("show");
 			return;
 		}
+		if (s.xfer) {
+			const T = s.T;
+			let h = `<div class="nm"><span class="mk" style="color:#78ffeb;background:#78ffeb"></span>${s.n}</div>
+      <div class="rows">
+        <div class="r"><span class="rk">Type</span><span class="rv">Two-impulse transfer (Lambert)</span></div>
+        <div class="r"><span class="rk">Launch</span><span class="rv">${dateStr(T.dep)}</span></div>
+        <div class="r"><span class="rk">Arrival</span><span class="rv">${dateStr(T.dep + T.tof)}</span></div>
+        <div class="r"><span class="rk">Time of flight</span><span class="rv">${Math.round(T.tof)} days</span></div>
+        <div class="r"><span class="rk">Δv (heliocentric)</span><span class="rv">${T.dv.toFixed(2)} km/s</span></div>
+      </div>`;
+			h += links([{
+				t: "Wikipedia",
+				u: "https://en.wikipedia.org/wiki/Hohmann_transfer_orbit"
+			}]);
+			h += `<div class="hint">min-Δv window from a departure × flight-time search — drag the time slider to fly it</div>`;
+			el.innerHTML = h;
+			el.classList.add("show");
+			return;
+		}
 		if (s.spot) {
 			const r = s.spot;
 			let h = `<div class="nm"><span class="mk" style="color:#c86432;background:#c86432"></span>Active region ${r.no}</div>
@@ -49717,6 +49951,7 @@ function __run() {
 				t: "Wikipedia",
 				u: `https://en.wikipedia.org/wiki/${encodeURIComponent(s.n)}`
 			}]);
+			if ((s.k || s.kd) && s.n !== "Earth" && s.kind !== "Moon" && s.kind !== "Spacecraft") h += `<button class="transferset">${TRANSFER && TRANSFER.to === s ? "✕ Clear transfer orbit" : "🚀 Transfer Earth → " + s.n}</button>`;
 			h += `<div class="hint">${S.pinned ? "Click empty space to release" : "Click to pin"}</div>`;
 			el.innerHTML = h;
 			el.classList.add("show");
@@ -50312,6 +50547,14 @@ function __run() {
 		if (e.target.classList.contains("navset")) {
 			navTarget = S.pinned || S.hover;
 			showNav(true);
+		}
+		if (e.target.classList.contains("transferset")) {
+			const b = S.pinned || S.hover;
+			if (TRANSFER && b && TRANSFER.to === b) {
+				TRANSFER = null;
+				lastInfo = void 0;
+				dirty = true;
+			} else if (b) computeTransfer(b);
 		}
 	});
 	document.getElementById("navClose").addEventListener("click", () => showNav(false));
@@ -52054,7 +52297,7 @@ void main(){                                             // soft shoulder above 
 	if (UI.fac) UI.fac(facList);
 	applyHash();
 	try {
-		console.log("Known Universe build 2026-07-12 10:40");
+		console.log("Known Universe build 2026-07-12 10:54");
 	} catch (e) {}
 	initGL();
 	loadGaia();
@@ -52823,7 +53066,7 @@ delegate(["click", "keydown"]);
 //#endregion
 //#region src/components/MobileNav.svelte
 var root$2 = /* @__PURE__ */ from_html(`<!> <div class="ms-actions"><button>☉ Solar system</button> <button>🧭 Cosmic tour</button> <button>🔗 Share view</button> <button>⟲ Reset view</button></div> <!>`, 1);
-var root_1 = /* @__PURE__ */ from_html(`<div id="mobsheet"><div class="ms-head"><span> <small style="opacity:.5">· b10:40</small></span> <button class="ms-x">✕ Close</button></div> <div class="ms-body"><!></div></div>`);
+var root_1 = /* @__PURE__ */ from_html(`<div id="mobsheet"><div class="ms-head"><span> <small style="opacity:.5">· b10:54</small></span> <button class="ms-x">✕ Close</button></div> <div class="ms-body"><!></div></div>`);
 var root_2 = /* @__PURE__ */ from_html(`<div id="mobbar"><div><span>🔍</span>Search</div> <div><span>☰</span>Layers</div> <div><span>🕐</span>Time</div> <div class="mb"><span>🧭</span>Tour</div></div> <!>`, 1);
 function MobileNav($$anchor, $$props) {
 	push($$props, true);

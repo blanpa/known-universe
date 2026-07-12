@@ -21,7 +21,7 @@
 {#if mobPanel}
 <div id="mobsheet">
   <div class="ms-head">
-    <span>{mobPanel === 'layers' ? '☰ Layers' : '🔍 Search'} <small style="opacity:.5">· b10:40</small></span>
+    <span>{mobPanel === 'layers' ? '☰ Layers' : '🔍 Search'} <small style="opacity:.5">· b10:54</small></span>
     <button class="ms-x" onclick={() => { mobPanel = null; }}>✕ Close</button>
   </div>
   <div class="ms-body">
