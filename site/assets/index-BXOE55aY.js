@@ -6712,12 +6712,36 @@ async function fetchNeos() {
 	const want = out.slice().sort((a, b) => a.ld - b.ld).filter((o) => o.ld <= 30).slice(0, 10);
 	for (const o of want) if (!o.kd) o.kd = await lookupKd(o.id);
 }
+function tleCache() {
+	try {
+		return JSON.parse(localStorage.getItem("ku_tle") || "null");
+	} catch (e) {
+		return null;
+	}
+}
 async function fetchSats() {
-	const groups = ["visual", "stations"];
+	let txt = null;
+	const c = tleCache();
+	if (c && Date.now() - c.ts < 6 * 36e5) txt = c.txt;
+	if (!txt) {
+		const parts = [];
+		for (const g of ["visual", "stations"]) {
+			const t = await fetch(`https://celestrak.org/NORAD/elements/gp.php?GROUP=${g}&FORMAT=tle`).then((r) => r.ok ? r.text() : null).catch(() => null);
+			if (t && t[0] !== "<") parts.push(t);
+		}
+		if (parts.length === 2) {
+			txt = parts.join("\n");
+			try {
+				localStorage.setItem("ku_tle", JSON.stringify({
+					ts: Date.now(),
+					txt
+				}));
+			} catch (e) {}
+		} else if (c) txt = c.txt;
+	}
+	if (!txt) return;
 	const seen = /* @__PURE__ */ new Set(), sats = [];
-	for (const g of groups) {
-		const txt = await fetch(`https://celestrak.org/NORAD/elements/gp.php?GROUP=${g}&FORMAT=tle`).then((r) => r.ok ? r.text() : null).catch(() => null);
-		if (!txt) continue;
+	{
 		const lines = txt.split(/\r?\n/);
 		for (let i = 0; i + 2 < lines.length + 1; i++) {
 			if (!lines[i + 1] || lines[i + 1][0] !== "1" || !lines[i + 2] || lines[i + 2][0] !== "2") continue;
@@ -52960,7 +52984,7 @@ void main(){                                             // soft shoulder above 
 	if (UI.fac) UI.fac(facList);
 	applyHash();
 	try {
-		console.log("Known Universe build 2026-07-12 11:44");
+		console.log("Known Universe build 2026-07-12 11:51");
 	} catch (e) {}
 	initGL();
 	loadGaia();
@@ -53729,7 +53753,7 @@ delegate(["click", "keydown"]);
 //#endregion
 //#region src/components/MobileNav.svelte
 var root$2 = /* @__PURE__ */ from_html(`<!> <div class="ms-actions"><button>☉ Solar system</button> <button>🧭 Cosmic tour</button> <button>🔗 Share view</button> <button>⟲ Reset view</button></div> <!>`, 1);
-var root_1 = /* @__PURE__ */ from_html(`<div id="mobsheet"><div class="ms-head"><span> <small style="opacity:.5">· b11:44</small></span> <button class="ms-x">✕ Close</button></div> <div class="ms-body"><!></div></div>`);
+var root_1 = /* @__PURE__ */ from_html(`<div id="mobsheet"><div class="ms-head"><span> <small style="opacity:.5">· b11:51</small></span> <button class="ms-x">✕ Close</button></div> <div class="ms-body"><!></div></div>`);
 var root_2 = /* @__PURE__ */ from_html(`<div id="mobbar"><div><span>🔍</span>Search</div> <div><span>☰</span>Layers</div> <div><span>🕐</span>Time</div> <div class="mb"><span>🧭</span>Tour</div></div> <!>`, 1);
 function MobileNav($$anchor, $$props) {
 	push($$props, true);

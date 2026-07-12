@@ -3608,7 +3608,7 @@ LIVE.onUpdate=()=>{ dirty=true; };
 startLive();
 if(UI.fac) UI.fac(facList);
 applyHash();
-try{console.log('Known Universe build 2026-07-12 11:44');}catch(e){}
+try{console.log('Known Universe build 2026-07-12 11:51');}catch(e){}
 initGL();
 loadGaia();
 loadExtragal();

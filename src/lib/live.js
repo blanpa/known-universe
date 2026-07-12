@@ -116,13 +116,28 @@ async function fetchNeos(){
 }
 
 // ---- satellites: CelesTrak GP elements (TLE) → SGP4 satrecs ----
+// CelesTrak temp-bans IPs that re-query a group more often than ~hourly, so the
+// TLE text is cached for 6 h in localStorage (and used stale if the fetch fails).
+function tleCache(){ try{ return JSON.parse(localStorage.getItem('ku_tle') || 'null'); }catch(e){ return null; } }
 async function fetchSats(){
-  const groups = ['visual', 'stations'];
+  let txt = null;
+  const c = tleCache();
+  if (c && Date.now() - c.ts < 6 * 3600e3) txt = c.txt;
+  if (!txt){
+    const parts = [];
+    for (const g of ['visual', 'stations']){
+      const t = await fetch(`https://celestrak.org/NORAD/elements/gp.php?GROUP=${g}&FORMAT=tle`)
+        .then(r => r.ok ? r.text() : null).catch(() => null);
+      if (t && t[0] !== '<') parts.push(t);             // 403 ban page is HTML
+    }
+    if (parts.length === 2){
+      txt = parts.join('\n');
+      try{ localStorage.setItem('ku_tle', JSON.stringify({ ts: Date.now(), txt })); }catch(e){}
+    } else if (c) txt = c.txt;                          // stale-if-error
+  }
+  if (!txt) return;
   const seen = new Set(), sats = [];
-  for (const g of groups){
-    const txt = await fetch(`https://celestrak.org/NORAD/elements/gp.php?GROUP=${g}&FORMAT=tle`)
-      .then(r => r.ok ? r.text() : null).catch(() => null);
-    if (!txt) continue;
+  {
     const lines = txt.split(/\r?\n/);
     for (let i = 0; i + 2 < lines.length + 1; i++){
       if (!lines[i + 1] || lines[i + 1][0] !== '1' || !lines[i + 2] || lines[i + 2][0] !== '2') continue;
