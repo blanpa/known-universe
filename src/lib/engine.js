@@ -830,15 +830,23 @@ function drawSolar(alpha){
     ctx.beginPath(); ctx.arc(p.x,p.y,px,0,6.2832);
     ctx.fillStyle=`rgba(${c[0]},${c[1]},${c[2]},${A})`; ctx.fill();
     if(b.n==='Earth') _earthScr = px>Math.min(W,H)*0.5 ? {x:p.x,y:p.y,r:px} : null;
-    if(b.n==='Earth' && px>=16){                       // the real Earth, live (GOES) or daily (EPIC)
-      const {im,live}=earthImage(px);
-      if(im){ ctx.save(); ctx.beginPath(); ctx.arc(p.x,p.y,px,0,6.2832); ctx.clip();
-        ctx.drawImage(im, p.x-px, p.y-px, px*2, px*2); ctx.restore();
-        if(px>70){ ctx.font='9px ui-monospace,monospace'; ctx.fillStyle=`rgba(160,200,240,${A*0.7})`;
-          const credit=live?'GOES-East GEOCOLOR · live (~10 min)':'NASA EPIC (DSCOVR) · daily';
-          if(p.x+px+8<W) ctx.fillText(credit, p.x+px+4, p.y+16);
-          else ctx.fillText(credit, 16, H-64);         // limb off-screen → pin to the corner
-        }
+    if(b.n==='Earth' && px>=16){                       // the real Earth: 3D globe > GOES > EPIC
+      let credit=null;
+      _globeOn=false;
+      if(px>=26){
+        const gcv=earthGlobe(px, solarJD());
+        if(gcv){ ctx.drawImage(gcv, p.x-px, p.y-px, px*2, px*2);
+          _globeOn=true; credit=`3D · GIBS VIIRS ${_gbl.texDate} · drag to rotate — the terminator is real`; }
+      }
+      if(!_globeOn){
+        const {im,live}=earthImage(px);
+        if(im){ ctx.save(); ctx.beginPath(); ctx.arc(p.x,p.y,px,0,6.2832); ctx.clip();
+          ctx.drawImage(im, p.x-px, p.y-px, px*2, px*2); ctx.restore();
+          credit=live?'GOES-East GEOCOLOR · live (~10 min)':'NASA EPIC (DSCOVR) · daily'; }
+      }
+      if(credit && px>70){ ctx.font='9px ui-monospace,monospace'; ctx.fillStyle=`rgba(160,200,240,${A*0.7})`;
+        if(p.x+px+8<W) ctx.fillText(credit, p.x+px+4, p.y+16);
+        else ctx.fillText(credit, 16, H-64);           // limb off-screen → pin to the corner
       }
     }
     if(sel){ ctx.beginPath(); ctx.arc(p.x,p.y,px+7,0,6.2832);
@@ -1078,6 +1086,143 @@ function earthImage(px){
     loadGoes(wantHi?5424:1808);
   return _goesImg ? {im:_goesImg, live:true} : {im:epicImage(), live:false};
 }
+// ---- 3D Earth globe: offscreen WebGL sphere with the daily VIIRS mosaic ----
+// True orientation (GMST spin + 23.44° obliquity) and the real sun direction →
+// the day/night terminator is where it actually is; dragging orbits the globe.
+let _gbl=null, _globeOn=false;
+function gmstRad(jd){ const d=jd-2451545; let g=(280.46061837+360.98564736629*d)%360;
+  if(g<0)g+=360; return g*D2R; }
+const OBLQ=23.439*Math.PI/180;
+function globeViewRows(){
+  const cy=Math.cos(S.yaw),sy=Math.sin(S.yaw),cp=Math.cos(S.pitch),sp=Math.sin(S.pitch);
+  return [[cy,0,sy],[sy*sp,cp,-cy*sp],[-sy*cp,sp,cy*cp]];   // rows of project()'s rotation
+}
+function globeModelRows(jd){
+  const t=gmstRad(jd), ct=Math.cos(t), st=Math.sin(t), ce=Math.cos(OBLQ), se=Math.sin(OBLQ);
+  return [[ct,-st,0],[-se*st,-se*ct,ce],[ce*st,ce*ct,se]];  // world ← ecl ← equatorial ← geographic
+}
+const rows2col=r=>[r[0][0],r[1][0],r[2][0], r[0][1],r[1][1],r[2][1], r[0][2],r[1][2],r[2][2]];
+function globeInit(){
+  if(_gbl!==null) return _gbl.gl?_gbl:null;
+  const cv2=document.createElement('canvas');
+  const gl=cv2.getContext('webgl',{alpha:true,antialias:true});
+  if(!gl){ _gbl={gl:null}; return null; }
+  const mk=(t,src)=>{ const sh=gl.createShader(t); gl.shaderSource(sh,src); gl.compileShader(sh);
+    if(!gl.getShaderParameter(sh,gl.COMPILE_STATUS)){ console.warn(gl.getShaderInfoLog(sh)); return null; } return sh; };
+  const vsh=mk(gl.VERTEX_SHADER,`attribute vec3 aP; uniform mat3 uV,uM; varying vec3 vS;
+    void main(){ vS=aP; vec3 q=uV*(uM*aP); gl_Position=vec4(q.x,q.y,-q.z*0.5,1.0); }`);
+  const fsh=mk(gl.FRAGMENT_SHADER,`precision mediump float; varying vec3 vS;
+    uniform mat3 uV,uM; uniform vec3 uSun; uniform sampler2D uT;
+    void main(){
+      vec3 n=normalize(vS);
+      vec2 uv=vec2(0.5+atan(n.y,n.x)/6.2831853, 0.5-asin(clamp(n.z,-1.0,1.0))/3.14159265);
+      vec3 tex=texture2D(uT,uv).rgb;
+      vec3 wn=normalize(uM*n);
+      float d=dot(wn,uSun);
+      float day=smoothstep(-0.08,0.12,d);
+      vec3 lit=tex*(0.16+0.92*max(d,0.0));
+      vec3 night=tex*0.05+vec3(0.008,0.012,0.028);
+      vec3 col=mix(night,lit,day);
+      vec3 vn=uV*wn;                                        // subtle atmosphere at the limb
+      col+=vec3(0.10,0.22,0.45)*pow(1.0-clamp(vn.z,0.0,1.0),3.0)*(0.25+0.75*day)*0.35;
+      gl_FragColor=vec4(col,1.0);
+    }`);
+  if(!vsh||!fsh){ _gbl={gl:null}; return null; }
+  const pr=gl.createProgram(); gl.attachShader(pr,vsh); gl.attachShader(pr,fsh); gl.linkProgram(pr);
+  if(!gl.getProgramParameter(pr,gl.LINK_STATUS)){ _gbl={gl:null}; return null; }
+  const ST=48,SL=96,pos=[],idx=[];
+  for(let i=0;i<=ST;i++){ const ph=Math.PI*(i/ST-0.5), cp2=Math.cos(ph);
+    for(let j=0;j<=SL;j++){ const la=2*Math.PI*j/SL;
+      pos.push(cp2*Math.cos(la), cp2*Math.sin(la), Math.sin(ph)); } }
+  for(let i=0;i<ST;i++) for(let j=0;j<SL;j++){
+    const a=i*(SL+1)+j, b=a+SL+1; idx.push(a,b,a+1, a+1,b,b+1); }
+  const vb=gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER,vb);
+  gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(pos),gl.STATIC_DRAW);
+  const ib=gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,ib);
+  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint16Array(idx),gl.STATIC_DRAW);
+  const tex=gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D,tex);
+  gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,1,1,0,gl.RGBA,gl.UNSIGNED_BYTE,new Uint8Array([30,50,90,255]));
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.REPEAT);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+  gl.enable(gl.DEPTH_TEST);
+  const aP=gl.getAttribLocation(pr,'aP');
+  _gbl={cv:cv2,gl,pr,vb,ib,nIdx:idx.length,tex,aP,
+    uV:gl.getUniformLocation(pr,'uV'),uM:gl.getUniformLocation(pr,'uM'),
+    uSun:gl.getUniformLocation(pr,'uSun'),uT:gl.getUniformLocation(pr,'uT'),
+    texReady:false,loading:false,texDate:''};
+  return _gbl;
+}
+// stitch the GIBS level-3 equirect mosaic (10×5 tiles of 512px) into the texture
+function globeTexture(){
+  const g=_gbl; if(!g||g.loading||g.texReady) return;
+  g.loading=true;
+  const tryDay=off=>{
+    if(off>4){ g.loading=false; return; }
+    const date=new Date(Date.now()-off*86400000).toISOString().slice(0,10);
+    const cnv=document.createElement('canvas'); cnv.width=5120; cnv.height=2560;
+    const c2=cnv.getContext('2d');
+    let n=0, failed=false;
+    for(let r=0;r<5;r++) for(let c=0;c<10;c++){
+      const im=new Image(); im.crossOrigin='anonymous';
+      im.onload=()=>{ if(failed) return;
+        c2.drawImage(im,c*512,r*512);
+        if(++n===50){
+          const sc=document.createElement('canvas'); sc.width=4096; sc.height=2048;
+          sc.getContext('2d').drawImage(cnv,0,0,4096,2048);
+          const gl=g.gl;
+          gl.bindTexture(gl.TEXTURE_2D,g.tex);
+          try{ gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,sc);
+            g.texReady=true; g.texDate=date; SURF.dayOff=Math.max(SURF.dayOff,off);
+          }catch(e){}
+          g.loading=false; dirty=true;
+        } };
+      im.onerror=()=>{ if(!failed){ failed=true; tryDay(off+1); } };
+      im.src=`https://gibs.earthdata.nasa.gov/wmts/epsg4326/best/VIIRS_SNPP_CorrectedReflectance_TrueColor/default/${date}/250m/3/${r}/${c}.jpg`;
+    }
+  };
+  tryDay(SURF.dayOff||1);
+}
+function earthGlobe(px,jd){
+  const g=globeInit(); if(!g) return null;
+  if(!g.texReady){ globeTexture(); return null; }        // GOES disc until the mosaic is in
+  const dpr=Math.min(2,window.devicePixelRatio||1);
+  const size=Math.max(64,Math.min(2048,Math.ceil(px*2*dpr)));
+  if(g.cv.width!==size){ g.cv.width=g.cv.height=size; }
+  const gl=g.gl;
+  gl.viewport(0,0,size,size);
+  gl.clearColor(0,0,0,0); gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+  gl.useProgram(g.pr);
+  gl.bindBuffer(gl.ARRAY_BUFFER,g.vb);
+  gl.enableVertexAttribArray(g.aP);
+  gl.vertexAttribPointer(g.aP,3,gl.FLOAT,false,0,0);
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,g.ib);
+  gl.uniformMatrix3fv(g.uV,false,rows2col(globeViewRows()));
+  gl.uniformMatrix3fv(g.uM,false,rows2col(globeModelRows(jd)));
+  const earth=PLANETS.find(p=>p.n==='Earth');
+  let sun=[0,0,1];
+  if(earth&&earth._e){ const w=[-earth._e[0],-earth._e[2],-earth._e[1]];
+    const l=Math.hypot(w[0],w[1],w[2])||1; sun=[w[0]/l,w[1]/l,w[2]/l]; }
+  gl.uniform3fv(g.uSun,sun);
+  gl.bindTexture(gl.TEXTURE_2D,g.tex);
+  gl.uniform1i(g.uT,0);
+  gl.drawElements(gl.TRIANGLES,g.nIdx,gl.UNSIGNED_SHORT,0);
+  return g.cv;
+}
+// screen point on the globe → geographic lat/lon (for the surface-mode entry)
+function globeInverse(u,v){
+  const rho=Math.hypot(u,v); if(rho>=1) return null;
+  const nv=[u,-v,Math.sqrt(1-rho*rho)];
+  const V=globeViewRows(), M=globeModelRows(solarJD());
+  const wrl=[V[0][0]*nv[0]+V[1][0]*nv[1]+V[2][0]*nv[2],   // Vᵀ·nv
+             V[0][1]*nv[0]+V[1][1]*nv[1]+V[2][1]*nv[2],
+             V[0][2]*nv[0]+V[1][2]*nv[1]+V[2][2]*nv[2]];
+  const geo=[M[0][0]*wrl[0]+M[1][0]*wrl[1]+M[2][0]*wrl[2], // Mᵀ·wrl
+             M[0][1]*wrl[0]+M[1][1]*wrl[1]+M[2][1]*wrl[2],
+             M[0][2]*wrl[0]+M[1][2]*wrl[1]+M[2][2]*wrl[2]];
+  return [Math.asin(Math.max(-1,Math.min(1,geo[2])))/D2R, Math.atan2(geo[1],geo[0])/D2R];
+}
 // ---- surface mode: past full-disk resolution the view descends into a real tile map ----
 // NASA GIBS · VIIRS true color (yesterday UTC — the last complete global mosaic),
 // web-mercator tiles up to level 9 (~300 m/px). Entry point = where the view centre
@@ -1094,9 +1239,13 @@ function surfUpdate(){
       const u=(cx-_earthScr.x)/_earthScr.r, v=(cy-_earthScr.y)/_earthScr.r;
       const rho=Math.hypot(u,v);
       if(rho<0.985){                                  // view centre is on the disc → descend
-        const c=Math.asin(Math.min(1,rho));
-        SURF.lat = rho<1e-6 ? 0 : Math.asin(-v*Math.sin(c)/rho)/D2R;
-        SURF.lon = GOES_LON + (rho<1e-6 ? 0 : Math.atan2(u*Math.sin(c), rho*Math.cos(c))/D2R);
+        const gi=_globeOn?globeInverse(u,v):null;
+        if(gi){ SURF.lat=gi[0]; SURF.lon=gi[1]; }
+        else {                                        // flat GOES disc: orthographic from 75.2°W
+          const c=Math.asin(Math.min(1,rho));
+          SURF.lat = rho<1e-6 ? 0 : Math.asin(-v*Math.sin(c)/rho)/D2R;
+          SURF.lon = GOES_LON + (rho<1e-6 ? 0 : Math.atan2(u*Math.sin(c), rho*Math.cos(c))/D2R);
+        }
         SURF.on=true;
       } else { S.camZ=tgtCamZ=SURF_ENTER; }          // diving beside the planet: hold the floor
     }
@@ -3457,7 +3606,7 @@ LIVE.onUpdate=()=>{ dirty=true; };
 startLive();
 if(UI.fac) UI.fac(facList);
 applyHash();
-try{console.log('Known Universe build 2026-07-12 11:25');}catch(e){}
+try{console.log('Known Universe build 2026-07-12 11:34');}catch(e){}
 initGL();
 loadGaia();
 loadExtragal();
