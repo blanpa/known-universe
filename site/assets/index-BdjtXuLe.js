@@ -47469,6 +47469,7 @@ function __run() {
 		if (sysA > .01) drawSystem(sysA);
 		else sysProj.length = 0;
 		if (measureMode) drawMeasure();
+		if (ROUTE) drawRoute();
 		drawNav();
 		updateHUD();
 	}
@@ -48715,6 +48716,128 @@ function __run() {
 			}
 		}
 	}
+	let ROUTE = null;
+	const G_LYR = 1.0323;
+	function route1g(Dly) {
+		const d = Dly / 2;
+		const t1 = Math.sqrt(Math.pow(1 + G_LYR * d, 2) - 1) / G_LYR;
+		const tau1 = Math.acosh(1 + G_LYR * d) / G_LYR;
+		return {
+			T: 2 * t1,
+			TAU: 2 * tau1
+		};
+	}
+	function route1gAt(Dly, t) {
+		const { T } = route1g(Dly), t1 = T / 2;
+		const leg = (tt) => (Math.sqrt(1 + Math.pow(G_LYR * tt, 2)) - 1) / G_LYR;
+		if (t >= T) return {
+			x: Dly,
+			v: 0,
+			done: true
+		};
+		const x = t <= t1 ? leg(t) : Dly - leg(T - t);
+		const ta = t <= t1 ? t : T - t;
+		return {
+			x,
+			v: G_LYR * ta / Math.sqrt(1 + Math.pow(G_LYR * ta, 2)),
+			tau: (t <= t1 ? Math.asinh(G_LYR * t) : 2 * Math.asinh(G_LYR * t1) - Math.asinh(G_LYR * (T - t))) / G_LYR,
+			done: false
+		};
+	}
+	function computeRoute(o) {
+		const P = navPhys(o);
+		if (!P) return;
+		const distPc = Math.hypot(P[0], P[1], P[2]);
+		if (!(distPc > 0)) return;
+		const w = navWorld(o), wl = Math.hypot(w[0], w[1], w[2]) || 1;
+		ROUTE = {
+			o,
+			n: o.n || o.h || "target",
+			distPc,
+			dir: [
+				w[0] / wl,
+				w[1] / wl,
+				w[2] / wl
+			],
+			dep: solarJD()
+		};
+		ROUTE._o = {
+			iroute: true,
+			n: "Route: Earth → " + ROUTE.n,
+			R: ROUTE
+		};
+		const r = route1g(distPc * PC2LY);
+		if (UI.msg) UI.msg(`🚀 1g starship: ${fmtYears(r.T)} Earth time · ${fmtYears(r.TAU)} ship time — ride the time slider`);
+		lastInfo = void 0;
+		dirty = true;
+	}
+	function fmtYears(y) {
+		if (y < 1) return Math.round(y * 365.25) + " d";
+		if (y < 1e4) return y.toFixed(y < 20 ? 1 : 0).replace(/\.0$/, "") + " yr";
+		if (y < 1e6) return (y / 1e3).toFixed(1) + " kyr";
+		if (y < 1e9) return (y / 1e6).toFixed(2) + " Myr";
+		return (y / 1e9).toFixed(2) + " Gyr";
+	}
+	function drawRoute() {
+		const R = ROUTE, w = navWorld(R.o);
+		if (!w) return;
+		const wr = Math.hypot(w[0], w[1], w[2]);
+		ctx.setLineDash([6, 5]);
+		ctx.beginPath();
+		let first = true;
+		for (let i = 0; i <= 40; i++) {
+			const r = wr * i / 40;
+			const p = project(R.dir[0] * r, R.dir[1] * r, R.dir[2] * r);
+			if (p.depth <= NEAR) {
+				first = true;
+				continue;
+			}
+			if (first) {
+				ctx.moveTo(p.x, p.y);
+				first = false;
+			} else ctx.lineTo(p.x, p.y);
+		}
+		ctx.strokeStyle = "rgba(120,255,235,0.55)";
+		ctx.lineWidth = 1.3;
+		ctx.stroke();
+		ctx.setLineDash([]);
+		const tp = project(w[0], w[1], w[2]);
+		if (tp.depth > NEAR) {
+			ctx.font = "9px ui-monospace,monospace";
+			ctx.fillStyle = "rgba(140,255,240,0.8)";
+			const D = R.distPc * PC2LY, r = route1g(D);
+			ctx.fillText(`${R.n} · ${D < 1e4 ? D.toFixed(1) + " ly" : fmt(D) + " ly"} · 1g: ${fmtYears(r.T)} (ship ${fmtYears(r.TAU)})`, tp.x + 8, tp.y + 12);
+		}
+		const tYr = (solarJD() - R.dep) / 365.25;
+		if (tYr > 0) {
+			const st = route1gAt(R.distPc * PC2LY, tYr);
+			const xr = scale(Math.min(R.distPc, Math.max(1e-9, st.x / PC2LY)));
+			const p = project(R.dir[0] * xr, R.dir[1] * xr, R.dir[2] * xr);
+			if (p.depth > NEAR) {
+				const sel = R._o === S.hover || R._o === S.pinned, sz = sel ? 6 : 5;
+				ctx.beginPath();
+				ctx.moveTo(p.x, p.y - sz);
+				ctx.lineTo(p.x + sz, p.y);
+				ctx.lineTo(p.x, p.y + sz);
+				ctx.lineTo(p.x - sz, p.y);
+				ctx.closePath();
+				ctx.fillStyle = "rgba(120,255,235,0.95)";
+				ctx.fill();
+				if (sel) {
+					ctx.beginPath();
+					ctx.arc(p.x, p.y, sz + 6, 0, 6.2832);
+					ctx.strokeStyle = "rgba(79,214,200,.9)";
+					ctx.lineWidth = 1.2;
+					ctx.stroke();
+				}
+				ctx.font = "10px ui-monospace,monospace";
+				ctx.fillStyle = "rgba(150,255,242,0.95)";
+				ctx.fillText(st.done ? `arrived at ${R.n}` : `1g starship · ${st.v.toFixed(st.v > .99 ? 4 : 2)} c · ship +${fmtYears(st.tau)}`, p.x + sz + 4, p.y + 3);
+				R._sx = p.x;
+				R._sy = p.y;
+			} else R._sx = void 0;
+		} else R._sx = void 0;
+	}
 	const MASS_RATIO = {
 		Mercury: 166e-9,
 		Venus: 2447e-9,
@@ -49681,6 +49804,7 @@ function __run() {
 			if (s) {
 				showInfo(s);
 				if (navPhys(s)) info.insertAdjacentHTML("beforeend", `<button class="navset">${isNav ? "✓ Target set" : "🎯 Set course"}</button>`);
+				if (navPhys(s) && s._e === void 0 && s.rk === void 0 && !s.lp && !s.iroute && !s.xfer) info.insertAdjacentHTML("beforeend", `<button class="transferset">${ROUTE && ROUTE.o === s ? "✕ Clear route" : "🚀 Route from Earth · 1g ship"}</button>`);
 			} else info.classList.remove("show");
 		}
 		updateNavPanel();
@@ -49843,6 +49967,27 @@ function __run() {
 				u: "https://www.swpc.noaa.gov/"
 			}]);
 			h += `<div class="hint">ballistic estimate — real fronts decelerate in the solar wind</div>`;
+			el.innerHTML = h;
+			el.classList.add("show");
+			return;
+		}
+		if (s.iroute) {
+			const D = s.R.distPc * PC2LY, r = route1g(D);
+			const dTxt = D < 1e4 ? `${D.toFixed(1)} ly` : `${fmt(D)} ly`;
+			let h = `<div class="nm"><span class="mk" style="color:#78ffeb;background:#78ffeb"></span>${s.n}</div>
+      <div class="rows">
+        <div class="r"><span class="rk">Distance</span><span class="rv">${dTxt}</span></div>
+        <div class="r"><span class="rk">Light</span><span class="rv">${fmtYears(D)}</span></div>
+        <div class="r"><span class="rk">Voyager 1 (17 km/s)</span><span class="rv">${fmtYears(D / 567e-7)}</span></div>
+        <div class="r"><span class="rk">Probe at 0.1 c</span><span class="rv">${fmtYears(D * 10)}</span></div>
+        <div class="r"><span class="rk">1g ship · Earth clock</span><span class="rv">${fmtYears(r.T)}</span></div>
+        <div class="r"><span class="rk">1g ship · on board</span><span class="rv">${fmtYears(r.TAU)}</span></div>
+      </div>`;
+			h += links([{
+				t: "Wikipedia",
+				u: "https://en.wikipedia.org/wiki/Space_travel_under_constant_acceleration"
+			}]);
+			h += `<div class="hint">accelerate at 1 g to the midpoint, flip, brake — time dilation makes even galaxies reachable within a life on board</div>`;
 			el.innerHTML = h;
 			el.classList.add("show");
 			return;
@@ -50108,6 +50253,10 @@ function __run() {
 		el.classList.add("show");
 	}
 	function pick(mx, my) {
+		if (ROUTE && ROUTE._sx !== void 0) {
+			const dx = ROUTE._sx - mx, dy = ROUTE._sy - my;
+			if (dx * dx + dy * dy < 196) return ROUTE._o;
+		}
 		if (sysA > .5) {
 			let best = null, bd = 1e9;
 			for (const it of sysProj) {
@@ -50550,11 +50699,17 @@ function __run() {
 		}
 		if (e.target.classList.contains("transferset")) {
 			const b = S.pinned || S.hover;
-			if (TRANSFER && b && TRANSFER.to === b) {
+			if (!b) return;
+			if (b.rk !== void 0 && (b.k || b.kd)) if (TRANSFER && TRANSFER.to === b) {
 				TRANSFER = null;
 				lastInfo = void 0;
 				dirty = true;
-			} else if (b) computeTransfer(b);
+			} else computeTransfer(b);
+			else if (ROUTE && ROUTE.o === b) {
+				ROUTE = null;
+				lastInfo = void 0;
+				dirty = true;
+			} else computeRoute(b);
 		}
 	});
 	document.getElementById("navClose").addEventListener("click", () => showNav(false));
@@ -52297,7 +52452,7 @@ void main(){                                             // soft shoulder above 
 	if (UI.fac) UI.fac(facList);
 	applyHash();
 	try {
-		console.log("Known Universe build 2026-07-12 10:54");
+		console.log("Known Universe build 2026-07-12 11:03");
 	} catch (e) {}
 	initGL();
 	loadGaia();
@@ -53066,7 +53221,7 @@ delegate(["click", "keydown"]);
 //#endregion
 //#region src/components/MobileNav.svelte
 var root$2 = /* @__PURE__ */ from_html(`<!> <div class="ms-actions"><button>☉ Solar system</button> <button>🧭 Cosmic tour</button> <button>🔗 Share view</button> <button>⟲ Reset view</button></div> <!>`, 1);
-var root_1 = /* @__PURE__ */ from_html(`<div id="mobsheet"><div class="ms-head"><span> <small style="opacity:.5">· b10:54</small></span> <button class="ms-x">✕ Close</button></div> <div class="ms-body"><!></div></div>`);
+var root_1 = /* @__PURE__ */ from_html(`<div id="mobsheet"><div class="ms-head"><span> <small style="opacity:.5">· b11:03</small></span> <button class="ms-x">✕ Close</button></div> <div class="ms-body"><!></div></div>`);
 var root_2 = /* @__PURE__ */ from_html(`<div id="mobbar"><div><span>🔍</span>Search</div> <div><span>☰</span>Layers</div> <div><span>🕐</span>Time</div> <div class="mb"><span>🧭</span>Tour</div></div> <!>`, 1);
 function MobileNav($$anchor, $$props) {
 	push($$props, true);
