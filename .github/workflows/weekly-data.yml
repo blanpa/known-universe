@@ -1,0 +1,56 @@
+# Weekly catalogue refresh for the Pages deployment: new exoplanets, galaxies,
+# HYG stars and the SBDB asteroid populations. Commits site/data/ to main only
+# when the catalogue counts actually changed — except at least every 4 weeks,
+# so the belt.bin position snapshot doesn't drift too far.
+# (The docker deployment refreshes itself via the updater container; live event
+# data is handled by the live-data workflow.)
+name: weekly-data
+on:
+  schedule:
+    - cron: '23 5 * * 1'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency: weekly-data
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rebuild catalogues
+        run: |
+          cp site/data/data.json /tmp/old-data.json
+          python3 tools/refresh_data.py /tmp/work site/data/data.json .
+      - name: Check for new data
+        run: |
+          python3 - << 'EOF'
+          import json, os, subprocess, time
+          old = json.load(open('/tmp/old-data.json'))['meta']
+          new = json.load(open('site/data/data.json'))['meta']
+          keys = ['nStars', 'nPlanets', 'nGal', 'nHyg']
+          changed = any(old.get(k) != new.get(k) for k in keys)
+          last = subprocess.run(['git', 'log', '-1', '--format=%ct', '--grep', 'Weekly data refresh'],
+                                capture_output=True, text=True).stdout.strip()
+          stale = not last or time.time() - int(last) > 28 * 86400
+          env = open(os.environ['GITHUB_ENV'], 'a')
+          if not changed and not stale:
+              print('no new data - skipping commit')
+              env.write('DO_COMMIT=0\n')
+          else:
+              def d(k):
+                  a, b = old.get(k) or 0, new.get(k) or 0
+                  return f"{b:,}" + (f" ({b-a:+,})" if b != a else "")
+              msg = (f"Weekly data refresh: {d('nStars')} systems, {d('nPlanets')} planets, "
+                     f"{d('nGal')} galaxies, {d('nHyg')} HYG stars")
+              print(msg)
+              env.write(f'DO_COMMIT=1\nCOMMIT_MSG={msg}\n')
+          EOF
+      - name: Commit and push
+        if: env.DO_COMMIT == '1'
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add site/data/data.json site/data/belt.bin
+          git commit -m "$COMMIT_MSG"
+          git pull --rebase origin main
+          git push
