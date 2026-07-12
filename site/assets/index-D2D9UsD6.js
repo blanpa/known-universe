@@ -47891,7 +47891,7 @@ function __run() {
 						ctx.clip();
 						ctx.drawImage(im, p.x - px, p.y - px, px * 2, px * 2);
 						ctx.restore();
-						credit = live ? "GOES-East GEOCOLOR · live (~10 min)" : "NASA EPIC (DSCOVR) · daily";
+						credit = (live ? "GOES-East GEOCOLOR · live (~10 min)" : "NASA EPIC (DSCOVR) · daily") + (_gbl && _gbl.gl && !_gbl.texReady ? " — 3D globe loading…" : "");
 					}
 				}
 				if (credit && px > 70) {
@@ -48442,6 +48442,9 @@ function __run() {
 		});
 		if (!gl) {
 			_gbl = { gl: null };
+			try {
+				console.warn("globe: no WebGL context");
+			} catch (e) {}
 			return null;
 		}
 		const mk = (t, src) => {
@@ -48474,6 +48477,9 @@ function __run() {
     }`);
 		if (!vsh || !fsh) {
 			_gbl = { gl: null };
+			try {
+				console.warn("globe: shader compile failed");
+			} catch (e) {}
 			return null;
 		}
 		const pr = gl.createProgram();
@@ -48482,6 +48488,9 @@ function __run() {
 		gl.linkProgram(pr);
 		if (!gl.getProgramParameter(pr, gl.LINK_STATUS)) {
 			_gbl = { gl: null };
+			try {
+				console.warn("globe: link failed");
+			} catch (e) {}
 			return null;
 		}
 		const ST = 48, SL = 96, pos = [], idx = [];
@@ -48568,7 +48577,14 @@ function __run() {
 							g.texReady = true;
 							g.texDate = date;
 							SURF.dayOff = Math.max(SURF.dayOff, off);
-						} catch (e) {}
+							try {
+								console.log("globe: mosaic ready ·", date);
+							} catch (e) {}
+						} catch (e) {
+							try {
+								console.warn("globe: texture upload failed", e);
+							} catch (e2) {}
+						}
 						g.loading = false;
 						dirty = true;
 					}
@@ -52944,7 +52960,7 @@ void main(){                                             // soft shoulder above 
 	if (UI.fac) UI.fac(facList);
 	applyHash();
 	try {
-		console.log("Known Universe build 2026-07-12 11:34");
+		console.log("Known Universe build 2026-07-12 11:44");
 	} catch (e) {}
 	initGL();
 	loadGaia();
@@ -53713,7 +53729,7 @@ delegate(["click", "keydown"]);
 //#endregion
 //#region src/components/MobileNav.svelte
 var root$2 = /* @__PURE__ */ from_html(`<!> <div class="ms-actions"><button>☉ Solar system</button> <button>🧭 Cosmic tour</button> <button>🔗 Share view</button> <button>⟲ Reset view</button></div> <!>`, 1);
-var root_1 = /* @__PURE__ */ from_html(`<div id="mobsheet"><div class="ms-head"><span> <small style="opacity:.5">· b11:34</small></span> <button class="ms-x">✕ Close</button></div> <div class="ms-body"><!></div></div>`);
+var root_1 = /* @__PURE__ */ from_html(`<div id="mobsheet"><div class="ms-head"><span> <small style="opacity:.5">· b11:44</small></span> <button class="ms-x">✕ Close</button></div> <div class="ms-body"><!></div></div>`);
 var root_2 = /* @__PURE__ */ from_html(`<div id="mobbar"><div><span>🔍</span>Search</div> <div><span>☰</span>Layers</div> <div><span>🕐</span>Time</div> <div class="mb"><span>🧭</span>Tour</div></div> <!>`, 1);
 function MobileNav($$anchor, $$props) {
 	push($$props, true);

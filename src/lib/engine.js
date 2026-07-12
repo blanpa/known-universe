@@ -842,7 +842,8 @@ function drawSolar(alpha){
         const {im,live}=earthImage(px);
         if(im){ ctx.save(); ctx.beginPath(); ctx.arc(p.x,p.y,px,0,6.2832); ctx.clip();
           ctx.drawImage(im, p.x-px, p.y-px, px*2, px*2); ctx.restore();
-          credit=live?'GOES-East GEOCOLOR · live (~10 min)':'NASA EPIC (DSCOVR) · daily'; }
+          credit=(live?'GOES-East GEOCOLOR · live (~10 min)':'NASA EPIC (DSCOVR) · daily')
+            +(_gbl&&_gbl.gl&&!_gbl.texReady?' — 3D globe loading…':''); }
       }
       if(credit && px>70){ ctx.font='9px ui-monospace,monospace'; ctx.fillStyle=`rgba(160,200,240,${A*0.7})`;
         if(p.x+px+8<W) ctx.fillText(credit, p.x+px+4, p.y+16);
@@ -1106,7 +1107,7 @@ function globeInit(){
   if(_gbl!==null) return _gbl.gl?_gbl:null;
   const cv2=document.createElement('canvas');
   const gl=cv2.getContext('webgl',{alpha:true,antialias:true});
-  if(!gl){ _gbl={gl:null}; return null; }
+  if(!gl){ _gbl={gl:null}; try{console.warn('globe: no WebGL context');}catch(e){} return null; }
   const mk=(t,src)=>{ const sh=gl.createShader(t); gl.shaderSource(sh,src); gl.compileShader(sh);
     if(!gl.getShaderParameter(sh,gl.COMPILE_STATUS)){ console.warn(gl.getShaderInfoLog(sh)); return null; } return sh; };
   const vsh=mk(gl.VERTEX_SHADER,`attribute vec3 aP; uniform mat3 uV,uM; varying vec3 vS;
@@ -1127,9 +1128,9 @@ function globeInit(){
       col+=vec3(0.10,0.22,0.45)*pow(1.0-clamp(vn.z,0.0,1.0),3.0)*(0.25+0.75*day)*0.35;
       gl_FragColor=vec4(col,1.0);
     }`);
-  if(!vsh||!fsh){ _gbl={gl:null}; return null; }
+  if(!vsh||!fsh){ _gbl={gl:null}; try{console.warn('globe: shader compile failed');}catch(e){} return null; }
   const pr=gl.createProgram(); gl.attachShader(pr,vsh); gl.attachShader(pr,fsh); gl.linkProgram(pr);
-  if(!gl.getProgramParameter(pr,gl.LINK_STATUS)){ _gbl={gl:null}; return null; }
+  if(!gl.getProgramParameter(pr,gl.LINK_STATUS)){ _gbl={gl:null}; try{console.warn('globe: link failed');}catch(e){} return null; }
   const ST=48,SL=96,pos=[],idx=[];
   for(let i=0;i<=ST;i++){ const ph=Math.PI*(i/ST-0.5), cp2=Math.cos(ph);
     for(let j=0;j<=SL;j++){ const la=2*Math.PI*j/SL;
@@ -1175,7 +1176,8 @@ function globeTexture(){
           gl.bindTexture(gl.TEXTURE_2D,g.tex);
           try{ gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,sc);
             g.texReady=true; g.texDate=date; SURF.dayOff=Math.max(SURF.dayOff,off);
-          }catch(e){}
+            try{console.log('globe: mosaic ready ·',date);}catch(e){}
+          }catch(e){ try{console.warn('globe: texture upload failed',e);}catch(e2){} }
           g.loading=false; dirty=true;
         } };
       im.onerror=()=>{ if(!failed){ failed=true; tryDay(off+1); } };
@@ -3606,7 +3608,7 @@ LIVE.onUpdate=()=>{ dirty=true; };
 startLive();
 if(UI.fac) UI.fac(facList);
 applyHash();
-try{console.log('Known Universe build 2026-07-12 11:34');}catch(e){}
+try{console.log('Known Universe build 2026-07-12 11:44');}catch(e){}
 initGL();
 loadGaia();
 loadExtragal();
