@@ -47308,6 +47308,11 @@ function __run() {
 		}
 		ctx.fillStyle = _vig;
 		ctx.fillRect(0, 0, W, H);
+		if (surfUpdate()) {
+			drawSurface();
+			updateHUD();
+			return;
+		}
 		camBasis();
 		NEAR = S.realScale ? Math.max(1e-12, S.camZ * .02) : Math.min(.05, Math.max(.001, S.camZ * .35));
 		solarA = lodA(camDist, .001, .1);
@@ -47861,6 +47866,11 @@ function __run() {
 			ctx.arc(p.x, p.y, px, 0, 6.2832);
 			ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},${A})`;
 			ctx.fill();
+			if (b.n === "Earth") _earthScr = px > Math.min(W, H) * .5 ? {
+				x: p.x,
+				y: p.y,
+				r: px
+			} : null;
 			if (b.n === "Earth" && px >= 16) {
 				const { im, live } = earthImage(px);
 				if (im) {
@@ -48352,6 +48362,102 @@ function __run() {
 			im: epicImage(),
 			live: false
 		};
+	}
+	const SURF = {
+		on: false,
+		lat: 20,
+		lon: -75,
+		cache: /* @__PURE__ */ new Map(),
+		order: [],
+		dayOff: 1
+	};
+	const SURF_ENTER = .003, SURF_EXIT = .0033, GOES_LON = -75.2;
+	let _earthScr = null;
+	function surfDate() {
+		return (/* @__PURE__ */ new Date(Date.now() - SURF.dayOff * 864e5)).toISOString().slice(0, 10);
+	}
+	function surfMpp() {
+		return 12742e3 / (8 * Math.min(W, H)) * (S.camZ / SURF_ENTER);
+	}
+	function surfUpdate() {
+		if (!SURF.on) {
+			if (S.camZ < SURF_ENTER && _earthScr) {
+				const u = (cx - _earthScr.x) / _earthScr.r, v = (cy - _earthScr.y) / _earthScr.r;
+				const rho = Math.hypot(u, v);
+				if (rho < .985) {
+					const c = Math.asin(Math.min(1, rho));
+					SURF.lat = rho < 1e-6 ? 0 : Math.asin(-v * Math.sin(c) / rho) / D2R;
+					SURF.lon = GOES_LON + (rho < 1e-6 ? 0 : Math.atan2(u * Math.sin(c), rho * Math.cos(c)) / D2R);
+					SURF.on = true;
+				} else S.camZ = tgtCamZ = SURF_ENTER;
+			}
+		} else if (S.camZ > SURF_EXIT) SURF.on = false;
+		return SURF.on;
+	}
+	function surfTile(z, x, y) {
+		const n = 1 << z;
+		x = (x % n + n) % n;
+		if (y < 0 || y >= n) return null;
+		const url = `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_SNPP_CorrectedReflectance_TrueColor/default/${surfDate()}/GoogleMapsCompatible_Level9/${z}/${y}/${x}.jpg`;
+		let t = SURF.cache.get(url);
+		if (!t) {
+			t = {
+				im: new Image(),
+				ok: false
+			};
+			t.im.crossOrigin = "anonymous";
+			t.im.onload = () => {
+				t.ok = true;
+				dirty = true;
+			};
+			const day = SURF.dayOff;
+			t.im.onerror = () => {
+				if (day === SURF.dayOff && SURF.dayOff < 4) {
+					SURF.dayOff++;
+					SURF.cache.clear();
+					SURF.order.length = 0;
+					dirty = true;
+				}
+			};
+			t.im.src = url;
+			SURF.cache.set(url, t);
+			SURF.order.push(url);
+			if (SURF.order.length > 260) SURF.cache.delete(SURF.order.shift());
+		}
+		return t.ok ? t.im : null;
+	}
+	function drawSurface() {
+		const mpp = surfMpp(), latR = SURF.lat * D2R;
+		const zf = Math.log2(156543.034 * Math.cos(latR) / mpp);
+		const zt = Math.max(2, Math.min(9, Math.round(zf)));
+		const ts = 256 * Math.pow(2, zf - zt);
+		const n = 1 << zt;
+		const wx = (SURF.lon + 180) / 360 * n;
+		const sy = Math.sin(latR);
+		const wy = (.5 - Math.log((1 + sy) / (1 - sy)) / (4 * Math.PI)) * n;
+		ctx.fillStyle = "#04070f";
+		ctx.fillRect(0, 0, W, H);
+		const x0 = Math.floor(wx - cx / ts), x1 = Math.ceil(wx + (W - cx) / ts);
+		const y0 = Math.floor(wy - cy / ts), y1 = Math.ceil(wy + (H - cy) / ts);
+		for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) {
+			const im = surfTile(zt, tx, ty);
+			if (!im) continue;
+			ctx.drawImage(im, cx + (tx - wx) * ts, cy + (ty - wy) * ts, ts + .6, ts + .6);
+		}
+		ctx.font = "10px ui-monospace,monospace";
+		ctx.fillStyle = "rgba(200,214,240,0.85)";
+		ctx.fillText(`Earth surface · ${SURF.lat.toFixed(2)}°, ${SURF.lon.toFixed(2)}° · ${mpp < 1e3 ? Math.round(mpp) + " m" : (mpp / 1e3).toFixed(1) + " km"}/px`, 16, H - 46);
+		ctx.fillStyle = "rgba(150,165,195,0.6)";
+		ctx.fillText(`NASA GIBS · VIIRS true color · ${surfDate()} — drag to pan · scroll out to leave`, 16, H - 32);
+		dirty = SURF.cache.size < 4 ? true : dirty;
+	}
+	function surfPan(dx, dy) {
+		const mpp = surfMpp(), latR = SURF.lat * D2R;
+		SURF.lon -= dx * mpp / (111320 * Math.cos(latR));
+		SURF.lat += dy * mpp / 110540;
+		SURF.lat = Math.max(-84, Math.min(84, SURF.lat));
+		SURF.lon = (SURF.lon + 540) % 360 - 180;
+		dirty = true;
 	}
 	function dirScreen(u) {
 		const cyw = Math.cos(S.yaw), syw = Math.sin(S.yaw), cp2 = Math.cos(S.pitch), sp2 = Math.sin(S.pitch);
@@ -50296,6 +50402,7 @@ function __run() {
 		el.classList.add("show");
 	}
 	function pick(mx, my) {
+		if (SURF.on) return null;
 		if (ROUTE && ROUTE._sx !== void 0) {
 			const dx = ROUTE._sx - mx, dy = ROUTE._sy - my;
 			if (dx * dx + dy * dy < 196) return ROUTE._o;
@@ -50384,7 +50491,7 @@ function __run() {
 		return best;
 	}
 	function gpuPick(mx, my) {
-		if (!glOK || !S.gpu) return null;
+		if (SURF.on || !glOK || !S.gpu) return null;
 		const layers = [];
 		if (gaiaRaw && S.gaia) layers.push(["gaia", gaiaRaw]);
 		if (solarA < .5) {
@@ -50514,6 +50621,12 @@ function __run() {
 		if (dragging) {
 			const dx = e.clientX - lx, dy = e.clientY - ly;
 			moved += Math.abs(dx) + Math.abs(dy);
+			if (SURF.on) {
+				surfPan(dx, dy);
+				lx = e.clientX;
+				ly = e.clientY;
+				return;
+			}
 			if (panning) {
 				FOLLOW = null;
 				const sc = Math.max(S.camZ, camDist) / foc;
@@ -50601,8 +50714,13 @@ function __run() {
 	function zoomFactorAt(mx, my, f) {
 		const before = tgtCamZ;
 		tgtCamZ *= f;
-		const zmin = S.realScale ? 1e-7 : .003, zmax = S.realScale ? 6e7 : 16;
+		const zmin = S.realScale ? 1e-7 : 1e-4, zmax = S.realScale ? 6e7 : 16;
 		tgtCamZ = Math.max(zmin, Math.min(zmax, tgtCamZ));
+		if (SURF.on) {
+			const eff = tgtCamZ / before;
+			surfPan(-(mx - cx) * (1 - eff), -(my - cy) * (1 - eff));
+			return;
+		}
 		if (tgtCamZ < before && !FOLLOW) {
 			const k = tgtCamZ / before;
 			const x1 = (mx - cx) * before / foc, y2 = (cy - my) * before / foc;
@@ -52532,7 +52650,7 @@ void main(){                                             // soft shoulder above 
 	if (UI.fac) UI.fac(facList);
 	applyHash();
 	try {
-		console.log("Known Universe build 2026-07-12 11:19");
+		console.log("Known Universe build 2026-07-12 11:25");
 	} catch (e) {}
 	initGL();
 	loadGaia();
@@ -53301,7 +53419,7 @@ delegate(["click", "keydown"]);
 //#endregion
 //#region src/components/MobileNav.svelte
 var root$2 = /* @__PURE__ */ from_html(`<!> <div class="ms-actions"><button>☉ Solar system</button> <button>🧭 Cosmic tour</button> <button>🔗 Share view</button> <button>⟲ Reset view</button></div> <!>`, 1);
-var root_1 = /* @__PURE__ */ from_html(`<div id="mobsheet"><div class="ms-head"><span> <small style="opacity:.5">· b11:19</small></span> <button class="ms-x">✕ Close</button></div> <div class="ms-body"><!></div></div>`);
+var root_1 = /* @__PURE__ */ from_html(`<div id="mobsheet"><div class="ms-head"><span> <small style="opacity:.5">· b11:25</small></span> <button class="ms-x">✕ Close</button></div> <div class="ms-body"><!></div></div>`);
 var root_2 = /* @__PURE__ */ from_html(`<div id="mobbar"><div><span>🔍</span>Search</div> <div><span>☰</span>Layers</div> <div><span>🕐</span>Time</div> <div class="mb"><span>🧭</span>Tour</div></div> <!>`, 1);
 function MobileNav($$anchor, $$props) {
 	push($$props, true);

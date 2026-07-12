@@ -447,6 +447,8 @@ function render(){
   }
   ctx.fillStyle=_vig; ctx.fillRect(0,0,W,H);
 
+  if(surfUpdate()){ drawSurface(); updateHUD(); return; }   // descended to the Earth's surface
+
   camBasis();
   NEAR = S.realScale ? Math.max(1e-12, S.camZ*0.02) : Math.min(0.05, Math.max(0.001, S.camZ*0.35));
   // solar-system detail from the camera's real distance to the Sun (so it also
@@ -827,6 +829,7 @@ function drawSolar(alpha){
     }
     ctx.beginPath(); ctx.arc(p.x,p.y,px,0,6.2832);
     ctx.fillStyle=`rgba(${c[0]},${c[1]},${c[2]},${A})`; ctx.fill();
+    if(b.n==='Earth') _earthScr = px>Math.min(W,H)*0.5 ? {x:p.x,y:p.y,r:px} : null;
     if(b.n==='Earth' && px>=16){                       // the real Earth, live (GOES) or daily (EPIC)
       const {im,live}=earthImage(px);
       if(im){ ctx.save(); ctx.beginPath(); ctx.arc(p.x,p.y,px,0,6.2832); ctx.clip();
@@ -1074,6 +1077,82 @@ function earthImage(px){
   if(!_goesImg || Date.now()-_goesTs>10*60*1000 || (wantHi&&!_goesHi))
     loadGoes(wantHi?5424:1808);
   return _goesImg ? {im:_goesImg, live:true} : {im:epicImage(), live:false};
+}
+// ---- surface mode: past full-disk resolution the view descends into a real tile map ----
+// NASA GIBS · VIIRS true color (yesterday UTC — the last complete global mosaic),
+// web-mercator tiles up to level 9 (~300 m/px). Entry point = where the view centre
+// sits on the GOES disc (orthographic inverse from the GOES-East sub-point, 75.2°W).
+const SURF={on:false, lat:20, lon:-75, cache:new Map(), order:[], dayOff:1};
+const SURF_ENTER=0.003, SURF_EXIT=0.0033, GOES_LON=-75.2;
+let _earthScr=null;
+// GIBS ingests with 1-2 days lag — start at yesterday, fall back on tile 404s
+function surfDate(){ return new Date(Date.now()-SURF.dayOff*86400000).toISOString().slice(0,10); }
+function surfMpp(){ return 12742000/(8*Math.min(W,H)) * (S.camZ/SURF_ENTER); } // m per screen px
+function surfUpdate(){
+  if(!SURF.on){
+    if(S.camZ<SURF_ENTER && _earthScr){
+      const u=(cx-_earthScr.x)/_earthScr.r, v=(cy-_earthScr.y)/_earthScr.r;
+      const rho=Math.hypot(u,v);
+      if(rho<0.985){                                  // view centre is on the disc → descend
+        const c=Math.asin(Math.min(1,rho));
+        SURF.lat = rho<1e-6 ? 0 : Math.asin(-v*Math.sin(c)/rho)/D2R;
+        SURF.lon = GOES_LON + (rho<1e-6 ? 0 : Math.atan2(u*Math.sin(c), rho*Math.cos(c))/D2R);
+        SURF.on=true;
+      } else { S.camZ=tgtCamZ=SURF_ENTER; }          // diving beside the planet: hold the floor
+    }
+  } else if(S.camZ>SURF_EXIT){ SURF.on=false; }
+  return SURF.on;
+}
+function surfTile(z,x,y){
+  const n=1<<z; x=((x%n)+n)%n;
+  if(y<0||y>=n) return null;
+  const url=`https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_SNPP_CorrectedReflectance_TrueColor/default/${surfDate()}/GoogleMapsCompatible_Level9/${z}/${y}/${x}.jpg`;
+  let t=SURF.cache.get(url);
+  if(!t){
+    t={im:new Image(),ok:false};
+    t.im.crossOrigin='anonymous';
+    t.im.onload=()=>{ t.ok=true; dirty=true; };
+    const day=SURF.dayOff;
+    t.im.onerror=()=>{                                // mosaic for that day not ingested yet
+      if(day===SURF.dayOff && SURF.dayOff<4){
+        SURF.dayOff++; SURF.cache.clear(); SURF.order.length=0; dirty=true; }
+    };
+    t.im.src=url;
+    SURF.cache.set(url,t); SURF.order.push(url);
+    if(SURF.order.length>260){ SURF.cache.delete(SURF.order.shift()); }
+  }
+  return t.ok?t.im:null;
+}
+function drawSurface(){
+  const mpp=surfMpp(), latR=SURF.lat*D2R;
+  const zf=Math.log2(156543.034*Math.cos(latR)/mpp);
+  const zt=Math.max(2,Math.min(9,Math.round(zf)));
+  const k=Math.pow(2,zf-zt), ts=256*k;                // tile size on screen
+  const n=1<<zt;
+  const wx=(SURF.lon+180)/360*n;                      // centre in tile units
+  const sy=Math.sin(latR);
+  const wy=(0.5-Math.log((1+sy)/(1-sy))/(4*Math.PI))*n;
+  ctx.fillStyle='#04070f'; ctx.fillRect(0,0,W,H);
+  const x0=Math.floor(wx-cx/ts), x1=Math.ceil(wx+(W-cx)/ts);
+  const y0=Math.floor(wy-cy/ts), y1=Math.ceil(wy+(H-cy)/ts);
+  for(let ty=y0;ty<=y1;ty++) for(let tx=x0;tx<=x1;tx++){
+    const im=surfTile(zt,tx,ty); if(!im) continue;
+    ctx.drawImage(im, cx+(tx-wx)*ts, cy+(ty-wy)*ts, ts+0.6, ts+0.6);
+  }
+  ctx.font='10px ui-monospace,monospace';
+  ctx.fillStyle='rgba(200,214,240,0.85)';
+  ctx.fillText(`Earth surface · ${SURF.lat.toFixed(2)}°, ${SURF.lon.toFixed(2)}° · ${mpp<1000?Math.round(mpp)+' m':(mpp/1000).toFixed(1)+' km'}/px`, 16, H-46);
+  ctx.fillStyle='rgba(150,165,195,0.6)';
+  ctx.fillText(`NASA GIBS · VIIRS true color · ${surfDate()} — drag to pan · scroll out to leave`, 16, H-32);
+  dirty=SURF.cache.size<4?true:dirty;                 // keep painting while first tiles arrive
+}
+function surfPan(dx,dy){
+  const mpp=surfMpp(), latR=SURF.lat*D2R;
+  SURF.lon-=dx*mpp/(111320*Math.cos(latR));
+  SURF.lat+=dy*mpp/110540;
+  SURF.lat=Math.max(-84,Math.min(84,SURF.lat));
+  SURF.lon=((SURF.lon+540)%360)-180;
+  dirty=true;
 }
 // ---- live sunspots: SWPC active regions on the Sun glyph (orthographic on the disc) ----
 // screen-plane components of a world direction = orthographic sphere projection, and its
@@ -2169,6 +2248,7 @@ function showInfo(s){
 
 // ---- picking ----
 function pick(mx,my){
+  if(SURF.on) return null;                 // surface map: nothing to pick
   if(ROUTE&&ROUTE._sx!==undefined){        // interstellar route craft (outside the solar LOD)
     const dx=ROUTE._sx-mx, dy=ROUTE._sy-my;
     if(dx*dx+dy*dy<14*14) return ROUTE._o;
@@ -2224,7 +2304,7 @@ function pick(mx,my){
 }
 // CPU picking of the anonymous GPU point clouds (click only — too heavy for hover)
 function gpuPick(mx,my){
-  if(!glOK||!S.gpu) return null;
+  if(SURF.on||!glOK||!S.gpu) return null;
   const layers=[];
   if(gaiaRaw&&S.gaia) layers.push(['gaia',gaiaRaw]);
   if(solarA<0.5){ if(webRaw&&S.web) layers.push(['web',webRaw]); if(qsoRaw&&S.qso) layers.push(['qso',qsoRaw]); }
@@ -2295,6 +2375,7 @@ cv.addEventListener('pointermove',e=>{
   }
   if(dragging){
     const dx=e.clientX-lx,dy=e.clientY-ly;moved+=Math.abs(dx)+Math.abs(dy);
+    if(SURF.on){ surfPan(dx,dy); lx=e.clientX; ly=e.clientY; return; }   // surface map: drag pans
     if(panning){                                   // free pan — move the view centre (breaks the lock)
       FOLLOW=null;
       const sc=Math.max(S.camZ,camDist)/foc;
@@ -2359,8 +2440,13 @@ function zoomFactorAt(mx,my,f){
   tgtCamZ*=f;
   // log mode used to stop at 0.9 — 0.02 lets you dive until a planet fills the view
   // (NEAR shrinks with camZ so the glyph isn't culled at close range)
-  const zmin=S.realScale?1e-7:0.003, zmax=S.realScale?6e7:16;
+  const zmin=S.realScale?1e-7:1e-4, zmax=S.realScale?6e7:16;
   tgtCamZ=Math.max(zmin,Math.min(zmax,tgtCamZ));
+  if(SURF.on){                                   // surface map: keep the geo point under the cursor
+    const eff=tgtCamZ/before;
+    surfPan(-(mx-cx)*(1-eff), -(my-cy)*(1-eff));
+    return;
+  }
   if(tgtCamZ<before && !FOLLOW){                 // zoom in → anchor on the cursor, not the centre (unless locked)
     const k=tgtCamZ/before;
     const x1=(mx-cx)*before/foc, y2=(cy-my)*before/foc;   // cursor on the focal plane (camera space)
@@ -3371,7 +3457,7 @@ LIVE.onUpdate=()=>{ dirty=true; };
 startLive();
 if(UI.fac) UI.fac(facList);
 applyHash();
-try{console.log('Known Universe build 2026-07-12 11:19');}catch(e){}
+try{console.log('Known Universe build 2026-07-12 11:25');}catch(e){}
 initGL();
 loadGaia();
 loadExtragal();
