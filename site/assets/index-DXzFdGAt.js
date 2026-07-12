@@ -47309,7 +47309,7 @@ function __run() {
 		ctx.fillStyle = _vig;
 		ctx.fillRect(0, 0, W, H);
 		camBasis();
-		NEAR = S.realScale ? Math.max(1e-12, S.camZ * .02) : Math.min(.05, Math.max(.004, S.camZ * .35));
+		NEAR = S.realScale ? Math.max(1e-12, S.camZ * .02) : Math.min(.05, Math.max(.001, S.camZ * .35));
 		solarA = lodA(camDist, .001, .1);
 		sysA = 0;
 		if (focusSys && focusSysW) sysA = lodA(Math.hypot(camPos[0] - focusSysW[0], camPos[1] - focusSysW[1], camPos[2] - focusSysW[2]), 8e-6, 8e-4);
@@ -47730,7 +47730,7 @@ function __run() {
 	function bodyPx(rk, depth) {
 		const ratio = rk / 6371;
 		const de = S.realScale ? depth / S.camZ * 3.2 : depth;
-		const sym = Math.max(2, Math.min(Math.min(W, H) * .44, (.28 + Math.pow(ratio, .42) * .62) * foc * .02 / de));
+		const sym = Math.max(2, Math.min(Math.min(W, H) * 4, (.28 + Math.pow(ratio, .42) * .62) * foc * .02 / de));
 		if (!S.realScale) return sym;
 		const truePx = foc * (rk * 32408e-18) / depth;
 		return Math.min(Math.max(sym, truePx), Math.min(W, H) * .75);
@@ -47873,7 +47873,9 @@ function __run() {
 					if (px > 70) {
 						ctx.font = "9px ui-monospace,monospace";
 						ctx.fillStyle = `rgba(160,200,240,${A * .7})`;
-						ctx.fillText(live ? "GOES-East GEOCOLOR · live (~10 min)" : "NASA EPIC (DSCOVR) · daily", p.x + px + 4, p.y + 16);
+						const credit = live ? "GOES-East GEOCOLOR · live (~10 min)" : "NASA EPIC (DSCOVR) · daily";
+						if (p.x + px + 8 < W) ctx.fillText(credit, p.x + px + 4, p.y + 16);
+						else ctx.fillText(credit, 16, H - 64);
 					}
 				}
 			}
@@ -50590,13 +50592,13 @@ function __run() {
 	function zoomAt(mx, my, delta, deltaMode) {
 		let d = delta === true ? -100 : delta === false ? 100 : delta * (deltaMode === 1 ? 33 : deltaMode === 2 ? 400 : 1);
 		d = Math.max(-200, Math.min(200, d));
-		const k = S.realScale ? .0026 : 88e-5;
+		const k = S.realScale ? .0026 : tgtCamZ < .45 ? .0019 : 88e-5;
 		zoomFactorAt(mx, my, Math.exp(k * d));
 	}
 	function zoomFactorAt(mx, my, f) {
 		const before = tgtCamZ;
 		tgtCamZ *= f;
-		const zmin = S.realScale ? 1e-7 : .02, zmax = S.realScale ? 6e7 : 16;
+		const zmin = S.realScale ? 1e-7 : .003, zmax = S.realScale ? 6e7 : 16;
 		tgtCamZ = Math.max(zmin, Math.min(zmax, tgtCamZ));
 		if (tgtCamZ < before) {
 			const k = tgtCamZ / before;
@@ -52491,7 +52493,7 @@ void main(){                                             // soft shoulder above 
 	if (UI.fac) UI.fac(facList);
 	applyHash();
 	try {
-		console.log("Known Universe build 2026-07-12 11:08");
+		console.log("Known Universe build 2026-07-12 11:14");
 	} catch (e) {}
 	initGL();
 	loadGaia();
@@ -53260,7 +53262,7 @@ delegate(["click", "keydown"]);
 //#endregion
 //#region src/components/MobileNav.svelte
 var root$2 = /* @__PURE__ */ from_html(`<!> <div class="ms-actions"><button>☉ Solar system</button> <button>🧭 Cosmic tour</button> <button>🔗 Share view</button> <button>⟲ Reset view</button></div> <!>`, 1);
-var root_1 = /* @__PURE__ */ from_html(`<div id="mobsheet"><div class="ms-head"><span> <small style="opacity:.5">· b11:08</small></span> <button class="ms-x">✕ Close</button></div> <div class="ms-body"><!></div></div>`);
+var root_1 = /* @__PURE__ */ from_html(`<div id="mobsheet"><div class="ms-head"><span> <small style="opacity:.5">· b11:14</small></span> <button class="ms-x">✕ Close</button></div> <div class="ms-body"><!></div></div>`);
 var root_2 = /* @__PURE__ */ from_html(`<div id="mobbar"><div><span>🔍</span>Search</div> <div><span>☰</span>Layers</div> <div><span>🕐</span>Time</div> <div class="mb"><span>🧭</span>Tour</div></div> <!>`, 1);
 function MobileNav($$anchor, $$props) {
 	push($$props, true);

@@ -448,7 +448,7 @@ function render(){
   ctx.fillStyle=_vig; ctx.fillRect(0,0,W,H);
 
   camBasis();
-  NEAR = S.realScale ? Math.max(1e-12, S.camZ*0.02) : Math.min(0.05, Math.max(0.004, S.camZ*0.35));
+  NEAR = S.realScale ? Math.max(1e-12, S.camZ*0.02) : Math.min(0.05, Math.max(0.001, S.camZ*0.35));
   // solar-system detail from the camera's real distance to the Sun (so it also
   // fades as you fly away from the centre, not only when you zoom out)
   solarA=lodA(camDist, 0.001, 0.1);              // full ≤0.001 pc, hidden ≥0.1 pc from Sun
@@ -736,8 +736,8 @@ function bodyPx(rk,depth){
   // but scaled by real RELATIVE radius so Jupiter>Earth>Mercury stays recognisable.
   const ratio=rk/6371;
   const de = S.realScale ? (depth/S.camZ)*3.2 : depth;   // real: normalise to the log framing range
-  // cap grows with the viewport (was 52px): diving at a body lets it nearly fill the screen
-  const sym = Math.max(2.0, Math.min(Math.min(W,H)*0.44,(0.28+Math.pow(ratio,0.42)*0.62)*foc*0.02/de));
+  // cap 4× the viewport: diving in takes you past full disc INTO the imagery (clouds fill the view)
+  const sym = Math.max(2.0, Math.min(Math.min(W,H)*4,(0.28+Math.pow(ratio,0.42)*0.62)*foc*0.02/de));
   if(!S.realScale) return sym;
   // real scale: once the TRUE angular size is resolvable it wins — fly at a
   // planet and it grows to a disc, exactly as it would in reality
@@ -832,7 +832,10 @@ function drawSolar(alpha){
       if(im){ ctx.save(); ctx.beginPath(); ctx.arc(p.x,p.y,px,0,6.2832); ctx.clip();
         ctx.drawImage(im, p.x-px, p.y-px, px*2, px*2); ctx.restore();
         if(px>70){ ctx.font='9px ui-monospace,monospace'; ctx.fillStyle=`rgba(160,200,240,${A*0.7})`;
-          ctx.fillText(live?'GOES-East GEOCOLOR · live (~10 min)':'NASA EPIC (DSCOVR) · daily', p.x+px+4, p.y+16); }
+          const credit=live?'GOES-East GEOCOLOR · live (~10 min)':'NASA EPIC (DSCOVR) · daily';
+          if(p.x+px+8<W) ctx.fillText(credit, p.x+px+4, p.y+16);
+          else ctx.fillText(credit, 16, H-64);         // limb off-screen → pin to the corner
+        }
       }
     }
     if(sel){ ctx.beginPath(); ctx.arc(p.x,p.y,px+7,0,6.2832);
@@ -2342,7 +2345,8 @@ function zoomAt(mx,my,delta,deltaMode){
   // trackpads fire many small deltas and now scale down instead of over-zooming
   let d = delta===true?-100 : delta===false?100 : delta*(deltaMode===1?33:deltaMode===2?400:1);
   d=Math.max(-200,Math.min(200,d));
-  const k=S.realScale?0.0026:0.00088;            // real mode spans many orders → faster zoom
+  // real mode spans many orders → faster zoom; deep log dive (<0.45) doubles the rate
+  const k=S.realScale?0.0026:(tgtCamZ<0.45?0.0019:0.00088);
   zoomFactorAt(mx,my,Math.exp(k*d));
 }
 function zoomFactorAt(mx,my,f){
@@ -2350,7 +2354,7 @@ function zoomFactorAt(mx,my,f){
   tgtCamZ*=f;
   // log mode used to stop at 0.9 — 0.02 lets you dive until a planet fills the view
   // (NEAR shrinks with camZ so the glyph isn't culled at close range)
-  const zmin=S.realScale?1e-7:0.02, zmax=S.realScale?6e7:16;
+  const zmin=S.realScale?1e-7:0.003, zmax=S.realScale?6e7:16;
   tgtCamZ=Math.max(zmin,Math.min(zmax,tgtCamZ));
   if(tgtCamZ<before){                            // zoom in → anchor on the cursor, not the centre
     const k=tgtCamZ/before;
@@ -3350,7 +3354,7 @@ LIVE.onUpdate=()=>{ dirty=true; };
 startLive();
 if(UI.fac) UI.fac(facList);
 applyHash();
-try{console.log('Known Universe build 2026-07-12 11:08');}catch(e){}
+try{console.log('Known Universe build 2026-07-12 11:14');}catch(e){}
 initGL();
 loadGaia();
 loadExtragal();
