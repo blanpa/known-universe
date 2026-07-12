@@ -50961,6 +50961,12 @@ function __run() {
 				ly = e.clientY;
 				return;
 			}
+			if (e.ctrlKey || e.metaKey) {
+				zoomFactorAt(e.clientX, e.clientY, Math.exp(dy * (S.realScale ? .008 : .003)));
+				lx = e.clientX;
+				ly = e.clientY;
+				return;
+			}
 			if (panning) {
 				FOLLOW = null;
 				const sc = Math.max(S.camZ, camDist) / foc;
@@ -51025,6 +51031,23 @@ function __run() {
 			}
 		}
 	});
+	function frameSelection() {
+		const b = S.pinned || S.hover;
+		if (!b) return;
+		if (b === SUN) {
+			enterSolar();
+			return;
+		}
+		const w = navWorld(b);
+		if (!w) return;
+		const isSolar = b._e !== void 0 || b.rk !== void 0;
+		aim(w[0], w[1], w[2], isSolar ? Math.min(tgtCamZ, scale(3e-6)) : Math.max(scale(3e-6), tgtCamZ * .5));
+		if (b._e !== void 0 || b === SUN) {
+			FOLLOW = b;
+			lastInfo = void 0;
+		}
+		dirty = true;
+	}
 	addEventListener("keydown", (e) => {
 		const ae = document.activeElement;
 		if (ae && ae.tagName === "INPUT") return;
@@ -51032,6 +51055,19 @@ function __run() {
 		if ("wasdrf".includes(k) || e.key.startsWith("Arrow")) {
 			keys.add(k === "arrowup" ? "w" : k === "arrowdown" ? "s" : k === "arrowleft" ? "a" : k === "arrowright" ? "d" : k);
 			e.preventDefault();
+		} else if (e.key === ".") {
+			frameSelection();
+			e.preventDefault();
+		} else if (e.key === "Home") {
+			const b = document.getElementById("resetBtn");
+			if (b) b.click();
+			e.preventDefault();
+		} else if (e.key === "Escape") {
+			S.pinned = null;
+			S.hover = null;
+			FOLLOW = null;
+			lastInfo = void 0;
+			dirty = true;
 		}
 	});
 	addEventListener("keyup", (e) => {
@@ -51067,6 +51103,36 @@ function __run() {
 			tgtCtr.z += (Pz - tgtCtr.z) * (1 - k);
 		}
 	}
+	cv.addEventListener("dblclick", (e) => {
+		if (SURF.on) return;
+		const hit = pick(e.clientX, e.clientY) || gpuPick(e.clientX, e.clientY);
+		if (!hit) return;
+		if (hit === SUNHIT || hit === SUN) {
+			focusSys = null;
+			enterSolar();
+			return;
+		}
+		if (!hit.gpick) S.pinned = hit;
+		if (hit.p && hit._dx !== void 0) {
+			focusSys = hit;
+			focusSysW = objWorld(hit);
+			flyTo(hit);
+			return;
+		}
+		if (objWorld(hit)) {
+			flyTo(hit);
+			return;
+		}
+		const w = navWorld(hit);
+		if (w) {
+			aim(w[0], w[1], w[2], Math.min(tgtCamZ, scale(3e-6)));
+			if (hit._e !== void 0) {
+				FOLLOW = hit;
+				lastInfo = void 0;
+			}
+		}
+		dirty = true;
+	});
 	cv.addEventListener("pointercancel", (e) => {
 		ptrs.delete(e.pointerId);
 		if (ptrs.size < 2) {
@@ -52984,7 +53050,7 @@ void main(){                                             // soft shoulder above 
 	if (UI.fac) UI.fac(facList);
 	applyHash();
 	try {
-		console.log("Known Universe build 2026-07-12 11:51");
+		console.log("Known Universe build 2026-07-12 11:57");
 	} catch (e) {}
 	initGL();
 	loadGaia();
@@ -53086,7 +53152,7 @@ var root$9 = /* @__PURE__ */ from_html(`<div class="panel"><div class="label">St
 var root_1$2 = /* @__PURE__ */ from_html(`<div><span></span><span class="sw"></span></div>`);
 var root_2$2 = /* @__PURE__ */ from_html(`<div><div class="ctl-h"></div> <!></div>`);
 var root_3$1 = /* @__PURE__ */ from_html(`<div><span class="cdot"></span> <span> </span><span class="cn"> </span></div>`);
-var root_4$1 = /* @__PURE__ */ from_html(`<!> <div class="panel"><!> <div class="ctl-inst"><div class="label" style="margin-bottom:8px">Discovery instrument</div> <div><span>colour by it</span><span class="sw"></span></div> <div class="chips"></div></div> <div class="hint" style="font-size:10px;color:var(--dim);margin-top:6px;font-style:italic;line-height:1.6">Drag rotate · right-drag pan · WASD fly<br/>Scroll/pinch zoom to cursor · click to travel<br/>🧭 tour · 📏 measure · 🔗 share view</div></div>`, 1);
+var root_4$1 = /* @__PURE__ */ from_html(`<!> <div class="panel"><!> <div class="ctl-inst"><div class="label" style="margin-bottom:8px">Discovery instrument</div> <div><span>colour by it</span><span class="sw"></span></div> <div class="chips"></div></div> <div class="hint" style="font-size:10px;color:var(--dim);margin-top:6px;font-style:italic;line-height:1.6">Drag orbit · right/middle-drag pan · Ctrl+drag dolly<br/>Scroll zoom to cursor · dbl-click focus · WASD fly<br/>[.] frame selection · [Home] reset · [Esc] deselect</div></div>`, 1);
 function Controls($$anchor, $$props) {
 	push($$props, true);
 	const $timeBar = () => store_get(timeBar, "$timeBar", $$stores);
@@ -53753,7 +53819,7 @@ delegate(["click", "keydown"]);
 //#endregion
 //#region src/components/MobileNav.svelte
 var root$2 = /* @__PURE__ */ from_html(`<!> <div class="ms-actions"><button>☉ Solar system</button> <button>🧭 Cosmic tour</button> <button>🔗 Share view</button> <button>⟲ Reset view</button></div> <!>`, 1);
-var root_1 = /* @__PURE__ */ from_html(`<div id="mobsheet"><div class="ms-head"><span> <small style="opacity:.5">· b11:51</small></span> <button class="ms-x">✕ Close</button></div> <div class="ms-body"><!></div></div>`);
+var root_1 = /* @__PURE__ */ from_html(`<div id="mobsheet"><div class="ms-head"><span> <small style="opacity:.5">· b11:57</small></span> <button class="ms-x">✕ Close</button></div> <div class="ms-body"><!></div></div>`);
 var root_2 = /* @__PURE__ */ from_html(`<div id="mobbar"><div><span>🔍</span>Search</div> <div><span>☰</span>Layers</div> <div><span>🕐</span>Time</div> <div class="mb"><span>🧭</span>Tour</div></div> <!>`, 1);
 function MobileNav($$anchor, $$props) {
 	push($$props, true);

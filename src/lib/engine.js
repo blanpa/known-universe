@@ -2527,6 +2527,10 @@ cv.addEventListener('pointermove',e=>{
   if(dragging){
     const dx=e.clientX-lx,dy=e.clientY-ly;moved+=Math.abs(dx)+Math.abs(dy);
     if(SURF.on){ surfPan(dx,dy); lx=e.clientX; ly=e.clientY; return; }   // surface map: drag pans
+    if(e.ctrlKey||e.metaKey){                      // CAD dolly: Ctrl+drag zooms (up = in)
+      zoomFactorAt(e.clientX,e.clientY,Math.exp(dy*(S.realScale?0.008:0.003)));
+      lx=e.clientX; ly=e.clientY; return;
+    }
     if(panning){                                   // free pan — move the view centre (breaks the lock)
       FOLLOW=null;
       const sc=Math.max(S.camZ,camDist)/foc;
@@ -2570,10 +2574,23 @@ cv.addEventListener('pointerup',e=>{
   }
 });
 // keyboard free-flight (WASD / arrows, R·F up·down)
+// frame the selection — CAD-style "zoom to fit" on the picked object
+function frameSelection(){
+  const b=S.pinned||S.hover; if(!b) return;
+  if(b===SUN){ enterSolar(); return; }
+  const w=navWorld(b); if(!w) return;
+  const isSolar=b._e!==undefined||b.rk!==undefined;
+  aim(w[0],w[1],w[2], isSolar?Math.min(tgtCamZ,scale(3e-6)):Math.max(scale(3e-6),tgtCamZ*0.5));
+  if(b._e!==undefined||b===SUN){ FOLLOW=b; lastInfo=undefined; }   // solar body: frame = track it
+  dirty=true;
+}
 addEventListener('keydown',e=>{
   const ae=document.activeElement; if(ae&&ae.tagName==='INPUT') return;
   const k=e.key.toLowerCase();
   if('wasdrf'.includes(k)||e.key.startsWith('Arrow')){ keys.add(k==='arrowup'?'w':k==='arrowdown'?'s':k==='arrowleft'?'a':k==='arrowright'?'d':k); e.preventDefault(); }
+  else if(e.key==='.'){ frameSelection(); e.preventDefault(); }
+  else if(e.key==='Home'){ const b=document.getElementById('resetBtn'); if(b) b.click(); e.preventDefault(); }
+  else if(e.key==='Escape'){ S.pinned=null; S.hover=null; FOLLOW=null; lastInfo=undefined; dirty=true; }
 });
 addEventListener('keyup',e=>{ const k=e.key.toLowerCase();
   keys.delete(k); keys.delete(k==='arrowup'?'w':k==='arrowdown'?'s':k==='arrowleft'?'a':k==='arrowright'?'d':k); });
@@ -2609,6 +2626,20 @@ function zoomFactorAt(mx,my,f){
     tgtCtr.x+=(Px-tgtCtr.x)*(1-k); tgtCtr.y+=(Py-tgtCtr.y)*(1-k); tgtCtr.z+=(Pz-tgtCtr.z)*(1-k);
   }
 }
+// CAD-style double-click: focus the object under the cursor (planets: focus = lock)
+cv.addEventListener('dblclick',e=>{
+  if(SURF.on) return;
+  const hit=pick(e.clientX,e.clientY)||gpuPick(e.clientX,e.clientY);
+  if(!hit) return;
+  if(hit===SUNHIT||hit===SUN){ focusSys=null; enterSolar(); return; }
+  if(!hit.gpick) S.pinned=hit;
+  if(hit.p&&hit._dx!==undefined){ focusSys=hit; focusSysW=objWorld(hit); flyTo(hit); return; }
+  if(objWorld(hit)){ flyTo(hit); return; }
+  const w=navWorld(hit);
+  if(w){ aim(w[0],w[1],w[2], Math.min(tgtCamZ, scale(3e-6)));
+    if(hit._e!==undefined){ FOLLOW=hit; lastInfo=undefined; } }
+  dirty=true;
+});
 cv.addEventListener('pointercancel',e=>{ ptrs.delete(e.pointerId); if(ptrs.size<2){pinching=false;pinchD=0;} dragging=false; });
 cv.addEventListener('wheel',e=>{e.preventDefault();
   zoomAt(e.clientX,e.clientY,e.deltaY,e.deltaMode);
@@ -3608,7 +3639,7 @@ LIVE.onUpdate=()=>{ dirty=true; };
 startLive();
 if(UI.fac) UI.fac(facList);
 applyHash();
-try{console.log('Known Universe build 2026-07-12 11:51');}catch(e){}
+try{console.log('Known Universe build 2026-07-12 11:57');}catch(e){}
 initGL();
 loadGaia();
 loadExtragal();
