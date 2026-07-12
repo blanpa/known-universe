@@ -422,3 +422,4 @@ body:not(.show-time) #hud-uni{display:none!important}
 #zoomctl .jog span{width:16px;height:2px;border-radius:1px;background:var(--txt-2);opacity:.55}
 #zoomctl .jog:active span{background:var(--acc);opacity:1}
 @media (max-width:720px){ #zoomctl{right:8px;top:auto;bottom:130px;transform:none} }
+.lv-trunc{max-width:46%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}

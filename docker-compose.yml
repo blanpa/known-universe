@@ -20,6 +20,7 @@ services:
       - "./build_data.py:/app/build_data.py:ro"
       - "./build_belt.py:/app/build_belt.py:ro"
       - "./updater/updater.py:/app/updater.py:ro"
+      - "./tools/fetch_live_extra.py:/app/fetch_live_extra.py:ro"
     environment:
       - UPDATE_INTERVAL=604800   # 7 days
       - DST=/out/data.json

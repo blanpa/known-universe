@@ -1,0 +1,31 @@
+# Publishes live-extra.json (GW superevents + fireballs — APIs without CORS) to the
+# live-data branch. The client on GitHub Pages fetches it via raw.githubusercontent.com,
+# which does send CORS headers. Force-push keeps the branch at a single commit.
+name: live-data
+on:
+  schedule:
+    - cron: '17 */6 * * *'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build live-extra.json
+        run: |
+          mkdir -p out
+          python3 tools/fetch_live_extra.py out/live-extra.json
+          head -c 300 out/live-extra.json; echo
+      - name: Push to live-data branch
+        run: |
+          cd out
+          git init -q -b live-data
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add live-extra.json
+          git commit -q -m "live data $(date -u +'%Y-%m-%dT%H:%MZ')"
+          git push -q --force "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" live-data
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

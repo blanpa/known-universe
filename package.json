@@ -11,5 +11,8 @@
     "build": "vite build && rm -rf site/assets && cp dist/index.html site/index.html && cp -r dist/assets site/assets",
     "build:artifact": "vite build -c vite.artifact.config.js && python3 tools/build_artifact.py",
     "test:mount": "node tools/mounttest.mjs"
+  },
+  "dependencies": {
+    "satellite.js": "^5.0.0"
   }
 }

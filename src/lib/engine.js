@@ -1,6 +1,6 @@
 // Known Universe engine — the renderer + app logic (framework-free by design).
 // Svelte owns the DOM structure; this module binds to it by element id.
-import { LIVE, startLive } from './live.js';
+import { LIVE, startLive, satEcl, groundEcl, activeShowers } from './live.js';
 export const UI={};
 export const api={};
 
@@ -30,7 +30,7 @@ const S={ yaw:0.5, pitch:-0.5, camZ:3.0, year:2026, tOffsetDays:0,
   autorot:false, freelook:false, rings:true, veil:true, size:true, galaxies:true,
   hyg:true, gpu:true, gaia:true, web:true, qso:true, ob:true, vars:true, edge:true, facColor:false, facHidden:new Set(),
   solar:true, moons:true, mw:true, mw3d:true, dso:true, psr:true, oclu:true, ast:true, tno:true, probes:true, helio:true, belt:true, con:true, hz:true, lag:true, lens:true, pm:false, pmYears:0,
-  cme:true, neo:true,
+  cme:true, neo:true, sat:true, sunAR:true, met:true,
   realScale:false,
   hover:null, pinned:null, focusStar:null, focusT:0 };
 
@@ -545,7 +545,7 @@ function render(){
 
   // galaxies in front of the local cloud, on top
   drawGalaxies(frontG);
-  if(solarA<0.5 && sysA<0.5){ drawConstellations(); drawDSO(); drawPulsars(); drawClusters(); if(S.mw3d) drawGalaxyModel(); drawMW(); drawS2(); if(S.edge) drawEdge(); }
+  if(solarA<0.5 && sysA<0.5){ drawConstellations(); if(S.met) drawShowers(); drawDSO(); drawPulsars(); drawClusters(); if(S.mw3d) drawGalaxyModel(); drawMW(); drawS2(); if(S.edge) drawEdge(); }
   if(lensPar && lensPar.e>12){                   // Einstein ring marker around Sgr A*
     ctx.beginPath(); ctx.arc(lensPar.x,lensPar.y,lensPar.e,0,6.2832);
     ctx.setLineDash([2,6]); ctx.strokeStyle='rgba(255,215,150,0.35)'; ctx.lineWidth=1;
@@ -796,6 +796,7 @@ function drawSolar(alpha){
     ctx.fillText('Sun', sp.x+spx+4, sp.y+3);
     ctx.font='9px ui-monospace,monospace'; ctx.fillStyle=`rgba(200,208,225,${A*0.6})`;
     ctx.fillText('Orbital positions · '+dateStr(solarJD()), sp.x+spx+4, sp.y+16);
+    if(S.sunAR) drawSunspots(A, sp, spx);
   }
   // planets & dwarfs at their real positions (painter: sort by depth)
   const drawn=[];
@@ -824,6 +825,11 @@ function drawSolar(alpha){
     }
     ctx.beginPath(); ctx.arc(p.x,p.y,px,0,6.2832);
     ctx.fillStyle=`rgba(${c[0]},${c[1]},${c[2]},${A})`; ctx.fill();
+    if(b.n==='Earth' && px>=16){                       // today's real Earth (EPIC/DSCOVR)
+      const im=epicImage();
+      if(im){ ctx.save(); ctx.beginPath(); ctx.arc(p.x,p.y,px,0,6.2832); ctx.clip();
+        ctx.drawImage(im, p.x-px, p.y-px, px*2, px*2); ctx.restore(); }
+    }
     if(sel){ ctx.beginPath(); ctx.arc(p.x,p.y,px+7,0,6.2832);
       ctx.strokeStyle='rgba(79,214,200,.9)'; ctx.lineWidth=1.2; ctx.stroke(); }
     solarProj.push({o:b,x:p.x,y:p.y,px:px});
@@ -897,7 +903,8 @@ function drawSolar(alpha){
   }
   if(S.probes) drawProbes(A);
   if(S.cme) drawCME(A);
-  if(S.neo) drawLiveNeo(A);
+  if(S.neo){ drawLiveNeo(A); drawFireballs(A); }
+  if(S.sat) drawSats(A);
   ctx.globalAlpha=1;
 }
 function outerHidden(b){ return (b.kind==='Trans-Neptunian object'||b.kind==='Centaur') && !S.tno; }
@@ -1026,6 +1033,120 @@ function drawLiveNeo(A){
     ctx.fillStyle=`rgba(255,190,120,${A*(sel?1:0.8)})`;
     ctx.fillText(`${o.n} · ${rel} · ${ldStr} LD`, p.x+px+4, p.y+3);
     solarProj.push({o,x:p.x,y:p.y,px:Math.max(8,px+3)});
+  }
+}
+// ---- EPIC: today's photo of Earth as the glyph texture (lazy, CORS image) ----
+let _epicImg=null,_epicState=0;
+function epicImage(){
+  if(_epicState===0 && LIVE.epic){ _epicState=1;
+    const im=new Image(); im.crossOrigin='anonymous';
+    im.onload=()=>{ _epicImg=im; dirty=true; };
+    im.onerror=()=>{ _epicState=2; };
+    im.src=LIVE.epic.url;
+  }
+  return _epicImg;
+}
+// ---- live sunspots: SWPC active regions on the Sun glyph (orthographic on the disc) ----
+// screen-plane components of a world direction = orthographic sphere projection, and its
+// camera-z component tells front (visible) from far side.
+function dirScreen(u){
+  const cyw=Math.cos(S.yaw),syw=Math.sin(S.yaw),cp2=Math.cos(S.pitch),sp2=Math.sin(S.pitch);
+  const x1=u[0]*cyw+u[2]*syw, z1=-u[0]*syw+u[2]*cyw;
+  return [x1, -(u[1]*cp2-z1*sp2), u[1]*sp2+z1*cp2];   // [screen x, screen y, toward-camera]
+}
+function stonyhurstEcl(latDeg,lonDeg,lamE){            // Stonyhurst (W+) → ecliptic unit vector
+  const la=latDeg*D2R, lo=lonDeg*D2R, cb=Math.cos(la);
+  const hx=cb*Math.cos(lo), hy=cb*Math.sin(lo), hz=Math.sin(la);
+  const cE=Math.cos(lamE), sE=Math.sin(lamE);
+  return [hx*cE-hy*sE, hx*sE+hy*cE, hz];
+}
+function drawSunspots(A, sp, spx){
+  if(!LIVE.regions.length || spx<10) return;
+  const earth=PLANETS.find(p=>p.n==='Earth'); if(!earth||!earth._e) return;
+  const lamE=Math.atan2(earth._e[1],earth._e[0]);
+  for(const r of LIVE.regions){
+    const e=stonyhurstEcl(r.lat,r.lon,lamE);
+    const d=dirScreen([e[0],e[2],e[1]]);               // ecl → world axis swap
+    if(d[2]<=0.05) continue;                           // far side / limb
+    const x=sp.x+d[0]*spx*0.94, y=sp.y+d[1]*spx*0.94;
+    const rr=Math.max(1.2, Math.sqrt(r.area||20)*spx/280);
+    const hot=r.xp>=5||r.mp>=40||r.xx>0;
+    ctx.beginPath(); ctx.arc(x,y,rr,0,6.2832);
+    ctx.fillStyle=`rgba(96,48,22,${A*0.92})`; ctx.fill();
+    if(hot){ ctx.beginPath(); ctx.arc(x,y,rr+1.6,0,6.2832);
+      ctx.strokeStyle=`rgba(255,90,60,${A*0.85})`; ctx.lineWidth=1; ctx.stroke(); }
+    if(!r._o) r._o={spot:r, n:'AR '+r.no};
+    const sel=(r._o===S.hover||r._o===S.pinned);
+    if(sel){ ctx.beginPath(); ctx.arc(x,y,rr+5,0,6.2832); ctx.strokeStyle='rgba(79,214,200,.9)'; ctx.lineWidth=1.1; ctx.stroke(); }
+    if(spx>34||sel){ ctx.font='8.5px ui-monospace,monospace';
+      ctx.fillStyle=`rgba(70,35,15,${A*0.95})`; ctx.fillText('AR'+r.no, x+rr+2, y+3); }
+    solarProj.push({o:r._o,x,y,px:Math.max(7,rr+3)});
+  }
+}
+// ---- live satellites: CelesTrak TLEs, SGP4-propagated around the Earth glyph ----
+function drawSats(A){
+  if(!LIVE.sats.length) return;
+  const earth=PLANETS.find(p=>p.n==='Earth');
+  if(!earth||!earth._e||!earth._p) return;
+  const ep=earth._p, px=bodyPx(earth.rk,ep.depth);
+  if(px<10) return;
+  const jd=solarJD(); let drawn=0;
+  const LOG_LO=Math.log10(6600), LOG_HI=Math.log10(50000);
+  for(const s of LIVE.sats){
+    const e=satEcl(s,jd); if(!e) continue;
+    const l=Math.hypot(e[0],e[1],e[2]); if(!isFinite(l)||l<6400) continue;
+    let x,y;
+    if(S.realScale){
+      const K=1.496e8;
+      const w=eclToWorld(earth._e[0]+e[0]/K, earth._e[1]+e[1]/K, earth._e[2]+e[2]/K);
+      const p=project(w[0],w[1],w[2]); if(p.depth<=NEAR) continue;
+      x=p.x; y=p.y;
+    } else {                                           // exploded shells by log(orbit radius), like the moons
+      const u=[e[0]/l,e[2]/l,e[1]/l], d2=camDir2(u);
+      const t=Math.min(1.25,Math.max(0,(Math.log10(l)-LOG_LO)/(LOG_HI-LOG_LO)));
+      const sep=px+5+t*(px*2.0+36);
+      x=ep.x+d2[0]*sep; y=ep.y+d2[1]*sep;
+    }
+    const named=s.iss||s.hst||s.css, sel=(s===S.hover||s===S.pinned);
+    s.alt=l-6371; s.sat=true; s.kind='Satellite';
+    ctx.beginPath(); ctx.arc(x,y,named?2.4:1.1,0,6.2832);
+    ctx.fillStyle=named?`rgba(150,235,255,${A})`:`rgba(140,215,250,${A*0.7})`; ctx.fill();
+    if(sel){ ctx.beginPath(); ctx.arc(x,y,7,0,6.2832); ctx.strokeStyle='rgba(79,214,200,.9)'; ctx.lineWidth=1.1; ctx.stroke(); }
+    if(named||sel){ ctx.font='8.5px ui-monospace,monospace'; ctx.fillStyle=`rgba(160,230,255,${A*0.9})`;
+      ctx.fillText(s.iss?'ISS':s.css?'CSS':s.hst?'Hubble':s.n, x+4, y-3); }
+    solarProj.push({o:s,x,y,px:named?7:4});
+    drawn++;
+  }
+  if(drawn){
+    if(px>13){ ctx.font='8.5px ui-monospace,monospace'; ctx.fillStyle=`rgba(140,215,250,${A*0.55})`;
+      ctx.fillText(drawn+' satellites · live', ep.x+px+4, ep.y+16); }
+    dirty=true;                                        // they really move — keep animating while visible
+  }
+}
+// ---- fireballs: recent atmospheric impacts (JPL, via live-extra proxy) on the Earth glyph ----
+function drawFireballs(A){
+  const fb=LIVE.extra&&LIVE.extra.fireballs; if(!fb||!fb.length) return;
+  const earth=PLANETS.find(p=>p.n==='Earth');
+  if(!earth||!earth._p) return;
+  const ep=earth._p, px=bodyPx(earth.rk,ep.depth);
+  if(px<12) return;
+  const nowMs=cmeSolarMs();
+  for(const f of fb){
+    if(f.lat==null||f.lon==null) continue;
+    const age=(nowMs-f.t)/86400000; if(age<0||age>30) continue;
+    const e=groundEcl(f.lat,f.lon,f.t);
+    const d=dirScreen([e[0],e[2],e[1]]);
+    if(d[2]<=0.05) continue;                           // far side
+    const x=ep.x+d[0]*px*0.97, y=ep.y+d[1]*px*0.97;
+    const rr=Math.max(1.6, 2.2+Math.log10(f.kt||0.1));
+    ctx.beginPath(); ctx.arc(x,y,rr,0,6.2832);
+    ctx.fillStyle=`rgba(255,150,60,${A*(age<7?0.95:0.55)})`; ctx.fill();
+    ctx.beginPath(); ctx.arc(x,y,rr+1.8,0,6.2832);
+    ctx.strokeStyle=`rgba(255,110,50,${A*0.4})`; ctx.lineWidth=0.8; ctx.stroke();
+    if(!f._o) f._o={fb:f, n:'Fireball'};
+    const sel=(f._o===S.hover||f._o===S.pinned);
+    if(sel){ ctx.beginPath(); ctx.arc(x,y,rr+5,0,6.2832); ctx.strokeStyle='rgba(79,214,200,.9)'; ctx.lineWidth=1.1; ctx.stroke(); }
+    solarProj.push({o:f._o,x,y,px:Math.max(6,rr+3)});
   }
 }
 
@@ -1183,6 +1304,22 @@ function drawConstellations(){
     const cp=project(k.c[0]*R,k.c[1]*R,k.c[2]*R);
     if(cp.depth>NEAR){ ctx.font='8.5px ui-monospace,monospace'; ctx.fillStyle='rgba(150,170,225,0.38)';
       ctx.fillText(CON_NAME[k.id]||k.id, cp.x+3, cp.y); }
+  }
+}
+// ---- meteor-shower radiants active on the selected date (IMO calendar, sky sphere) ----
+function drawShowers(){
+  const act=activeShowers(cmeSolarMs()); if(!act.length) return;
+  const R=scale(30);
+  for(const s of act){
+    const d=dirOf(s.ra,s.dec), p=project(d[0]*R,d[1]*R,d[2]*R);
+    if(p.depth<=NEAR) continue;
+    ctx.strokeStyle='rgba(190,255,200,0.55)'; ctx.lineWidth=1;
+    for(let k=0;k<4;k++){ const a=k*0.7854;            // radiant: 8-ray asterisk
+      const dx=Math.cos(a)*6, dy=Math.sin(a)*6;
+      ctx.beginPath(); ctx.moveTo(p.x-dx,p.y-dy); ctx.lineTo(p.x+dx,p.y+dy); ctx.stroke(); }
+    ctx.beginPath(); ctx.arc(p.x,p.y,2,0,6.2832); ctx.fillStyle='rgba(210,255,215,0.9)'; ctx.fill();
+    ctx.font='9px ui-monospace,monospace'; ctx.fillStyle='rgba(190,255,200,0.75)';
+    ctx.fillText(`${s.n} · ZHR ${s.zhr}`, p.x+9, p.y+3);
   }
 }
 
@@ -1607,6 +1744,47 @@ function showInfo(s){
     h+=`<div class="hint">ballistic estimate — real fronts decelerate in the solar wind</div>`;
     el.innerHTML=h; el.classList.add('show'); return;
   }
+  if(s.spot){              // ---- active solar region (SWPC) ----
+    const r=s.spot;
+    let h=`<div class="nm"><span class="mk" style="color:#c86432;background:#c86432"></span>Active region ${r.no}</div>
+      <div class="rows">
+        <div class="r"><span class="rk">Type</span><span class="rv">Sunspot group · NOAA SWPC</span></div>
+        <div class="r"><span class="rk">Class</span><span class="rv">${r.cls||'—'}${r.mag?' · mag '+r.mag:''}</span></div>
+        <div class="r"><span class="rk">Area</span><span class="rv">${r.area} millionths · ${r.spots} spots</span></div>
+        <div class="r"><span class="rk">Flares 24 h</span><span class="rv">${r.cx} C · ${r.mx} M · ${r.xx} X</span></div>
+        <div class="r"><span class="rk">Flare odds</span><span class="rv">C ${r.cp}% · M ${r.mp}% · X ${r.xp}%</span></div>
+      </div>`;
+    h+=links([{t:'SWPC',u:'https://www.swpc.noaa.gov/products/solar-region-summary'}]);
+    h+=`<div class="hint">observed ${r.date} — sunspots this size dwarf the Earth</div>`;
+    el.innerHTML=h; el.classList.add('show'); return;
+  }
+  if(s.rec){               // ---- live satellite (CelesTrak TLE) ----
+    let h=`<div class="nm"><span class="mk" style="color:#96ebff;background:#96ebff"></span>${s.n}</div>
+      <div class="rows">
+        <div class="r"><span class="rk">Type</span><span class="rv">Satellite · NORAD ${s.rec.satnum}</span></div>
+        <div class="r"><span class="rk">Altitude</span><span class="rv">${fmt(s.alt||0)} km</span></div>
+        <div class="r"><span class="rk">Period</span><span class="rv">${(2*Math.PI/s.rec.no).toFixed(0)} min</span></div>
+        <div class="r"><span class="rk">Inclination</span><span class="rv">${(s.rec.inclo*57.2958).toFixed(1)}°</span></div>
+      </div>`;
+    h+=links([{t:'N2YO',u:`https://www.n2yo.com/satellite/?s=${s.rec.satnum}`},
+      {t:'CelesTrak',u:'https://celestrak.org/'}]);
+    h+=`<div class="hint">real orbit, SGP4-propagated — it moves as you watch</div>`;
+    el.innerHTML=h; el.classList.add('show'); return;
+  }
+  if(s.fb){                // ---- fireball (JPL CNEOS) ----
+    const f=s.fb;
+    let h=`<div class="nm"><span class="mk" style="color:#ff9650;background:#ff9650"></span>Fireball</div>
+      <div class="rows">
+        <div class="r"><span class="rk">Type</span><span class="rv">Atmospheric impact · JPL CNEOS</span></div>
+        <div class="r"><span class="rk">When</span><span class="rv">${new Date(f.t).toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})} UTC</span></div>
+        <div class="r"><span class="rk">Energy</span><span class="rv">${f.kt} kt TNT</span></div>
+        <div class="r"><span class="rk">Location</span><span class="rv">${Math.abs(f.lat).toFixed(1)}°${f.lat>=0?'N':'S'} ${Math.abs(f.lon).toFixed(1)}°${f.lon>=0?'E':'W'}</span></div>
+        ${f.vel?`<div class="r"><span class="rk">Velocity</span><span class="rv">${f.vel} km/s</span></div>`:''}
+      </div>`;
+    h+=links([{t:'CNEOS',u:'https://cneos.jpl.nasa.gov/fireballs/'}]);
+    h+=`<div class="hint">a small asteroid burning up — most are never seen by anyone</div>`;
+    el.innerHTML=h; el.classList.add('show'); return;
+  }
   if(s.rk!==undefined){   // ---- solar-system body ----
     const c=s.c, er=(s.rk/6371), probe=s.kind==='Spacecraft';
     let dist = s.am!==undefined ? `${fmt(s.am*1000)} km from ${s.parent}`
@@ -1989,6 +2167,9 @@ bindToggle('t-lag','lag');
 bindToggle('t-lens','lens');
 bindToggle('t-cme','cme');
 bindToggle('t-neo','neo');
+bindToggle('t-sat','sat');
+bindToggle('t-sun','sunAR');
+bindToggle('t-met','met');
 // proper motion: reveal a deep-time slider when enabled
 const pmTime=document.getElementById('pmTime'), pmVal=document.getElementById('pmVal');
 function setPmVal(){ const y=S.pmYears;
@@ -2900,11 +3081,14 @@ api.liveNeoFocus=id=>{
   else { S.pinned=null; enterSolar(); }
   dirty=true;
 };
+api.liveStats=()=>{ const y=new Date().getFullYear();
+  let n=0; for(const st of STARS) if(st.fy===y) n++;
+  return {exoY:n, year:y}; };
 LIVE.onUpdate=()=>{ dirty=true; };
 startLive();
 if(UI.fac) UI.fac(facList);
 applyHash();
-try{console.log('Known Universe build 2026-07-11 19:03');}catch(e){}
+try{console.log('Known Universe build 2026-07-12 10:24');}catch(e){}
 initGL();
 loadGaia();
 loadExtragal();

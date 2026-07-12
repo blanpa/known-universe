@@ -62,6 +62,32 @@ def run_once():
     subprocess.run(["python", "/app/build_belt.py"], env=env2, check=True)
 
 
+# live-extra: GW superevents + fireballs, hourly (their APIs lack CORS → proxied here)
+def live_loop():
+    import json, sys, threading
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    try:
+        import fetch_live_extra
+    except Exception as e:
+        print("live-extra disabled:", repr(e), flush=True)
+        return
+    dst = os.path.join(os.path.dirname(DST), "live-extra.json")
+    while True:
+        try:
+            data = fetch_live_extra.build()
+            tmp = dst + ".tmp"
+            with open(tmp, "w") as f:
+                json.dump(data, f)
+            os.replace(tmp, dst)
+            print("live-extra ->", dst, flush=True)
+        except Exception as e:
+            print("live-extra failed:", repr(e), flush=True)
+        time.sleep(3600)
+
+
+import threading
+threading.Thread(target=live_loop, daemon=True).start()
+
 while True:
     try:
         print("update running…", flush=True)
