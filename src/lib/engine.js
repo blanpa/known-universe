@@ -1295,6 +1295,8 @@ function drawTransfer(A){
   }
 }
 
+// ---- view lock: keep a picked body centred while zooming / time-travelling ----
+let FOLLOW=null;
 // ---- interstellar routes: relativistic 1g brachistochrone to any cosmic target ----
 // accelerate at 1 g to the midpoint, flip, brake — the classic relativistic rocket.
 // Units: ly and years with c = 1, so g = 1.0323 ly/yr².
@@ -1847,6 +1849,8 @@ function updateHUD(){
   if(s!==lastInfo || isNav!==lastInfoNav){       // rebuild only on change (keeps the button clickable)
     lastInfo=s; lastInfoNav=isNav;
     if(s){ showInfo(s);
+      if(s===SUN||navWorld(s)) info.insertAdjacentHTML('beforeend',
+        `<button class="lockset">${FOLLOW===s?'🔓 Unlock view':'🔒 Lock & zoom'}</button>`);
       if(navPhys(s)) info.insertAdjacentHTML('beforeend',
         `<button class="navset">${isNav?'✓ Target set':'🎯 Set course'}</button>`);
       // interstellar route button on every cosmic target (solar bodies get Lambert instead)
@@ -2291,7 +2295,8 @@ cv.addEventListener('pointermove',e=>{
   }
   if(dragging){
     const dx=e.clientX-lx,dy=e.clientY-ly;moved+=Math.abs(dx)+Math.abs(dy);
-    if(panning){                                   // free pan — move the view centre
+    if(panning){                                   // free pan — move the view centre (breaks the lock)
+      FOLLOW=null;
       const sc=Math.max(S.camZ,camDist)/foc;
       tgtCtr.x+=(-camRight[0]*dx+camUp[0]*dy)*sc;
       tgtCtr.y+=(-camRight[1]*dx+camUp[1]*dy)*sc;
@@ -2356,7 +2361,7 @@ function zoomFactorAt(mx,my,f){
   // (NEAR shrinks with camZ so the glyph isn't culled at close range)
   const zmin=S.realScale?1e-7:0.003, zmax=S.realScale?6e7:16;
   tgtCamZ=Math.max(zmin,Math.min(zmax,tgtCamZ));
-  if(tgtCamZ<before){                            // zoom in → anchor on the cursor, not the centre
+  if(tgtCamZ<before && !FOLLOW){                 // zoom in → anchor on the cursor, not the centre (unless locked)
     const k=tgtCamZ/before;
     const x1=(mx-cx)*before/foc, y2=(cy-my)*before/foc;   // cursor on the focal plane (camera space)
     // camera->world needs the ROWS of the view rotation (camRight/camUp are its columns)
@@ -2442,6 +2447,13 @@ setPmVal();
 // ---- navigation controls ----
 document.getElementById('info').addEventListener('click',e=>{
   if(e.target.classList.contains('navset')){ navTarget=S.pinned||S.hover; showNav(true); }
+  if(e.target.classList.contains('lockset')){ const b=S.pinned||S.hover;
+    if(!b) return;
+    if(FOLLOW===b) FOLLOW=null;
+    else { const w=b===SUN?[0,0,0]:navWorld(b);
+      if(w){ tgtCtr.x=w[0]; tgtCtr.y=w[1]; tgtCtr.z=w[2]; FOLLOW=b;
+        S.autorot=false; syncToggle('t-rot',false); } }
+    lastInfo=undefined; dirty=true; }
   if(e.target.classList.contains('transferset')){ const b=S.pinned||S.hover;
     if(!b) return;
     if(b.rk!==undefined && (b.k||b.kd)){               // solar-system body → Lambert transfer
@@ -2624,6 +2636,7 @@ function doSearch(q){
          if(o.fy>S.year&&o.fy!==0) setYear(o.fy); focusOn(o); }
 }
 function aim(x,y,z,margin){        // travel: move the view centre onto the target
+  FOLLOW=null;
   tgtCtr.x=x; tgtCtr.y=y; tgtCtr.z=z;
   tgtCamZ=Math.max(scale(3e-6), margin);
   S.autorot=false; syncToggle('t-rot',false);
@@ -3097,6 +3110,10 @@ function glRender(){
 let last=0, lastGw=0;
 function frame(t){
   const dt=Math.min(0.05,(t-last)/1000||0); last=t;
+  if(FOLLOW){                            // locked body → view centre tracks it every frame
+    const w=FOLLOW===SUN?[0,0,0]:navWorld(FOLLOW);
+    if(w){ tgtCtr.x=w[0]; tgtCtr.y=w[1]; tgtCtr.z=w[2]; } else FOLLOW=null;
+  }
   if(S.autorot&&!dragging) tgtYaw+=dt*0.10;
   if(playing){
     playAcc+=dt;
@@ -3120,7 +3137,7 @@ function frame(t){
     if(keys.has('r')){mx+=camUp[0];my+=camUp[1];mz+=camUp[2];}
     if(keys.has('f')){mx-=camUp[0];my-=camUp[1];mz-=camUp[2];}
     tgtCtr.x+=mx*step; tgtCtr.y+=my*step; tgtCtr.z+=mz*step;
-    S.autorot=false; S.pinned=null;
+    S.autorot=false; S.pinned=null; FOLLOW=null;
   } else flySpeed=1;
   // GW ripples: keep animating at ~14 fps while a GW event is on screen
   if(gwOnScreen && t-lastGw>70){ lastGw=t; dirty=true; }
@@ -3354,7 +3371,7 @@ LIVE.onUpdate=()=>{ dirty=true; };
 startLive();
 if(UI.fac) UI.fac(facList);
 applyHash();
-try{console.log('Known Universe build 2026-07-12 11:14');}catch(e){}
+try{console.log('Known Universe build 2026-07-12 11:19');}catch(e){}
 initGL();
 loadGaia();
 loadExtragal();

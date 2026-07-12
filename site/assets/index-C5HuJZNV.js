@@ -48757,6 +48757,7 @@ function __run() {
 			}
 		}
 	}
+	let FOLLOW = null;
 	let ROUTE = null;
 	const G_LYR = 1.0323;
 	function route1g(Dly) {
@@ -49844,6 +49845,7 @@ function __run() {
 			lastInfoNav = isNav;
 			if (s) {
 				showInfo(s);
+				if (s === SUN || navWorld(s)) info.insertAdjacentHTML("beforeend", `<button class="lockset">${FOLLOW === s ? "🔓 Unlock view" : "🔒 Lock & zoom"}</button>`);
 				if (navPhys(s)) info.insertAdjacentHTML("beforeend", `<button class="navset">${isNav ? "✓ Target set" : "🎯 Set course"}</button>`);
 				if (navPhys(s) && s._e === void 0 && s.rk === void 0 && !s.lp && !s.iroute && !s.xfer) info.insertAdjacentHTML("beforeend", `<button class="transferset">${ROUTE && ROUTE.o === s ? "✕ Clear route" : "🚀 Route from Earth · 1g ship"}</button>`);
 			} else info.classList.remove("show");
@@ -50513,6 +50515,7 @@ function __run() {
 			const dx = e.clientX - lx, dy = e.clientY - ly;
 			moved += Math.abs(dx) + Math.abs(dy);
 			if (panning) {
+				FOLLOW = null;
 				const sc = Math.max(S.camZ, camDist) / foc;
 				tgtCtr.x += (-camRight[0] * dx + camUp[0] * dy) * sc;
 				tgtCtr.y += (-camRight[1] * dx + camUp[1] * dy) * sc;
@@ -50600,7 +50603,7 @@ function __run() {
 		tgtCamZ *= f;
 		const zmin = S.realScale ? 1e-7 : .003, zmax = S.realScale ? 6e7 : 16;
 		tgtCamZ = Math.max(zmin, Math.min(zmax, tgtCamZ));
-		if (tgtCamZ < before) {
+		if (tgtCamZ < before && !FOLLOW) {
 			const k = tgtCamZ / before;
 			const x1 = (mx - cx) * before / foc, y2 = (cy - my) * before / foc;
 			const cyw = Math.cos(S.yaw), syw = Math.sin(S.yaw), cpp = Math.cos(S.pitch), spp = Math.sin(S.pitch);
@@ -50737,6 +50740,28 @@ function __run() {
 		if (e.target.classList.contains("navset")) {
 			navTarget = S.pinned || S.hover;
 			showNav(true);
+		}
+		if (e.target.classList.contains("lockset")) {
+			const b = S.pinned || S.hover;
+			if (!b) return;
+			if (FOLLOW === b) FOLLOW = null;
+			else {
+				const w = b === SUN ? [
+					0,
+					0,
+					0
+				] : navWorld(b);
+				if (w) {
+					tgtCtr.x = w[0];
+					tgtCtr.y = w[1];
+					tgtCtr.z = w[2];
+					FOLLOW = b;
+					S.autorot = false;
+					syncToggle("t-rot", false);
+				}
+			}
+			lastInfo = void 0;
+			dirty = true;
 		}
 		if (e.target.classList.contains("transferset")) {
 			const b = S.pinned || S.hover;
@@ -51059,6 +51084,7 @@ function __run() {
 		}
 	}
 	function aim(x, y, z, margin) {
+		FOLLOW = null;
 		tgtCtr.x = x;
 		tgtCtr.y = y;
 		tgtCtr.z = z;
@@ -51926,6 +51952,18 @@ void main(){                                             // soft shoulder above 
 	function frame(t) {
 		const dt = Math.min(.05, (t - last) / 1e3 || 0);
 		last = t;
+		if (FOLLOW) {
+			const w = FOLLOW === SUN ? [
+				0,
+				0,
+				0
+			] : navWorld(FOLLOW);
+			if (w) {
+				tgtCtr.x = w[0];
+				tgtCtr.y = w[1];
+				tgtCtr.z = w[2];
+			} else FOLLOW = null;
+		}
 		if (S.autorot && !dragging) tgtYaw += dt * .1;
 		if (playing) {
 			playAcc += dt;
@@ -51984,6 +52022,7 @@ void main(){                                             // soft shoulder above 
 			tgtCtr.z += mz * step;
 			S.autorot = false;
 			S.pinned = null;
+			FOLLOW = null;
 		} else flySpeed = 1;
 		if (gwOnScreen && t - lastGw > 70) {
 			lastGw = t;
@@ -52493,7 +52532,7 @@ void main(){                                             // soft shoulder above 
 	if (UI.fac) UI.fac(facList);
 	applyHash();
 	try {
-		console.log("Known Universe build 2026-07-12 11:14");
+		console.log("Known Universe build 2026-07-12 11:19");
 	} catch (e) {}
 	initGL();
 	loadGaia();
@@ -53262,7 +53301,7 @@ delegate(["click", "keydown"]);
 //#endregion
 //#region src/components/MobileNav.svelte
 var root$2 = /* @__PURE__ */ from_html(`<!> <div class="ms-actions"><button>☉ Solar system</button> <button>🧭 Cosmic tour</button> <button>🔗 Share view</button> <button>⟲ Reset view</button></div> <!>`, 1);
-var root_1 = /* @__PURE__ */ from_html(`<div id="mobsheet"><div class="ms-head"><span> <small style="opacity:.5">· b11:14</small></span> <button class="ms-x">✕ Close</button></div> <div class="ms-body"><!></div></div>`);
+var root_1 = /* @__PURE__ */ from_html(`<div id="mobsheet"><div class="ms-head"><span> <small style="opacity:.5">· b11:19</small></span> <button class="ms-x">✕ Close</button></div> <div class="ms-body"><!></div></div>`);
 var root_2 = /* @__PURE__ */ from_html(`<div id="mobbar"><div><span>🔍</span>Search</div> <div><span>☰</span>Layers</div> <div><span>🕐</span>Time</div> <div class="mb"><span>🧭</span>Tour</div></div> <!>`, 1);
 function MobileNav($$anchor, $$props) {
 	push($$props, true);

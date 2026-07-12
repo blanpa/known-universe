@@ -108,9 +108,9 @@
   #navGo{margin-top:12px;width:100%;font-family:var(--mono);font-size:11px;letter-spacing:.08em;color:var(--cyan);
     background:rgba(79,214,200,.12);border:1px solid var(--cyanDim);border-radius:7px;padding:9px;cursor:pointer;transition:.15s}
   #navGo:hover{background:rgba(79,214,200,.22)}
-  #info .navset,#info .transferset{margin-top:10px;width:100%;font-family:var(--mono);font-size:10px;letter-spacing:.05em;color:var(--cyan);
+  #info .navset,#info .transferset,#info .lockset{margin-top:10px;width:100%;font-family:var(--mono);font-size:10px;letter-spacing:.05em;color:var(--cyan);
     background:rgba(79,214,200,.1);border:1px solid var(--cyanDim);border-radius:6px;padding:7px;cursor:pointer;transition:.15s}
-  #info .navset:hover,#info .transferset:hover{background:rgba(79,214,200,.2)}
+  #info .navset:hover,#info .transferset:hover,#info .lockset:hover{background:rgba(79,214,200,.2)}
   #hud-pm{top:16px;left:50%;transform:translateX(-50%);padding:11px 16px 12px;width:min(340px,calc(100vw - 32px))}
   #hud-pm .pm-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:9px}
   #hud-pm #pmVal{color:var(--cyan);font-size:14px;font-variant-numeric:tabular-nums}
