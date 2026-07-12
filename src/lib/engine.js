@@ -448,7 +448,7 @@ function render(){
   ctx.fillStyle=_vig; ctx.fillRect(0,0,W,H);
 
   camBasis();
-  NEAR = S.realScale ? Math.max(1e-12, S.camZ*0.02) : 0.05;
+  NEAR = S.realScale ? Math.max(1e-12, S.camZ*0.02) : Math.min(0.05, Math.max(0.004, S.camZ*0.35));
   // solar-system detail from the camera's real distance to the Sun (so it also
   // fades as you fly away from the centre, not only when you zoom out)
   solarA=lodA(camDist, 0.001, 0.1);              // full ≤0.001 pc, hidden ≥0.1 pc from Sun
@@ -736,8 +736,8 @@ function bodyPx(rk,depth){
   // but scaled by real RELATIVE radius so Jupiter>Earth>Mercury stays recognisable.
   const ratio=rk/6371;
   const de = S.realScale ? (depth/S.camZ)*3.2 : depth;   // real: normalise to the log framing range
-  // cap grows with the viewport (was 52px): diving at a body lets it fill ~a third of the screen
-  const sym = Math.max(2.0, Math.min(Math.min(W,H)*0.32,(0.28+Math.pow(ratio,0.42)*0.62)*foc*0.02/de));
+  // cap grows with the viewport (was 52px): diving at a body lets it nearly fill the screen
+  const sym = Math.max(2.0, Math.min(Math.min(W,H)*0.44,(0.28+Math.pow(ratio,0.42)*0.62)*foc*0.02/de));
   if(!S.realScale) return sym;
   // real scale: once the TRUE angular size is resolvable it wins — fly at a
   // planet and it grows to a disc, exactly as it would in reality
@@ -827,10 +827,13 @@ function drawSolar(alpha){
     }
     ctx.beginPath(); ctx.arc(p.x,p.y,px,0,6.2832);
     ctx.fillStyle=`rgba(${c[0]},${c[1]},${c[2]},${A})`; ctx.fill();
-    if(b.n==='Earth' && px>=16){                       // today's real Earth (EPIC/DSCOVR)
-      const im=epicImage();
+    if(b.n==='Earth' && px>=16){                       // the real Earth, live (GOES) or daily (EPIC)
+      const {im,live}=earthImage(px);
       if(im){ ctx.save(); ctx.beginPath(); ctx.arc(p.x,p.y,px,0,6.2832); ctx.clip();
-        ctx.drawImage(im, p.x-px, p.y-px, px*2, px*2); ctx.restore(); }
+        ctx.drawImage(im, p.x-px, p.y-px, px*2, px*2); ctx.restore();
+        if(px>70){ ctx.font='9px ui-monospace,monospace'; ctx.fillStyle=`rgba(160,200,240,${A*0.7})`;
+          ctx.fillText(live?'GOES-East GEOCOLOR · live (~10 min)':'NASA EPIC (DSCOVR) · daily', p.x+px+4, p.y+16); }
+      }
     }
     if(sel){ ctx.beginPath(); ctx.arc(p.x,p.y,px+7,0,6.2832);
       ctx.strokeStyle='rgba(79,214,200,.9)'; ctx.lineWidth=1.2; ctx.stroke(); }
@@ -1048,6 +1051,26 @@ function epicImage(){
     im.src=LIVE.epic.url;
   }
   return _epicImg;
+}
+// ---- GOES-19 GEOCOLOR full disk: a truly live Earth (new image every ~10 min) ----
+// The disk fills the frame edge-to-edge (measured); the small NOAA banner at the
+// bottom is left visible — it carries the real observation timestamp.
+let _goesImg=null,_goesLoading=false,_goesTs=0,_goesHi=false,_goesFail=0;
+function loadGoes(res){
+  if(_goesLoading) return;
+  _goesLoading=true;
+  const im=new Image(); im.crossOrigin='anonymous';
+  im.onload=()=>{ _goesImg=im; _goesTs=Date.now(); _goesHi=res>2000; _goesLoading=false; dirty=true; };
+  im.onerror=()=>{ _goesLoading=false; _goesFail++; };
+  im.src=`https://cdn.star.nesdis.noaa.gov/GOES19/ABI/FD/GEOCOLOR/${res}x${res}.jpg`
+        +'?t='+Math.floor(Date.now()/600000);          // 10-min cache-buster
+}
+function earthImage(px){
+  if(_goesFail>1) return {im:epicImage(), live:false};  // GOES unreachable → EPIC fallback
+  const wantHi=px>420;
+  if(!_goesImg || Date.now()-_goesTs>10*60*1000 || (wantHi&&!_goesHi))
+    loadGoes(wantHi?5424:1808);
+  return _goesImg ? {im:_goesImg, live:true} : {im:epicImage(), live:false};
 }
 // ---- live sunspots: SWPC active regions on the Sun glyph (orthographic on the disc) ----
 // screen-plane components of a world direction = orthographic sphere projection, and its
@@ -2325,9 +2348,9 @@ function zoomAt(mx,my,delta,deltaMode){
 function zoomFactorAt(mx,my,f){
   const before=tgtCamZ;
   tgtCamZ*=f;
-  // log mode used to stop at 0.9 — 0.12 lets you dive at a planet until its glyph
-  // fills the view (satellite shells, moons, sunspots need the room)
-  const zmin=S.realScale?1e-7:0.12, zmax=S.realScale?6e7:16;
+  // log mode used to stop at 0.9 — 0.02 lets you dive until a planet fills the view
+  // (NEAR shrinks with camZ so the glyph isn't culled at close range)
+  const zmin=S.realScale?1e-7:0.02, zmax=S.realScale?6e7:16;
   tgtCamZ=Math.max(zmin,Math.min(zmax,tgtCamZ));
   if(tgtCamZ<before){                            // zoom in → anchor on the cursor, not the centre
     const k=tgtCamZ/before;
@@ -3327,7 +3350,7 @@ LIVE.onUpdate=()=>{ dirty=true; };
 startLive();
 if(UI.fac) UI.fac(facList);
 applyHash();
-try{console.log('Known Universe build 2026-07-12 11:03');}catch(e){}
+try{console.log('Known Universe build 2026-07-12 11:08');}catch(e){}
 initGL();
 loadGaia();
 loadExtragal();
