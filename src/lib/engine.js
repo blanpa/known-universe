@@ -1369,16 +1369,26 @@ function drawSunspots(A, sp, spx){
   }
 }
 // ---- live satellites: CelesTrak TLEs, SGP4-propagated around the Earth glyph ----
+let SATCUR=0;                                          // rotating SGP4 budget cursor
 function drawSats(A){
   if(!LIVE.sats.length) return;
   const earth=PLANETS.find(p=>p.n==='Earth');
   if(!earth||!earth._e||!earth._p) return;
   const ep=earth._p, px=bodyPx(earth.rk,ep.depth);
   if(px<10) return;
-  const jd=solarJD(); let drawn=0;
+  const jd=solarJD(); let drawn=0, nSl=0;
   const LOG_LO=Math.log10(6600), LOG_HI=Math.log10(50000);
-  for(const s of LIVE.sats){
-    const e=satEcl(s,jd); if(!e) continue;
+  // SGP4 for the full catalogue (Starlink!) is too hot for every frame — propagate a
+  // rotating batch and draw the rest from last frame's position (full refresh ≲0.1 s)
+  const N=LIVE.sats.length, BUD=Math.min(N,1500);
+  const cNamed=`rgba(150,235,255,${A})`, cDef=`rgba(140,215,250,${A*0.7})`,
+        cSl=`rgba(168,196,232,${A*0.5})`, cOw=`rgba(196,176,232,${A*0.55})`;
+  for(let k=0;k<N;k++){
+    const s=LIVE.sats[k];
+    let e;
+    if(((k-SATCUR+N)%N)<BUD){ e=satEcl(s,jd); s._e3=e||null; }
+    else e=s._e3;                               // outside the batch: cached, or wait for it
+    if(!e) continue;
     const l=Math.hypot(e[0],e[1],e[2]); if(!isFinite(l)||l<6400) continue;
     let x,y;
     if(S.realScale){
@@ -1394,17 +1404,20 @@ function drawSats(A){
     }
     const named=s.iss||s.hst||s.css, sel=(s===S.hover||s===S.pinned);
     s.alt=l-6371; s.sat=true; s.kind='Satellite';
-    ctx.beginPath(); ctx.arc(x,y,named?2.4:1.1,0,6.2832);
-    ctx.fillStyle=named?`rgba(150,235,255,${A})`:`rgba(140,215,250,${A*0.7})`; ctx.fill();
+    if(s.sl) nSl++;
+    if(named){ ctx.beginPath(); ctx.arc(x,y,2.4,0,6.2832); ctx.fillStyle=cNamed; ctx.fill(); }
+    else { ctx.fillStyle=s.sl?cSl:s.ow?cOw:cDef; ctx.fillRect(x-0.9,y-0.9,1.8,1.8); }
     if(sel){ ctx.beginPath(); ctx.arc(x,y,7,0,6.2832); ctx.strokeStyle='rgba(79,214,200,.9)'; ctx.lineWidth=1.1; ctx.stroke(); }
     if(named||sel){ ctx.font='8.5px ui-monospace,monospace'; ctx.fillStyle=`rgba(160,230,255,${A*0.9})`;
       ctx.fillText(s.iss?'ISS':s.css?'CSS':s.hst?'Hubble':s.n, x+4, y-3); }
     solarProj.push({o:s,x,y,px:named?7:4});
     drawn++;
   }
+  SATCUR=N?(SATCUR+BUD)%N:0;
   if(drawn){
     if(px>13){ ctx.font='8.5px ui-monospace,monospace'; ctx.fillStyle=`rgba(140,215,250,${A*0.55})`;
-      ctx.fillText(drawn+' satellites · live', ep.x+px+4, ep.y+16); }
+      ctx.fillText(drawn.toLocaleString('en-US')+' satellites · live'
+        +(nSl?' · '+nSl.toLocaleString('en-US')+' Starlink':''), ep.x+px+4, ep.y+16); }
     dirty=true;                                        // they really move — keep animating while visible
   }
 }

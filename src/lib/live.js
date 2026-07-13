@@ -119,23 +119,21 @@ async function fetchNeos(){
 // CelesTrak temp-bans IPs that re-query a group more often than ~hourly, so the
 // TLE text is cached for 6 h in localStorage (and used stale if the fetch fails).
 function tleCache(){ try{ return JSON.parse(localStorage.getItem('ku_tle') || 'null'); }catch(e){ return null; } }
+const SAT_GROUPS = ['visual', 'stations', 'starlink', 'oneweb', 'gnss', 'geo'];
 async function fetchSats(){
-  let txt = null;
-  const c = tleCache();
-  if (c && Date.now() - c.ts < 6 * 3600e3) txt = c.txt;
-  if (!txt){
-    const parts = [];
-    for (const g of ['visual', 'stations']){
-      const t = await fetch(`https://celestrak.org/NORAD/elements/gp.php?GROUP=${g}&FORMAT=tle`)
-        .then(r => r.ok ? r.text() : null).catch(() => null);
-      if (t && t[0] !== '<') parts.push(t);             // 403 ban page is HTML
-    }
-    if (parts.length === 2){
-      txt = parts.join('\n');
-      try{ localStorage.setItem('ku_tle', JSON.stringify({ ts: Date.now(), txt })); }catch(e){}
-    } else if (c) txt = c.txt;                          // stale-if-error
-  }
-  if (!txt) return;
+  let c = tleCache();
+  if (!c || typeof c.groups !== 'object' || !c.groups) c = { groups: {} };   // migrate old {ts,txt} cache
+  let changed = false;
+  for (const g of SAT_GROUPS){
+    const e = c.groups[g];
+    if (e && Date.now() - e.ts < 6 * 3600e3) continue;   // per-group TTL: one failed group
+    const t = await fetch(`https://celestrak.org/NORAD/elements/gp.php?GROUP=${g}&FORMAT=tle`)
+      .then(r => r.ok ? r.text() : null).catch(() => null);
+    if (t && t[0] !== '<'){ c.groups[g] = { ts: Date.now(), txt: t }; changed = true; }   // 403 ban page is HTML
+  }                                                      // doesn't block the others (stale-if-error per group)
+  if (changed){ try{ localStorage.setItem('ku_tle', JSON.stringify(c)); }catch(e){} }
+  const txt = SAT_GROUPS.map(g => c.groups[g] ? c.groups[g].txt : '').join('\n');
+  if (!txt.trim()) return;
   const seen = new Set(), sats = [];
   {
     const lines = txt.split(/\r?\n/);
@@ -147,7 +145,7 @@ async function fetchSats(){
         seen.add(rec.satnum);
         const n = lines[i].trim();
         sats.push({ n, rec, iss: /ISS \(ZARYA\)/.test(n), hst: /^HST$/.test(n),
-          css: /CSS \(TIANHE\)/.test(n) });
+          css: /CSS \(TIANHE\)/.test(n), sl: /^STARLINK/i.test(n), ow: /^ONEWEB/i.test(n) });
         i += 2;
       }catch(e){}
     }

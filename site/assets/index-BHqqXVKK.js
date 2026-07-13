@@ -6719,27 +6719,35 @@ function tleCache() {
 		return null;
 	}
 }
+var SAT_GROUPS = [
+	"visual",
+	"stations",
+	"starlink",
+	"oneweb",
+	"gnss",
+	"geo"
+];
 async function fetchSats() {
-	let txt = null;
-	const c = tleCache();
-	if (c && Date.now() - c.ts < 6 * 36e5) txt = c.txt;
-	if (!txt) {
-		const parts = [];
-		for (const g of ["visual", "stations"]) {
-			const t = await fetch(`https://celestrak.org/NORAD/elements/gp.php?GROUP=${g}&FORMAT=tle`).then((r) => r.ok ? r.text() : null).catch(() => null);
-			if (t && t[0] !== "<") parts.push(t);
+	let c = tleCache();
+	if (!c || typeof c.groups !== "object" || !c.groups) c = { groups: {} };
+	let changed = false;
+	for (const g of SAT_GROUPS) {
+		const e = c.groups[g];
+		if (e && Date.now() - e.ts < 6 * 36e5) continue;
+		const t = await fetch(`https://celestrak.org/NORAD/elements/gp.php?GROUP=${g}&FORMAT=tle`).then((r) => r.ok ? r.text() : null).catch(() => null);
+		if (t && t[0] !== "<") {
+			c.groups[g] = {
+				ts: Date.now(),
+				txt: t
+			};
+			changed = true;
 		}
-		if (parts.length === 2) {
-			txt = parts.join("\n");
-			try {
-				localStorage.setItem("ku_tle", JSON.stringify({
-					ts: Date.now(),
-					txt
-				}));
-			} catch (e) {}
-		} else if (c) txt = c.txt;
 	}
-	if (!txt) return;
+	if (changed) try {
+		localStorage.setItem("ku_tle", JSON.stringify(c));
+	} catch (e) {}
+	const txt = SAT_GROUPS.map((g) => c.groups[g] ? c.groups[g].txt : "").join("\n");
+	if (!txt.trim()) return;
 	const seen = /* @__PURE__ */ new Set(), sats = [];
 	{
 		const lines = txt.split(/\r?\n/);
@@ -6758,7 +6766,9 @@ async function fetchSats() {
 					rec,
 					iss: /ISS \(ZARYA\)/.test(n),
 					hst: /^HST$/.test(n),
-					css: /CSS \(TIANHE\)/.test(n)
+					css: /CSS \(TIANHE\)/.test(n),
+					sl: /^STARLINK/i.test(n),
+					ow: /^ONEWEB/i.test(n)
 				});
 				i += 2;
 			} catch (e) {}
@@ -48877,6 +48887,7 @@ function __run() {
 			});
 		}
 	}
+	let SATCUR = 0;
 	function drawSats(A) {
 		if (!LIVE.sats.length) return;
 		const earth = PLANETS.find((p) => p.n === "Earth");
@@ -48884,10 +48895,17 @@ function __run() {
 		const ep = earth._p, px = bodyPx(earth.rk, ep.depth);
 		if (px < 10) return;
 		const jd = solarJD();
-		let drawn = 0;
+		let drawn = 0, nSl = 0;
 		const LOG_LO = Math.log10(6600), LOG_HI = Math.log10(5e4);
-		for (const s of LIVE.sats) {
-			const e = satEcl(s, jd);
+		const N = LIVE.sats.length, BUD = Math.min(N, 1500);
+		const cNamed = `rgba(150,235,255,${A})`, cDef = `rgba(140,215,250,${A * .7})`, cSl = `rgba(168,196,232,${A * .5})`, cOw = `rgba(196,176,232,${A * .55})`;
+		for (let k = 0; k < N; k++) {
+			const s = LIVE.sats[k];
+			let e;
+			if ((k - SATCUR + N) % N < BUD) {
+				e = satEcl(s, jd);
+				s._e3 = e || null;
+			} else e = s._e3;
 			if (!e) continue;
 			const l = Math.hypot(e[0], e[1], e[2]);
 			if (!isFinite(l) || l < 6400) continue;
@@ -48914,10 +48932,16 @@ function __run() {
 			s.alt = l - 6371;
 			s.sat = true;
 			s.kind = "Satellite";
-			ctx.beginPath();
-			ctx.arc(x, y, named ? 2.4 : 1.1, 0, 6.2832);
-			ctx.fillStyle = named ? `rgba(150,235,255,${A})` : `rgba(140,215,250,${A * .7})`;
-			ctx.fill();
+			if (s.sl) nSl++;
+			if (named) {
+				ctx.beginPath();
+				ctx.arc(x, y, 2.4, 0, 6.2832);
+				ctx.fillStyle = cNamed;
+				ctx.fill();
+			} else {
+				ctx.fillStyle = s.sl ? cSl : s.ow ? cOw : cDef;
+				ctx.fillRect(x - .9, y - .9, 1.8, 1.8);
+			}
 			if (sel) {
 				ctx.beginPath();
 				ctx.arc(x, y, 7, 0, 6.2832);
@@ -48938,11 +48962,12 @@ function __run() {
 			});
 			drawn++;
 		}
+		SATCUR = N ? (SATCUR + BUD) % N : 0;
 		if (drawn) {
 			if (px > 13) {
 				ctx.font = "8.5px ui-monospace,monospace";
 				ctx.fillStyle = `rgba(140,215,250,${A * .55})`;
-				ctx.fillText(drawn + " satellites · live", ep.x + px + 4, ep.y + 16);
+				ctx.fillText(drawn.toLocaleString("en-US") + " satellites · live" + (nSl ? " · " + nSl.toLocaleString("en-US") + " Starlink" : ""), ep.x + px + 4, ep.y + 16);
 			}
 			dirty = true;
 		}
@@ -53898,7 +53923,7 @@ function MobileNav($$anchor, $$props) {
 		var span = child(div_6);
 		var text = child(span);
 		var small = sibling(text);
-		small.textContent = `· b12:31`;
+		small.textContent = `· b12:40`;
 		reset(span);
 		var button = sibling(span, 2);
 		reset(div_6);
