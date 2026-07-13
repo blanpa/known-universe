@@ -50998,6 +50998,11 @@ function __run() {
 			cv.style.cursor = h ? "pointer" : "grab";
 		}
 	});
+	let lastTap = {
+		t: 0,
+		x: 0,
+		y: 0
+	}, lastTapFocusT = 0;
 	cv.addEventListener("pointerup", (e) => {
 		ptrs.delete(e.pointerId);
 		if (ptrs.size < 2) {
@@ -51008,6 +51013,20 @@ function __run() {
 		panning = false;
 		cv.classList.remove("drag");
 		if (moved < 5) {
+			if (e.pointerType === "touch" && !measureMode && !SURF.on) {
+				const now = performance.now();
+				if (now - lastTap.t < 350 && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < 40) {
+					lastTap.t = 0;
+					lastTapFocusT = now;
+					focusAt(e.clientX, e.clientY);
+					return;
+				}
+				lastTap = {
+					t: now,
+					x: e.clientX,
+					y: e.clientY
+				};
+			}
 			const hit = pick(e.clientX, e.clientY) || gpuPick(e.clientX, e.clientY);
 			if (measureMode) {
 				if (hit && hit !== SUNHIT) measurePick(hit);
@@ -51103,9 +51122,9 @@ function __run() {
 			tgtCtr.z += (Pz - tgtCtr.z) * (1 - k);
 		}
 	}
-	cv.addEventListener("dblclick", (e) => {
+	function focusAt(x, y) {
 		if (SURF.on) return;
-		const hit = pick(e.clientX, e.clientY) || gpuPick(e.clientX, e.clientY);
+		const hit = pick(x, y) || gpuPick(x, y);
 		if (!hit) return;
 		if (hit === SUNHIT || hit === SUN) {
 			focusSys = null;
@@ -51132,6 +51151,10 @@ function __run() {
 			}
 		}
 		dirty = true;
+	}
+	cv.addEventListener("dblclick", (e) => {
+		if (performance.now() - lastTapFocusT < 500) return;
+		focusAt(e.clientX, e.clientY);
 	});
 	cv.addEventListener("pointercancel", (e) => {
 		ptrs.delete(e.pointerId);
@@ -53152,7 +53175,7 @@ var root$9 = /* @__PURE__ */ from_html(`<div class="panel"><div class="label">St
 var root_1$2 = /* @__PURE__ */ from_html(`<div><span></span><span class="sw"></span></div>`);
 var root_2$2 = /* @__PURE__ */ from_html(`<div><div class="ctl-h"></div> <!></div>`);
 var root_3$1 = /* @__PURE__ */ from_html(`<div><span class="cdot"></span> <span> </span><span class="cn"> </span></div>`);
-var root_4$1 = /* @__PURE__ */ from_html(`<!> <div class="panel"><!> <div class="ctl-inst"><div class="label" style="margin-bottom:8px">Discovery instrument</div> <div><span>colour by it</span><span class="sw"></span></div> <div class="chips"></div></div> <div class="hint" style="font-size:10px;color:var(--dim);margin-top:6px;font-style:italic;line-height:1.6">Drag orbit · right/middle-drag pan · Ctrl+drag dolly<br/>Scroll zoom to cursor · dbl-click focus · WASD fly<br/>[.] frame selection · [Home] reset · [Esc] deselect</div></div>`, 1);
+var root_4$1 = /* @__PURE__ */ from_html(`<!> <div class="panel"><!> <div class="ctl-inst"><div class="label" style="margin-bottom:8px">Discovery instrument</div> <div><span>colour by it</span><span class="sw"></span></div> <div class="chips"></div></div> <div class="hint" style="font-size:10px;color:var(--dim);margin-top:6px;font-style:italic;line-height:1.6">Drag orbit · right/middle-drag pan · Ctrl+drag dolly<br/>Scroll zoom to cursor · dbl-click/tap focus · WASD fly<br/>[.] frame selection · [Home] reset · [Esc] deselect</div></div>`, 1);
 function Controls($$anchor, $$props) {
 	push($$props, true);
 	const $timeBar = () => store_get(timeBar, "$timeBar", $$stores);
@@ -53819,7 +53842,7 @@ delegate(["click", "keydown"]);
 //#endregion
 //#region src/components/MobileNav.svelte
 var root$2 = /* @__PURE__ */ from_html(`<!> <div class="ms-actions"><button>☉ Solar system</button> <button>🧭 Cosmic tour</button> <button>🔗 Share view</button> <button>⟲ Reset view</button></div> <!>`, 1);
-var root_1 = /* @__PURE__ */ from_html(`<div id="mobsheet"><div class="ms-head"><span> <small style="opacity:.5">· b11:57</small></span> <button class="ms-x">✕ Close</button></div> <div class="ms-body"><!></div></div>`);
+var root_1 = /* @__PURE__ */ from_html(`<div id="mobsheet"><div class="ms-head"><span> <small style="opacity:.5"></small></span> <button class="ms-x">✕ Close</button></div> <div class="ms-body"><!></div></div>`);
 var root_2 = /* @__PURE__ */ from_html(`<div id="mobbar"><div><span>🔍</span>Search</div> <div><span>☰</span>Layers</div> <div><span>🕐</span>Time</div> <div class="mb"><span>🧭</span>Tour</div></div> <!>`, 1);
 function MobileNav($$anchor, $$props) {
 	push($$props, true);
@@ -53857,7 +53880,8 @@ function MobileNav($$anchor, $$props) {
 		var div_6 = child(div_5);
 		var span = child(div_6);
 		var text = child(span);
-		next();
+		var small = sibling(text);
+		small.textContent = `· b11:18`;
 		reset(span);
 		var button = sibling(span, 2);
 		reset(div_6);

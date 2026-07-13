@@ -7,4 +7,5 @@ export default defineConfig({
   plugins: [svelte(), viteSingleFile()],
   publicDir: false,
   build: { outDir: 'dist-artifact', emptyOutDir: true, minify: false },
+  define: { __BUILD__: JSON.stringify('b' + new Date().toTimeString().slice(0, 5)) },
 });

@@ -2558,10 +2558,17 @@ cv.addEventListener('pointermove',e=>{
     cv.style.cursor=h?'pointer':'grab';
   }
 });
+let lastTap={t:0,x:0,y:0}, lastTapFocusT=0;   // touch double-tap (dblclick is unreliable on mobile)
 cv.addEventListener('pointerup',e=>{
   ptrs.delete(e.pointerId); if(ptrs.size<2){ pinching=false; pinchD=0; }
   dragging=false;panning=false;cv.classList.remove('drag');
   if(moved<5){
+    if(e.pointerType==='touch'&&!measureMode&&!SURF.on){
+      const now=performance.now();
+      if(now-lastTap.t<350 && Math.hypot(e.clientX-lastTap.x,e.clientY-lastTap.y)<40){
+        lastTap.t=0; lastTapFocusT=now; focusAt(e.clientX,e.clientY); return; }
+      lastTap={t:now,x:e.clientX,y:e.clientY};
+    }
     const hit=pick(e.clientX,e.clientY) || gpuPick(e.clientX,e.clientY);
     if(measureMode){ if(hit&&hit!==SUNHIT) measurePick(hit); return; }
     if(hit===SUNHIT){ focusSys=null; enterSolar(); return; }
@@ -2626,10 +2633,10 @@ function zoomFactorAt(mx,my,f){
     tgtCtr.x+=(Px-tgtCtr.x)*(1-k); tgtCtr.y+=(Py-tgtCtr.y)*(1-k); tgtCtr.z+=(Pz-tgtCtr.z)*(1-k);
   }
 }
-// CAD-style double-click: focus the object under the cursor (planets: focus = lock)
-cv.addEventListener('dblclick',e=>{
+// CAD-style double-click / double-tap: focus the object under the cursor (planets: focus = lock)
+function focusAt(x,y){
   if(SURF.on) return;
-  const hit=pick(e.clientX,e.clientY)||gpuPick(e.clientX,e.clientY);
+  const hit=pick(x,y)||gpuPick(x,y);
   if(!hit) return;
   if(hit===SUNHIT||hit===SUN){ focusSys=null; enterSolar(); return; }
   if(!hit.gpick) S.pinned=hit;
@@ -2639,6 +2646,10 @@ cv.addEventListener('dblclick',e=>{
   if(w){ aim(w[0],w[1],w[2], Math.min(tgtCamZ, scale(3e-6)));
     if(hit._e!==undefined){ FOLLOW=hit; lastInfo=undefined; } }
   dirty=true;
+}
+cv.addEventListener('dblclick',e=>{
+  if(performance.now()-lastTapFocusT<500) return;   // touch path already handled this pair of taps
+  focusAt(e.clientX,e.clientY);
 });
 cv.addEventListener('pointercancel',e=>{ ptrs.delete(e.pointerId); if(ptrs.size<2){pinching=false;pinchD=0;} dragging=false; });
 cv.addEventListener('wheel',e=>{e.preventDefault();

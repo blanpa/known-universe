@@ -66,6 +66,6 @@
     </div>
   </div>
   <div class="hint" style="font-size:10px;color:var(--dim);margin-top:6px;font-style:italic;line-height:1.6">
-    Drag orbit · right/middle-drag pan · Ctrl+drag dolly<br>Scroll zoom to cursor · dbl-click focus · WASD fly<br>[.] frame selection · [Home] reset · [Esc] deselect
+    Drag orbit · right/middle-drag pan · Ctrl+drag dolly<br>Scroll zoom to cursor · dbl-click/tap focus · WASD fly<br>[.] frame selection · [Home] reset · [Esc] deselect
   </div>
 </div>
