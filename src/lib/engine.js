@@ -2289,11 +2289,9 @@ function bhInit(){
   gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
   gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
-  const i=0.2, ro=-0.14, ci=Math.cos(i), si=Math.sin(i), cr=Math.cos(ro), sr=Math.sin(ro);   // near edge-on, Gargantua-style
   _bhgl={cv:cv2,gl,pr,vb,tex,capCv:document.createElement('canvas'),
     aP:gl.getAttribLocation(pr,'aP'),uT:gl.getUniformLocation(pr,'uT'),
-    uBg:gl.getUniformLocation(pr,'uBg'),uBgOk:gl.getUniformLocation(pr,'uBgOk'),
-    tilt:[cr,ci*sr,si*sr, -sr,ci*cr,si*cr, 0,-si,ci]};   // Rx(incl)·Rz(roll), column-major
+    uBg:gl.getUniformLocation(pr,'uBg'),uBgOk:gl.getUniformLocation(pr,'uBgOk')};
   _bhFails=0;
   return _bhgl;
 }
@@ -2320,7 +2318,16 @@ function bhRender(x,y,rpx){
   gl.bindBuffer(gl.ARRAY_BUFFER,g.vb);
   gl.enableVertexAttribArray(g.aP);
   gl.vertexAttribPointer(g.aP,2,gl.FLOAT,false,0,0);
-  gl.uniformMatrix3fv(g.uT,false,g.tilt);
+  // the disk lies in the GALACTIC PLANE (world-fixed): orbiting the camera really
+  // changes the view — edge-on from the plane, face-on from the galactic pole
+  const V=globeViewRows();                       // world→camera rows (yaw/pitch)
+  const n=NGP, u=GC;                             // disk normal = galactic north; GC ⊥ NGP
+  const w=[n[1]*u[2]-n[2]*u[1], n[2]*u[0]-n[0]*u[2], n[0]*u[1]-n[1]*u[0]];
+  const B=[u,n,w];                               // world→BH rows (disk plane y=0)
+  const M=new Array(9);                          // camera→BH = B·Vᵀ, column-major for GLSL
+  for(let i2=0;i2<3;i2++) for(let j=0;j<3;j++){
+    M[j*3+i2]=B[i2][0]*V[j][0]+B[i2][1]*V[j][1]+B[i2][2]*V[j][2]; }
+  gl.uniformMatrix3fv(g.uT,false,M);
   gl.bindTexture(gl.TEXTURE_2D,g.tex);
   gl.uniform1i(g.uBg,0); gl.uniform1f(g.uBgOk,bgOk);
   gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
