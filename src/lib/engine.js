@@ -848,7 +848,8 @@ function drawSolar(alpha){
         if(im){ ctx.save(); ctx.beginPath(); ctx.arc(p.x,p.y,px,0,6.2832); ctx.clip();
           ctx.drawImage(im, p.x-px, p.y-px, px*2, px*2); ctx.restore();
           credit=(live?'GOES-East GEOCOLOR · live (~10 min)':'NASA EPIC (DSCOVR) · daily')
-            +(_gbl&&_gbl.gl&&!_gbl.texReady?' — 3D globe loading…':''); }
+            +(_gbl&&_gbl.gl&&!_gbl.texReady?' — 3D globe loading…'
+              :_gbl&&!_gbl.gl?' — fixed view (3D globe unavailable: WebGL)':''); }
       }
       if(credit && px>70){ ctx.font='9px ui-monospace,monospace'; ctx.fillStyle=`rgba(160,200,240,${A*0.7})`;
         if(p.x+px+8<W) ctx.fillText(credit, p.x+px+4, p.y+16);
@@ -1109,17 +1110,26 @@ function globeModelRows(jd){
   return [[ct,-st,0],[-se*st,-se*ct,ce],[ce*st,ce*ct,se]];  // world ← ecl ← equatorial ← geographic
 }
 const rows2col=r=>[r[0][0],r[1][0],r[2][0], r[0][1],r[1][1],r[2][1], r[0][2],r[1][2],r[2][2]];
+let _gblFails=0, _gblNextTry=0;
 function globeInit(){
-  if(_gbl!==null) return _gbl.gl?_gbl:null;
+  if(_gbl!==null){
+    if(_gbl.gl) return _gbl;
+    // context/link failures are often transient (driver hiccup, context limit) —
+    // retry with a fresh canvas instead of caching the failure forever
+    if(_gblFails>=5 || performance.now()<_gblNextTry) return null;
+    _gbl=null;
+  }
+  const fail=msg=>{ _gbl={gl:null}; _gblFails++; _gblNextTry=performance.now()+4000;
+    try{console.warn(msg);}catch(e){} return null; };
   const cv2=document.createElement('canvas');
   const gl=cv2.getContext('webgl',{alpha:true,antialias:true});
-  if(!gl){ _gbl={gl:null}; try{console.warn('globe: no WebGL context');}catch(e){} return null; }
+  if(!gl) return fail('globe: no WebGL context');
   const mk=(t,src)=>{ const sh=gl.createShader(t); gl.shaderSource(sh,src); gl.compileShader(sh);
     if(!gl.getShaderParameter(sh,gl.COMPILE_STATUS)){ console.warn(gl.getShaderInfoLog(sh)); return null; } return sh; };
   const vsh=mk(gl.VERTEX_SHADER,`attribute vec3 aP; uniform mat3 uV,uM; varying vec3 vS;
     void main(){ vS=aP; vec3 q=uV*(uM*aP); gl_Position=vec4(q.x,q.y,-q.z*0.5,1.0); }`);
   const fsh=mk(gl.FRAGMENT_SHADER,`precision mediump float; varying vec3 vS;
-    uniform mat3 uV,uM; uniform vec3 uSun; uniform sampler2D uT;
+    uniform highp mat3 uV,uM; uniform vec3 uSun; uniform sampler2D uT;
     void main(){
       vec3 n=normalize(vS);
       vec2 uv=vec2(0.5+atan(n.y,n.x)/6.2831853, 0.5-asin(clamp(n.z,-1.0,1.0))/3.14159265);
@@ -1134,9 +1144,10 @@ function globeInit(){
       col+=vec3(0.10,0.22,0.45)*pow(1.0-clamp(vn.z,0.0,1.0),3.0)*(0.25+0.75*day)*0.35;
       gl_FragColor=vec4(col,1.0);
     }`);
-  if(!vsh||!fsh){ _gbl={gl:null}; try{console.warn('globe: shader compile failed');}catch(e){} return null; }
+  if(!vsh||!fsh) return fail('globe: shader compile failed');
   const pr=gl.createProgram(); gl.attachShader(pr,vsh); gl.attachShader(pr,fsh); gl.linkProgram(pr);
-  if(!gl.getProgramParameter(pr,gl.LINK_STATUS)){ _gbl={gl:null}; try{console.warn('globe: link failed');}catch(e){} return null; }
+  if(!gl.getProgramParameter(pr,gl.LINK_STATUS)) return fail('globe: link failed');
+  _gblFails=0;
   const ST=48,SL=96,pos=[],idx=[];
   for(let i=0;i<=ST;i++){ const ph=Math.PI*(i/ST-0.5), cp2=Math.cos(ph);
     for(let j=0;j<=SL;j++){ const la=2*Math.PI*j/SL;
@@ -1164,9 +1175,11 @@ function globeInit(){
 // stitch the GIBS level-3 equirect mosaic (10×5 tiles of 512px) into the texture
 function globeTexture(){
   const g=_gbl; if(!g||g.loading||g.texReady) return;
-  g.loading=true;
+  if(g.nextTexTry && performance.now()<g.nextTexTry) return;   // full ladder failed: back off,
+  g.loading=true;                                              // don't restart 50 fetches per frame
   const tryDay=off=>{
-    if(off>4){ g.loading=false; return; }
+    if(off>4){ g.loading=false; g.nextTexTry=performance.now()+30000;
+      try{console.warn('globe: mosaic unavailable, retrying in 30 s');}catch(e){} return; }
     const date=new Date(Date.now()-off*86400000).toISOString().slice(0,10);
     const cnv=document.createElement('canvas'); cnv.width=5120; cnv.height=2560;
     const c2=cnv.getContext('2d');
