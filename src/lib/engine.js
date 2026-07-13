@@ -1004,20 +1004,49 @@ function drawCME(A){
     const v=[d[1]*u[2]-d[2]*u[1], d[2]*u[0]-d[0]*u[2], d[0]*u[1]-d[1]*u[0]];
     const col=c.v>=800?[255,96,80]:c.v>=500?[255,150,80]:[255,200,110];
     const H=Math.min(1.2,c.half*D2R), cH=Math.cos(H), sH=Math.sin(H);
-    // expanding shell + two trailing wake shells
-    for(const [rf,aw] of [[1,0.55],[0.78,0.28],[0.55,0.13]]){
-      const r=rAU*rf; if(r<0.11) continue;
-      ctx.beginPath(); let first=true;
-      for(let k=0;k<=48;k++){ const th=k/48*6.2832, ct=Math.cos(th), st=Math.sin(th);
-        const ex=r*(cH*d[0]+sH*(ct*u[0]+st*v[0])), ey=r*(cH*d[1]+sH*(ct*u[1]+st*v[1])), ez=r*(cH*d[2]+sH*(ct*u[2]+st*v[2]));
-        const w=eclToWorld(ex,ey,ez), p=project(w[0],w[1],w[2]);
-        if(offscr(p)){first=true;continue;}
-        if(first){ctx.moveTo(p.x,p.y);first=false;}else ctx.lineTo(p.x,p.y);
-      }
-      if(rf===1){ ctx.fillStyle=`rgba(${col[0]},${col[1]},${col[2]},${A*fade*0.07})`; ctx.fill(); }
-      ctx.strokeStyle=`rgba(${col[0]},${col[1]},${col[2]},${A*fade*aw})`;
-      ctx.lineWidth=rf===1?1.4:0.8; ctx.stroke();
+    if(rAU<0.11) continue;
+    // a CME is a directed plasma cone, so draw one: translucent fan from the Sun
+    // that brightens toward the shock front — not a stack of concentric rings
+    const sunp=project(0,0,0);
+    const fw=eclToWorld(rAU*d[0],rAU*d[1],rAU*d[2]), fp=project(fw[0],fw[1],fw[2]);
+    const rim=[]; let rimVis=0;
+    for(let k=0;k<=48;k++){ const th=k/48*6.2832, ct=Math.cos(th), st=Math.sin(th);
+      const ex=rAU*(cH*d[0]+sH*(ct*u[0]+st*v[0])), ey=rAU*(cH*d[1]+sH*(ct*u[1]+st*v[1])), ez=rAU*(cH*d[2]+sH*(ct*u[2]+st*v[2]));
+      const w=eclToWorld(ex,ey,ez), p=project(w[0],w[1],w[2]);
+      if(p.depth<=NEAR||offscr(p)){ rim.push(null); continue; }
+      rim.push(p); rimVis++;
     }
+    if(sunp.depth>NEAR && !offscr(sunp) && fp.depth>NEAR && !offscr(fp) && rimVis===49){
+      const g=ctx.createLinearGradient(sunp.x,sunp.y,fp.x,fp.y);
+      g.addColorStop(0,`rgba(${col[0]},${col[1]},${col[2]},0)`);
+      g.addColorStop(0.6,`rgba(${col[0]},${col[1]},${col[2]},${A*fade*0.09})`);
+      g.addColorStop(0.93,`rgba(${col[0]},${col[1]},${col[2]},${A*fade*0.26})`);
+      g.addColorStop(1,`rgba(${col[0]},${col[1]},${col[2]},0)`);
+      ctx.beginPath(); ctx.moveTo(sunp.x,sunp.y);
+      for(const p of rim) ctx.lineTo(p.x,p.y);
+      ctx.closePath(); ctx.fillStyle=g; ctx.fill();
+    }
+    if(sunp.depth>NEAR){                     // radial streaks: the direction reads at a glance
+      ctx.lineWidth=1.1; ctx.strokeStyle=`rgba(${col[0]},${col[1]},${col[2]},${A*fade*0.38})`;
+      ctx.beginPath();
+      for(let i=0;i<12;i++){
+        const th=i/12*6.2832+0.35, ct=Math.cos(th), st=Math.sin(th);
+        const mH=H*(0.25+((i*17)%13)/13*0.72), cM=Math.cos(mH), sM=Math.sin(mH);
+        const dx=cM*d[0]+sM*(ct*u[0]+st*v[0]), dy=cM*d[1]+sM*(ct*u[1]+st*v[1]), dz=cM*d[2]+sM*(ct*u[2]+st*v[2]);
+        const r2=rAU*(0.72+((i*37)%23)/23*0.2), r1=r2*0.42;
+        const w1=eclToWorld(r1*dx,r1*dy,r1*dz), p1=project(w1[0],w1[1],w1[2]);
+        const w2=eclToWorld(r2*dx,r2*dy,r2*dz), p2=project(w2[0],w2[1],w2[2]);
+        if(p1.depth>NEAR&&p2.depth>NEAR&&!offscr(p1)&&!offscr(p2)){ ctx.moveTo(p1.x,p1.y); ctx.lineTo(p2.x,p2.y); }
+      }
+      ctx.stroke();
+    }
+    ctx.beginPath(); let first=true;         // the shock front itself: one bright rim + soft glow
+    for(const p of rim){ if(!p){first=true;continue;}
+      if(first){ctx.moveTo(p.x,p.y);first=false;}else ctx.lineTo(p.x,p.y); }
+    ctx.strokeStyle=`rgba(${col[0]},${col[1]},${col[2]},${A*fade*0.14})`;
+    ctx.lineWidth=5.5; ctx.stroke();
+    ctx.strokeStyle=`rgba(${col[0]},${col[1]},${col[2]},${A*fade*0.75})`;
+    ctx.lineWidth=1.7; ctx.stroke();
     // label + pick target at the front's centre
     const tw=eclToWorld(rAU*d[0],rAU*d[1],rAU*d[2]), tp=project(tw[0],tw[1],tw[2]);
     if(tp.depth>NEAR){
@@ -3690,6 +3719,8 @@ api.liveStats=()=>{ const y=new Date().getFullYear();
   let n=0; for(const st of STARS) if(st.fy===y) n++;
   return {exoY:n, year:y}; };
 LIVE.onUpdate=()=>{ dirty=true; };
+// headless-verify hook: lets the test harness inspect/inject live-layer state
+if(typeof window!=='undefined') window.__ku={api, live:LIVE, redraw:()=>{dirty=true;}};
 startLive();
 if(UI.fac) UI.fac(facList);
 // real scale is the default view — boot into it via the tested toggle conversion,

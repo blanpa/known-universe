@@ -48241,35 +48241,70 @@ function __run() {
 				110
 			];
 			const H = Math.min(1.2, c.half * D2R), cH = Math.cos(H), sH = Math.sin(H);
-			for (const [rf, aw] of [
-				[1, .55],
-				[.78, .28],
-				[.55, .13]
-			]) {
-				const r = rAU * rf;
-				if (r < .11) continue;
+			if (rAU < .11) continue;
+			const sunp = project(0, 0, 0);
+			const fw = eclToWorld(rAU * d[0], rAU * d[1], rAU * d[2]), fp = project(fw[0], fw[1], fw[2]);
+			const rim = [];
+			let rimVis = 0;
+			for (let k = 0; k <= 48; k++) {
+				const th = k / 48 * 6.2832, ct = Math.cos(th), st = Math.sin(th);
+				const w = eclToWorld(rAU * (cH * d[0] + sH * (ct * u[0] + st * v[0])), rAU * (cH * d[1] + sH * (ct * u[1] + st * v[1])), rAU * (cH * d[2] + sH * (ct * u[2] + st * v[2]))), p = project(w[0], w[1], w[2]);
+				if (p.depth <= NEAR || offscr(p)) {
+					rim.push(null);
+					continue;
+				}
+				rim.push(p);
+				rimVis++;
+			}
+			if (sunp.depth > NEAR && !offscr(sunp) && fp.depth > NEAR && !offscr(fp) && rimVis === 49) {
+				const g = ctx.createLinearGradient(sunp.x, sunp.y, fp.x, fp.y);
+				g.addColorStop(0, `rgba(${col[0]},${col[1]},${col[2]},0)`);
+				g.addColorStop(.6, `rgba(${col[0]},${col[1]},${col[2]},${A * fade * .09})`);
+				g.addColorStop(.93, `rgba(${col[0]},${col[1]},${col[2]},${A * fade * .26})`);
+				g.addColorStop(1, `rgba(${col[0]},${col[1]},${col[2]},0)`);
 				ctx.beginPath();
-				let first = true;
-				for (let k = 0; k <= 48; k++) {
-					const th = k / 48 * 6.2832, ct = Math.cos(th), st = Math.sin(th);
-					const w = eclToWorld(r * (cH * d[0] + sH * (ct * u[0] + st * v[0])), r * (cH * d[1] + sH * (ct * u[1] + st * v[1])), r * (cH * d[2] + sH * (ct * u[2] + st * v[2]))), p = project(w[0], w[1], w[2]);
-					if (offscr(p)) {
-						first = true;
-						continue;
+				ctx.moveTo(sunp.x, sunp.y);
+				for (const p of rim) ctx.lineTo(p.x, p.y);
+				ctx.closePath();
+				ctx.fillStyle = g;
+				ctx.fill();
+			}
+			if (sunp.depth > NEAR) {
+				ctx.lineWidth = 1.1;
+				ctx.strokeStyle = `rgba(${col[0]},${col[1]},${col[2]},${A * fade * .38})`;
+				ctx.beginPath();
+				for (let i = 0; i < 12; i++) {
+					const th = i / 12 * 6.2832 + .35, ct = Math.cos(th), st = Math.sin(th);
+					const mH = H * (.25 + i * 17 % 13 / 13 * .72), cM = Math.cos(mH), sM = Math.sin(mH);
+					const dx = cM * d[0] + sM * (ct * u[0] + st * v[0]), dy = cM * d[1] + sM * (ct * u[1] + st * v[1]), dz = cM * d[2] + sM * (ct * u[2] + st * v[2]);
+					const r2 = rAU * (.72 + i * 37 % 23 / 23 * .2), r1 = r2 * .42;
+					const w1 = eclToWorld(r1 * dx, r1 * dy, r1 * dz), p1 = project(w1[0], w1[1], w1[2]);
+					const w2 = eclToWorld(r2 * dx, r2 * dy, r2 * dz), p2 = project(w2[0], w2[1], w2[2]);
+					if (p1.depth > NEAR && p2.depth > NEAR && !offscr(p1) && !offscr(p2)) {
+						ctx.moveTo(p1.x, p1.y);
+						ctx.lineTo(p2.x, p2.y);
 					}
-					if (first) {
-						ctx.moveTo(p.x, p.y);
-						first = false;
-					} else ctx.lineTo(p.x, p.y);
 				}
-				if (rf === 1) {
-					ctx.fillStyle = `rgba(${col[0]},${col[1]},${col[2]},${A * fade * .07})`;
-					ctx.fill();
-				}
-				ctx.strokeStyle = `rgba(${col[0]},${col[1]},${col[2]},${A * fade * aw})`;
-				ctx.lineWidth = rf === 1 ? 1.4 : .8;
 				ctx.stroke();
 			}
+			ctx.beginPath();
+			let first = true;
+			for (const p of rim) {
+				if (!p) {
+					first = true;
+					continue;
+				}
+				if (first) {
+					ctx.moveTo(p.x, p.y);
+					first = false;
+				} else ctx.lineTo(p.x, p.y);
+			}
+			ctx.strokeStyle = `rgba(${col[0]},${col[1]},${col[2]},${A * fade * .14})`;
+			ctx.lineWidth = 5.5;
+			ctx.stroke();
+			ctx.strokeStyle = `rgba(${col[0]},${col[1]},${col[2]},${A * fade * .75})`;
+			ctx.lineWidth = 1.7;
+			ctx.stroke();
 			const tw = eclToWorld(rAU * d[0], rAU * d[1], rAU * d[2]), tp = project(tw[0], tw[1], tw[2]);
 			if (tp.depth > NEAR) {
 				if (!c._o) c._o = {
@@ -53109,6 +53144,13 @@ void main(){                                             // soft shoulder above 
 	LIVE.onUpdate = () => {
 		dirty = true;
 	};
+	if (typeof window !== "undefined") window.__ku = {
+		api,
+		live: LIVE,
+		redraw: () => {
+			dirty = true;
+		}
+	};
 	startLive();
 	if (UI.fac) UI.fac(facList);
 	if (!(typeof location !== "undefined" && location.hash || "").includes("v1_")) clickToggle("t-real");
@@ -53923,7 +53965,7 @@ function MobileNav($$anchor, $$props) {
 		var span = child(div_6);
 		var text = child(span);
 		var small = sibling(text);
-		small.textContent = `· b12:40`;
+		small.textContent = `· b13:06`;
 		reset(span);
 		var button = sibling(span, 2);
 		reset(div_6);
