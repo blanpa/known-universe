@@ -12,6 +12,7 @@ const cv = document.getElementById('sky'), ctx = cv.getContext('2d');
 // label halo: a thin dark outline keeps text readable over dense starfields
 const _rawFillText = ctx.fillText.bind(ctx);
 ctx.fillText = (s, x, y, mw) => {
+  if (!S.labels) return;                          // clean view: every canvas label goes through here
   const pw = ctx.lineWidth, ps = ctx.strokeStyle, pj = ctx.lineJoin;
   ctx.lineWidth = 2.4; ctx.lineJoin = 'round'; ctx.strokeStyle = 'rgba(5,7,14,0.75)';
   mw === undefined ? ctx.strokeText(s, x, y) : ctx.strokeText(s, x, y, mw);
@@ -39,7 +40,7 @@ const S={ yaw:0.5, pitch:-0.5, camZ:3.0, year:2026, tOffsetDays:0,
   autorot:false, freelook:false, rings:true, veil:true, size:true, galaxies:true,
   hyg:true, gpu:true, gaia:true, web:true, qso:true, ob:true, vars:true, edge:true, facColor:false, facHidden:new Set(),
   solar:true, moons:true, mw:true, mw3d:true, dso:true, psr:true, oclu:true, ast:true, tno:true, probes:true, helio:true, belt:true, con:true, hz:true, lag:true, lens:true, pm:false, pmYears:0,
-  cme:true, neo:true, sat:true, sunAR:true, met:true, iso:true,
+  cme:true, neo:true, sat:true, sunAR:true, met:true, iso:true, eht:false, labels:true,
   realScale:false,
   hover:null, pinned:null, focusStar:null, focusT:0 };
 
@@ -2333,6 +2334,34 @@ function bhRender(x,y,rpx){
   gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
   return g.cv;
 }
+// the EHT 2022 image of Sgr A*: a fuzzy face-on ring with three bright knots —
+// the MEASURED view from Earth, so it deliberately doesn't rotate with the camera
+function drawEHT(x,y,r,A){
+  ctx.save();
+  let bg=ctx.createRadialGradient(x,y,0,x,y,r*2.3);
+  bg.addColorStop(0,`rgba(8,3,1,${A*0.9})`); bg.addColorStop(0.72,`rgba(8,3,1,${A*0.55})`);
+  bg.addColorStop(1,'rgba(8,3,1,0)');
+  ctx.fillStyle=bg; ctx.beginPath(); ctx.arc(x,y,r*2.3,0,6.2832); ctx.fill();
+  const ring=ctx.createRadialGradient(x,y,r*0.25,x,y,r*1.8);
+  ring.addColorStop(0,'rgba(30,6,0,0)');
+  ring.addColorStop(0.32,`rgba(120,30,4,${A*0.5})`);
+  ring.addColorStop(0.5,`rgba(255,118,18,${A*0.9})`);
+  ring.addColorStop(0.62,`rgba(255,170,48,${A*0.95})`);
+  ring.addColorStop(0.8,`rgba(150,40,6,${A*0.5})`);
+  ring.addColorStop(1,'rgba(60,10,0,0)');
+  ctx.fillStyle=ring; ctx.beginPath(); ctx.arc(x,y,r*1.8,0,6.2832); ctx.fill();
+  ctx.globalCompositeOperation='lighter';
+  for(const [ang,s,b] of [[1.9,1,1],[3.6,0.85,0.8],[0.2,0.8,0.7]]){   // the three bright knots
+    const kx=x+Math.cos(ang)*r, ky=y+Math.sin(ang)*r;
+    const kg=ctx.createRadialGradient(kx,ky,0,kx,ky,r*0.55*s);
+    kg.addColorStop(0,`rgba(255,225,140,${A*0.7*b})`);
+    kg.addColorStop(0.5,`rgba(255,150,40,${A*0.38*b})`);
+    kg.addColorStop(1,'rgba(255,120,30,0)');
+    ctx.fillStyle=kg; ctx.beginPath(); ctx.arc(kx,ky,r*0.55*s,0,6.2832); ctx.fill();
+  }
+  ctx.globalCompositeOperation='source-over';
+  ctx.restore();
+}
 // painted fallback (no WebGL / artifact build); ray tracer first
 function drawBlackHole(x,y,r,A){
   const patch=bhRender(x,y,r);
@@ -2403,9 +2432,15 @@ function drawMW(){
     // close enough → the simulated look (shadow, photon ring, folded disk)
     const rbh=Math.min(Math.min(W,H)*0.28, foc*(S.realScale?500:2.6)/sp.depth);
     if(rbh>=10){
-      drawBlackHole(sp.x,sp.y,rbh,1);
-      ctx.font='10px ui-monospace,monospace'; ctx.fillStyle='rgba(255,205,150,0.92)';
-      ctx.fillText('Sagittarius A* · 4.15 million M☉', sp.x+rbh*1.15, sp.y-rbh*1.35);
+      if(S.eht){
+        drawEHT(sp.x,sp.y,rbh,1);
+        ctx.font='10px ui-monospace,monospace'; ctx.fillStyle='rgba(255,205,150,0.92)';
+        ctx.fillText('Sagittarius A* · as imaged by the EHT (2022)', sp.x+rbh*1.4, sp.y-rbh*1.6);
+      } else {
+        drawBlackHole(sp.x,sp.y,rbh,1);
+        ctx.font='10px ui-monospace,monospace'; ctx.fillStyle='rgba(255,205,150,0.92)';
+        ctx.fillText('Sagittarius A* · 4.15 million M☉', sp.x+rbh*1.15, sp.y-rbh*1.35);
+      }
       return;
     }
     const gr=ctx.createRadialGradient(sp.x,sp.y,0,sp.x,sp.y,11);
@@ -3123,6 +3158,8 @@ bindToggle('t-belt','belt');
 bindToggle('t-lag','lag');
 bindToggle('t-lens','lens');
 bindToggle('t-iso','iso');
+bindToggle('t-eht','eht');
+bindToggle('t-labels','labels');
 bindToggle('t-cme','cme');
 bindToggle('t-neo','neo');
 bindToggle('t-sat','sat');
@@ -3948,7 +3985,7 @@ document.getElementById('tourEnd').addEventListener('click',tourEnd);
 // later additions appended — so old share links keep decoding correctly
 const HASH_KEYS=['ast','autorot','belt','con','dso','edge','freelook','gaia','galaxies',
   'gpu','helio','hyg','hz','moons','mw','mw3d','ob','oclu','probes','psr','qso','rings',
-  'size','tno','vars','veil','web','lag','lens','iso'];
+  'size','tno','vars','veil','web','lag','lens','iso','eht'];
 function viewHash(){
   const keys=HASH_KEYS;
   let m=0; keys.forEach((k,i)=>{ if(S[k]) m|=(1<<i); });

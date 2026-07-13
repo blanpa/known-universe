@@ -7031,6 +7031,7 @@ function __run() {
 	const cv = document.getElementById("sky"), ctx = cv.getContext("2d");
 	const _rawFillText = ctx.fillText.bind(ctx);
 	ctx.fillText = (s, x, y, mw) => {
+		if (!S.labels) return;
 		const pw = ctx.lineWidth, ps = ctx.strokeStyle, pj = ctx.lineJoin;
 		ctx.lineWidth = 2.4;
 		ctx.lineJoin = "round";
@@ -7105,6 +7106,8 @@ function __run() {
 		sunAR: true,
 		met: true,
 		iso: true,
+		eht: false,
+		labels: true,
 		realScale: false,
 		hover: null,
 		pinned: null,
@@ -50606,6 +50609,58 @@ function __run() {
 		gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 		return g.cv;
 	}
+	function drawEHT(x, y, r, A) {
+		ctx.save();
+		let bg = ctx.createRadialGradient(x, y, 0, x, y, r * 2.3);
+		bg.addColorStop(0, `rgba(8,3,1,${A * .9})`);
+		bg.addColorStop(.72, `rgba(8,3,1,${A * .55})`);
+		bg.addColorStop(1, "rgba(8,3,1,0)");
+		ctx.fillStyle = bg;
+		ctx.beginPath();
+		ctx.arc(x, y, r * 2.3, 0, 6.2832);
+		ctx.fill();
+		const ring = ctx.createRadialGradient(x, y, r * .25, x, y, r * 1.8);
+		ring.addColorStop(0, "rgba(30,6,0,0)");
+		ring.addColorStop(.32, `rgba(120,30,4,${A * .5})`);
+		ring.addColorStop(.5, `rgba(255,118,18,${A * .9})`);
+		ring.addColorStop(.62, `rgba(255,170,48,${A * .95})`);
+		ring.addColorStop(.8, `rgba(150,40,6,${A * .5})`);
+		ring.addColorStop(1, "rgba(60,10,0,0)");
+		ctx.fillStyle = ring;
+		ctx.beginPath();
+		ctx.arc(x, y, r * 1.8, 0, 6.2832);
+		ctx.fill();
+		ctx.globalCompositeOperation = "lighter";
+		for (const [ang, s, b] of [
+			[
+				1.9,
+				1,
+				1
+			],
+			[
+				3.6,
+				.85,
+				.8
+			],
+			[
+				.2,
+				.8,
+				.7
+			]
+		]) {
+			const kx = x + Math.cos(ang) * r, ky = y + Math.sin(ang) * r;
+			const kg = ctx.createRadialGradient(kx, ky, 0, kx, ky, r * .55 * s);
+			kg.addColorStop(0, `rgba(255,225,140,${A * .7 * b})`);
+			kg.addColorStop(.5, `rgba(255,150,40,${A * .38 * b})`);
+			kg.addColorStop(1, "rgba(255,120,30,0)");
+			ctx.fillStyle = kg;
+			ctx.beginPath();
+			ctx.arc(kx, ky, r * .55 * s, 0, 6.2832);
+			ctx.fill();
+		}
+		ctx.globalCompositeOperation = "source-over";
+		ctx.restore();
+	}
 	function drawBlackHole(x, y, r, A) {
 		const patch = bhRender(x, y, r);
 		if (patch) {
@@ -50730,10 +50785,17 @@ function __run() {
 			};
 			const rbh = Math.min(Math.min(W, H) * .28, foc * (S.realScale ? 500 : 2.6) / sp.depth);
 			if (rbh >= 10) {
-				drawBlackHole(sp.x, sp.y, rbh, 1);
-				ctx.font = "10px ui-monospace,monospace";
-				ctx.fillStyle = "rgba(255,205,150,0.92)";
-				ctx.fillText("Sagittarius A* · 4.15 million M☉", sp.x + rbh * 1.15, sp.y - rbh * 1.35);
+				if (S.eht) {
+					drawEHT(sp.x, sp.y, rbh, 1);
+					ctx.font = "10px ui-monospace,monospace";
+					ctx.fillStyle = "rgba(255,205,150,0.92)";
+					ctx.fillText("Sagittarius A* · as imaged by the EHT (2022)", sp.x + rbh * 1.4, sp.y - rbh * 1.6);
+				} else {
+					drawBlackHole(sp.x, sp.y, rbh, 1);
+					ctx.font = "10px ui-monospace,monospace";
+					ctx.fillStyle = "rgba(255,205,150,0.92)";
+					ctx.fillText("Sagittarius A* · 4.15 million M☉", sp.x + rbh * 1.15, sp.y - rbh * 1.35);
+				}
 				return;
 			}
 			const gr = ctx.createRadialGradient(sp.x, sp.y, 0, sp.x, sp.y, 11);
@@ -51927,6 +51989,8 @@ function __run() {
 	bindToggle("t-lag", "lag");
 	bindToggle("t-lens", "lens");
 	bindToggle("t-iso", "iso");
+	bindToggle("t-eht", "eht");
+	bindToggle("t-labels", "labels");
 	bindToggle("t-cme", "cme");
 	bindToggle("t-neo", "neo");
 	bindToggle("t-sat", "sat");
@@ -53535,7 +53599,8 @@ void main(){                                             // soft shoulder above 
 		"web",
 		"lag",
 		"lens",
-		"iso"
+		"iso",
+		"eht"
 	];
 	function viewHash() {
 		const keys = HASH_KEYS;
@@ -54126,6 +54191,16 @@ function Controls($$anchor, $$props) {
 					"id": "t-rings",
 					"label": "Distance rings",
 					"on": true
+				},
+				{
+					"id": "t-labels",
+					"label": "Labels &amp; text",
+					"on": true
+				},
+				{
+					"id": "t-eht",
+					"label": "Sgr A*: real EHT image (2022)",
+					"on": false
 				},
 				{
 					"id": "t-timebar",
@@ -54732,7 +54807,7 @@ function MobileNav($$anchor, $$props) {
 		var span = child(div_6);
 		var text = child(span);
 		var small = sibling(text);
-		small.textContent = `· b16:31`;
+		small.textContent = `· b16:47`;
 		reset(span);
 		var button = sibling(span, 2);
 		reset(div_6);
