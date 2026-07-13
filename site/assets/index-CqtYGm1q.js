@@ -47442,7 +47442,6 @@ function __run() {
 	}
 	let visSys = 0, visPl = 0, nearD = Infinity, farD = 0;
 	const order = [];
-	let _vig = null, _vigW = 0, _vigH = 0;
 	const _sprites = {};
 	function blobSprite(r, g, b, a0, a1) {
 		const k = r + "," + g + "," + b + "," + a0 + "," + a1;
@@ -47471,15 +47470,6 @@ function __run() {
 		foc = Math.min(W, H) * .62;
 		gwOnScreen = false;
 		ctx.clearRect(0, 0, W, H);
-		if (!_vig || _vigW !== W || _vigH !== H) {
-			_vig = ctx.createRadialGradient(cx, cy * .9, 0, cx, cy, Math.max(W, H) * .75);
-			_vig.addColorStop(0, "rgba(20,26,48,.55)");
-			_vig.addColorStop(1, "rgba(5,7,15,0)");
-			_vigW = W;
-			_vigH = H;
-		}
-		ctx.fillStyle = _vig;
-		ctx.fillRect(0, 0, W, H);
 		if (surfUpdate()) {
 			drawSurface();
 			updateHUD();
@@ -55087,7 +55077,7 @@ function MobileNav($$anchor, $$props) {
 		var span = child(div_6);
 		var text = child(span);
 		var small = sibling(text);
-		small.textContent = `· b17:15`;
+		small.textContent = `· b17:30`;
 		reset(span);
 		var button = sibling(span, 2);
 		reset(div_6);

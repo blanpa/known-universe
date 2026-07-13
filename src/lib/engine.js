@@ -442,7 +442,6 @@ function project(px,py,pz){
 // ---- render ----
 let visSys=0,visPl=0,nearD=Infinity,farD=0;
 const order=[];
-let _vig=null,_vigW=0,_vigH=0;
 // pre-rendered soft-blob sprites — replaces per-frame createRadialGradient calls
 const _sprites={};
 function blobSprite(r,g,b,a0,a1){
@@ -462,14 +461,7 @@ function offscr(p){ return p.depth<=NEAR || Math.abs(p.x-cx)>PLIM || Math.abs(p.
 function render(){
   cx=W/2; cy=H/2; foc=Math.min(W,H)*0.62;
   gwOnScreen=false;
-  ctx.clearRect(0,0,W,H);
-  // subtle vignette background (gradient cached per canvas size)
-  if(!_vig||_vigW!==W||_vigH!==H){
-    _vig=ctx.createRadialGradient(cx,cy*.9,0,cx,cy,Math.max(W,H)*.75);
-    _vig.addColorStop(0,'rgba(20,26,48,.55)'); _vig.addColorStop(1,'rgba(5,7,15,0)');
-    _vigW=W; _vigH=H;
-  }
-  ctx.fillStyle=_vig; ctx.fillRect(0,0,W,H);
+  ctx.clearRect(0,0,W,H);                        // no vignette — space is black
 
   if(surfUpdate()){ drawSurface(); updateHUD(); return; }   // descended to the Earth's surface
 

@@ -1,6 +1,6 @@
 
   :root{
-    --void:#070912; --void2:#0a0e1c;
+    --void:#000; --void2:#000;   /* space is black */
     --ink:#e9edfa; --dim:#8b96b4; --dimmer:#59647f;
     --line:rgba(120,140,190,.16); --line2:rgba(120,140,190,.28);
     --panel:rgba(12,16,30,.72); --panelSolid:#0b1020;
