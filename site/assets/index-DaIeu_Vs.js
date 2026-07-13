@@ -50049,33 +50049,37 @@ function __run() {
 			const sel = o === S.hover || o === S.pinned;
 			o._sx = p.x;
 			o._sy = p.y;
-			ctx.drawImage(blobSprite(c[0], c[1], c[2], .62, .24), p.x - sz * 1.9, p.y - sz * 1.9, sz * 3.8, sz * 3.8);
-			if (o.t === "GW") {
-				gwOnScreen = true;
-				const ph = performance.now() / 2600 % 1;
-				for (let k = 0; k < 3; k++) {
-					const f = (ph + k / 3) % 1, rr = sz * (.9 + f * 3.6);
-					ctx.beginPath();
-					ctx.arc(p.x, p.y, rr, 0, 6.2832);
-					ctx.strokeStyle = `rgba(130,255,220,${(1 - f) * .5})`;
-					ctx.lineWidth = 1.2;
-					ctx.stroke();
+			const bhR = o.t === "BH" ? Math.min(Math.min(W, H) * .22, foc * .028 / p.depth) : 0;
+			if (bhR >= 9) drawBlackHole(p.x, p.y, bhR, .95);
+			else {
+				ctx.drawImage(blobSprite(c[0], c[1], c[2], .62, .24), p.x - sz * 1.9, p.y - sz * 1.9, sz * 3.8, sz * 3.8);
+				if (o.t === "GW") {
+					gwOnScreen = true;
+					const ph = performance.now() / 2600 % 1;
+					for (let k = 0; k < 3; k++) {
+						const f = (ph + k / 3) % 1, rr = sz * (.9 + f * 3.6);
+						ctx.beginPath();
+						ctx.arc(p.x, p.y, rr, 0, 6.2832);
+						ctx.strokeStyle = `rgba(130,255,220,${(1 - f) * .5})`;
+						ctx.lineWidth = 1.2;
+						ctx.stroke();
+					}
 				}
-			}
-			if (o.t === "GC" || o.t === "OC") {
-				const n = o.t === "GC" ? 10 : 6;
-				for (let k = 0; k < n; k++) {
-					const a = k * 2.399, rr = sz * (.25 + .6 * (k * 7 % 5 / 5));
+				if (o.t === "GC" || o.t === "OC") {
+					const n = o.t === "GC" ? 10 : 6;
+					for (let k = 0; k < n; k++) {
+						const a = k * 2.399, rr = sz * (.25 + .6 * (k * 7 % 5 / 5));
+						ctx.beginPath();
+						ctx.arc(p.x + Math.cos(a) * rr, p.y + Math.sin(a) * rr, .9, 0, 6.2832);
+						ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},0.9)`;
+						ctx.fill();
+					}
+				} else {
 					ctx.beginPath();
-					ctx.arc(p.x + Math.cos(a) * rr, p.y + Math.sin(a) * rr, .9, 0, 6.2832);
-					ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},0.9)`;
+					ctx.arc(p.x, p.y, Math.max(1, sz * .32), 0, 6.2832);
+					ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},0.8)`;
 					ctx.fill();
 				}
-			} else {
-				ctx.beginPath();
-				ctx.arc(p.x, p.y, Math.max(1, sz * .32), 0, 6.2832);
-				ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},0.8)`;
-				ctx.fill();
 			}
 			if (sel) {
 				ctx.beginPath();
@@ -50421,6 +50425,74 @@ function __run() {
 		}
 		ctx.stroke();
 	}
+	function drawBlackHole(x, y, r, A) {
+		const disk = r * 2.9;
+		ctx.save();
+		ctx.translate(x, y);
+		ctx.rotate(-.14);
+		const dop = ctx.createLinearGradient(-disk, 0, disk, 0);
+		dop.addColorStop(0, `rgba(255,246,228,${A})`);
+		dop.addColorStop(.42, `rgba(255,198,112,${A * .85})`);
+		dop.addColorStop(1, `rgba(255,122,60,${A * .5})`);
+		let g = ctx.createRadialGradient(0, 0, r * .7, 0, 0, disk * 1.4);
+		g.addColorStop(0, `rgba(255,170,80,${A * .28})`);
+		g.addColorStop(.6, `rgba(255,130,55,${A * .08})`);
+		g.addColorStop(1, "rgba(255,120,50,0)");
+		ctx.fillStyle = g;
+		ctx.beginPath();
+		ctx.arc(0, 0, disk * 1.4, 0, 6.2832);
+		ctx.fill();
+		ctx.strokeStyle = dop;
+		for (let i = 0; i < 7; i++) {
+			const f = i / 6, rr = r * (1.45 + f * 1.45);
+			ctx.beginPath();
+			ctx.ellipse(0, 0, rr, rr * .17, 0, 0, 6.2832);
+			ctx.globalAlpha = A * (1 - f * .8) * .85;
+			ctx.lineWidth = Math.max(1, r * (.16 - f * .09));
+			ctx.stroke();
+		}
+		for (const [a0, a1, al] of [[
+			Math.PI,
+			6.2832,
+			.75
+		], [
+			0,
+			Math.PI,
+			.3
+		]]) {
+			ctx.beginPath();
+			ctx.ellipse(0, 0, r * 1.45, r * 1.38, 0, a0, a1);
+			ctx.globalAlpha = A * al;
+			ctx.lineWidth = Math.max(1, r * .3);
+			ctx.stroke();
+		}
+		ctx.globalAlpha = 1;
+		ctx.beginPath();
+		ctx.arc(0, 0, r, 0, 6.2832);
+		ctx.fillStyle = "#000";
+		ctx.fill();
+		ctx.beginPath();
+		ctx.arc(0, 0, r * 1.06, 0, 6.2832);
+		ctx.strokeStyle = `rgba(255,240,214,${A * .9})`;
+		ctx.lineWidth = Math.max(1, r * .045);
+		ctx.stroke();
+		ctx.save();
+		ctx.beginPath();
+		ctx.rect(-disk * 1.1, r * .1, disk * 2.2, disk);
+		ctx.clip();
+		ctx.strokeStyle = dop;
+		for (let i = 0; i < 4; i++) {
+			const f = i / 3, rr = r * (1.45 + f * 1);
+			ctx.beginPath();
+			ctx.ellipse(0, 0, rr, rr * .17, 0, 0, 6.2832);
+			ctx.globalAlpha = A * (1 - f * .6) * .95;
+			ctx.lineWidth = Math.max(1, r * (.15 - f * .07));
+			ctx.stroke();
+		}
+		ctx.restore();
+		ctx.globalAlpha = 1;
+		ctx.restore();
+	}
 	function drawMW() {
 		sgraScreen = null;
 		if (!S.mw) return;
@@ -50460,6 +50532,14 @@ function __run() {
 				x: sp.x,
 				y: sp.y
 			};
+			const rbh = Math.min(Math.min(W, H) * .28, foc * (S.realScale ? 500 : 2.6) / sp.depth);
+			if (rbh >= 10) {
+				drawBlackHole(sp.x, sp.y, rbh, 1);
+				ctx.font = "10px ui-monospace,monospace";
+				ctx.fillStyle = "rgba(255,205,150,0.92)";
+				ctx.fillText("Sagittarius A* · 4.15 million M☉", sp.x + rbh * 1.15, sp.y - rbh * 1.35);
+				return;
+			}
 			const gr = ctx.createRadialGradient(sp.x, sp.y, 0, sp.x, sp.y, 11);
 			gr.addColorStop(0, "rgba(255,180,90,0.55)");
 			gr.addColorStop(.5, "rgba(255,120,60,0.22)");
@@ -52048,6 +52128,7 @@ function __run() {
 		}
 	}
 	function aim(x, y, z, margin) {
+		if (!isFinite(x + y + z + margin)) return;
 		FOLLOW = null;
 		tgtCtr.x = x;
 		tgtCtr.y = y;
@@ -52057,7 +52138,7 @@ function __run() {
 		syncToggle("t-rot", false);
 	}
 	function objWorld(o) {
-		if (o.psr || o.oclu || o.gpick) {
+		if ((o.psr || o.oclu || o.gpick || o.sgra || o.dso) && o._dir && o.d !== void 0) {
 			const R = scale(o.d);
 			return [
 				o._dir[0] * R,
@@ -54455,7 +54536,7 @@ function MobileNav($$anchor, $$props) {
 		var span = child(div_6);
 		var text = child(span);
 		var small = sibling(text);
-		small.textContent = `· b14:51`;
+		small.textContent = `· b15:13`;
 		reset(span);
 		var button = sibling(span, 2);
 		reset(div_6);

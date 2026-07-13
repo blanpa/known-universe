@@ -2004,6 +2004,9 @@ function drawDSO(){
     const c=(DSO_T[o.t]||DSO_T.EN).c, sz=Math.max(3,Math.min(26,foc*0.02/p.depth));
     const sel=(o===S.hover||o===S.pinned);
     o._sx=p.x; o._sy=p.y;
+    const bhR=o.t==='BH'?Math.min(Math.min(W,H)*0.22, foc*0.028/p.depth):0;
+    if(bhR>=9){ drawBlackHole(p.x,p.y,bhR,0.95); }   // stellar BH up close: the simulated look
+    else{
     ctx.drawImage(blobSprite(c[0],c[1],c[2],0.62,0.24), p.x-sz*1.9, p.y-sz*1.9, sz*3.8, sz*3.8);
     if(o.t==='GW'){                              // spacetime ripples spreading from the merger
       gwOnScreen=true;
@@ -2020,6 +2023,7 @@ function drawDSO(){
     } else {                                     // nebulae: a soft bright core
       ctx.beginPath(); ctx.arc(p.x,p.y,Math.max(1,sz*0.32),0,6.2832);
       ctx.fillStyle=`rgba(${c[0]},${c[1]},${c[2]},0.8)`; ctx.fill();
+    }
     }
     if(sel){ ctx.beginPath(); ctx.arc(p.x,p.y,sz*1.9+6,0,6.2832);
       ctx.strokeStyle='rgba(79,214,200,.9)'; ctx.lineWidth=1.2; ctx.stroke(); }
@@ -2199,6 +2203,39 @@ function drawGalaxyModel(){
       if(offscr(p)){first=true;continue;} if(first){ctx.moveTo(p.x,p.y);first=false;}else ctx.lineTo(p.x,p.y);} }
   ctx.stroke();
 }
+// ---- black holes, the way the simulations render them: black shadow, thin photon
+// ring, and an accretion disk whose lensed far side folds above and below the hole ----
+function drawBlackHole(x,y,r,A){
+  const disk=r*2.9;
+  ctx.save(); ctx.translate(x,y); ctx.rotate(-0.14);
+  // Doppler beaming: the approaching side outshines the receding one
+  const dop=ctx.createLinearGradient(-disk,0,disk,0);
+  dop.addColorStop(0,`rgba(255,246,228,${A})`);
+  dop.addColorStop(0.42,`rgba(255,198,112,${A*0.85})`);
+  dop.addColorStop(1,`rgba(255,122,60,${A*0.5})`);
+  let g=ctx.createRadialGradient(0,0,r*0.7,0,0,disk*1.4);          // ambient glow
+  g.addColorStop(0,`rgba(255,170,80,${A*0.28})`); g.addColorStop(0.6,`rgba(255,130,55,${A*0.08})`);
+  g.addColorStop(1,'rgba(255,120,50,0)');
+  ctx.fillStyle=g; ctx.beginPath(); ctx.arc(0,0,disk*1.4,0,6.2832); ctx.fill();
+  ctx.strokeStyle=dop;                                             // the flat disk, hot bands out from the ISCO
+  for(let i=0;i<7;i++){ const f=i/6, rr=r*(1.45+f*1.45);
+    ctx.beginPath(); ctx.ellipse(0,0,rr,rr*0.17,0,0,6.2832);
+    ctx.globalAlpha=A*(1-f*0.8)*0.85; ctx.lineWidth=Math.max(1,r*(0.16-f*0.09)); ctx.stroke(); }
+  for(const [a0,a1,al] of [[Math.PI,6.2832,0.75],[0,Math.PI,0.3]]){ // lensed far side folds over & under
+    ctx.beginPath(); ctx.ellipse(0,0,r*1.45,r*1.38,0,a0,a1);
+    ctx.globalAlpha=A*al; ctx.lineWidth=Math.max(1,r*0.3); ctx.stroke(); }
+  ctx.globalAlpha=1;
+  ctx.beginPath(); ctx.arc(0,0,r,0,6.2832); ctx.fillStyle='#000'; ctx.fill();   // the shadow
+  ctx.beginPath(); ctx.arc(0,0,r*1.06,0,6.2832);                                // photon ring
+  ctx.strokeStyle=`rgba(255,240,214,${A*0.9})`; ctx.lineWidth=Math.max(1,r*0.045); ctx.stroke();
+  ctx.save(); ctx.beginPath(); ctx.rect(-disk*1.1,r*0.1,disk*2.2,disk); ctx.clip();
+  ctx.strokeStyle=dop;                                             // near side crosses IN FRONT of the shadow
+  for(let i=0;i<4;i++){ const f=i/3, rr=r*(1.45+f*1.0);
+    ctx.beginPath(); ctx.ellipse(0,0,rr,rr*0.17,0,0,6.2832);
+    ctx.globalAlpha=A*(1-f*0.6)*0.95; ctx.lineWidth=Math.max(1,r*(0.15-f*0.07)); ctx.stroke(); }
+  ctx.restore(); ctx.globalAlpha=1;
+  ctx.restore();
+}
 function drawMW(){
   sgraScreen=null; if(!S.mw) return;
   { const R=scale(SGRA.d); SGRA._x=SGRA._dir[0]*R; SGRA._y=SGRA._dir[1]*R; SGRA._z=SGRA._dir[2]*R; }
@@ -2216,6 +2253,14 @@ function drawMW(){
   const sp=project(SGRA._x,SGRA._y,SGRA._z);
   if(sp.depth>NEAR){
     sgraScreen={x:sp.x,y:sp.y};
+    // close enough → the simulated look (shadow, photon ring, folded disk)
+    const rbh=Math.min(Math.min(W,H)*0.28, foc*(S.realScale?500:2.6)/sp.depth);
+    if(rbh>=10){
+      drawBlackHole(sp.x,sp.y,rbh,1);
+      ctx.font='10px ui-monospace,monospace'; ctx.fillStyle='rgba(255,205,150,0.92)';
+      ctx.fillText('Sagittarius A* · 4.15 million M☉', sp.x+rbh*1.15, sp.y-rbh*1.35);
+      return;
+    }
     const gr=ctx.createRadialGradient(sp.x,sp.y,0,sp.x,sp.y,11);
     gr.addColorStop(0,'rgba(255,180,90,0.55)'); gr.addColorStop(.5,'rgba(255,120,60,0.22)'); gr.addColorStop(1,'rgba(255,120,60,0)');
     ctx.fillStyle=gr; ctx.beginPath(); ctx.arc(sp.x,sp.y,11,0,6.2832); ctx.fill();
@@ -3149,6 +3194,7 @@ function doSearch(q){
          if(o.fy>S.year&&o.fy!==0) setYear(o.fy); focusOn(o); }
 }
 function aim(x,y,z,margin){        // travel: move the view centre onto the target
+  if(!isFinite(x+y+z+margin)) return;              // a NaN camera is a black screen
   FOLLOW=null;
   tgtCtr.x=x; tgtCtr.y=y; tgtCtr.z=z;
   tgtCamZ=Math.max(scale(3e-6), margin);
@@ -3156,8 +3202,11 @@ function aim(x,y,z,margin){        // travel: move the view centre onto the targ
 }
 // world position of a clickable cosmic object (null for solar bodies → handled by zoom)
 function objWorld(o){
-  if(o.psr||o.oclu||o.gpick){ const R=scale(o.d); return [o._dir[0]*R,o._dir[1]*R,o._dir[2]*R]; }
-  if(o.sgra||o.dso) return [o._x,o._y,o._z];                     // Sgr A* / deep-sky
+  // compute from direction × distance — the cached _x is only set once the layer
+  // has drawn, which never happens while parked in the solar system (NaN camera)
+  if((o.psr||o.oclu||o.gpick||o.sgra||o.dso)&&o._dir&&o.d!==undefined){
+    const R=scale(o.d); return [o._dir[0]*R,o._dir[1]*R,o._dir[2]*R]; }
+  if(o.sgra||o.dso) return [o._x,o._y,o._z];                     // Sgr A* / deep-sky (fallback)
   if(o.mpc!==undefined) return [o._x,o._y,o._z];                       // galaxy
   if(o.p && o._dx!==undefined){ const d=compress(o._r); return [o._dx*d,o._dy*d,o._dz*d]; } // exoplanet host
   if(o.m!==undefined && o.dx!==undefined){ const d=compress(o.d); return [o.dx*d,o.dy*d,o.dz*d]; } // HYG star
