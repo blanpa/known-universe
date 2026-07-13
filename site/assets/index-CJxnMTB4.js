@@ -47317,6 +47317,10 @@ function __run() {
 		}
 		return sp;
 	}
+	const PLIM = 32768;
+	function offscr(p) {
+		return p.depth <= NEAR || Math.abs(p.x - cx) > PLIM || Math.abs(p.y - cy) > PLIM;
+	}
 	function render() {
 		cx = W / 2;
 		cy = H / 2;
@@ -47338,7 +47342,7 @@ function __run() {
 			return;
 		}
 		camBasis();
-		NEAR = S.realScale ? Math.max(1e-12, S.camZ * .02) : Math.min(.05, Math.max(.001, S.camZ * .35));
+		NEAR = S.realScale ? Math.max(1e-13, S.camZ * .02) : Math.min(.05, Math.max(.001, S.camZ * .35));
 		solarA = lodA(camDist, .001, .1);
 		sysA = 0;
 		if (focusSys && focusSysW) sysA = lodA(Math.hypot(camPos[0] - focusSysW[0], camPos[1] - focusSysW[1], camPos[2] - focusSysW[2]), 8e-6, 8e-4);
@@ -47622,7 +47626,7 @@ function __run() {
 			for (let a = 0; a <= 72; a++) {
 				const th = a / 72 * 6.2832;
 				const p = project(Math.cos(th) * dr, 0, Math.sin(th) * dr);
-				if (p.depth <= NEAR) {
+				if (offscr(p)) {
 					first = true;
 					continue;
 				}
@@ -47665,7 +47669,7 @@ function __run() {
 				v[ax] = co;
 				v[ay] = si;
 				const p = project(v[0], v[1], v[2]);
-				if (p.depth <= NEAR) {
+				if (offscr(p)) {
 					first = true;
 					continue;
 				}
@@ -47770,7 +47774,7 @@ function __run() {
 		for (let k = 0; k <= 96; k++) {
 			const th = k / 96 * 6.2832;
 			const p = project(Math.cos(th) * r, 0, Math.sin(th) * r);
-			if (p.depth <= NEAR) {
+			if (offscr(p)) {
 				first = true;
 				continue;
 			}
@@ -47791,7 +47795,7 @@ function __run() {
 		for (let j = 0; j <= 120; j++) {
 			const q = orbPoint(el, j / 120 * 6.2832), w = eclToWorld(q[0], q[1], q[2]);
 			const p = project(w[0], w[1], w[2]);
-			if (p.depth <= NEAR) {
+			if (offscr(p)) {
 				first = true;
 				continue;
 			}
@@ -48019,14 +48023,16 @@ function __run() {
 			const rTS = orbitR(90), rHP = orbitR(122), sunp = project(0, 0, 0);
 			if (sunp.depth > NEAR) {
 				const rr = Math.abs(project(rHP, 0, 0).x - sunp.x) || 0;
-				const g = ctx.createRadialGradient(sunp.x, sunp.y, 0, sunp.x, sunp.y, rr);
-				g.addColorStop(0, "rgba(90,140,220,0)");
-				g.addColorStop(.72, `rgba(90,150,225,${A * .05})`);
-				g.addColorStop(1, `rgba(120,170,235,${A * .11})`);
-				ctx.fillStyle = g;
-				ctx.beginPath();
-				ctx.arc(sunp.x, sunp.y, rr, 0, 6.2832);
-				ctx.fill();
+				if (rr < PLIM) {
+					const g = ctx.createRadialGradient(sunp.x, sunp.y, 0, sunp.x, sunp.y, rr);
+					g.addColorStop(0, "rgba(90,140,220,0)");
+					g.addColorStop(.72, `rgba(90,150,225,${A * .05})`);
+					g.addColorStop(1, `rgba(120,170,235,${A * .11})`);
+					ctx.fillStyle = g;
+					ctx.beginPath();
+					ctx.arc(sunp.x, sunp.y, rr, 0, 6.2832);
+					ctx.fill();
+				}
 			}
 			orbitRing(rTS, `rgba(135,195,238,${A * .5})`, [3, 5]);
 			orbitRing(rHP, `rgba(165,180,242,${A * .62})`, [2, 5]);
@@ -48065,7 +48071,7 @@ function __run() {
 		}).filter((d) => d.pr.depth > NEAR).sort((a, b) => a.pr.z2 - b.pr.z2);
 		for (const { p, pr } of drawn) {
 			const c = p.c, sel = p === S.hover || p === S.pinned;
-			if (sun.depth > NEAR) {
+			if (!offscr(sun) && !offscr(pr)) {
 				ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${A * .16})`;
 				ctx.lineWidth = .7;
 				ctx.setLineDash([2, 4]);
@@ -48237,7 +48243,7 @@ function __run() {
 				for (let k = 0; k <= 48; k++) {
 					const th = k / 48 * 6.2832, ct = Math.cos(th), st = Math.sin(th);
 					const w = eclToWorld(r * (cH * d[0] + sH * (ct * u[0] + st * v[0])), r * (cH * d[1] + sH * (ct * u[1] + st * v[1])), r * (cH * d[2] + sH * (ct * u[2] + st * v[2]))), p = project(w[0], w[1], w[2]);
-					if (p.depth <= NEAR) {
+					if (offscr(p)) {
 						first = true;
 						continue;
 					}
@@ -48301,7 +48307,7 @@ function __run() {
 			const w = eclToWorld(o._e[0], o._e[1], o._e[2]), p = project(w[0], w[1], w[2]);
 			if (p.depth <= NEAR) continue;
 			const dtd = (o.t - nowMs) / 864e5;
-			if (ep && Math.abs(dtd) < 5) {
+			if (ep && Math.abs(dtd) < 5 && !offscr(ep) && !offscr(p)) {
 				ctx.setLineDash([3, 4]);
 				ctx.strokeStyle = `rgba(255,168,88,${A * .3})`;
 				ctx.lineWidth = .8;
@@ -48699,17 +48705,22 @@ function __run() {
 		order: [],
 		dayOff: 1
 	};
-	const SURF_ENTER = .003, SURF_EXIT = .0033, GOES_LON = -75.2;
+	const SURF_ENTER = .003, SURF_EXIT = .0033, GOES_LON = -75.2, RE_PC = 20646e-14;
 	let _earthScr = null;
+	function surfEnterZ() {
+		return S.realScale ? 2 * foc * RE_PC / (Math.min(W, H) * 1.2) : SURF_ENTER;
+	}
 	function surfDate() {
 		return (/* @__PURE__ */ new Date(Date.now() - SURF.dayOff * 864e5)).toISOString().slice(0, 10);
 	}
 	function surfMpp() {
+		if (S.realScale) return 12742e3 * S.camZ / (2 * foc * RE_PC);
 		return 12742e3 / (8 * Math.min(W, H)) * (S.camZ / SURF_ENTER);
 	}
 	function surfUpdate() {
+		const enterZ = surfEnterZ();
 		if (!SURF.on) {
-			if (S.camZ < SURF_ENTER && _earthScr) {
+			if (S.camZ < enterZ && _earthScr) {
 				const u = (cx - _earthScr.x) / _earthScr.r, v = (cy - _earthScr.y) / _earthScr.r;
 				const rho = Math.hypot(u, v);
 				if (rho < .985) {
@@ -48723,9 +48734,9 @@ function __run() {
 						SURF.lon = GOES_LON + (rho < 1e-6 ? 0 : Math.atan2(u * Math.sin(c), rho * Math.cos(c)) / D2R);
 					}
 					SURF.on = true;
-				} else S.camZ = tgtCamZ = SURF_ENTER;
+				} else S.camZ = tgtCamZ = enterZ;
 			}
-		} else if (S.camZ > SURF_EXIT) SURF.on = false;
+		} else if (S.camZ > (S.realScale ? enterZ * 1.1 : SURF_EXIT)) SURF.on = false;
 		return SURF.on;
 	}
 	function surfTile(z, x, y) {
@@ -49137,7 +49148,7 @@ function __run() {
 		let first = true;
 		for (const q of T.pts) {
 			const w = eclToWorld(q[0], q[1], q[2]), p = project(w[0], w[1], w[2]);
-			if (p.depth <= NEAR) {
+			if (offscr(p)) {
 				first = true;
 				continue;
 			}
@@ -49270,7 +49281,7 @@ function __run() {
 		for (let i = 0; i <= 40; i++) {
 			const r = wr * i / 40;
 			const p = project(R.dir[0] * r, R.dir[1] * r, R.dir[2] * r);
-			if (p.depth <= NEAR) {
+			if (offscr(p)) {
 				first = true;
 				continue;
 			}
@@ -49372,7 +49383,7 @@ function __run() {
 				const th = k / 48 * 6.2832;
 				const w = eclToWorld(b._e[0] + Math.cos(th) * rH, b._e[1] + Math.sin(th) * rH, b._e[2]);
 				const p = project(w[0], w[1], w[2]);
-				if (p.depth <= NEAR) {
+				if (offscr(p)) {
 					first = true;
 					continue;
 				}
@@ -49589,7 +49600,7 @@ function __run() {
 				let first = true;
 				for (const d of pl) {
 					const p = project(d[0] * R, d[1] * R, d[2] * R);
-					if (p.depth <= NEAR) {
+					if (offscr(p)) {
 						first = true;
 						continue;
 					}
@@ -50013,7 +50024,7 @@ function __run() {
 			let first = true;
 			for (let a = 0; a <= 6.2833; a += .1) {
 				const w = mwWorld(16e3, a), p = project(w[0], w[1], w[2]);
-				if (p.depth <= NEAR) {
+				if (offscr(p)) {
 					first = true;
 					continue;
 				}
@@ -50045,7 +50056,7 @@ function __run() {
 			for (let t = 0; t <= 100; t++) {
 				const th = t / 100 * 6.2832, c = Math.cos(th), s = Math.sin(th);
 				const p = project((GPu[0] * c + GPv[0] * s) * R, (GPu[1] * c + GPv[1] * s) * R, (GPu[2] * c + GPv[2] * s) * R);
-				if (p.depth <= NEAR) {
+				if (offscr(p)) {
 					first = true;
 					continue;
 				}
@@ -51103,7 +51114,7 @@ function __run() {
 	function zoomFactorAt(mx, my, f) {
 		const before = tgtCamZ;
 		tgtCamZ *= f;
-		const zmin = S.realScale ? 1e-7 : 1e-4, zmax = S.realScale ? 6e7 : 16;
+		const zmin = S.realScale ? 1e-12 : 1e-4, zmax = S.realScale ? 6e7 : 16;
 		tgtCamZ = Math.max(zmin, Math.min(zmax, tgtCamZ));
 		if (SURF.on) {
 			const eff = tgtCamZ / before;
@@ -51231,6 +51242,8 @@ function __run() {
 		const physCam = inv(S.camZ);
 		const cm = Math.hypot(ctr.x, ctr.y, ctr.z), physCtr = cm > 0 ? inv(cm) : 0;
 		S.camZ = tgtCamZ = scale(physCam);
+		const zf = S.realScale ? 1e-12 : 1e-4;
+		if (tgtCamZ < zf) S.camZ = tgtCamZ = zf;
 		if (cm > 0) {
 			const nm = scale(physCtr) / cm;
 			ctr.x *= nm;
@@ -51560,15 +51573,15 @@ function __run() {
 				syncToggle("t-ast", true);
 			}
 			focusSys = null;
-			S.pinned = o;
 			enterSolar();
+			S.pinned = o;
 			return;
 		}
 		if (t === "body") {
 			searchMsg.textContent = "→ " + o.n + " (" + (o.kind || "") + ")";
 			focusSys = null;
-			S.pinned = o;
 			enterSolar();
+			S.pinned = o;
 			return;
 		}
 		if (t === "probe" || t === "tno2") {
@@ -51582,8 +51595,8 @@ function __run() {
 				syncToggle("t-tno", true);
 			}
 			focusSys = null;
-			S.pinned = o;
 			enterSolar();
+			S.pinned = o;
 			return;
 		}
 		if (t === "psr" || t === "clu") {
@@ -52689,8 +52702,8 @@ void main(){                                             // soft shoulder above 
 			d: "Every planet, dwarf planet and moon here sits at its real position for today’s date (JPL ephemerides). The moons orbit in their true planes — run the time slider and watch them move.",
 			go: () => {
 				const e = PLANETS.find((p) => p.n === "Earth");
-				S.pinned = e;
 				enterSolar();
+				S.pinned = e;
 			}
 		},
 		{
@@ -52702,13 +52715,13 @@ void main(){                                             // soft shoulder above 
 					syncToggle("t-probes", true);
 				}
 				const v = PROBES.find((p) => p.n === "Voyager 1");
-				S.pinned = v;
 				enterSolar();
+				S.pinned = v;
 			}
 		},
 		{
 			t: "3 · Proxima Centauri — the nearest star",
-			d: "4.25 light-years away. The gap between our solar system and this red dwarf is the real emptiness of interstellar space — toggle “Real scale” later to feel it. Proxima hosts at least one Earth-sized planet in its habitable zone.",
+			d: "4.25 light-years away. The gap between our solar system and this red dwarf is the real emptiness of interstellar space — switch “Compact view” off later to feel it. Proxima hosts at least one Earth-sized planet in its habitable zone.",
 			go: () => {
 				const h = HYG.find((x) => x.n === "Proxima Centauri");
 				if (h) {
@@ -53071,6 +53084,7 @@ void main(){                                             // soft shoulder above 
 	};
 	startLive();
 	if (UI.fac) UI.fac(facList);
+	if (!(typeof location !== "undefined" && location.hash || "").includes("v1_")) clickToggle("t-real");
 	applyHash();
 	try {
 		console.log("Known Universe build 2026-07-12 11:57");
@@ -53362,8 +53376,9 @@ function Controls($$anchor, $$props) {
 			"items": [
 				{
 					"id": "t-real",
-					"label": "Real scale",
-					"on": false
+					"label": "Compact view (distances compressed)",
+					"on": false,
+					"inv": 1
 				},
 				{
 					"id": "t-rot",
@@ -53440,7 +53455,7 @@ function Controls($$anchor, $$props) {
 			reset(span);
 			next();
 			reset(div_4);
-			template_effect(() => classes_1 = set_class(div_4, 1, "toggle", null, classes_1, { on: get(d).ui ? $timeBar() : $toggleState()[get(d).id] ?? get(d).on }));
+			template_effect(() => classes_1 = set_class(div_4, 1, "toggle", null, classes_1, { on: get(d).ui ? $timeBar() : get(d).inv ? !($toggleState()[get(d).id] ?? get(d).on) : $toggleState()[get(d).id] ?? get(d).on }));
 			delegated("click", div_4, () => tgl(get(d).id));
 			append($$anchor, div_4);
 		});
@@ -53881,7 +53896,7 @@ function MobileNav($$anchor, $$props) {
 		var span = child(div_6);
 		var text = child(span);
 		var small = sibling(text);
-		small.textContent = `· b11:18`;
+		small.textContent = `· b12:10`;
 		reset(span);
 		var button = sibling(span, 2);
 		reset(div_6);

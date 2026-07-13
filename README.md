@@ -43,13 +43,13 @@ as a fourth dimension.
   - **20 molecular clouds** at their Gaia 3D-dust distances (Zucker+ 2020) and
     **oriented galaxy disks**: 861 Local-Volume galaxies with measured axial
     ratio, 349 with measured position angle (LEDA) — Andromeda tilts for real.
-- **Two scales (toggle "Real scale"):**
-  - *Logarithmic* (default): everything in one view, distances compressed —
-    for comprehension and navigation.
-  - *Real*: **true, proportional distances** (1 pc = 1 unit, linear). Space is
-    then realistically vast and empty — you fly/zoom through the real gaps and
-    never see two scales at once (13 orders of magnitude from the solar system
-    to the galaxies). Switching keeps your current viewing distance.
+- **Two scales (toggle "Compact view"):**
+  - *Real* (default): **true, proportional distances** (1 pc = 1 unit, linear).
+    Space is realistically vast and empty — you fly/zoom through the real gaps
+    and never see two scales at once (13 orders of magnitude from the solar
+    system to the galaxies). Switching keeps your current viewing distance.
+  - *Compact view* (logarithmic): everything in one view, distances
+    compressed — for comprehension and navigation.
 - **One continuous scale, anchored at the solar system:** All layers —
   planets, moons, stars, exoplanets, galaxies — live in *one* space with real
   sky direction and a logarithmic distance (world radius =

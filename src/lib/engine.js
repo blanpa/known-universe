@@ -435,6 +435,11 @@ function blobSprite(r,g,b,a0,a1){
     c2.fillStyle=gr; c2.fillRect(0,0,64,64); _sprites[k]=sp; }
   return sp;
 }
+// Skia stalls for tens of seconds on stroke/fill paths whose bounds reach millions
+// of px — reachable since real-scale deep zoom (orbit of Neptune seen from 500 km
+// above Earth ≈ 1e9 px). Break paths at this limit like at the near plane.
+const PLIM=32768;
+function offscr(p){ return p.depth<=NEAR || Math.abs(p.x-cx)>PLIM || Math.abs(p.y-cy)>PLIM; }
 function render(){
   cx=W/2; cy=H/2; foc=Math.min(W,H)*0.62;
   gwOnScreen=false;
@@ -450,7 +455,7 @@ function render(){
   if(surfUpdate()){ drawSurface(); updateHUD(); return; }   // descended to the Earth's surface
 
   camBasis();
-  NEAR = S.realScale ? Math.max(1e-12, S.camZ*0.02) : Math.min(0.05, Math.max(0.001, S.camZ*0.35));
+  NEAR = S.realScale ? Math.max(1e-13, S.camZ*0.02) : Math.min(0.05, Math.max(0.001, S.camZ*0.35));
   // solar-system detail from the camera's real distance to the Sun (so it also
   // fades as you fly away from the centre, not only when you zoom out)
   solarA=lodA(camDist, 0.001, 0.1);              // full ≤0.001 pc, hidden ≥0.1 pc from Sun
@@ -643,7 +648,7 @@ function drawRings(){
     for(let a=0;a<=72;a++){
       const th=a/72*6.2832;
       const p=project(Math.cos(th)*dr,0,Math.sin(th)*dr);
-      if(p.depth<=NEAR){first=true;continue;}
+      if(offscr(p)){first=true;continue;}
       if(first){ctx.moveTo(p.x,p.y);first=false;}else ctx.lineTo(p.x,p.y);
       drew=true;
     }
@@ -668,7 +673,7 @@ function drawVeilSphere(){
       const th=a/72*6.2832, co=Math.cos(th)*dr, si=Math.sin(th)*dr;
       const v=[0,0,0]; v[ax]=co; v[ay]=si;
       const p=project(v[0],v[1],v[2]);
-      if(p.depth<=NEAR){first=true;continue;}
+      if(offscr(p)){first=true;continue;}
       if(first){ctx.moveTo(p.x,p.y);first=false;}else ctx.lineTo(p.x,p.y);
     }
     ctx.strokeStyle='rgba(230,71,60,.20)'; ctx.lineWidth=1; ctx.stroke();
@@ -750,7 +755,7 @@ function orbitRing(r,style,dash){
   ctx.beginPath(); let first=true;
   for(let k=0;k<=96;k++){ const th=k/96*6.2832;
     const p=project(Math.cos(th)*r,0,Math.sin(th)*r);
-    if(p.depth<=NEAR){first=true;continue;}
+    if(offscr(p)){first=true;continue;}
     if(first){ctx.moveTo(p.x,p.y);first=false;}else ctx.lineTo(p.x,p.y);
   }
   ctx.strokeStyle=style; ctx.lineWidth=1; if(dash)ctx.setLineDash(dash);
@@ -760,7 +765,7 @@ function drawOrbitEllipse(el,style){        // true (eccentric, inclined) orbit 
   ctx.beginPath(); let first=true;
   for(let j=0;j<=120;j++){ const q=orbPoint(el,j/120*6.2832), w=eclToWorld(q[0],q[1],q[2]);
     const p=project(w[0],w[1],w[2]);
-    if(p.depth<=NEAR){first=true;continue;}
+    if(offscr(p)){first=true;continue;}
     if(first){ctx.moveTo(p.x,p.y);first=false;}else ctx.lineTo(p.x,p.y);
   }
   ctx.strokeStyle=style; ctx.lineWidth=1; ctx.stroke();
@@ -910,10 +915,11 @@ function drawSolar(alpha){
     // faint blue shell between the termination shock and the heliopause
     const rTS=orbitR(90), rHP=orbitR(122), sunp=project(0,0,0);
     if(sunp.depth>NEAR){ const rr=Math.abs(project(rHP,0,0).x-sunp.x)||0;
+      if(rr<PLIM){                                 // inside the shell it fills everything — and stalls Skia
       const g=ctx.createRadialGradient(sunp.x,sunp.y,0,sunp.x,sunp.y,rr);
       g.addColorStop(0,'rgba(90,140,220,0)'); g.addColorStop(.72,`rgba(90,150,225,${A*0.05})`);
       g.addColorStop(1,`rgba(120,170,235,${A*0.11})`);
-      ctx.fillStyle=g; ctx.beginPath(); ctx.arc(sunp.x,sunp.y,rr,0,6.2832); ctx.fill(); }
+      ctx.fillStyle=g; ctx.beginPath(); ctx.arc(sunp.x,sunp.y,rr,0,6.2832); ctx.fill(); } }
     orbitRing(rTS,`rgba(135,195,238,${A*0.5})`,[3,5]);
     orbitRing(rHP,`rgba(165,180,242,${A*0.62})`,[2,5]);
     const ts=project(rTS,0,0), hp2=project(rHP,0,0);
@@ -935,7 +941,7 @@ function drawProbes(A){
     .filter(d=>d.pr.depth>NEAR).sort((a,b)=>a.pr.z2-b.pr.z2);
   for(const {p,pr} of drawn){
     const c=p.c, sel=(p===S.hover||p===S.pinned);
-    if(sun.depth>NEAR){ ctx.strokeStyle=`rgba(${c[0]},${c[1]},${c[2]},${A*0.16})`; ctx.lineWidth=0.7; ctx.setLineDash([2,4]);
+    if(!offscr(sun)&&!offscr(pr)){ ctx.strokeStyle=`rgba(${c[0]},${c[1]},${c[2]},${A*0.16})`; ctx.lineWidth=0.7; ctx.setLineDash([2,4]);
       ctx.beginPath(); ctx.moveTo(sun.x,sun.y); ctx.lineTo(pr.x,pr.y); ctx.stroke(); ctx.setLineDash([]); }
     const sz=4.5;
     ctx.beginPath(); ctx.moveTo(pr.x,pr.y-sz); ctx.lineTo(pr.x+sz,pr.y); ctx.lineTo(pr.x,pr.y+sz); ctx.lineTo(pr.x-sz,pr.y); ctx.closePath();
@@ -1004,7 +1010,7 @@ function drawCME(A){
       for(let k=0;k<=48;k++){ const th=k/48*6.2832, ct=Math.cos(th), st=Math.sin(th);
         const ex=r*(cH*d[0]+sH*(ct*u[0]+st*v[0])), ey=r*(cH*d[1]+sH*(ct*u[1]+st*v[1])), ez=r*(cH*d[2]+sH*(ct*u[2]+st*v[2]));
         const w=eclToWorld(ex,ey,ez), p=project(w[0],w[1],w[2]);
-        if(p.depth<=NEAR){first=true;continue;}
+        if(offscr(p)){first=true;continue;}
         if(first){ctx.moveTo(p.x,p.y);first=false;}else ctx.lineTo(p.x,p.y);
       }
       if(rf===1){ ctx.fillStyle=`rgba(${col[0]},${col[1]},${col[2]},${A*fade*0.07})`; ctx.fill(); }
@@ -1038,7 +1044,7 @@ function drawLiveNeo(A){
     const w=eclToWorld(o._e[0],o._e[1],o._e[2]), p=project(w[0],w[1],w[2]);
     if(p.depth<=NEAR) continue;
     const dtd=(o.t-nowMs)/86400000;                        // days until closest approach (sim time)
-    if(ep && Math.abs(dtd)<5){                             // approach window: tie to Earth
+    if(ep && Math.abs(dtd)<5 && !offscr(ep) && !offscr(p)){ // approach window: tie to Earth
       ctx.setLineDash([3,4]); ctx.strokeStyle=`rgba(255,168,88,${A*0.30})`; ctx.lineWidth=0.8;
       ctx.beginPath(); ctx.moveTo(ep.x,ep.y); ctx.lineTo(p.x,p.y); ctx.stroke(); ctx.setLineDash([]);
     }
@@ -1230,14 +1236,21 @@ function globeInverse(u,v){
 // web-mercator tiles up to level 9 (~300 m/px). Entry point = where the view centre
 // sits on the GOES disc (orthographic inverse from the GOES-East sub-point, 75.2°W).
 const SURF={on:false, lat:20, lon:-75, cache:new Map(), order:[], dayOff:1};
-const SURF_ENTER=0.003, SURF_EXIT=0.0033, GOES_LON=-75.2;
+const SURF_ENTER=0.003, SURF_EXIT=0.0033, GOES_LON=-75.2, RE_PC=2.0646e-10;  // Earth radius in pc
 let _earthScr=null;
+// real scale: descend where the true disc overflows the viewport (~200 km altitude);
+// log mode keeps its fixed camZ threshold
+function surfEnterZ(){ return S.realScale ? 2*foc*RE_PC/(Math.min(W,H)*1.2) : SURF_ENTER; }
 // GIBS ingests with 1-2 days lag — start at yesterday, fall back on tile 404s
 function surfDate(){ return new Date(Date.now()-SURF.dayOff*86400000).toISOString().slice(0,10); }
-function surfMpp(){ return 12742000/(8*Math.min(W,H)) * (S.camZ/SURF_ENTER); } // m per screen px
+function surfMpp(){                                                // m per screen px
+  if(S.realScale) return 12742000*S.camZ/(2*foc*RE_PC);            // true perspective: disc px ↔ metres
+  return 12742000/(8*Math.min(W,H)) * (S.camZ/SURF_ENTER);
+}
 function surfUpdate(){
+  const enterZ=surfEnterZ();
   if(!SURF.on){
-    if(S.camZ<SURF_ENTER && _earthScr){
+    if(S.camZ<enterZ && _earthScr){
       const u=(cx-_earthScr.x)/_earthScr.r, v=(cy-_earthScr.y)/_earthScr.r;
       const rho=Math.hypot(u,v);
       if(rho<0.985){                                  // view centre is on the disc → descend
@@ -1249,9 +1262,9 @@ function surfUpdate(){
           SURF.lon = GOES_LON + (rho<1e-6 ? 0 : Math.atan2(u*Math.sin(c), rho*Math.cos(c))/D2R);
         }
         SURF.on=true;
-      } else { S.camZ=tgtCamZ=SURF_ENTER; }          // diving beside the planet: hold the floor
+      } else { S.camZ=tgtCamZ=enterZ; }            // diving beside the planet: hold the floor
     }
-  } else if(S.camZ>SURF_EXIT){ SURF.on=false; }
+  } else if(S.camZ>(S.realScale?enterZ*1.1:SURF_EXIT)){ SURF.on=false; }
   return SURF.on;
 }
 function surfTile(z,x,y){
@@ -1494,7 +1507,7 @@ function drawTransfer(A){
   const T=TRANSFER; if(!T) return;
   ctx.setLineDash([5,4]); ctx.beginPath(); let first=true;
   for(const q of T.pts){ const w=eclToWorld(q[0],q[1],q[2]), p=project(w[0],w[1],w[2]);
-    if(p.depth<=NEAR){first=true;continue;}
+    if(offscr(p)){first=true;continue;}
     if(first){ctx.moveTo(p.x,p.y);first=false;}else ctx.lineTo(p.x,p.y);
   }
   ctx.strokeStyle=`rgba(79,214,200,${A*0.8})`; ctx.lineWidth=1.5; ctx.stroke(); ctx.setLineDash([]);
@@ -1570,7 +1583,7 @@ function drawRoute(){
   ctx.setLineDash([6,5]); ctx.beginPath(); let first=true;
   for(let i=0;i<=40;i++){ const r=wr*i/40;             // radial chord: Sun → target
     const p=project(R.dir[0]*r,R.dir[1]*r,R.dir[2]*r);
-    if(p.depth<=NEAR){first=true;continue;}
+    if(offscr(p)){first=true;continue;}
     if(first){ctx.moveTo(p.x,p.y);first=false;}else ctx.lineTo(p.x,p.y);
   }
   ctx.strokeStyle='rgba(120,255,235,0.55)'; ctx.lineWidth=1.3; ctx.stroke(); ctx.setLineDash([]);
@@ -1629,7 +1642,7 @@ function drawLagrange(A){
     for(let k=0;k<=48;k++){ const th=k/48*6.2832;
       const w=eclToWorld(b._e[0]+Math.cos(th)*rH, b._e[1]+Math.sin(th)*rH, b._e[2]);
       const p=project(w[0],w[1],w[2]);
-      if(p.depth<=NEAR){first=true;continue;}
+      if(offscr(p)){first=true;continue;}
       if(first){ctx.moveTo(p.x,p.y);first=false;}else ctx.lineTo(p.x,p.y);
     }
     ctx.strokeStyle=`rgba(150,205,255,${A*0.4})`; ctx.lineWidth=1;
@@ -1742,7 +1755,7 @@ function drawConstellations(){
     for(const pl of k._L){
       ctx.beginPath(); let first=true;
       for(const d of pl){ const p=project(d[0]*R,d[1]*R,d[2]*R);
-        if(p.depth<=NEAR){first=true;continue;}
+        if(offscr(p)){first=true;continue;}
         if(first){ctx.moveTo(p.x,p.y);first=false;}else ctx.lineTo(p.x,p.y);
       }
       ctx.stroke();
@@ -1976,7 +1989,7 @@ function drawGalaxyModel(){
       ctx.fillText('Sun · Orion Spur', p.x+5, p.y+3); } }
   ctx.strokeStyle='rgba(150,175,235,0.14)'; ctx.lineWidth=1; ctx.beginPath();
   { let first=true; for(let a=0;a<=6.2833;a+=0.1){ const w=mwWorld(16000,a), p=project(w[0],w[1],w[2]);
-      if(p.depth<=NEAR){first=true;continue;} if(first){ctx.moveTo(p.x,p.y);first=false;}else ctx.lineTo(p.x,p.y);} }
+      if(offscr(p)){first=true;continue;} if(first){ctx.moveTo(p.x,p.y);first=false;}else ctx.lineTo(p.x,p.y);} }
   ctx.stroke();
 }
 function drawMW(){
@@ -1987,7 +2000,7 @@ function drawMW(){
     ctx.beginPath(); let first=true;
     for(let t=0;t<=100;t++){ const th=t/100*6.2832, c=Math.cos(th), s=Math.sin(th);
       const p=project((GPu[0]*c+GPv[0]*s)*R,(GPu[1]*c+GPv[1]*s)*R,(GPu[2]*c+GPv[2]*s)*R);
-      if(p.depth<=NEAR){first=true;continue;}
+      if(offscr(p)){first=true;continue;}
       if(first){ctx.moveTo(p.x,p.y);first=false;}else ctx.lineTo(p.x,p.y);
     }
     ctx.strokeStyle=`rgba(140,165,235,${mid?0.16:0.08})`; ctx.lineWidth=mid?2:1; ctx.stroke();
@@ -2615,7 +2628,9 @@ function zoomFactorAt(mx,my,f){
   tgtCamZ*=f;
   // log mode used to stop at 0.9 — 0.02 lets you dive until a planet fills the view
   // (NEAR shrinks with camZ so the glyph isn't culled at close range)
-  const zmin=S.realScale?1e-7:1e-4, zmax=S.realScale?6e7:16;
+  // real mode: 1e-12 pc ≈ 31 km — deep enough that Earth's true disc fills the
+  // view and the surface-mode handoff fires (old floor 1e-7 pc = 3 million km)
+  const zmin=S.realScale?1e-12:1e-4, zmax=S.realScale?6e7:16;
   tgtCamZ=Math.max(zmin,Math.min(zmax,tgtCamZ));
   if(SURF.on){                                   // surface map: keep the geo point under the cursor
     const eff=tgtCamZ/before;
@@ -2692,6 +2707,8 @@ bindToggle('t-real','realScale',()=>{
   const physCam=inv(S.camZ);
   const cm=Math.hypot(ctr.x,ctr.y,ctr.z), physCtr=cm>0?inv(cm):0;
   S.camZ=tgtCamZ=scale(physCam);
+  // deep real zoom maps below the log-scale zero → clamp to each mode's floor (camZ=0 breaks projection)
+  const zf=S.realScale?1e-12:1e-4; if(tgtCamZ<zf) S.camZ=tgtCamZ=zf;
   if(cm>0){ const nm=scale(physCtr)/cm; ctr.x*=nm;ctr.y*=nm;ctr.z*=nm;
     tgtCtr.x=ctr.x;tgtCtr.y=ctr.y;tgtCtr.z=ctr.z; }
   if(focusSys) focusSysW=objWorld(focusSys);
@@ -2894,13 +2911,13 @@ function doSearch(q){
   if(!cands.length){searchMsg.textContent='nothing found';return;}
   const [t,o]=cands[0];
   if(t==='small'){ searchMsg.textContent='→ '+o.n+' ('+o.kind+')';
-    if(!S.ast){S.ast=true;syncToggle('t-ast',true);} focusSys=null; S.pinned=o; enterSolar(); return; }
+    if(!S.ast){S.ast=true;syncToggle('t-ast',true);} focusSys=null; enterSolar(); S.pinned=o; return; }
   if(t==='body'){ searchMsg.textContent='→ '+o.n+' ('+(o.kind||'')+')';
-    focusSys=null; S.pinned=o; enterSolar(); return; }
+    focusSys=null; enterSolar(); S.pinned=o; return; }   // pin AFTER enterSolar — it clears the pin
   if(t==='probe'||t==='tno2'){ searchMsg.textContent='→ '+o.n+' ('+(o.kind||'')+')';
     if(t==='probe'&&!S.probes){S.probes=true;syncToggle('t-probes',true);}
     if(t==='tno2'&&!S.tno){S.tno=true;syncToggle('t-tno',true);}
-    focusSys=null; S.pinned=o; enterSolar(); return; }
+    focusSys=null; enterSolar(); S.pinned=o; return; }
   if(t==='psr'||t==='clu'){ searchMsg.textContent='→ '+o.n+' · '+fmt(o.d*PC2LY)+' ly';
     if(t==='psr'&&!S.psr){S.psr=true;syncToggle('t-psr',true);}
     if(t==='clu'&&!S.oclu){S.oclu=true;syncToggle('t-oclu',true);}
@@ -3477,10 +3494,10 @@ document.getElementById('measureBtn').addEventListener('click',()=>{
 // ---- guided tour: Earth -> the edge of the observable universe ----
 const TOUR=[
  {t:'1 · Earth — home',d:'Every planet, dwarf planet and moon here sits at its real position for today\u2019s date (JPL ephemerides). The moons orbit in their true planes \u2014 run the time slider and watch them move.',
-  go:()=>{ const e=PLANETS.find(p=>p.n==='Earth'); S.pinned=e; enterSolar(); }},
+  go:()=>{ const e=PLANETS.find(p=>p.n==='Earth'); enterSolar(); S.pinned=e; }},
  {t:'2 · Voyager 1 — the farthest human object',d:'Launched 1977, now ~171 AU out \u2014 a radio signal takes almost a day for the round trip. The blue dashed line is its real outbound trajectory (JPL Horizons). Beyond it: the heliopause, where the Sun\u2019s wind yields to interstellar space.',
-  go:()=>{ if(!S.probes){S.probes=true;syncToggle('t-probes',true);} const v=PROBES.find(p=>p.n==='Voyager 1'); S.pinned=v; enterSolar(); }},
- {t:'3 · Proxima Centauri — the nearest star',d:'4.25 light-years away. The gap between our solar system and this red dwarf is the real emptiness of interstellar space \u2014 toggle \u201cReal scale\u201d later to feel it. Proxima hosts at least one Earth-sized planet in its habitable zone.',
+  go:()=>{ if(!S.probes){S.probes=true;syncToggle('t-probes',true);} const v=PROBES.find(p=>p.n==='Voyager 1'); enterSolar(); S.pinned=v; }},
+ {t:'3 · Proxima Centauri — the nearest star',d:'4.25 light-years away. The gap between our solar system and this red dwarf is the real emptiness of interstellar space \u2014 switch \u201cCompact view\u201d off later to feel it. Proxima hosts at least one Earth-sized planet in its habitable zone.',
   go:()=>{ const h=HYG.find(x=>x.n==='Proxima Centauri'); if(h){ S.pinned=h; focusOnHyg(h); } }},
  {t:'4 · TRAPPIST-1 — seven rocky worlds',d:'A cool red dwarf 40 ly away with seven Earth-sized planets \u2014 several inside the green habitable zone. Their positions on the orbits are the REAL phases for today, computed from the measured transit ephemerides.',
   go:()=>{ const st=STARS.find(x=>x.h==='TRAPPIST-1'); if(st) focusOn(st); }},
@@ -3507,7 +3524,7 @@ function tourShow(i){
 }
 function tourEnd(){ tourIdx=-1; document.getElementById('tourPanel').style.display='none'; S.pinned=null; dirty=true; }
 document.getElementById('tourBtn').addEventListener('click',()=>{
-  if(S.realScale) clickToggle('t-real');   // tour runs in log scale
+  if(S.realScale) clickToggle('t-real');   // tour runs in the compact (log) view
   tourShow(0);
 });
 document.getElementById('tourNext').addEventListener('click',()=>{ if(tourIdx>=TOUR.length-1) tourEnd(); else tourShow(tourIdx+1); });
@@ -3649,6 +3666,9 @@ api.liveStats=()=>{ const y=new Date().getFullYear();
 LIVE.onUpdate=()=>{ dirty=true; };
 startLive();
 if(UI.fac) UI.fac(facList);
+// real scale is the default view — boot into it via the tested toggle conversion,
+// unless a share link (hash) decides the scale itself
+if(!((typeof location!=='undefined'&&location.hash)||'').includes('v1_')) clickToggle('t-real');
 applyHash();
 try{console.log('Known Universe build 2026-07-12 11:57');}catch(e){}
 initGL();
