@@ -51186,7 +51186,7 @@ function __run() {
 				x: sp.x,
 				y: sp.y
 			};
-			const rbh = Math.min(Math.min(W, H) * .28, foc * (S.realScale ? 500 : 2.6) / sp.depth);
+			const rbh = Math.min(Math.min(W, H) * .28, foc * (S.realScale ? 500 : .9) / sp.depth);
 			if (rbh >= 10) {
 				drawBlackHole(sp.x, sp.y, rbh, 1, S.eht);
 				ctx.font = "10px ui-monospace,monospace";
@@ -55238,7 +55238,7 @@ function MobileNav($$anchor, $$props) {
 		var span = child(div_6);
 		var text = child(span);
 		var small = sibling(text);
-		small.textContent = `· b17:39`;
+		small.textContent = `· b17:43`;
 		reset(span);
 		var button = sibling(span, 2);
 		reset(div_6);
