@@ -9,6 +9,15 @@ function __run(){
 const DATA = window.__DATA__, META = DATA.meta, STARS = DATA.stars;
 const PC2LY = 3.261564;
 const cv = document.getElementById('sky'), ctx = cv.getContext('2d');
+// label halo: a thin dark outline keeps text readable over dense starfields
+const _rawFillText = ctx.fillText.bind(ctx);
+ctx.fillText = (s, x, y, mw) => {
+  const pw = ctx.lineWidth, ps = ctx.strokeStyle, pj = ctx.lineJoin;
+  ctx.lineWidth = 2.4; ctx.lineJoin = 'round'; ctx.strokeStyle = 'rgba(5,7,14,0.75)';
+  mw === undefined ? ctx.strokeText(s, x, y) : ctx.strokeText(s, x, y, mw);
+  ctx.lineWidth = pw; ctx.strokeStyle = ps; ctx.lineJoin = pj;
+  mw === undefined ? _rawFillText(s, x, y) : _rawFillText(s, x, y, mw);
+};
 // UI api FIRST: layer toggles + search stay usable even if a later boot step fails
 api.clickToggle=clickToggle; api.doSearch=doSearch; api.suggest=suggestList;
 api.toggleFac=toggleFac; api.facColorToggle=facColorToggle;
@@ -751,6 +760,18 @@ function bodyPx(rk,depth){
   const truePx = foc*(rk*3.2408e-14)/depth;              // rk km -> pc, perspective size
   return Math.min(Math.max(sym, truePx), Math.min(W,H)*0.75);
 }
+// Saturn's rings, split at the planet: the far half hides behind the globe, the
+// near half passes in front — drawn via a half-plane clip in the ring's tilt frame
+function saturnRings(x,y,px,A,near){
+  const R=px*2.35+Math.max(1,px*0.11);
+  ctx.save(); ctx.translate(x,y); ctx.rotate(-0.42);
+  ctx.beginPath(); ctx.rect(-R, near?0:-R, 2*R, R); ctx.clip();
+  for(const rr of [2.35,1.98,1.55]){                    // Cassini-division gap between rings
+    ctx.beginPath(); ctx.ellipse(0,0,px*rr,px*rr*0.34,0,0,6.2832);
+    ctx.strokeStyle=`rgba(226,208,160,${A*(rr>2?0.7:0.4)})`;
+    ctx.lineWidth=Math.max(1,px*0.11); ctx.stroke(); }
+  ctx.restore();
+}
 // lit-sphere shading: planets used to be flat colour discs, which the real-scale
 // deep zoom turns into screen-filling flat circles. Radial gradient offset toward
 // the Sun's screen position → correct terminator side + limb darkening.
@@ -840,12 +861,7 @@ function drawSolar(alpha){
   for(const b of drawn){
     const p=b._p, px=bodyPx(b.rk,p.depth), c=b.c;
     const sel=(b===S.hover||b===S.pinned);
-    if(b.ring){   // Saturn — tilted ring system with a Cassini-division gap
-      for(const rr of [2.35,1.98,1.55]){
-        ctx.beginPath(); ctx.ellipse(p.x,p.y,px*rr,px*rr*0.34,-0.42,0,6.2832);
-        ctx.strokeStyle=`rgba(226,208,160,${A*(rr>2?0.7:0.4)})`;
-        ctx.lineWidth=Math.max(1,px*0.11); ctx.stroke(); }
-    }
+    if(b.ring) saturnRings(p.x,p.y,px,A,false);   // far half — behind the globe
     if(b.uring){  // Uranus — rings nearly perpendicular (the planet is tipped on its side)
       for(const rr of [1.95,1.55]){
         ctx.beginPath(); ctx.ellipse(p.x,p.y,px*rr*0.32,px*rr,0.36,0,6.2832);
@@ -875,6 +891,14 @@ function drawSolar(alpha){
         else ctx.fillText(credit, 16, H-64);           // limb off-screen → pin to the corner
       }
     }
+    else if(px>=26 && PTEX[b.n]){                      // textured planets: same sphere pass
+      const gcv=bodyGlobe(b,px,solarJD());
+      if(gcv){ ctx.drawImage(gcv, p.x-px, p.y-px, px*2, px*2);
+        if(px>70){ ctx.font='9px ui-monospace,monospace'; ctx.fillStyle=`rgba(160,200,240,${A*0.7})`;
+          const cr='texture · Solar System Scope (CC-BY)';
+          if(p.x+px+8<W) ctx.fillText(cr, p.x+px+4, p.y+16); else ctx.fillText(cr, 16, H-64); } }
+    }
+    if(b.ring) saturnRings(p.x,p.y,px,A,true);         // near half — in front of the globe
     if(sel){ ctx.beginPath(); ctx.arc(p.x,p.y,px+7,0,6.2832);
       ctx.strokeStyle='rgba(79,214,200,.9)'; ctx.lineWidth=1.2; ctx.stroke(); }
     solarProj.push({o:b,x:p.x,y:p.y,px:px});
@@ -1206,8 +1230,8 @@ function globeViewRows(){
   const cy=Math.cos(S.yaw),sy=Math.sin(S.yaw),cp=Math.cos(S.pitch),sp=Math.sin(S.pitch);
   return [[cy,0,sy],[sy*sp,cp,-cy*sp],[-sy*cp,sp,cy*cp]];   // rows of project()'s rotation
 }
-function globeModelRows(jd){
-  const t=gmstRad(jd), ct=Math.cos(t), st=Math.sin(t), ce=Math.cos(OBLQ), se=Math.sin(OBLQ);
+function globeModelRows(t,eps){                              // spin angle t, axial tilt eps
+  const ct=Math.cos(t), st=Math.sin(t), ce=Math.cos(eps), se=Math.sin(eps);
   return [[ct,-st,0],[-se*st,-se*ct,ce],[ce*st,ce*ct,se]];  // world ← ecl ← equatorial ← geographic
 }
 const rows2col=r=>[r[0][0],r[1][0],r[2][0], r[0][1],r[1][1],r[2][1], r[0][2],r[1][2],r[2][2]];
@@ -1306,9 +1330,8 @@ function globeTexture(){
   };
   tryDay(SURF.dayOff||1);
 }
-function earthGlobe(px,jd){
+function renderGlobe(px,tex,Mrows,body){                 // shared sphere pass (Earth + planets)
   const g=globeInit(); if(!g) return null;
-  if(!g.texReady){ globeTexture(); return null; }        // GOES disc until the mosaic is in
   const dpr=Math.min(2,window.devicePixelRatio||1);
   const size=Math.max(64,Math.min(2048,Math.ceil(px*2*dpr)));
   if(g.cv.width!==size){ g.cv.width=g.cv.height=size; }
@@ -1321,22 +1344,54 @@ function earthGlobe(px,jd){
   gl.vertexAttribPointer(g.aP,3,gl.FLOAT,false,0,0);
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,g.ib);
   gl.uniformMatrix3fv(g.uV,false,rows2col(globeViewRows()));
-  gl.uniformMatrix3fv(g.uM,false,rows2col(globeModelRows(jd)));
-  const earth=PLANETS.find(p=>p.n==='Earth');
+  gl.uniformMatrix3fv(g.uM,false,rows2col(Mrows));
   let sun=[0,0,1];
-  if(earth&&earth._e){ const w=[-earth._e[0],-earth._e[2],-earth._e[1]];
+  if(body&&body._e){ const w=[-body._e[0],-body._e[2],-body._e[1]];
     const l=Math.hypot(w[0],w[1],w[2])||1; sun=[w[0]/l,w[1]/l,w[2]/l]; }
   gl.uniform3fv(g.uSun,sun);
-  gl.bindTexture(gl.TEXTURE_2D,g.tex);
+  gl.bindTexture(gl.TEXTURE_2D,tex);
   gl.uniform1i(g.uT,0);
   gl.drawElements(gl.TRIANGLES,g.nIdx,gl.UNSIGNED_SHORT,0);
   return g.cv;
+}
+function earthGlobe(px,jd){
+  const g=globeInit(); if(!g) return null;
+  if(!g.texReady){ globeTexture(); return null; }        // GOES disc until the mosaic is in
+  const earth=PLANETS.find(p=>p.n==='Earth');
+  return renderGlobe(px,g.tex,globeModelRows(gmstRad(jd),OBLQ),earth);
+}
+// planet globes: local equirect maps (Solar System Scope · CC BY 4.0) on the same
+// sphere pass — real sun direction, spin from the true rotation period (schematic pole)
+const PTEX={ Mercury:['mercury',58.646,0.001], Venus:['venus',-243.02,3.096],
+  Mars:['mars',1.02596,0.4396], Jupiter:['jupiter',0.41354,0.0546],
+  Saturn:['saturn',0.44401,0.4665], Uranus:['uranus',-0.71833,1.706],
+  Neptune:['neptune',0.67125,0.4943] };                  // [file, rot d, tilt rad]
+function bodyGlobe(b,px,jd){
+  const cfg=PTEX[b.n]; if(!cfg) return null;
+  const g=globeInit(); if(!g) return null;
+  if(!g.pt) g.pt={};
+  let t=g.pt[cfg[0]];
+  if(!t){ t=g.pt[cfg[0]]={tex:null,ready:false};
+    const im=new Image();
+    im.onload=()=>{ try{ const gl=g.gl, tx=gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D,tx);
+      gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,im);
+      gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.REPEAT);
+      gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+      t.tex=tx; t.ready=true; dirty=true; }catch(e){} };
+    im.src='data/tex/'+cfg[0]+'.jpg';                    // missing (artifact build) → shaded ball stays
+  }
+  if(!t.ready) return null;
+  const rot=((jd/cfg[1])%1)*6.283185307;
+  return renderGlobe(px,t.tex,globeModelRows(rot,cfg[2]),b);
 }
 // screen point on the globe → geographic lat/lon (for the surface-mode entry)
 function globeInverse(u,v){
   const rho=Math.hypot(u,v); if(rho>=1) return null;
   const nv=[u,-v,Math.sqrt(1-rho*rho)];
-  const V=globeViewRows(), M=globeModelRows(solarJD());
+  const V=globeViewRows(), M=globeModelRows(gmstRad(solarJD()),OBLQ);
   const wrl=[V[0][0]*nv[0]+V[1][0]*nv[1]+V[2][0]*nv[2],   // Vᵀ·nv
              V[0][1]*nv[0]+V[1][1]*nv[1]+V[2][1]*nv[2],
              V[0][2]*nv[0]+V[1][2]*nv[1]+V[2][2]*nv[2]];

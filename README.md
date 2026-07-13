@@ -43,6 +43,9 @@ as a fourth dimension.
   - **20 molecular clouds** at their Gaia 3D-dust distances (Zucker+ 2020) and
     **oriented galaxy disks**: 861 Local-Volume galaxies with measured axial
     ratio, 349 with measured position angle (LEDA) — Andromeda tilts for real.
+  - [Solar System Scope textures](https://www.solarsystemscope.com/textures/)
+    (CC BY 4.0) → equirect surface maps for Mercury–Neptune, rendered on a lit
+    WebGL sphere with the real sun direction and rotation period.
 - **Two scales (toggle "Compact view"):**
   - *Real* (default): **true, proportional distances** (1 pc = 1 unit, linear).
     Space is realistically vast and empty — you fly/zoom through the real gaps

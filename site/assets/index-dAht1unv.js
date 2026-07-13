@@ -7009,6 +7009,18 @@ function __run() {
 	const DATA = window.__DATA__, META = DATA.meta, STARS = DATA.stars;
 	const PC2LY = 3.261564;
 	const cv = document.getElementById("sky"), ctx = cv.getContext("2d");
+	const _rawFillText = ctx.fillText.bind(ctx);
+	ctx.fillText = (s, x, y, mw) => {
+		const pw = ctx.lineWidth, ps = ctx.strokeStyle, pj = ctx.lineJoin;
+		ctx.lineWidth = 2.4;
+		ctx.lineJoin = "round";
+		ctx.strokeStyle = "rgba(5,7,14,0.75)";
+		mw === void 0 ? ctx.strokeText(s, x, y) : ctx.strokeText(s, x, y, mw);
+		ctx.lineWidth = pw;
+		ctx.strokeStyle = ps;
+		ctx.lineJoin = pj;
+		mw === void 0 ? _rawFillText(s, x, y) : _rawFillText(s, x, y, mw);
+	};
 	api.clickToggle = clickToggle;
 	api.doSearch = doSearch;
 	api.suggest = suggestList;
@@ -47779,6 +47791,27 @@ function __run() {
 		const truePx = foc * (rk * 32408e-18) / depth;
 		return Math.min(Math.max(sym, truePx), Math.min(W, H) * .75);
 	}
+	function saturnRings(x, y, px, A, near) {
+		const R = px * 2.35 + Math.max(1, px * .11);
+		ctx.save();
+		ctx.translate(x, y);
+		ctx.rotate(-.42);
+		ctx.beginPath();
+		ctx.rect(-R, near ? 0 : -R, 2 * R, R);
+		ctx.clip();
+		for (const rr of [
+			2.35,
+			1.98,
+			1.55
+		]) {
+			ctx.beginPath();
+			ctx.ellipse(0, 0, px * rr, px * rr * .34, 0, 0, 6.2832);
+			ctx.strokeStyle = `rgba(226,208,160,${A * (rr > 2 ? .7 : .4)})`;
+			ctx.lineWidth = Math.max(1, px * .11);
+			ctx.stroke();
+		}
+		ctx.restore();
+	}
 	let _ballSun = null;
 	function ballFill(x, y, r, c, A) {
 		ctx.beginPath();
@@ -47917,17 +47950,7 @@ function __run() {
 		for (const b of drawn) {
 			const p = b._p, px = bodyPx(b.rk, p.depth), c = b.c;
 			const sel = b === S.hover || b === S.pinned;
-			if (b.ring) for (const rr of [
-				2.35,
-				1.98,
-				1.55
-			]) {
-				ctx.beginPath();
-				ctx.ellipse(p.x, p.y, px * rr, px * rr * .34, -.42, 0, 6.2832);
-				ctx.strokeStyle = `rgba(226,208,160,${A * (rr > 2 ? .7 : .4)})`;
-				ctx.lineWidth = Math.max(1, px * .11);
-				ctx.stroke();
-			}
+			if (b.ring) saturnRings(p.x, p.y, px, A, false);
 			if (b.uring) for (const rr of [1.95, 1.55]) {
 				ctx.beginPath();
 				ctx.ellipse(p.x, p.y, px * rr * .32, px * rr, .36, 0, 6.2832);
@@ -47970,7 +47993,20 @@ function __run() {
 					if (p.x + px + 8 < W) ctx.fillText(credit, p.x + px + 4, p.y + 16);
 					else ctx.fillText(credit, 16, H - 64);
 				}
+			} else if (px >= 26 && PTEX[b.n]) {
+				const gcv = bodyGlobe(b, px, solarJD());
+				if (gcv) {
+					ctx.drawImage(gcv, p.x - px, p.y - px, px * 2, px * 2);
+					if (px > 70) {
+						ctx.font = "9px ui-monospace,monospace";
+						ctx.fillStyle = `rgba(160,200,240,${A * .7})`;
+						const cr = "texture · Solar System Scope (CC-BY)";
+						if (p.x + px + 8 < W) ctx.fillText(cr, p.x + px + 4, p.y + 16);
+						else ctx.fillText(cr, 16, H - 64);
+					}
+				}
 			}
+			if (b.ring) saturnRings(p.x, p.y, px, A, true);
 			if (sel) {
 				ctx.beginPath();
 				ctx.arc(p.x, p.y, px + 7, 0, 6.2832);
@@ -48629,8 +48665,8 @@ function __run() {
 			]
 		];
 	}
-	function globeModelRows(jd) {
-		const t = gmstRad(jd), ct = Math.cos(t), st = Math.sin(t), ce = Math.cos(OBLQ), se = Math.sin(OBLQ);
+	function globeModelRows(t, eps) {
+		const ct = Math.cos(t), st = Math.sin(t), ce = Math.cos(eps), se = Math.sin(eps);
 		return [
 			[
 				ct,
@@ -48829,13 +48865,9 @@ function __run() {
 		};
 		tryDay(SURF.dayOff || 1);
 	}
-	function earthGlobe(px, jd) {
+	function renderGlobe(px, tex, Mrows, body) {
 		const g = globeInit();
 		if (!g) return null;
-		if (!g.texReady) {
-			globeTexture();
-			return null;
-		}
 		const dpr = Math.min(2, window.devicePixelRatio || 1);
 		const size = Math.max(64, Math.min(2048, Math.ceil(px * 2 * dpr)));
 		if (g.cv.width !== size) g.cv.width = g.cv.height = size;
@@ -48849,18 +48881,17 @@ function __run() {
 		gl.vertexAttribPointer(g.aP, 3, gl.FLOAT, false, 0, 0);
 		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, g.ib);
 		gl.uniformMatrix3fv(g.uV, false, rows2col(globeViewRows()));
-		gl.uniformMatrix3fv(g.uM, false, rows2col(globeModelRows(jd)));
-		const earth = PLANETS.find((p) => p.n === "Earth");
+		gl.uniformMatrix3fv(g.uM, false, rows2col(Mrows));
 		let sun = [
 			0,
 			0,
 			1
 		];
-		if (earth && earth._e) {
+		if (body && body._e) {
 			const w = [
-				-earth._e[0],
-				-earth._e[2],
-				-earth._e[1]
+				-body._e[0],
+				-body._e[2],
+				-body._e[1]
 			];
 			const l = Math.hypot(w[0], w[1], w[2]) || 1;
 			sun = [
@@ -48870,10 +48901,90 @@ function __run() {
 			];
 		}
 		gl.uniform3fv(g.uSun, sun);
-		gl.bindTexture(gl.TEXTURE_2D, g.tex);
+		gl.bindTexture(gl.TEXTURE_2D, tex);
 		gl.uniform1i(g.uT, 0);
 		gl.drawElements(gl.TRIANGLES, g.nIdx, gl.UNSIGNED_SHORT, 0);
 		return g.cv;
+	}
+	function earthGlobe(px, jd) {
+		const g = globeInit();
+		if (!g) return null;
+		if (!g.texReady) {
+			globeTexture();
+			return null;
+		}
+		const earth = PLANETS.find((p) => p.n === "Earth");
+		return renderGlobe(px, g.tex, globeModelRows(gmstRad(jd), OBLQ), earth);
+	}
+	const PTEX = {
+		Mercury: [
+			"mercury",
+			58.646,
+			.001
+		],
+		Venus: [
+			"venus",
+			-243.02,
+			3.096
+		],
+		Mars: [
+			"mars",
+			1.02596,
+			.4396
+		],
+		Jupiter: [
+			"jupiter",
+			.41354,
+			.0546
+		],
+		Saturn: [
+			"saturn",
+			.44401,
+			.4665
+		],
+		Uranus: [
+			"uranus",
+			-.71833,
+			1.706
+		],
+		Neptune: [
+			"neptune",
+			.67125,
+			.4943
+		]
+	};
+	function bodyGlobe(b, px, jd) {
+		const cfg = PTEX[b.n];
+		if (!cfg) return null;
+		const g = globeInit();
+		if (!g) return null;
+		if (!g.pt) g.pt = {};
+		let t = g.pt[cfg[0]];
+		if (!t) {
+			t = g.pt[cfg[0]] = {
+				tex: null,
+				ready: false
+			};
+			const im = new Image();
+			im.onload = () => {
+				try {
+					const gl = g.gl, tx = gl.createTexture();
+					gl.bindTexture(gl.TEXTURE_2D, tx);
+					gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, im);
+					gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+					gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+					gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+					gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+					t.tex = tx;
+					t.ready = true;
+					dirty = true;
+				} catch (e) {}
+			};
+			im.src = "data/tex/" + cfg[0] + ".jpg";
+		}
+		if (!t.ready) return null;
+		const rot = jd / cfg[1] % 1 * 6.283185307;
+		return renderGlobe(px, t.tex, globeModelRows(rot, cfg[2]), b);
 	}
 	function globeInverse(u, v) {
 		const rho = Math.hypot(u, v);
@@ -48883,7 +48994,7 @@ function __run() {
 			-v,
 			Math.sqrt(1 - rho * rho)
 		];
-		const V = globeViewRows(), M = globeModelRows(solarJD());
+		const V = globeViewRows(), M = globeModelRows(gmstRad(solarJD()), OBLQ);
 		const wrl = [
 			V[0][0] * nv[0] + V[1][0] * nv[1] + V[2][0] * nv[2],
 			V[0][1] * nv[0] + V[1][1] * nv[1] + V[2][1] * nv[2],
@@ -54137,7 +54248,7 @@ function MobileNav($$anchor, $$props) {
 		var span = child(div_6);
 		var text = child(span);
 		var small = sibling(text);
-		small.textContent = `· b13:40`;
+		small.textContent = `· b13:53`;
 		reset(span);
 		var button = sibling(span, 2);
 		reset(div_6);
