@@ -7072,6 +7072,7 @@ function __run() {
 		sat: true,
 		sunAR: true,
 		met: true,
+		iso: true,
 		realScale: false,
 		hover: null,
 		pinned: null,
@@ -48058,6 +48059,7 @@ function __run() {
 			}
 		}
 		if (S.probes) drawProbes(A);
+		if (S.iso) drawISO(A);
 		if (S.cme) drawCME(A);
 		if (S.neo) {
 			drawLiveNeo(A);
@@ -48116,6 +48118,128 @@ function __run() {
 			ctx.font = (sel ? "10px" : "9px") + " ui-monospace,monospace";
 			ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},${A * .92})`;
 			ctx.fillText(p.n, pr.x + sz + 4, pr.y + 3);
+		}
+	}
+	const ISO = [
+		{
+			n: "1I/ʻOumuamua",
+			q: .255343,
+			e: 1.20113,
+			i: 122.7417,
+			om: 24.5997,
+			w: 241.8105,
+			tp: 2458005.99,
+			rk: .11,
+			note: "first interstellar visitor (2017) — elongated, tumbling, origin still debated"
+		},
+		{
+			n: "2I/Borisov",
+			q: 2.00664,
+			e: 3.3565,
+			i: 44.0526,
+			om: 308.149,
+			w: 209.1246,
+			tp: 2458826.05,
+			rk: .4,
+			note: "first clearly cometary interstellar visitor (2019)"
+		},
+		{
+			n: "3I/ATLAS",
+			q: 1.35638,
+			e: 6.1395,
+			i: 175.1131,
+			om: 322.1577,
+			w: 127.9889,
+			tp: 2460978.03,
+			rk: 1.4,
+			note: "third interstellar visitor (2025) — fastest yet, ~58 km/s hyperbolic excess"
+		}
+	];
+	ISO.forEach((o) => {
+		o.kind = "Interstellar object";
+		o.c = [
+			110,
+			255,
+			180
+		];
+		o.iso = true;
+	});
+	function isoEcl(o, jd) {
+		const a = o.q / (1 - o.e), M = .01720209895 / Math.sqrt(-a * a * a) * (jd - o.tp);
+		let H = Math.sign(M || 1) * Math.log(2 * Math.abs(M) / o.e + 1.8);
+		for (let k = 0; k < 40; k++) {
+			const d = (o.e * Math.sinh(H) - H - M) / (o.e * Math.cosh(H) - 1);
+			H -= d;
+			if (Math.abs(d) < 1e-12) break;
+		}
+		const nu = 2 * Math.atan(Math.sqrt((o.e + 1) / (o.e - 1)) * Math.tanh(H / 2)), r = a * (1 - o.e * Math.cosh(H));
+		const xw = r * Math.cos(nu), yw = r * Math.sin(nu);
+		const cw = Math.cos(o.w * D2R), sw = Math.sin(o.w * D2R), ci = Math.cos(o.i * D2R), si = Math.sin(o.i * D2R), cO = Math.cos(o.om * D2R), sO = Math.sin(o.om * D2R);
+		return [
+			(cO * cw - sO * sw * ci) * xw + (-cO * sw - sO * cw * ci) * yw,
+			(sO * cw + cO * sw * ci) * xw + (-sO * sw + cO * cw * ci) * yw,
+			sw * si * xw + cw * si * yw
+		];
+	}
+	function drawISO(A) {
+		const jd = solarJD();
+		for (const o of ISO) {
+			o._e = isoEcl(o, jd);
+			o._r = Math.hypot(o._e[0], o._e[1], o._e[2]);
+			if (!o._path) {
+				o._path = [];
+				for (let k = 0; k <= 120; k++) {
+					const e2 = isoEcl(o, o.tp - 1460 + k / 120 * 2920);
+					o._path.push(Math.hypot(e2[0], e2[1], e2[2]) <= 35 ? e2 : null);
+				}
+			}
+			ctx.setLineDash([4, 4]);
+			ctx.beginPath();
+			let first = true;
+			for (const e2 of o._path) {
+				if (!e2) {
+					first = true;
+					continue;
+				}
+				const w = eclToWorld(e2[0], e2[1], e2[2]), p = project(w[0], w[1], w[2]);
+				if (p.depth <= NEAR || offscr(p)) {
+					first = true;
+					continue;
+				}
+				if (first) {
+					ctx.moveTo(p.x, p.y);
+					first = false;
+				} else ctx.lineTo(p.x, p.y);
+			}
+			ctx.strokeStyle = `rgba(110,255,180,${A * .42})`;
+			ctx.lineWidth = 1;
+			ctx.stroke();
+			ctx.setLineDash([]);
+			const w = eclToWorld(o._e[0], o._e[1], o._e[2]), p = project(w[0], w[1], w[2]);
+			if (p.depth <= NEAR || offscr(p)) continue;
+			const sel = o === S.hover || o === S.pinned, sz = sel ? 6 : 5;
+			ctx.beginPath();
+			ctx.moveTo(p.x, p.y - sz);
+			ctx.lineTo(p.x + sz, p.y);
+			ctx.lineTo(p.x, p.y + sz);
+			ctx.lineTo(p.x - sz, p.y);
+			ctx.closePath();
+			ctx.fillStyle = `rgba(110,255,180,${A})`;
+			ctx.fill();
+			ctx.beginPath();
+			ctx.arc(p.x, p.y, sz + 4, 0, 6.2832);
+			ctx.strokeStyle = `rgba(110,255,180,${A * (sel ? .9 : .45)})`;
+			ctx.lineWidth = 1.1;
+			ctx.stroke();
+			solarProj.push({
+				o,
+				x: p.x,
+				y: p.y,
+				px: sz + 5
+			});
+			ctx.font = (sel ? "10px" : "9px") + " ui-monospace,monospace";
+			ctx.fillStyle = `rgba(150,255,200,${A * .95})`;
+			ctx.fillText(o.n + " · interstellar", p.x + sz + 4, p.y + 3);
 		}
 	}
 	function drawSmall(A, jd) {
@@ -51327,6 +51451,7 @@ function __run() {
 	bindToggle("t-belt", "belt");
 	bindToggle("t-lag", "lag");
 	bindToggle("t-lens", "lens");
+	bindToggle("t-iso", "iso");
 	bindToggle("t-cme", "cme");
 	bindToggle("t-neo", "neo");
 	bindToggle("t-sat", "sat");
@@ -51603,6 +51728,7 @@ function __run() {
 		const push = (t, o) => {
 			if (o) cands.push([t, o]);
 		};
+		push("iso", ISO.find((o) => eq(o.n)));
 		push("small", SMALL.find((o) => eq(o.n)));
 		push("dso", DSO.find((o) => eq(o.n)));
 		push("hyg", HYG.find((s) => eq(s.n)));
@@ -51613,6 +51739,7 @@ function __run() {
 		push("tno2", TNOS.find((t2) => eq(t2.n)));
 		push("psr", PULSARS.find((o) => eq(o.n)));
 		push("clu", CLUSTERS.find((c) => eq(c.n)));
+		push("iso", ISO.find((o) => has(o.n)));
 		push("small", SMALL.find((o) => has(o.n)));
 		push("dso", DSO.find((o) => has(o.n)));
 		push("hyg", HYG.find((s) => has(s.n)));
@@ -51628,6 +51755,17 @@ function __run() {
 			return;
 		}
 		const [t, o] = cands[0];
+		if (t === "iso") {
+			searchMsg.textContent = "→ " + o.n + " (interstellar)";
+			if (!S.iso) {
+				S.iso = true;
+				syncToggle("t-iso", true);
+			}
+			focusSys = null;
+			enterSolar();
+			S.pinned = o;
+			return;
+		}
 		if (t === "small") {
 			searchMsg.textContent = "→ " + o.n + " (" + o.kind + ")";
 			if (!S.ast) {
@@ -52909,7 +53047,8 @@ void main(){                                             // soft shoulder above 
 		"veil",
 		"web",
 		"lag",
-		"lens"
+		"lens",
+		"iso"
 	];
 	function viewHash() {
 		const keys = HASH_KEYS;
@@ -53296,6 +53435,11 @@ function Controls($$anchor, $$props) {
 				{
 					"id": "t-probes",
 					"label": "Spacecraft (Voyager…)",
+					"on": true
+				},
+				{
+					"id": "t-iso",
+					"label": "Interstellar visitors (1I·2I·3I)",
 					"on": true
 				},
 				{
@@ -53965,7 +54109,7 @@ function MobileNav($$anchor, $$props) {
 		var span = child(div_6);
 		var text = child(span);
 		var small = sibling(text);
-		small.textContent = `· b13:06`;
+		small.textContent = `· b13:15`;
 		reset(span);
 		var button = sibling(span, 2);
 		reset(div_6);
