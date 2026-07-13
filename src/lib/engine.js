@@ -2586,7 +2586,7 @@ function drawMW(){
   if(sp.depth>NEAR){
     sgraScreen={x:sp.x,y:sp.y};
     // close enough → the simulated look (shadow, photon ring, folded disk)
-    const rbh=Math.min(Math.min(W,H)*0.28, foc*(S.realScale?500:0.9)/sp.depth);   // compact: log squeeze
+    const rbh=Math.min(Math.min(W,H)*0.28, foc*(S.realScale?500:0.35)/sp.depth);  // compact: log squeeze
                                                                                    // made it huge from afar
     if(rbh>=10){
       drawBlackHole(sp.x,sp.y,rbh,1,S.eht);
