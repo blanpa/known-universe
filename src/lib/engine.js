@@ -2206,34 +2206,43 @@ function drawGalaxyModel(){
 // ---- black holes, the way the simulations render them: black shadow, thin photon
 // ring, and an accretion disk whose lensed far side folds above and below the hole ----
 function drawBlackHole(x,y,r,A){
-  const disk=r*2.9;
+  const disk=r*3.1, flat=0.13;                     // razor-thin disk, Gargantua-style
   ctx.save(); ctx.translate(x,y); ctx.rotate(-0.14);
-  // Doppler beaming: the approaching side outshines the receding one
+  let g=ctx.createRadialGradient(0,0,r*0.7,0,0,disk*1.35);         // ambient glow
+  g.addColorStop(0,`rgba(255,190,120,${A*0.22})`); g.addColorStop(0.6,`rgba(255,150,70,${A*0.07})`);
+  g.addColorStop(1,'rgba(255,140,60,0)');
+  ctx.fillStyle=g; ctx.beginPath(); ctx.arc(0,0,disk*1.35,0,6.2832); ctx.fill();
+  // the flat disk: one smooth annulus, white-hot at the inner edge fading to amber
+  const diskGrad=()=>{ const dg=ctx.createRadialGradient(0,0,r*1.22,0,0,disk);
+    dg.addColorStop(0,`rgba(255,252,246,${A})`);
+    dg.addColorStop(0.18,`rgba(255,238,205,${A*0.92})`);
+    dg.addColorStop(0.55,`rgba(255,196,120,${A*0.55})`);
+    dg.addColorStop(1,'rgba(255,150,70,0)'); return dg; };
+  ctx.save(); ctx.scale(1,flat); ctx.fillStyle=diskGrad();
+  ctx.beginPath(); ctx.arc(0,0,disk,0,6.2832); ctx.arc(0,0,r*1.24,0,6.2832,true); ctx.fill();
+  // mild Doppler beaming — the film kept it subtle too
   const dop=ctx.createLinearGradient(-disk,0,disk,0);
-  dop.addColorStop(0,`rgba(255,246,228,${A})`);
-  dop.addColorStop(0.42,`rgba(255,198,112,${A*0.85})`);
-  dop.addColorStop(1,`rgba(255,122,60,${A*0.5})`);
-  let g=ctx.createRadialGradient(0,0,r*0.7,0,0,disk*1.4);          // ambient glow
-  g.addColorStop(0,`rgba(255,170,80,${A*0.28})`); g.addColorStop(0.6,`rgba(255,130,55,${A*0.08})`);
-  g.addColorStop(1,'rgba(255,120,50,0)');
-  ctx.fillStyle=g; ctx.beginPath(); ctx.arc(0,0,disk*1.4,0,6.2832); ctx.fill();
-  ctx.strokeStyle=dop;                                             // the flat disk, hot bands out from the ISCO
-  for(let i=0;i<7;i++){ const f=i/6, rr=r*(1.45+f*1.45);
-    ctx.beginPath(); ctx.ellipse(0,0,rr,rr*0.17,0,0,6.2832);
-    ctx.globalAlpha=A*(1-f*0.8)*0.85; ctx.lineWidth=Math.max(1,r*(0.16-f*0.09)); ctx.stroke(); }
-  for(const [a0,a1,al] of [[Math.PI,6.2832,0.75],[0,Math.PI,0.3]]){ // lensed far side folds over & under
-    ctx.beginPath(); ctx.ellipse(0,0,r*1.45,r*1.38,0,a0,a1);
-    ctx.globalAlpha=A*al; ctx.lineWidth=Math.max(1,r*0.3); ctx.stroke(); }
-  ctx.globalAlpha=1;
+  dop.addColorStop(0,`rgba(255,255,255,${A*0.30})`); dop.addColorStop(0.5,'rgba(255,255,255,0)');
+  ctx.fillStyle=dop;
+  ctx.beginPath(); ctx.arc(0,0,disk,0,6.2832); ctx.arc(0,0,r*1.24,0,6.2832,true); ctx.fill();
+  ctx.restore();
+  // gravitational lensing: the far side of the disk wraps into a full halo around the shadow
+  const hg=ctx.createRadialGradient(0,0,r*1.02,0,0,r*1.75);
+  hg.addColorStop(0,`rgba(255,250,240,${A*0.85})`);
+  hg.addColorStop(0.35,`rgba(255,225,175,${A*0.45})`);
+  hg.addColorStop(1,'rgba(255,180,110,0)');
+  ctx.fillStyle=hg;
+  ctx.beginPath(); ctx.arc(0,0,r*1.75,0,6.2832); ctx.arc(0,0,r*1.02,0,6.2832,true); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(0,0,r*1.32,r*1.28,0,Math.PI,6.2832);   // fold over the top, a touch brighter
+  ctx.strokeStyle=`rgba(255,252,244,${A*0.45})`; ctx.lineWidth=Math.max(1,r*0.16); ctx.stroke();
   ctx.beginPath(); ctx.arc(0,0,r,0,6.2832); ctx.fillStyle='#000'; ctx.fill();   // the shadow
-  ctx.beginPath(); ctx.arc(0,0,r*1.06,0,6.2832);                                // photon ring
-  ctx.strokeStyle=`rgba(255,240,214,${A*0.9})`; ctx.lineWidth=Math.max(1,r*0.045); ctx.stroke();
-  ctx.save(); ctx.beginPath(); ctx.rect(-disk*1.1,r*0.1,disk*2.2,disk); ctx.clip();
-  ctx.strokeStyle=dop;                                             // near side crosses IN FRONT of the shadow
-  for(let i=0;i<4;i++){ const f=i/3, rr=r*(1.45+f*1.0);
-    ctx.beginPath(); ctx.ellipse(0,0,rr,rr*0.17,0,0,6.2832);
-    ctx.globalAlpha=A*(1-f*0.6)*0.95; ctx.lineWidth=Math.max(1,r*(0.15-f*0.07)); ctx.stroke(); }
-  ctx.restore(); ctx.globalAlpha=1;
+  ctx.beginPath(); ctx.arc(0,0,r*1.05,0,6.2832);                                // photon ring
+  ctx.strokeStyle=`rgba(255,248,232,${A*0.95})`; ctx.lineWidth=Math.max(1,r*0.035); ctx.stroke();
+  // the near side of the disk passes in front of the shadow
+  ctx.save(); ctx.beginPath(); ctx.rect(-disk*1.05,r*0.02,disk*2.1,disk); ctx.clip();
+  ctx.save(); ctx.scale(1,flat); ctx.fillStyle=diskGrad();
+  ctx.beginPath(); ctx.arc(0,0,disk*0.9,0,6.2832); ctx.arc(0,0,r*1.24,0,6.2832,true); ctx.fill();
+  ctx.restore(); ctx.restore();
   ctx.restore();
 }
 function drawMW(){

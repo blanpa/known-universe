@@ -50426,71 +50426,78 @@ function __run() {
 		ctx.stroke();
 	}
 	function drawBlackHole(x, y, r, A) {
-		const disk = r * 2.9;
+		const disk = r * 3.1, flat = .13;
 		ctx.save();
 		ctx.translate(x, y);
 		ctx.rotate(-.14);
-		const dop = ctx.createLinearGradient(-disk, 0, disk, 0);
-		dop.addColorStop(0, `rgba(255,246,228,${A})`);
-		dop.addColorStop(.42, `rgba(255,198,112,${A * .85})`);
-		dop.addColorStop(1, `rgba(255,122,60,${A * .5})`);
-		let g = ctx.createRadialGradient(0, 0, r * .7, 0, 0, disk * 1.4);
-		g.addColorStop(0, `rgba(255,170,80,${A * .28})`);
-		g.addColorStop(.6, `rgba(255,130,55,${A * .08})`);
-		g.addColorStop(1, "rgba(255,120,50,0)");
+		let g = ctx.createRadialGradient(0, 0, r * .7, 0, 0, disk * 1.35);
+		g.addColorStop(0, `rgba(255,190,120,${A * .22})`);
+		g.addColorStop(.6, `rgba(255,150,70,${A * .07})`);
+		g.addColorStop(1, "rgba(255,140,60,0)");
 		ctx.fillStyle = g;
 		ctx.beginPath();
-		ctx.arc(0, 0, disk * 1.4, 0, 6.2832);
+		ctx.arc(0, 0, disk * 1.35, 0, 6.2832);
 		ctx.fill();
-		ctx.strokeStyle = dop;
-		for (let i = 0; i < 7; i++) {
-			const f = i / 6, rr = r * (1.45 + f * 1.45);
-			ctx.beginPath();
-			ctx.ellipse(0, 0, rr, rr * .17, 0, 0, 6.2832);
-			ctx.globalAlpha = A * (1 - f * .8) * .85;
-			ctx.lineWidth = Math.max(1, r * (.16 - f * .09));
-			ctx.stroke();
-		}
-		for (const [a0, a1, al] of [[
-			Math.PI,
-			6.2832,
-			.75
-		], [
-			0,
-			Math.PI,
-			.3
-		]]) {
-			ctx.beginPath();
-			ctx.ellipse(0, 0, r * 1.45, r * 1.38, 0, a0, a1);
-			ctx.globalAlpha = A * al;
-			ctx.lineWidth = Math.max(1, r * .3);
-			ctx.stroke();
-		}
-		ctx.globalAlpha = 1;
+		const diskGrad = () => {
+			const dg = ctx.createRadialGradient(0, 0, r * 1.22, 0, 0, disk);
+			dg.addColorStop(0, `rgba(255,252,246,${A})`);
+			dg.addColorStop(.18, `rgba(255,238,205,${A * .92})`);
+			dg.addColorStop(.55, `rgba(255,196,120,${A * .55})`);
+			dg.addColorStop(1, "rgba(255,150,70,0)");
+			return dg;
+		};
+		ctx.save();
+		ctx.scale(1, flat);
+		ctx.fillStyle = diskGrad();
+		ctx.beginPath();
+		ctx.arc(0, 0, disk, 0, 6.2832);
+		ctx.arc(0, 0, r * 1.24, 0, 6.2832, true);
+		ctx.fill();
+		const dop = ctx.createLinearGradient(-disk, 0, disk, 0);
+		dop.addColorStop(0, `rgba(255,255,255,${A * .3})`);
+		dop.addColorStop(.5, "rgba(255,255,255,0)");
+		ctx.fillStyle = dop;
+		ctx.beginPath();
+		ctx.arc(0, 0, disk, 0, 6.2832);
+		ctx.arc(0, 0, r * 1.24, 0, 6.2832, true);
+		ctx.fill();
+		ctx.restore();
+		const hg = ctx.createRadialGradient(0, 0, r * 1.02, 0, 0, r * 1.75);
+		hg.addColorStop(0, `rgba(255,250,240,${A * .85})`);
+		hg.addColorStop(.35, `rgba(255,225,175,${A * .45})`);
+		hg.addColorStop(1, "rgba(255,180,110,0)");
+		ctx.fillStyle = hg;
+		ctx.beginPath();
+		ctx.arc(0, 0, r * 1.75, 0, 6.2832);
+		ctx.arc(0, 0, r * 1.02, 0, 6.2832, true);
+		ctx.fill();
+		ctx.beginPath();
+		ctx.ellipse(0, 0, r * 1.32, r * 1.28, 0, Math.PI, 6.2832);
+		ctx.strokeStyle = `rgba(255,252,244,${A * .45})`;
+		ctx.lineWidth = Math.max(1, r * .16);
+		ctx.stroke();
 		ctx.beginPath();
 		ctx.arc(0, 0, r, 0, 6.2832);
 		ctx.fillStyle = "#000";
 		ctx.fill();
 		ctx.beginPath();
-		ctx.arc(0, 0, r * 1.06, 0, 6.2832);
-		ctx.strokeStyle = `rgba(255,240,214,${A * .9})`;
-		ctx.lineWidth = Math.max(1, r * .045);
+		ctx.arc(0, 0, r * 1.05, 0, 6.2832);
+		ctx.strokeStyle = `rgba(255,248,232,${A * .95})`;
+		ctx.lineWidth = Math.max(1, r * .035);
 		ctx.stroke();
 		ctx.save();
 		ctx.beginPath();
-		ctx.rect(-disk * 1.1, r * .1, disk * 2.2, disk);
+		ctx.rect(-disk * 1.05, r * .02, disk * 2.1, disk);
 		ctx.clip();
-		ctx.strokeStyle = dop;
-		for (let i = 0; i < 4; i++) {
-			const f = i / 3, rr = r * (1.45 + f * 1);
-			ctx.beginPath();
-			ctx.ellipse(0, 0, rr, rr * .17, 0, 0, 6.2832);
-			ctx.globalAlpha = A * (1 - f * .6) * .95;
-			ctx.lineWidth = Math.max(1, r * (.15 - f * .07));
-			ctx.stroke();
-		}
+		ctx.save();
+		ctx.scale(1, flat);
+		ctx.fillStyle = diskGrad();
+		ctx.beginPath();
+		ctx.arc(0, 0, disk * .9, 0, 6.2832);
+		ctx.arc(0, 0, r * 1.24, 0, 6.2832, true);
+		ctx.fill();
 		ctx.restore();
-		ctx.globalAlpha = 1;
+		ctx.restore();
 		ctx.restore();
 	}
 	function drawMW() {
@@ -54536,7 +54543,7 @@ function MobileNav($$anchor, $$props) {
 		var span = child(div_6);
 		var text = child(span);
 		var small = sibling(text);
-		small.textContent = `· b15:13`;
+		small.textContent = `· b15:20`;
 		reset(span);
 		var button = sibling(span, 2);
 		reset(div_6);
