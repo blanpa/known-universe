@@ -2275,7 +2275,7 @@ function bhInit(){
         col+=trans*(bg+vec3(st)*0.85);
       }
       col=vec3(1.0)-exp(-col*1.25);                      // filmic-ish tone map
-      float edge=1.0-smoothstep(0.86,1.0,max(abs(vP.x),abs(vP.y)));
+      float edge=1.0-smoothstep(0.74,0.98,length(vP));   // round vignette — no square seam
       gl_FragColor=vec4(col*edge,edge);
     }`);
   if(!vsh||!fsh) return fail('bh: shader compile failed');
