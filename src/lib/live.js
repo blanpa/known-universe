@@ -119,7 +119,8 @@ async function fetchNeos(){
 // CelesTrak temp-bans IPs that re-query a group more often than ~hourly, so the
 // TLE text is cached for 6 h in localStorage (and used stale if the fetch fails).
 function tleCache(){ try{ return JSON.parse(localStorage.getItem('ku_tle') || 'null'); }catch(e){ return null; } }
-const SAT_GROUPS = ['visual', 'stations', 'starlink', 'oneweb', 'gnss', 'geo'];
+const SAT_GROUPS = ['visual', 'stations', 'starlink', 'oneweb', 'gnss', 'geo',
+  'cosmos-2251-debris', 'iridium-33-debris', 'fengyun-1c-debris'];
 async function fetchSats(){
   let c = tleCache();
   if (!c || typeof c.groups !== 'object' || !c.groups) c = { groups: {} };   // migrate old {ts,txt} cache
@@ -145,7 +146,8 @@ async function fetchSats(){
         seen.add(rec.satnum);
         const n = lines[i].trim();
         sats.push({ n, rec, iss: /ISS \(ZARYA\)/.test(n), hst: /^HST$/.test(n),
-          css: /CSS \(TIANHE\)/.test(n), sl: /^STARLINK/i.test(n), ow: /^ONEWEB/i.test(n) });
+          css: /CSS \(TIANHE\)/.test(n), sl: /^STARLINK/i.test(n), ow: /^ONEWEB/i.test(n),
+          deb: / DEB/.test(n) });
         i += 2;
       }catch(e){}
     }

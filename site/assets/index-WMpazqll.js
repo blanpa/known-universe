@@ -6745,7 +6745,10 @@ var SAT_GROUPS = [
 	"starlink",
 	"oneweb",
 	"gnss",
-	"geo"
+	"geo",
+	"cosmos-2251-debris",
+	"iridium-33-debris",
+	"fengyun-1c-debris"
 ];
 async function fetchSats() {
 	let c = tleCache();
@@ -6788,7 +6791,8 @@ async function fetchSats() {
 					hst: /^HST$/.test(n),
 					css: /CSS \(TIANHE\)/.test(n),
 					sl: /^STARLINK/i.test(n),
-					ow: /^ONEWEB/i.test(n)
+					ow: /^ONEWEB/i.test(n),
+					deb: / DEB/.test(n)
 				});
 				i += 2;
 			} catch (e) {}
@@ -7108,6 +7112,8 @@ function __run() {
 		iso: true,
 		eht: false,
 		labels: true,
+		radio: true,
+		bubble: true,
 		realScale: false,
 		hover: null,
 		pinned: null,
@@ -14919,6 +14925,14 @@ function __run() {
 			],
 			l: "Neutron star / magnetar"
 		},
+		BD: {
+			c: [
+				216,
+				130,
+				96
+			],
+			l: "Brown dwarf"
+		},
 		XRB: {
 			c: [
 				255,
@@ -15350,6 +15364,90 @@ function __run() {
 			ra: 293.732,
 			dec: 21.897,
 			d: 6600
+		},
+		{
+			n: "Luhman 16 AB",
+			t: "BD",
+			ra: 162.328,
+			dec: -53.319,
+			d: 2
+		},
+		{
+			n: "WISE 0855−0714",
+			t: "BD",
+			ra: 133.79,
+			dec: -7.24,
+			d: 2.28
+		},
+		{
+			n: "Epsilon Indi Ba",
+			t: "BD",
+			ra: 330.87,
+			dec: -56.79,
+			d: 3.62
+		},
+		{
+			n: "SCR 1845−6357 B",
+			t: "BD",
+			ra: 281.3,
+			dec: -63.96,
+			d: 3.85
+		},
+		{
+			n: "DENIS 1048−3956",
+			t: "BD",
+			ra: 162.07,
+			dec: -39.94,
+			d: 4
+		},
+		{
+			n: "UGPS 0722−05",
+			t: "BD",
+			ra: 110.61,
+			dec: -5.68,
+			d: 4.1
+		},
+		{
+			n: "Gliese 229 B",
+			t: "BD",
+			ra: 92.64,
+			dec: -21.86,
+			d: 5.76
+		},
+		{
+			n: "GJ 570 D",
+			t: "BD",
+			ra: 224.36,
+			dec: -21.41,
+			d: 5.88
+		},
+		{
+			n: "SIMP 0136+0933",
+			t: "BD",
+			ra: 24.24,
+			dec: 9.56,
+			d: 6.1
+		},
+		{
+			n: "2MASS 1507−1627",
+			t: "BD",
+			ra: 226.95,
+			dec: -16.46,
+			d: 7.4
+		},
+		{
+			n: "2M1207 · has a planet",
+			t: "BD",
+			ra: 181.89,
+			dec: -39.55,
+			d: 52.4
+		},
+		{
+			n: "Teide 1 · Pleiades",
+			t: "BD",
+			ra: 56.9,
+			dec: 24.36,
+			d: 120
 		},
 		{
 			n: "SN 1006",
@@ -47395,6 +47493,8 @@ function __run() {
 		calcLens();
 		if (S.rings) drawRings();
 		if (S.veil) drawVeilSphere();
+		if (S.radio) drawRadioSphere();
+		if (S.bubble) drawBubble();
 		projectGalaxies();
 		const backG = [], frontG = [];
 		for (const g of galProj) (g._z2 < 0 ? backG : frontG).push(g);
@@ -47694,6 +47794,106 @@ function __run() {
 		}
 		ctx.restore();
 	}
+	function drawRadioSphere() {
+		const lyr = 2e3 + (solarJD() - 2451545) / 365.25 - 1901;
+		if (lyr < 1) return;
+		const R = scale(lyr * .306601);
+		ctx.save();
+		for (const [ax, ay] of [
+			[0, 1],
+			[0, 2],
+			[1, 2]
+		]) {
+			ctx.beginPath();
+			let first = true;
+			for (let a = 0; a <= 72; a++) {
+				const th = a / 72 * 6.2832, v = [
+					0,
+					0,
+					0
+				];
+				v[ax] = Math.cos(th) * R;
+				v[ay] = Math.sin(th) * R;
+				const p = project(v[0], v[1], v[2]);
+				if (offscr(p)) {
+					first = true;
+					continue;
+				}
+				if (first) {
+					ctx.moveTo(p.x, p.y);
+					first = false;
+				} else ctx.lineTo(p.x, p.y);
+			}
+			ctx.setLineDash([2, 5]);
+			ctx.strokeStyle = "rgba(120,225,235,.22)";
+			ctx.lineWidth = 1;
+			ctx.stroke();
+		}
+		ctx.setLineDash([]);
+		const lp = project(R * .71, R * .71, 0);
+		if (lp.depth > NEAR && !offscr(lp)) {
+			ctx.font = "9px ui-monospace,monospace";
+			ctx.fillStyle = "rgba(130,225,235,.6)";
+			ctx.fillText("our radio signals · " + Math.round(lyr) + " ly out", lp.x + 4, lp.y - 3);
+		}
+		ctx.restore();
+	}
+	function drawBubble() {
+		ctx.save();
+		ctx.setLineDash([3, 6]);
+		for (const [e1, e2, a, b] of [
+			[
+				GPu,
+				GPv,
+				95,
+				95
+			],
+			[
+				GPu,
+				NGP,
+				95,
+				150
+			],
+			[
+				GPv,
+				NGP,
+				95,
+				150
+			]
+		]) {
+			ctx.beginPath();
+			let first = true;
+			for (let k = 0; k <= 72; k++) {
+				const th = k / 72 * 6.2832, ca = Math.cos(th) * a, sb = Math.sin(th) * b;
+				const v = [
+					e1[0] * ca + e2[0] * sb,
+					e1[1] * ca + e2[1] * sb,
+					e1[2] * ca + e2[2] * sb
+				];
+				const len = Math.hypot(v[0], v[1], v[2]) || 1, R = scale(len);
+				const p = project(v[0] / len * R, v[1] / len * R, v[2] / len * R);
+				if (offscr(p)) {
+					first = true;
+					continue;
+				}
+				if (first) {
+					ctx.moveTo(p.x, p.y);
+					first = false;
+				} else ctx.lineTo(p.x, p.y);
+			}
+			ctx.strokeStyle = "rgba(150,190,255,.17)";
+			ctx.lineWidth = 1;
+			ctx.stroke();
+		}
+		ctx.setLineDash([]);
+		const lt = scale(150), lp = project(NGP[0] * lt, NGP[1] * lt, NGP[2] * lt);
+		if (lp.depth > NEAR && !offscr(lp)) {
+			ctx.font = "9px ui-monospace,monospace";
+			ctx.fillStyle = "rgba(160,195,255,.55)";
+			ctx.fillText("Local Bubble · blown clear by ~15 supernovae", lp.x + 4, lp.y - 3);
+		}
+		ctx.restore();
+	}
 	function drawVeilSphere() {
 		const dr = compress(BND);
 		const planes = [
@@ -47905,6 +48105,32 @@ function __run() {
 		ctx.lineWidth = 1;
 		ctx.stroke();
 	}
+	let _suvi = {
+		im: null,
+		ok: false,
+		t: 0,
+		loading: false
+	};
+	function suviImage() {
+		if (!_suvi.loading && Date.now() - _suvi.t > 10 * 6e4) {
+			_suvi.loading = true;
+			const im = new Image();
+			im.crossOrigin = "anonymous";
+			im.onload = () => {
+				_suvi.im = im;
+				_suvi.ok = true;
+				_suvi.t = Date.now();
+				_suvi.loading = false;
+				dirty = true;
+			};
+			im.onerror = () => {
+				_suvi.t = Date.now();
+				_suvi.loading = false;
+			};
+			im.src = "https://services.swpc.noaa.gov/images/animations/suvi/primary/304/latest.png";
+		}
+		return _suvi.ok ? _suvi.im : null;
+	}
 	function drawSolar(alpha) {
 		ctx.globalAlpha = alpha;
 		solarProj.length = 0;
@@ -47946,6 +48172,23 @@ function __run() {
 			ctx.arc(sp.x, sp.y, spx, 0, 6.2832);
 			ctx.fillStyle = `rgba(255,240,190,${A})`;
 			ctx.fill();
+			if (spx >= 14) {
+				const im = suviImage();
+				if (im) {
+					const s = im.width * .3;
+					ctx.save();
+					ctx.beginPath();
+					ctx.arc(sp.x, sp.y, spx, 0, 6.2832);
+					ctx.clip();
+					ctx.drawImage(im, im.width / 2 - s, im.height / 2 - s, s * 2, s * 2, sp.x - spx, sp.y - spx, spx * 2, spx * 2);
+					ctx.restore();
+					if (spx > 46) {
+						ctx.font = "9px ui-monospace,monospace";
+						ctx.fillStyle = `rgba(255,200,140,${A * .7})`;
+						ctx.fillText("GOES SUVI 304 Å · live (~4 min)", sp.x + spx + 4, sp.y + 16);
+					}
+				}
+			}
 			solarProj.push({
 				o: SUN,
 				x: sp.x,
@@ -48087,6 +48330,13 @@ function __run() {
 					let mpx = Math.max(1.1, Math.min(10, Math.pow(m.rk / 6371, .42) * .62 * foc * .02 / mde));
 					if (S.realScale) mpx = Math.min(Math.max(mpx, foc * (m.rk * 32408e-18) / p.depth), Math.min(W, H) * .5);
 					ballFill(mx, my, mpx, m.c, A);
+					if (m.n === "Moon" && mpx >= 26) {
+						const gcv = bodyGlobe({
+							n: "Moon",
+							_e: b._e
+						}, mpx, jdM);
+						if (gcv) ctx.drawImage(gcv, mx - mpx, my - mpx, mpx * 2, mpx * 2);
+					}
 					const msel = m === S.hover || m === S.pinned;
 					if (msel) {
 						ctx.beginPath();
@@ -48980,6 +49230,11 @@ function __run() {
 		return renderGlobe(px, g.tex, globeModelRows(gmstRad(jd), OBLQ), earth);
 	}
 	const PTEX = {
+		Moon: [
+			"moon",
+			27.322,
+			.116
+		],
 		Mercury: [
 			"mercury",
 			58.646,
@@ -49256,10 +49511,10 @@ function __run() {
 		const ep = earth._p, px = bodyPx(earth.rk, ep.depth);
 		if (px < 10) return;
 		const jd = solarJD();
-		let drawn = 0, nSl = 0;
+		let drawn = 0, nSl = 0, nDeb = 0;
 		const LOG_LO = Math.log10(6600), LOG_HI = Math.log10(5e4);
 		const N = LIVE.sats.length, BUD = Math.min(N, 1500);
-		const cNamed = `rgba(150,235,255,${A})`, cDef = `rgba(140,215,250,${A * .7})`, cSl = `rgba(168,196,232,${A * .5})`, cOw = `rgba(196,176,232,${A * .55})`;
+		const cNamed = `rgba(150,235,255,${A})`, cDef = `rgba(140,215,250,${A * .7})`, cSl = `rgba(168,196,232,${A * .5})`, cOw = `rgba(196,176,232,${A * .55})`, cDeb = `rgba(160,158,168,${A * .38})`;
 		for (let k = 0; k < N; k++) {
 			const s = LIVE.sats[k];
 			let e;
@@ -49294,13 +49549,14 @@ function __run() {
 			s.sat = true;
 			s.kind = "Satellite";
 			if (s.sl) nSl++;
+			if (s.deb) nDeb++;
 			if (named) {
 				ctx.beginPath();
 				ctx.arc(x, y, 2.4, 0, 6.2832);
 				ctx.fillStyle = cNamed;
 				ctx.fill();
 			} else {
-				ctx.fillStyle = s.sl ? cSl : s.ow ? cOw : cDef;
+				ctx.fillStyle = s.deb ? cDeb : s.sl ? cSl : s.ow ? cOw : cDef;
 				ctx.fillRect(x - .9, y - .9, 1.8, 1.8);
 			}
 			if (sel) {
@@ -49328,7 +49584,7 @@ function __run() {
 			if (px > 13) {
 				ctx.font = "8.5px ui-monospace,monospace";
 				ctx.fillStyle = `rgba(140,215,250,${A * .55})`;
-				ctx.fillText(drawn.toLocaleString("en-US") + " satellites · live" + (nSl ? " · " + nSl.toLocaleString("en-US") + " Starlink" : ""), ep.x + px + 4, ep.y + 16);
+				ctx.fillText(drawn.toLocaleString("en-US") + " satellites · live" + (nSl ? " · " + nSl.toLocaleString("en-US") + " Starlink" : "") + (nDeb ? " · " + nDeb.toLocaleString("en-US") + " debris" : ""), ep.x + px + 4, ep.y + 16);
 			}
 			dirty = true;
 		}
@@ -52001,6 +52257,8 @@ function __run() {
 	bindToggle("t-iso", "iso");
 	bindToggle("t-eht", "eht");
 	bindToggle("t-labels", "labels");
+	bindToggle("t-radio", "radio");
+	bindToggle("t-bubble", "bubble");
 	bindToggle("t-cme", "cme");
 	bindToggle("t-neo", "neo");
 	bindToggle("t-sat", "sat");
@@ -53610,7 +53868,9 @@ void main(){                                             // soft shoulder above 
 		"lag",
 		"lens",
 		"iso",
-		"eht"
+		"eht",
+		"radio",
+		"bubble"
 	];
 	function viewHash() {
 		const keys = HASH_KEYS;
@@ -54095,6 +54355,11 @@ function Controls($$anchor, $$props) {
 					"id": "t-var",
 					"label": "Variable stars",
 					"on": true
+				},
+				{
+					"id": "t-radio",
+					"label": "Radio bubble (our signals)",
+					"on": true
 				}
 			]
 		},
@@ -54124,6 +54389,11 @@ function Controls($$anchor, $$props) {
 				{
 					"id": "t-met",
 					"label": "Meteor showers (active)",
+					"on": true
+				},
+				{
+					"id": "t-bubble",
+					"label": "Local Bubble (ISM)",
 					"on": true
 				},
 				{
@@ -54817,7 +55087,7 @@ function MobileNav($$anchor, $$props) {
 		var span = child(div_6);
 		var text = child(span);
 		var small = sibling(text);
-		small.textContent = `· b16:56`;
+		small.textContent = `· b17:15`;
 		reset(span);
 		var button = sibling(span, 2);
 		reset(div_6);

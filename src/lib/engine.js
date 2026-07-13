@@ -41,6 +41,7 @@ const S={ yaw:0.5, pitch:-0.5, camZ:3.0, year:2026, tOffsetDays:0,
   hyg:true, gpu:true, gaia:true, web:true, qso:true, ob:true, vars:true, edge:true, facColor:false, facHidden:new Set(),
   solar:true, moons:true, mw:true, mw3d:true, dso:true, psr:true, oclu:true, ast:true, tno:true, probes:true, helio:true, belt:true, con:true, hz:true, lag:true, lens:true, pm:false, pmYears:0,
   cme:true, neo:true, sat:true, sunAR:true, met:true, iso:true, eht:false, labels:true,
+  radio:true, bubble:true,
   realScale:false,
   hover:null, pinned:null, focusStar:null, focusT:0 };
 
@@ -240,6 +241,7 @@ const DSO_T={
   EN:{c:[255,118,118],l:'Emission nebula'},      PN:{c:[110,230,198],l:'Planetary nebula'},
   SNR:{c:[232,140,222],l:'Supernova remnant'},
   BH:{c:[176,140,255],l:'Stellar black hole'}, NS:{c:[150,220,255],l:'Neutron star / magnetar'},
+  BD:{c:[216,130,96],l:'Brown dwarf'},
   XRB:{c:[255,168,120],l:'X-ray binary'},
   CL:{c:[255,182,140],l:'Galaxy cluster'}, SC:{c:[255,150,110],l:'Supercluster'},
   GW:{c:[130,255,220],l:'Gravitational-wave event'}, QSOn:{c:[214,150,255],l:'Quasar'},
@@ -274,6 +276,13 @@ const DSO=[
  {n:'Centaurus X-3',t:'XRB',ra:170.313,dec:-60.624,d:5700},{n:'Geminga',t:'NS',ra:98.476,dec:17.770,d:250},
  {n:'SGR 1806-20',t:'NS',ra:272.163,dec:-20.412,d:8700}, {n:'RX J1856-3754',t:'NS',ra:284.146,dec:-37.908,d:120},
  {n:'SGR 1935+2154',t:'NS',ra:293.732,dec:21.897,d:6600},
+ // the nearest brown dwarfs — failed stars, third-closest system among them
+ {n:'Luhman 16 AB',t:'BD',ra:162.328,dec:-53.319,d:2.0},  {n:'WISE 0855−0714',t:'BD',ra:133.79,dec:-7.24,d:2.28},
+ {n:'Epsilon Indi Ba',t:'BD',ra:330.87,dec:-56.79,d:3.62},{n:'SCR 1845−6357 B',t:'BD',ra:281.30,dec:-63.96,d:3.85},
+ {n:'DENIS 1048−3956',t:'BD',ra:162.07,dec:-39.94,d:4.0}, {n:'UGPS 0722−05',t:'BD',ra:110.61,dec:-5.68,d:4.1},
+ {n:'Gliese 229 B',t:'BD',ra:92.64,dec:-21.86,d:5.76},    {n:'GJ 570 D',t:'BD',ra:224.36,dec:-21.41,d:5.88},
+ {n:'SIMP 0136+0933',t:'BD',ra:24.24,dec:9.56,d:6.1},     {n:'2MASS 1507−1627',t:'BD',ra:226.95,dec:-16.46,d:7.4},
+ {n:'2M1207 · has a planet',t:'BD',ra:181.89,dec:-39.55,d:52.4},{n:'Teide 1 · Pleiades',t:'BD',ra:56.9,dec:24.36,d:120},
  {n:'SN 1006',t:'SNR',ra:225.592,dec:-41.935,d:2200},    {n:'Tycho · SN 1572',t:'SNR',ra:6.340,dec:64.140,d:2500},
  {n:'Kepler · SN 1604',t:'SNR',ra:262.675,dec:-21.490,d:5000},{n:'Cassiopeia A',t:'SNR',ra:350.850,dec:58.815,d:3400},
  {n:'SN 1987A · LMC',t:'SNR',ra:83.867,dec:-69.270,d:51400},{n:'Vela SNR',t:'SNR',ra:128.500,dec:-45.833,d:290},
@@ -479,6 +488,8 @@ function render(){
 
   if(S.rings) drawRings();
   if(S.veil) drawVeilSphere();
+  if(S.radio) drawRadioSphere();
+  if(S.bubble) drawBubble();
 
   // galaxies: project, split behind/in-front of the local cloud for painter order
   projectGalaxies();
@@ -672,6 +683,50 @@ function drawRings(){
   ctx.restore();
 }
 
+// the human radio bubble: how far our first broadcasts have travelled (since ~1901),
+// time-slider aware — scrub the future and watch it grow
+function drawRadioSphere(){
+  const yr=2000+(solarJD()-2451545)/365.25, lyr=yr-1901;
+  if(lyr<1) return;
+  const R=scale(lyr*0.306601);
+  ctx.save();
+  for(const [ax,ay] of [[0,1],[0,2],[1,2]]){
+    ctx.beginPath(); let first=true;
+    for(let a=0;a<=72;a++){ const th=a/72*6.2832, v=[0,0,0];
+      v[ax]=Math.cos(th)*R; v[ay]=Math.sin(th)*R;
+      const p=project(v[0],v[1],v[2]);
+      if(offscr(p)){first=true;continue;}
+      if(first){ctx.moveTo(p.x,p.y);first=false;}else ctx.lineTo(p.x,p.y);
+    }
+    ctx.setLineDash([2,5]); ctx.strokeStyle='rgba(120,225,235,.22)'; ctx.lineWidth=1; ctx.stroke();
+  }
+  ctx.setLineDash([]);
+  const lp=project(R*0.71,R*0.71,0);
+  if(lp.depth>NEAR&&!offscr(lp)){ ctx.font='9px ui-monospace,monospace'; ctx.fillStyle='rgba(130,225,235,.6)';
+    ctx.fillText('our radio signals · '+Math.round(lyr)+' ly out', lp.x+4, lp.y-3); }
+  ctx.restore();
+}
+// the Local Bubble: the supernova-blown cavity we live in (≈Zucker+ 2022 extents,
+// drawn as a schematic ellipsoid in galactic coordinates)
+function drawBubble(){
+  ctx.save(); ctx.setLineDash([3,6]);
+  for(const [e1,e2,a,b] of [[GPu,GPv,95,95],[GPu,NGP,95,150],[GPv,NGP,95,150]]){
+    ctx.beginPath(); let first=true;
+    for(let k=0;k<=72;k++){ const th=k/72*6.2832, ca=Math.cos(th)*a, sb=Math.sin(th)*b;
+      const v=[e1[0]*ca+e2[0]*sb, e1[1]*ca+e2[1]*sb, e1[2]*ca+e2[2]*sb];
+      const len=Math.hypot(v[0],v[1],v[2])||1, R=scale(len);
+      const p=project(v[0]/len*R, v[1]/len*R, v[2]/len*R);
+      if(offscr(p)){first=true;continue;}
+      if(first){ctx.moveTo(p.x,p.y);first=false;}else ctx.lineTo(p.x,p.y);
+    }
+    ctx.strokeStyle='rgba(150,190,255,.17)'; ctx.lineWidth=1; ctx.stroke();
+  }
+  ctx.setLineDash([]);
+  const lt=scale(150), lp=project(NGP[0]*lt,NGP[1]*lt,NGP[2]*lt);
+  if(lp.depth>NEAR&&!offscr(lp)){ ctx.font='9px ui-monospace,monospace'; ctx.fillStyle='rgba(160,195,255,.55)';
+    ctx.fillText('Local Bubble · blown clear by ~15 supernovae', lp.x+4, lp.y-3); }
+  ctx.restore();
+}
 // red veil boundary: three great circles forming a sphere at the neighbourhood edge
 function drawVeilSphere(){
   const dr=compress(BND);
@@ -811,6 +866,18 @@ function drawOrbitEllipse(el,style){        // true (eccentric, inclined) orbit 
   }
   ctx.strokeStyle=style; ctx.lineWidth=1; ctx.stroke();
 }
+// live Sun: GOES SUVI 304 Å (chromosphere, prominences) — SWPC serves it with CORS
+let _suvi={im:null,ok:false,t:0,loading:false};
+function suviImage(){
+  if(!_suvi.loading && Date.now()-_suvi.t>10*60e3){
+    _suvi.loading=true;
+    const im=new Image(); im.crossOrigin='anonymous';
+    im.onload=()=>{ _suvi.im=im; _suvi.ok=true; _suvi.t=Date.now(); _suvi.loading=false; dirty=true; };
+    im.onerror=()=>{ _suvi.t=Date.now(); _suvi.loading=false; };   // keep the last good frame
+    im.src='https://services.swpc.noaa.gov/images/animations/suvi/primary/304/latest.png';
+  }
+  return _suvi.ok?_suvi.im:null;
+}
 function drawSolar(alpha){
   ctx.globalAlpha=alpha; solarProj.length=0;
   const A=alpha;
@@ -842,6 +909,15 @@ function drawSolar(alpha){
     ctx.fillStyle=gr; ctx.beginPath(); ctx.arc(sp.x,sp.y,spx*3.2,0,6.2832); ctx.fill();
     ctx.beginPath(); ctx.arc(sp.x,sp.y,spx,0,6.2832);
     ctx.fillStyle=`rgba(255,240,190,${A})`; ctx.fill();
+    if(spx>=14){                                   // live chromosphere on the disc
+      const im=suviImage();
+      if(im){ const s=im.width*0.30;               // SUVI disc ≈ 60% of the frame — crop to it
+        ctx.save(); ctx.beginPath(); ctx.arc(sp.x,sp.y,spx,0,6.2832); ctx.clip();
+        ctx.drawImage(im, im.width/2-s, im.height/2-s, s*2, s*2, sp.x-spx, sp.y-spx, spx*2, spx*2);
+        ctx.restore();
+        if(spx>46){ ctx.font='9px ui-monospace,monospace'; ctx.fillStyle=`rgba(255,200,140,${A*0.7})`;
+          ctx.fillText('GOES SUVI 304 Å · live (~4 min)', sp.x+spx+4, sp.y+16); } }
+    }
     solarProj.push({o:SUN,x:sp.x,y:sp.y,px:spx});
     ctx.font='11px ui-monospace,monospace'; ctx.fillStyle=`rgba(255,238,178,${A*0.9})`;
     ctx.fillText('Sun', sp.x+spx+4, sp.y+3);
@@ -939,6 +1015,10 @@ function drawSolar(alpha){
         let mpx=Math.max(1.1,Math.min(10,Math.pow(m.rk/6371,0.42)*0.62*foc*0.02/mde));
         if(S.realScale) mpx=Math.min(Math.max(mpx, foc*(m.rk*3.2408e-14)/p.depth), Math.min(W,H)*0.5);
         ballFill(mx,my,mpx,m.c,A);
+        if(m.n==='Moon'&&mpx>=26){                 // the Moon gets its real face up close
+          const gcv=bodyGlobe({n:'Moon',_e:b._e},mpx,jdM);
+          if(gcv) ctx.drawImage(gcv,mx-mpx,my-mpx,mpx*2,mpx*2);
+        }
         const msel=(m===S.hover||m===S.pinned);
         if(msel){ ctx.beginPath(); ctx.arc(mx,my,mpx+5,0,6.2832);
           ctx.strokeStyle='rgba(79,214,200,.9)'; ctx.lineWidth=1; ctx.stroke(); }
@@ -1387,7 +1467,8 @@ function earthGlobe(px,jd){
 }
 // planet globes: local equirect maps (Solar System Scope · CC BY 4.0) on the same
 // sphere pass — real sun direction, spin from the true rotation period (schematic pole)
-const PTEX={ Mercury:['mercury',58.646,0.001], Venus:['venus',-243.02,3.096],
+const PTEX={ Moon:['moon',27.322,0.116],
+  Mercury:['mercury',58.646,0.001], Venus:['venus',-243.02,3.096],
   Mars:['mars',1.02596,0.4396], Jupiter:['jupiter',0.41354,0.0546],
   Saturn:['saturn',0.44401,0.4665], Uranus:['uranus',-0.71833,1.706],
   Neptune:['neptune',0.67125,0.4943] };                  // [file, rot d, tilt rad]
@@ -1557,13 +1638,14 @@ function drawSats(A){
   if(!earth||!earth._e||!earth._p) return;
   const ep=earth._p, px=bodyPx(earth.rk,ep.depth);
   if(px<10) return;
-  const jd=solarJD(); let drawn=0, nSl=0;
+  const jd=solarJD(); let drawn=0, nSl=0, nDeb=0;
   const LOG_LO=Math.log10(6600), LOG_HI=Math.log10(50000);
   // SGP4 for the full catalogue (Starlink!) is too hot for every frame — propagate a
   // rotating batch and draw the rest from last frame's position (full refresh ≲0.1 s)
   const N=LIVE.sats.length, BUD=Math.min(N,1500);
   const cNamed=`rgba(150,235,255,${A})`, cDef=`rgba(140,215,250,${A*0.7})`,
-        cSl=`rgba(168,196,232,${A*0.5})`, cOw=`rgba(196,176,232,${A*0.55})`;
+        cSl=`rgba(168,196,232,${A*0.5})`, cOw=`rgba(196,176,232,${A*0.55})`,
+        cDeb=`rgba(160,158,168,${A*0.38})`;
   for(let k=0;k<N;k++){
     const s=LIVE.sats[k];
     let e;
@@ -1585,9 +1667,9 @@ function drawSats(A){
     }
     const named=s.iss||s.hst||s.css, sel=(s===S.hover||s===S.pinned);
     s.alt=l-6371; s.sat=true; s.kind='Satellite';
-    if(s.sl) nSl++;
+    if(s.sl) nSl++; if(s.deb) nDeb++;
     if(named){ ctx.beginPath(); ctx.arc(x,y,2.4,0,6.2832); ctx.fillStyle=cNamed; ctx.fill(); }
-    else { ctx.fillStyle=s.sl?cSl:s.ow?cOw:cDef; ctx.fillRect(x-0.9,y-0.9,1.8,1.8); }
+    else { ctx.fillStyle=s.deb?cDeb:s.sl?cSl:s.ow?cOw:cDef; ctx.fillRect(x-0.9,y-0.9,1.8,1.8); }
     if(sel){ ctx.beginPath(); ctx.arc(x,y,7,0,6.2832); ctx.strokeStyle='rgba(79,214,200,.9)'; ctx.lineWidth=1.1; ctx.stroke(); }
     if(named||sel){ ctx.font='8.5px ui-monospace,monospace'; ctx.fillStyle=`rgba(160,230,255,${A*0.9})`;
       ctx.fillText(s.iss?'ISS':s.css?'CSS':s.hst?'Hubble':s.n, x+4, y-3); }
@@ -1598,7 +1680,8 @@ function drawSats(A){
   if(drawn){
     if(px>13){ ctx.font='8.5px ui-monospace,monospace'; ctx.fillStyle=`rgba(140,215,250,${A*0.55})`;
       ctx.fillText(drawn.toLocaleString('en-US')+' satellites · live'
-        +(nSl?' · '+nSl.toLocaleString('en-US')+' Starlink':''), ep.x+px+4, ep.y+16); }
+        +(nSl?' · '+nSl.toLocaleString('en-US')+' Starlink':'')
+        +(nDeb?' · '+nDeb.toLocaleString('en-US')+' debris':''), ep.x+px+4, ep.y+16); }
     dirty=true;                                        // they really move — keep animating while visible
   }
 }
@@ -3172,6 +3255,8 @@ bindToggle('t-lens','lens');
 bindToggle('t-iso','iso');
 bindToggle('t-eht','eht');
 bindToggle('t-labels','labels');
+bindToggle('t-radio','radio');
+bindToggle('t-bubble','bubble');
 bindToggle('t-cme','cme');
 bindToggle('t-neo','neo');
 bindToggle('t-sat','sat');
@@ -3997,7 +4082,7 @@ document.getElementById('tourEnd').addEventListener('click',tourEnd);
 // later additions appended — so old share links keep decoding correctly
 const HASH_KEYS=['ast','autorot','belt','con','dso','edge','freelook','gaia','galaxies',
   'gpu','helio','hyg','hz','moons','mw','mw3d','ob','oclu','probes','psr','qso','rings',
-  'size','tno','vars','veil','web','lag','lens','iso','eht'];
+  'size','tno','vars','veil','web','lag','lens','iso','eht','radio','bubble'];
 function viewHash(){
   const keys=HASH_KEYS;
   let m=0; keys.forEach((k,i)=>{ if(S[k]) m|=(1<<i); });

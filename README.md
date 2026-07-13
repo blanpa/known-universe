@@ -44,8 +44,14 @@ as a fourth dimension.
     **oriented galaxy disks**: 861 Local-Volume galaxies with measured axial
     ratio, 349 with measured position angle (LEDA) — Andromeda tilts for real.
   - [Solar System Scope textures](https://www.solarsystemscope.com/textures/)
-    (CC BY 4.0) → equirect surface maps for Mercury–Neptune, rendered on a lit
-    WebGL sphere with the real sun direction and rotation period.
+    (CC BY 4.0) → equirect surface maps for the Moon and Mercury–Neptune,
+    rendered on a lit WebGL sphere with the real sun direction and rotation.
+  - [GOES SUVI](https://www.swpc.noaa.gov/products/goes-solar-ultraviolet-imager-suvi)
+    → the Sun's live chromosphere (304 Å, ~4 min cadence) on the solar disc.
+  - Hand-curated context layers: the 12 nearest **brown dwarfs**, the
+    **Local Bubble** (≈Zucker+ 2022 extents), the growing **human radio
+    bubble** (signals since 1901, time-slider aware), and **orbital debris**
+    (Cosmos-2251, Iridium-33, Fengyun-1C clouds via CelesTrak).
 - **Two scales (toggle "Compact view"):**
   - *Real* (default): **true, proportional distances** (1 pc = 1 unit, linear).
     Space is realistically vast and empty — you fly/zoom through the real gaps
