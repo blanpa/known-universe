@@ -1297,14 +1297,39 @@ function globeInit(){
     texReady:false,loading:false,texDate:''};
   return _gbl;
 }
-// stitch the GIBS level-3 equirect mosaic (10×5 tiles of 512px) into the texture
+// fraction of black/no-data pixels, polar caps excluded (polar night is legitimately dark)
+function mosaicGaps(cnv){
+  const c=document.createElement('canvas'); c.width=128; c.height=64;
+  const g2=c.getContext('2d'); g2.drawImage(cnv,0,0,128,64);
+  const d=g2.getImageData(0,12,128,40).data;             // ±56° band — clear of winter darkness;
+                                                         // missing orbit swaths cross it anyway
+  let black=0, n=0;
+  for(let i=0;i<d.length;i+=4){ n++; if(d[i]+d[i+1]+d[i+2]<24) black++; }
+  return black/n;
+}
+// stitch the GIBS level-3 equirect mosaic (10×5 tiles of 512px) into the texture.
+// The freshest days are often only partially ingested (missing orbit swaths render
+// as black) — walk back until a day is ≥94% complete, else keep the best one seen.
 function globeTexture(){
   const g=_gbl; if(!g||g.loading||g.texReady) return;
   if(g.nextTexTry && performance.now()<g.nextTexTry) return;   // full ladder failed: back off,
   g.loading=true;                                              // don't restart 50 fetches per frame
-  const tryDay=off=>{
-    if(off>4){ g.loading=false; g.nextTexTry=performance.now()+30000;
+  const finish=()=>{
+    const b=g.best;
+    if(!b){ g.loading=false; g.nextTexTry=performance.now()+30000;
       try{console.warn('globe: mosaic unavailable, retrying in 30 s');}catch(e){} return; }
+    const sc=document.createElement('canvas'); sc.width=4096; sc.height=2048;
+    sc.getContext('2d').drawImage(b.cnv,0,0,4096,2048);
+    const gl=g.gl;
+    gl.bindTexture(gl.TEXTURE_2D,g.tex);
+    try{ gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,sc);
+      g.texReady=true; g.texDate=b.date; SURF.dayOff=Math.max(SURF.dayOff,b.off);
+      try{console.log('globe: mosaic ready ·',b.date,'·',(b.frac*100).toFixed(1)+'% gaps');}catch(e){}
+    }catch(e){ try{console.warn('globe: texture upload failed',e);}catch(e2){} }
+    g.best=null; g.loading=false; dirty=true;
+  };
+  const tryDay=off=>{
+    if(off>5){ finish(); return; }
     const date=new Date(Date.now()-off*86400000).toISOString().slice(0,10);
     const cnv=document.createElement('canvas'); cnv.width=5120; cnv.height=2560;
     const c2=cnv.getContext('2d');
@@ -1314,15 +1339,14 @@ function globeTexture(){
       im.onload=()=>{ if(failed) return;
         c2.drawImage(im,c*512,r*512);
         if(++n===50){
-          const sc=document.createElement('canvas'); sc.width=4096; sc.height=2048;
-          sc.getContext('2d').drawImage(cnv,0,0,4096,2048);
-          const gl=g.gl;
-          gl.bindTexture(gl.TEXTURE_2D,g.tex);
-          try{ gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,sc);
-            g.texReady=true; g.texDate=date; SURF.dayOff=Math.max(SURF.dayOff,off);
-            try{console.log('globe: mosaic ready ·',date);}catch(e){}
-          }catch(e){ try{console.warn('globe: texture upload failed',e);}catch(e2){} }
-          g.loading=false; dirty=true;
+          let frac=0;
+          try{ frac=mosaicGaps(cnv); }catch(e){}         // sampling failed → just accept the day
+          if(!g.best || frac<g.best.frac) g.best={cnv,frac,date,off};
+          if(frac>0.06){
+            try{console.log('globe: mosaic',date,'is',(frac*100).toFixed(0)+'% black — trying an earlier day');}catch(e){}
+            tryDay(off+1); return;
+          }
+          finish();
         } };
       im.onerror=()=>{ if(!failed){ failed=true; tryDay(off+1); } };
       im.src=`https://gibs.earthdata.nasa.gov/wmts/epsg4326/best/VIIRS_SNPP_CorrectedReflectance_TrueColor/default/${date}/250m/3/${r}/${c}.jpg`;
@@ -1404,7 +1428,7 @@ function globeInverse(u,v){
 // NASA GIBS · VIIRS true color (yesterday UTC — the last complete global mosaic),
 // web-mercator tiles up to level 9 (~300 m/px). Entry point = where the view centre
 // sits on the GOES disc (orthographic inverse from the GOES-East sub-point, 75.2°W).
-const SURF={on:false, lat:20, lon:-75, cache:new Map(), order:[], dayOff:1};
+const SURF={on:false, lat:20, lon:-75, cache:new Map(), order:[], dayOff:2};   // day-1 is often half-ingested
 const SURF_ENTER=0.003, SURF_EXIT=0.0033, GOES_LON=-75.2, RE_PC=2.0646e-10;  // Earth radius in pc
 let _earthScr=null;
 // real scale: descend where the true disc overflows the viewport (~200 km altitude);

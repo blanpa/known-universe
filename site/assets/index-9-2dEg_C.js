@@ -48804,18 +48804,61 @@ function __run() {
 		};
 		return _gbl;
 	}
+	function mosaicGaps(cnv) {
+		const c = document.createElement("canvas");
+		c.width = 128;
+		c.height = 64;
+		const g2 = c.getContext("2d");
+		g2.drawImage(cnv, 0, 0, 128, 64);
+		const d = g2.getImageData(0, 12, 128, 40).data;
+		let black = 0, n = 0;
+		for (let i = 0; i < d.length; i += 4) {
+			n++;
+			if (d[i] + d[i + 1] + d[i + 2] < 24) black++;
+		}
+		return black / n;
+	}
 	function globeTexture() {
 		const g = _gbl;
 		if (!g || g.loading || g.texReady) return;
 		if (g.nextTexTry && performance.now() < g.nextTexTry) return;
 		g.loading = true;
-		const tryDay = (off) => {
-			if (off > 4) {
+		const finish = () => {
+			const b = g.best;
+			if (!b) {
 				g.loading = false;
 				g.nextTexTry = performance.now() + 3e4;
 				try {
 					console.warn("globe: mosaic unavailable, retrying in 30 s");
 				} catch (e) {}
+				return;
+			}
+			const sc = document.createElement("canvas");
+			sc.width = 4096;
+			sc.height = 2048;
+			sc.getContext("2d").drawImage(b.cnv, 0, 0, 4096, 2048);
+			const gl = g.gl;
+			gl.bindTexture(gl.TEXTURE_2D, g.tex);
+			try {
+				gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, sc);
+				g.texReady = true;
+				g.texDate = b.date;
+				SURF.dayOff = Math.max(SURF.dayOff, b.off);
+				try {
+					console.log("globe: mosaic ready ·", b.date, "·", (b.frac * 100).toFixed(1) + "% gaps");
+				} catch (e) {}
+			} catch (e) {
+				try {
+					console.warn("globe: texture upload failed", e);
+				} catch (e2) {}
+			}
+			g.best = null;
+			g.loading = false;
+			dirty = true;
+		};
+		const tryDay = (off) => {
+			if (off > 5) {
+				finish();
 				return;
 			}
 			const date = (/* @__PURE__ */ new Date(Date.now() - off * 864e5)).toISOString().slice(0, 10);
@@ -48831,27 +48874,24 @@ function __run() {
 					if (failed) return;
 					c2.drawImage(im, c * 512, r * 512);
 					if (++n === 50) {
-						const sc = document.createElement("canvas");
-						sc.width = 4096;
-						sc.height = 2048;
-						sc.getContext("2d").drawImage(cnv, 0, 0, 4096, 2048);
-						const gl = g.gl;
-						gl.bindTexture(gl.TEXTURE_2D, g.tex);
+						let frac = 0;
 						try {
-							gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, sc);
-							g.texReady = true;
-							g.texDate = date;
-							SURF.dayOff = Math.max(SURF.dayOff, off);
+							frac = mosaicGaps(cnv);
+						} catch (e) {}
+						if (!g.best || frac < g.best.frac) g.best = {
+							cnv,
+							frac,
+							date,
+							off
+						};
+						if (frac > .06) {
 							try {
-								console.log("globe: mosaic ready ·", date);
+								console.log("globe: mosaic", date, "is", (frac * 100).toFixed(0) + "% black — trying an earlier day");
 							} catch (e) {}
-						} catch (e) {
-							try {
-								console.warn("globe: texture upload failed", e);
-							} catch (e2) {}
+							tryDay(off + 1);
+							return;
 						}
-						g.loading = false;
-						dirty = true;
+						finish();
 					}
 				};
 				im.onerror = () => {
@@ -49013,7 +49053,7 @@ function __run() {
 		lon: -75,
 		cache: /* @__PURE__ */ new Map(),
 		order: [],
-		dayOff: 1
+		dayOff: 2
 	};
 	const SURF_ENTER = .003, SURF_EXIT = .0033, GOES_LON = -75.2, RE_PC = 20646e-14;
 	let _earthScr = null;
@@ -54248,7 +54288,7 @@ function MobileNav($$anchor, $$props) {
 		var span = child(div_6);
 		var text = child(span);
 		var small = sibling(text);
-		small.textContent = `· b13:53`;
+		small.textContent = `· b14:27`;
 		reset(span);
 		var button = sibling(span, 2);
 		reset(div_6);
