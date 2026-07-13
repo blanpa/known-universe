@@ -44,6 +44,9 @@ while desktop ANGLE silently accepted it).
   verify suspicious "white panels" with an element screenshot / computed style before fixing.
 - External live APIs 429 on repeated headless runs; GIBS tiles 404 on day-offset fallback — noise,
   not failures.
+- Views inside the Gaia point cloud (e.g. flown to a nearby star) run ~4 s/frame in SwiftShader —
+  give screenshots there `timeout: 180000` and expect flights to take minutes; it is NOT a bug
+  (GL point layers in software; 17 ms/frame with GPU stars off).
 - Screenshot timeout = compositor stall: historically caused by Canvas2D paths with projected
   coords in the millions of px (see PLIM guard in engine.js). JS stays responsive (evaluate works),
   only screenshots hang — that signature means a pathological draw op, not a JS loop.
