@@ -751,6 +751,25 @@ function bodyPx(rk,depth){
   const truePx = foc*(rk*3.2408e-14)/depth;              // rk km -> pc, perspective size
   return Math.min(Math.max(sym, truePx), Math.min(W,H)*0.75);
 }
+// lit-sphere shading: planets used to be flat colour discs, which the real-scale
+// deep zoom turns into screen-filling flat circles. Radial gradient offset toward
+// the Sun's screen position → correct terminator side + limb darkening.
+let _ballSun=null;                                    // set per frame by drawSolar
+function ballFill(x,y,r,c,A){
+  ctx.beginPath(); ctx.arc(x,y,r,0,6.2832);
+  if(r<5){ ctx.fillStyle=`rgba(${c[0]},${c[1]},${c[2]},${A})`; ctx.fill(); return; }
+  let lx=-0.5, ly=-0.5;                               // sun invisible (behind camera) → full phase-ish
+  if(_ballSun){ const dx=_ballSun.x-x, dy=_ballSun.y-y, l=Math.hypot(dx,dy);
+    if(l>1){ lx=dx/l; ly=dy/l; } else { lx=0; ly=0; } }
+  const hi=c.map(v=>Math.min(255,Math.round(v*0.62+255*0.38)));
+  const lo=c.map(v=>Math.round(v*0.16));
+  const g=ctx.createRadialGradient(x+lx*r*0.48,y+ly*r*0.48,r*0.08, x+lx*r*0.14,y+ly*r*0.14,r*1.12);
+  g.addColorStop(0,`rgba(${hi[0]},${hi[1]},${hi[2]},${A})`);
+  g.addColorStop(0.45,`rgba(${c[0]},${c[1]},${c[2]},${A})`);
+  g.addColorStop(0.8,`rgba(${Math.round(c[0]*0.55)},${Math.round(c[1]*0.55)},${Math.round(c[2]*0.55)},${A})`);
+  g.addColorStop(1,`rgba(${lo[0]},${lo[1]},${lo[2]},${A})`);
+  ctx.fillStyle=g; ctx.fill();
+}
 function orbitRing(r,style,dash){
   ctx.beginPath(); let first=true;
   for(let k=0;k<=96;k++){ const th=k/96*6.2832;
@@ -792,6 +811,7 @@ function drawSolar(alpha){
   }
   // Sun
   const sp=project(0,0,0);
+  _ballSun = sp.depth>NEAR ? {x:sp.x,y:sp.y} : null;   // light source for lit-sphere shading
   if(sp.depth>NEAR){
     const spx=bodyPx(SUN.rk,sp.depth);
     const gr=ctx.createRadialGradient(sp.x,sp.y,0,sp.x,sp.y,spx*3.2);
@@ -832,8 +852,7 @@ function drawSolar(alpha){
         ctx.strokeStyle=`rgba(190,214,220,${A*(rr>1.8?0.5:0.32)})`;
         ctx.lineWidth=Math.max(1,px*0.09); ctx.stroke(); }
     }
-    ctx.beginPath(); ctx.arc(p.x,p.y,px,0,6.2832);
-    ctx.fillStyle=`rgba(${c[0]},${c[1]},${c[2]},${A})`; ctx.fill();
+    ballFill(p.x,p.y,px,c,A);
     if(b.n==='Earth') _earthScr = px>Math.min(W,H)*0.5 ? {x:p.x,y:p.y,r:px} : null;
     if(b.n==='Earth' && px>=16){                       // the real Earth: 3D globe > GOES > EPIC
       let credit=null;
@@ -894,8 +913,7 @@ function drawSolar(alpha){
         const mde=S.realScale?(p.depth/S.camZ)*3.2:p.depth;
         let mpx=Math.max(1.1,Math.min(10,Math.pow(m.rk/6371,0.42)*0.62*foc*0.02/mde));
         if(S.realScale) mpx=Math.min(Math.max(mpx, foc*(m.rk*3.2408e-14)/p.depth), Math.min(W,H)*0.5);
-        ctx.beginPath(); ctx.arc(mx,my,mpx,0,6.2832);
-        ctx.fillStyle=`rgba(${m.c[0]},${m.c[1]},${m.c[2]},${A})`; ctx.fill();
+        ballFill(mx,my,mpx,m.c,A);
         const msel=(m===S.hover||m===S.pinned);
         if(msel){ ctx.beginPath(); ctx.arc(mx,my,mpx+5,0,6.2832);
           ctx.strokeStyle='rgba(79,214,200,.9)'; ctx.lineWidth=1; ctx.stroke(); }
@@ -1746,7 +1764,8 @@ function drawLagrange(A){
     if(pc.depth<=NEAR) continue;
     const edge=project.apply(null,eclToWorld(b._e[0]+rH,b._e[1],b._e[2]));
     const rp=Math.hypot(edge.x-pc.x,edge.y-pc.y);
-    if(rp<6) continue;                           // invisible at this zoom
+    if(rp<6 || rp>Math.min(W,H)*6) continue;     // invisible at this zoom / camera deep inside
+                                                 // (dashing a 30k-px circle stalls the rasterizer)
     ctx.beginPath(); let first=true;
     for(let k=0;k<=48;k++){ const th=k/48*6.2832;
       const w=eclToWorld(b._e[0]+Math.cos(th)*rH, b._e[1]+Math.sin(th)*rH, b._e[2]);

@@ -47779,6 +47779,36 @@ function __run() {
 		const truePx = foc * (rk * 32408e-18) / depth;
 		return Math.min(Math.max(sym, truePx), Math.min(W, H) * .75);
 	}
+	let _ballSun = null;
+	function ballFill(x, y, r, c, A) {
+		ctx.beginPath();
+		ctx.arc(x, y, r, 0, 6.2832);
+		if (r < 5) {
+			ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},${A})`;
+			ctx.fill();
+			return;
+		}
+		let lx = -.5, ly = -.5;
+		if (_ballSun) {
+			const dx = _ballSun.x - x, dy = _ballSun.y - y, l = Math.hypot(dx, dy);
+			if (l > 1) {
+				lx = dx / l;
+				ly = dy / l;
+			} else {
+				lx = 0;
+				ly = 0;
+			}
+		}
+		const hi = c.map((v) => Math.min(255, Math.round(v * .62 + 255 * .38)));
+		const lo = c.map((v) => Math.round(v * .16));
+		const g = ctx.createRadialGradient(x + lx * r * .48, y + ly * r * .48, r * .08, x + lx * r * .14, y + ly * r * .14, r * 1.12);
+		g.addColorStop(0, `rgba(${hi[0]},${hi[1]},${hi[2]},${A})`);
+		g.addColorStop(.45, `rgba(${c[0]},${c[1]},${c[2]},${A})`);
+		g.addColorStop(.8, `rgba(${Math.round(c[0] * .55)},${Math.round(c[1] * .55)},${Math.round(c[2] * .55)},${A})`);
+		g.addColorStop(1, `rgba(${lo[0]},${lo[1]},${lo[2]},${A})`);
+		ctx.fillStyle = g;
+		ctx.fill();
+	}
 	function orbitRing(r, style, dash) {
 		ctx.beginPath();
 		let first = true;
@@ -47842,6 +47872,10 @@ function __run() {
 			if (b._el) drawOrbitEllipse(b._el, faint ? `rgba(150,160,195,${A * .18})` : `rgba(150,170,210,${A * .3})`);
 		}
 		const sp = project(0, 0, 0);
+		_ballSun = sp.depth > NEAR ? {
+			x: sp.x,
+			y: sp.y
+		} : null;
 		if (sp.depth > NEAR) {
 			const spx = bodyPx(SUN.rk, sp.depth);
 			const gr = ctx.createRadialGradient(sp.x, sp.y, 0, sp.x, sp.y, spx * 3.2);
@@ -47901,10 +47935,7 @@ function __run() {
 				ctx.lineWidth = Math.max(1, px * .09);
 				ctx.stroke();
 			}
-			ctx.beginPath();
-			ctx.arc(p.x, p.y, px, 0, 6.2832);
-			ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},${A})`;
-			ctx.fill();
+			ballFill(p.x, p.y, px, c, A);
 			if (b.n === "Earth") _earthScr = px > Math.min(W, H) * .5 ? {
 				x: p.x,
 				y: p.y,
@@ -47996,10 +48027,7 @@ function __run() {
 					const mde = S.realScale ? p.depth / S.camZ * 3.2 : p.depth;
 					let mpx = Math.max(1.1, Math.min(10, Math.pow(m.rk / 6371, .42) * .62 * foc * .02 / mde));
 					if (S.realScale) mpx = Math.min(Math.max(mpx, foc * (m.rk * 32408e-18) / p.depth), Math.min(W, H) * .5);
-					ctx.beginPath();
-					ctx.arc(mx, my, mpx, 0, 6.2832);
-					ctx.fillStyle = `rgba(${m.c[0]},${m.c[1]},${m.c[2]},${A})`;
-					ctx.fill();
+					ballFill(mx, my, mpx, m.c, A);
 					const msel = m === S.hover || m === S.pinned;
 					if (msel) {
 						ctx.beginPath();
@@ -49562,7 +49590,7 @@ function __run() {
 			if (pc.depth <= NEAR) continue;
 			const edge = project.apply(null, eclToWorld(b._e[0] + rH, b._e[1], b._e[2]));
 			const rp = Math.hypot(edge.x - pc.x, edge.y - pc.y);
-			if (rp < 6) continue;
+			if (rp < 6 || rp > Math.min(W, H) * 6) continue;
 			ctx.beginPath();
 			let first = true;
 			for (let k = 0; k <= 48; k++) {
@@ -54109,7 +54137,7 @@ function MobileNav($$anchor, $$props) {
 		var span = child(div_6);
 		var text = child(span);
 		var small = sibling(text);
-		small.textContent = `· b13:15`;
+		small.textContent = `· b13:40`;
 		reset(span);
 		var button = sibling(span, 2);
 		reset(div_6);
