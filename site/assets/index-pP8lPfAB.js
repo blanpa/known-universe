@@ -7114,6 +7114,8 @@ function __run() {
 		labels: true,
 		radio: true,
 		bubble: true,
+		grid: false,
+		ggrid: false,
 		realScale: false,
 		hover: null,
 		pinned: null,
@@ -47485,6 +47487,8 @@ function __run() {
 		if (S.veil) drawVeilSphere();
 		if (S.radio) drawRadioSphere();
 		if (S.bubble) drawBubble();
+		if (S.grid) drawSkyGrid();
+		if (S.ggrid) drawGalGrid();
 		projectGalaxies();
 		const backG = [], frontG = [];
 		for (const g of galProj) (g._z2 < 0 ? backG : frontG).push(g);
@@ -47782,6 +47786,142 @@ function __run() {
 				ctx.fillText(R.l, lp.x + 4, lp.y - 3);
 			}
 		}
+		ctx.restore();
+	}
+	function drawSkyGrid() {
+		const R = scale(BND * 3);
+		ctx.save();
+		ctx.setLineDash([1, 4]);
+		for (const dec of [
+			-60,
+			-30,
+			0,
+			30,
+			60
+		]) {
+			ctx.beginPath();
+			let first = true;
+			for (let k = 0; k <= 96; k++) {
+				const d = dirOf(k / 96 * 360, dec);
+				const p = project(d[0] * R, d[1] * R, d[2] * R);
+				if (offscr(p)) {
+					first = true;
+					continue;
+				}
+				if (first) {
+					ctx.moveTo(p.x, p.y);
+					first = false;
+				} else ctx.lineTo(p.x, p.y);
+			}
+			ctx.strokeStyle = dec === 0 ? "rgba(150,175,215,.34)" : "rgba(130,150,190,.15)";
+			ctx.lineWidth = dec === 0 ? 1.2 : 1;
+			ctx.stroke();
+		}
+		for (let h = 0; h < 12; h++) {
+			ctx.beginPath();
+			let first = true;
+			for (let k = 0; k <= 48; k++) {
+				const d = dirOf(h * 30, -90 + k / 48 * 180);
+				const p = project(d[0] * R, d[1] * R, d[2] * R);
+				if (offscr(p)) {
+					first = true;
+					continue;
+				}
+				if (first) {
+					ctx.moveTo(p.x, p.y);
+					first = false;
+				} else ctx.lineTo(p.x, p.y);
+			}
+			ctx.strokeStyle = "rgba(130,150,190,.13)";
+			ctx.lineWidth = 1;
+			ctx.stroke();
+		}
+		ctx.setLineDash([]);
+		ctx.font = "9px ui-monospace,monospace";
+		ctx.fillStyle = "rgba(150,175,215,.6)";
+		for (let h = 0; h < 24; h += 6) {
+			const d = dirOf(h * 15, 2), p = project(d[0] * R, d[1] * R, d[2] * R);
+			if (p.depth > NEAR && !offscr(p)) ctx.fillText(h + "h", p.x + 3, p.y - 4);
+		}
+		const np = dirOf(0, 90), pp = project(np[0] * R, np[1] * R, np[2] * R);
+		if (pp.depth > NEAR && !offscr(pp)) ctx.fillText("celestial N pole", pp.x + 4, pp.y);
+		ctx.restore();
+	}
+	function drawGalGrid() {
+		const R = scale(BND * 3.2);
+		const gx = GC, gz = NGP, gy = [
+			gz[1] * gx[2] - gz[2] * gx[1],
+			gz[2] * gx[0] - gz[0] * gx[2],
+			gz[0] * gx[1] - gz[1] * gx[0]
+		];
+		const dir = (l, b) => {
+			const cl = Math.cos(l), sl = Math.sin(l), cb = Math.cos(b), sb = Math.sin(b);
+			return [
+				gx[0] * cb * cl + gy[0] * cb * sl + gz[0] * sb,
+				gx[1] * cb * cl + gy[1] * cb * sl + gz[1] * sb,
+				gx[2] * cb * cl + gy[2] * cb * sl + gz[2] * sb
+			];
+		};
+		ctx.save();
+		ctx.setLineDash([1, 4]);
+		for (const b of [
+			-60,
+			-30,
+			0,
+			30,
+			60
+		]) {
+			ctx.beginPath();
+			let first = true;
+			for (let k = 0; k <= 96; k++) {
+				const d = dir(k / 96 * 6.2832, b * D2R);
+				const p = project(d[0] * R, d[1] * R, d[2] * R);
+				if (offscr(p)) {
+					first = true;
+					continue;
+				}
+				if (first) {
+					ctx.moveTo(p.x, p.y);
+					first = false;
+				} else ctx.lineTo(p.x, p.y);
+			}
+			ctx.strokeStyle = b === 0 ? "rgba(235,200,150,.32)" : "rgba(215,180,135,.14)";
+			ctx.lineWidth = b === 0 ? 1.2 : 1;
+			ctx.stroke();
+		}
+		for (let i = 0; i < 12; i++) {
+			ctx.beginPath();
+			let first = true;
+			for (let k = 0; k <= 48; k++) {
+				const d = dir(i / 12 * 6.2832, (-90 + k / 48 * 180) * D2R);
+				const p = project(d[0] * R, d[1] * R, d[2] * R);
+				if (offscr(p)) {
+					first = true;
+					continue;
+				}
+				if (first) {
+					ctx.moveTo(p.x, p.y);
+					first = false;
+				} else ctx.lineTo(p.x, p.y);
+			}
+			ctx.strokeStyle = "rgba(215,180,135,.12)";
+			ctx.lineWidth = 1;
+			ctx.stroke();
+		}
+		ctx.setLineDash([]);
+		ctx.font = "9px ui-monospace,monospace";
+		ctx.fillStyle = "rgba(235,200,150,.6)";
+		for (const l of [
+			0,
+			90,
+			180,
+			270
+		]) {
+			const d = dir(l * D2R, .03), p = project(d[0] * R, d[1] * R, d[2] * R);
+			if (p.depth > NEAR && !offscr(p)) ctx.fillText("l=" + l + "°", p.x + 3, p.y - 4);
+		}
+		const np = dir(0, Math.PI / 2), pp = project(np[0] * R, np[1] * R, np[2] * R);
+		if (pp.depth > NEAR && !offscr(pp)) ctx.fillText("galactic N pole", pp.x + 4, pp.y);
 		ctx.restore();
 	}
 	function drawRadioSphere() {
@@ -51582,6 +51722,7 @@ function __run() {
         <div class="r"><span class="rk">Type</span><span class="rv">${(DSO_T[s.t] || DSO_T.EN).l}</span></div>
         <div class="r"><span class="rk">Distance</span><span class="rv">${fmt(s.d * PC2LY)} LJ</span></div>
         <div class="r"><span class="rk">${fmt(s.d)} pc</span><span class="rv">Deep-Sky</span></div>
+        ${radecRow(s._dir[0], s._dir[1], s._dir[2])}
       </div>`;
 			const [ra, dec] = radec(s._dir[0], s._dir[1], s._dir[2]);
 			h += links([{
@@ -51677,6 +51818,7 @@ function __run() {
         <div class="r"><span class="rk">Distance</span><span class="rv">${fmt(s.d * PC2LY)} LJ</span></div>
         <div class="r"><span class="rk">${s.d} pc</span><span class="rv">apparent mag. ${s.m}</span></div>
         ${s.con ? `<div class="r"><span class="rk">Constellation</span><span class="rv">${s.con}</span></div>` : ""}
+        ${radecRow(s.dx, s.dy, s.dz)}
       </div>`;
 			h += links([{
 				t: "SIMBAD",
@@ -51888,6 +52030,11 @@ function __run() {
 		if (ra < 0) ra += 360;
 		const dec = Math.asin(Math.max(-1, Math.min(1, dz))) * 57.29578;
 		return [ra, dec];
+	}
+	function radecRow(dx, dy, dz) {
+		const [ra, dec] = radec(dx, dy, dz);
+		const hh = Math.floor(ra / 15), mm = Math.round((ra / 15 - hh) * 60);
+		return `<div class="r"><span class="rk">RA / Dec</span><span class="rv">${hh}h ${String(mm).padStart(2, "0")}m · ${dec >= 0 ? "+" : "−"}${Math.abs(dec).toFixed(1)}°</span></div>`;
 	}
 	function links(items) {
 		return "<div class=\"links\">" + items.map((i) => `<a href="${i.u}" target="_blank" rel="noopener">${i.t}</a>`).join("") + "</div>";
@@ -52249,6 +52396,8 @@ function __run() {
 	bindToggle("t-labels", "labels");
 	bindToggle("t-radio", "radio");
 	bindToggle("t-bubble", "bubble");
+	bindToggle("t-grid", "grid");
+	bindToggle("t-ggrid", "ggrid");
 	bindToggle("t-cme", "cme");
 	bindToggle("t-neo", "neo");
 	bindToggle("t-sat", "sat");
@@ -53860,7 +54009,9 @@ void main(){                                             // soft shoulder above 
 		"iso",
 		"eht",
 		"radio",
-		"bubble"
+		"bubble",
+		"grid",
+		"ggrid"
 	];
 	function viewHash() {
 		const keys = HASH_KEYS;
@@ -54466,6 +54617,16 @@ function Controls($$anchor, $$props) {
 					"id": "t-labels",
 					"label": "Labels &amp; text",
 					"on": true
+				},
+				{
+					"id": "t-grid",
+					"label": "Celestial grid (RA·Dec)",
+					"on": false
+				},
+				{
+					"id": "t-ggrid",
+					"label": "Galactic grid (l·b)",
+					"on": false
 				},
 				{
 					"id": "t-eht",
@@ -55077,7 +55238,7 @@ function MobileNav($$anchor, $$props) {
 		var span = child(div_6);
 		var text = child(span);
 		var small = sibling(text);
-		small.textContent = `· b17:30`;
+		small.textContent = `· b17:39`;
 		reset(span);
 		var button = sibling(span, 2);
 		reset(div_6);

@@ -41,7 +41,7 @@ const S={ yaw:0.5, pitch:-0.5, camZ:3.0, year:2026, tOffsetDays:0,
   hyg:true, gpu:true, gaia:true, web:true, qso:true, ob:true, vars:true, edge:true, facColor:false, facHidden:new Set(),
   solar:true, moons:true, mw:true, mw3d:true, dso:true, psr:true, oclu:true, ast:true, tno:true, probes:true, helio:true, belt:true, con:true, hz:true, lag:true, lens:true, pm:false, pmYears:0,
   cme:true, neo:true, sat:true, sunAR:true, met:true, iso:true, eht:false, labels:true,
-  radio:true, bubble:true,
+  radio:true, bubble:true, grid:false, ggrid:false,
   realScale:false,
   hover:null, pinned:null, focusStar:null, focusT:0 };
 
@@ -482,6 +482,8 @@ function render(){
   if(S.veil) drawVeilSphere();
   if(S.radio) drawRadioSphere();
   if(S.bubble) drawBubble();
+  if(S.grid) drawSkyGrid();
+  if(S.ggrid) drawGalGrid();
 
   // galaxies: project, split behind/in-front of the local cloud for painter order
   projectGalaxies();
@@ -675,6 +677,68 @@ function drawRings(){
   ctx.restore();
 }
 
+// ---- coordinate grids on a sun-centred sky sphere ----
+function drawSkyGrid(){                          // equatorial RA/Dec
+  const R=scale(BND*3);
+  ctx.save(); ctx.setLineDash([1,4]);
+  for(const dec of [-60,-30,0,30,60]){
+    ctx.beginPath(); let first=true;
+    for(let k=0;k<=96;k++){ const d=dirOf(k/96*360,dec);
+      const p=project(d[0]*R,d[1]*R,d[2]*R);
+      if(offscr(p)){first=true;continue;}
+      if(first){ctx.moveTo(p.x,p.y);first=false;}else ctx.lineTo(p.x,p.y); }
+    ctx.strokeStyle=dec===0?'rgba(150,175,215,.34)':'rgba(130,150,190,.15)';
+    ctx.lineWidth=dec===0?1.2:1; ctx.stroke();
+  }
+  for(let h=0;h<12;h++){
+    ctx.beginPath(); let first=true;
+    for(let k=0;k<=48;k++){ const d=dirOf(h*30,-90+k/48*180);
+      const p=project(d[0]*R,d[1]*R,d[2]*R);
+      if(offscr(p)){first=true;continue;}
+      if(first){ctx.moveTo(p.x,p.y);first=false;}else ctx.lineTo(p.x,p.y); }
+    ctx.strokeStyle='rgba(130,150,190,.13)'; ctx.lineWidth=1; ctx.stroke();
+  }
+  ctx.setLineDash([]);
+  ctx.font='9px ui-monospace,monospace'; ctx.fillStyle='rgba(150,175,215,.6)';
+  for(let h=0;h<24;h+=6){ const d=dirOf(h*15,2), p=project(d[0]*R,d[1]*R,d[2]*R);
+    if(p.depth>NEAR&&!offscr(p)) ctx.fillText(h+'h', p.x+3, p.y-4); }
+  const np=dirOf(0,90), pp=project(np[0]*R,np[1]*R,np[2]*R);
+  if(pp.depth>NEAR&&!offscr(pp)) ctx.fillText('celestial N pole', pp.x+4, pp.y);
+  ctx.restore();
+}
+function drawGalGrid(){                          // galactic l/b
+  const R=scale(BND*3.2);
+  const gx=GC, gz=NGP,
+        gy=[gz[1]*gx[2]-gz[2]*gx[1], gz[2]*gx[0]-gz[0]*gx[2], gz[0]*gx[1]-gz[1]*gx[0]];
+  const dir=(l,b)=>{ const cl=Math.cos(l),sl=Math.sin(l),cb=Math.cos(b),sb=Math.sin(b);
+    return [gx[0]*cb*cl+gy[0]*cb*sl+gz[0]*sb, gx[1]*cb*cl+gy[1]*cb*sl+gz[1]*sb,
+            gx[2]*cb*cl+gy[2]*cb*sl+gz[2]*sb]; };
+  ctx.save(); ctx.setLineDash([1,4]);
+  for(const b of [-60,-30,0,30,60]){
+    ctx.beginPath(); let first=true;
+    for(let k=0;k<=96;k++){ const d=dir(k/96*6.2832,b*D2R);
+      const p=project(d[0]*R,d[1]*R,d[2]*R);
+      if(offscr(p)){first=true;continue;}
+      if(first){ctx.moveTo(p.x,p.y);first=false;}else ctx.lineTo(p.x,p.y); }
+    ctx.strokeStyle=b===0?'rgba(235,200,150,.32)':'rgba(215,180,135,.14)';
+    ctx.lineWidth=b===0?1.2:1; ctx.stroke();
+  }
+  for(let i=0;i<12;i++){
+    ctx.beginPath(); let first=true;
+    for(let k=0;k<=48;k++){ const d=dir(i/12*6.2832,(-90+k/48*180)*D2R);
+      const p=project(d[0]*R,d[1]*R,d[2]*R);
+      if(offscr(p)){first=true;continue;}
+      if(first){ctx.moveTo(p.x,p.y);first=false;}else ctx.lineTo(p.x,p.y); }
+    ctx.strokeStyle='rgba(215,180,135,.12)'; ctx.lineWidth=1; ctx.stroke();
+  }
+  ctx.setLineDash([]);
+  ctx.font='9px ui-monospace,monospace'; ctx.fillStyle='rgba(235,200,150,.6)';
+  for(const l of [0,90,180,270]){ const d=dir(l*D2R,0.03), p=project(d[0]*R,d[1]*R,d[2]*R);
+    if(p.depth>NEAR&&!offscr(p)) ctx.fillText('l='+l+'°', p.x+3, p.y-4); }
+  const np=dir(0,Math.PI/2), pp=project(np[0]*R,np[1]*R,np[2]*R);
+  if(pp.depth>NEAR&&!offscr(pp)) ctx.fillText('galactic N pole', pp.x+4, pp.y);
+  ctx.restore();
+}
 // the human radio bubble: how far our first broadcasts have travelled (since ~1901),
 // time-slider aware — scrub the future and watch it grow
 function drawRadioSphere(){
@@ -2835,6 +2899,7 @@ function showInfo(s){
         <div class="r"><span class="rk">Type</span><span class="rv">${(DSO_T[s.t]||DSO_T.EN).l}</span></div>
         <div class="r"><span class="rk">Distance</span><span class="rv">${fmt(s.d*PC2LY)} LJ</span></div>
         <div class="r"><span class="rk">${fmt(s.d)} pc</span><span class="rv">Deep-Sky</span></div>
+        ${radecRow(s._dir[0],s._dir[1],s._dir[2])}
       </div>`;
     const [ra,dec]=radec(s._dir[0],s._dir[1],s._dir[2]);
     h+=links([{t:'SIMBAD',u:`https://simbad.cds.unistra.fr/simbad/sim-coo?Coord=${ra.toFixed(4)}%20${dec.toFixed(4)}&Radius=10&Radius.unit=arcmin`},
@@ -2897,6 +2962,7 @@ function showInfo(s){
         <div class="r"><span class="rk">Distance</span><span class="rv">${fmt(s.d*PC2LY)} LJ</span></div>
         <div class="r"><span class="rk">${s.d} pc</span><span class="rv">apparent mag. ${s.m}</span></div>
         ${s.con?`<div class="r"><span class="rk">Constellation</span><span class="rv">${s.con}</span></div>`:''}
+        ${radecRow(s.dx,s.dy,s.dz)}
       </div>`;
     h+=links([
       {t:'SIMBAD',u:s.n?`https://simbad.cds.unistra.fr/simbad/sim-id?Ident=${encodeURIComponent(s.n)}`
@@ -3023,6 +3089,11 @@ function radec(dx,dy,dz){
   let ra=Math.atan2(dy,dx)*57.29578; if(ra<0) ra+=360;
   const dec=Math.asin(Math.max(-1,Math.min(1,dz)))*57.29578;
   return [ra,dec];
+}
+function radecRow(dx,dy,dz){                     // info-panel coordinate line
+  const [ra,dec]=radec(dx,dy,dz);
+  const hh=Math.floor(ra/15), mm=Math.round((ra/15-hh)*60);
+  return `<div class="r"><span class="rk">RA / Dec</span><span class="rv">${hh}h ${String(mm).padStart(2,'0')}m · ${dec>=0?'+':'−'}${Math.abs(dec).toFixed(1)}°</span></div>`;
 }
 function links(items){
   return '<div class="links">'+items.map(i=>
@@ -3249,6 +3320,8 @@ bindToggle('t-eht','eht');
 bindToggle('t-labels','labels');
 bindToggle('t-radio','radio');
 bindToggle('t-bubble','bubble');
+bindToggle('t-grid','grid');
+bindToggle('t-ggrid','ggrid');
 bindToggle('t-cme','cme');
 bindToggle('t-neo','neo');
 bindToggle('t-sat','sat');
@@ -4074,7 +4147,7 @@ document.getElementById('tourEnd').addEventListener('click',tourEnd);
 // later additions appended — so old share links keep decoding correctly
 const HASH_KEYS=['ast','autorot','belt','con','dso','edge','freelook','gaia','galaxies',
   'gpu','helio','hyg','hz','moons','mw','mw3d','ob','oclu','probes','psr','qso','rings',
-  'size','tno','vars','veil','web','lag','lens','iso','eht','radio','bubble'];
+  'size','tno','vars','veil','web','lag','lens','iso','eht','radio','bubble','grid','ggrid'];
 function viewHash(){
   const keys=HASH_KEYS;
   let m=0; keys.forEach((k,i)=>{ if(S[k]) m|=(1<<i); });
