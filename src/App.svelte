@@ -11,10 +11,13 @@
   import MobileNav from './components/MobileNav.svelte';
   import ZoomControl from './components/ZoomControl.svelte';
   import LivePanel from './components/LivePanel.svelte';
+  import PoiBar from './components/PoiBar.svelte';
 </script>
 
   <canvas id="gl"></canvas>
   <canvas id="sky"></canvas>
+
+<PoiBar variant="top" />
 
 <div id="left-col">
   <TopPanel />

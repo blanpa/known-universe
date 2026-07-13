@@ -3094,6 +3094,11 @@ function doSearch(q){
   const eq=s=>s&&s.toLowerCase()===q, has=s=>s&&s.toLowerCase().includes(q);
   const cands=[];
   const push=(t,o)=>{ if(o) cands.push([t,o]); };
+  // the galactic centre is a special object, not in any catalogue list
+  if(/^(sgr ?a\*?|sagittarius a\*?|galactic cent(er|re))$/.test(q)){
+    searchMsg.textContent='→ Sgr A* · galactic centre';
+    if(!S.mw){S.mw=true;syncToggle('t-mw',true);}
+    focusSys=null; S.pinned=SGRA; flyTo(SGRA); return; }
   // exact first
   push('iso', ISO.find(o=>eq(o.n)));
   push('small',SMALL.find(o=>eq(o.n)));

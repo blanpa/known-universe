@@ -4,7 +4,6 @@
 
 <div class="panel" id="hud-tl">
     <h1><span class="dot"></span>Known Universe</h1>
-    <div class="sub">One scale from the solar system to the galaxies — <b style="color:var(--ink);font-weight:600">scroll</b> to cross the orders of magnitude. Data: NASA · HYG · Local Volume.</div>
     <div class="stats">
       <div class="stat"><div class="k mono" id="s-sys">0</div><div class="l">Systems visible</div></div>
       <div class="stat"><div class="k mono" id="s-pl">0</div><div class="l">Planets</div></div>

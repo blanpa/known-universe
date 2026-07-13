@@ -3,6 +3,7 @@
   import { liveData, activeShowers } from '../lib/live.js';
   let { onpick = null } = $props();
   let showAll = $state(false);
+  let open = $state(false);
 
   const kpCol = k => k >= 6 ? '#ff7676' : k >= 4 ? '#ffd27a' : '#7fe08a';
   const xrCol = x => !x ? 'var(--dim)' : x[0] === 'X' ? '#ff7676' : x[0] === 'M' ? '#ffab6e' : x[0] === 'C' ? '#ffd27a' : '#9fb0d0';
@@ -31,8 +32,10 @@
 </script>
 
 {#if $liveData}
-<div class="panel live-panel">
-  <div class="label">🌞 Space weather · live</div>
+<div class="panel live-panel" class:mini={!open}>
+  <div class="label lbl-btn" onclick={() => open = !open} role="button" tabindex="0"
+       onkeydown={e => e.key === 'Enter' && (open = !open)}>
+    🌞 Space weather · live <span class="caret">{open ? '▾' : '▸'}</span></div>
   {#if $liveData.wx}
     <div class="lv-wx">
       <span class="lv-chip">Kp <b style="color:{kpCol($liveData.wx.kp ?? 0)}">{$liveData.wx.kp?.toFixed(1) ?? '–'}</b></span>
@@ -41,6 +44,10 @@
       <span class="lv-chip">X-ray <b style="color:{xrCol($liveData.wx.xray)}">{$liveData.wx.xray ?? '–'}</b></span>
     </div>
   {/if}
+  {#if !open && active.some(c => c.earthDir)}
+    <div class="lv-sub"><b style="color:#ffab6e">⚠ Earth-directed CME in flight</b></div>
+  {/if}
+  {#if open}
   {#if $liveData.regions?.length}
     <div class="lv-sub">☀ {$liveData.regions.length} active regions on the Sun{maxM ? ` · M-flare odds ${maxM}%` : ''}</div>
   {/if}
@@ -110,5 +117,6 @@
     <div class="lv-sub">🪐 {stats.exoY} systems discovered in {stats.year}</div>
   {/if}
   <div class="lv-src">SWPC · DONKI · NeoWs · CelesTrak · GraceDB · CNEOS · LL2</div>
+  {/if}
 </div>
 {/if}

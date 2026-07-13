@@ -3,7 +3,8 @@
   import { toggleState, labels, facList, facHidden, facColor, timeBar } from '../lib/stores.js';
   let { legend = true } = $props();
   const groups = [{"h": "☀️ Solar system", "items": [{"id": "t-moons", "label": "Moons (solar system)", "on": true}, {"id": "t-ast", "label": "Asteroids &amp; comets", "on": true}, {"id": "t-belt", "label": "Asteroid field", "on": true}, {"id": "t-tno", "label": "Trans-Neptunian &amp; Centaurs", "on": true}, {"id": "t-probes", "label": "Spacecraft (Voyager…)", "on": true}, {"id": "t-iso", "label": "Interstellar visitors (1I·2I·3I)", "on": true}, {"id": "t-helio", "label": "Heliosphere", "on": true}, {"id": "t-lag", "label": "Lagrange points &amp; Hill spheres", "on": true}, {"id": "t-cme", "label": "CME storms (live)", "on": true}, {"id": "t-neo", "label": "NEO flybys (live)", "on": true}, {"id": "t-sat", "label": "Satellites (live)", "on": true}, {"id": "t-sun", "label": "Sunspots (live)", "on": true}, {"id": "t-size", "label": "Size = planet radius", "on": true}]}, {"h": "⭐ Stars", "items": [{"id": "t-hyg", "label": "Stars (HYG)", "on": true}, {"id": "t-gpu", "label": "GPU stars", "on": true}, {"id": "t-gaia", "label": "Gaia stars (&lt;100 pc)", "on": true}, {"id": "t-ob", "label": "OB stars (arm tracers)", "on": true}, {"id": "t-var", "label": "Variable stars", "on": true}]}, {"h": "💫 Deep sky &amp; galaxy", "items": [{"id": "t-dso", "label": "Nebulae &amp; clusters", "on": true}, {"id": "t-oclu", "label": "Clusters · globulars · FRBs", "on": true}, {"id": "t-psr", "label": "Pulsars (neutron stars)", "on": true}, {"id": "t-con", "label": "Constellations", "on": true}, {"id": "t-met", "label": "Meteor showers (active)", "on": true}, {"id": "t-mw", "label": "Milky Way · Sgr A*", "on": true}, {"id": "t-mw3d", "label": "Milky Way structure (3D)", "on": true}, {"id": "t-lens", "label": "Lensing at Sgr A*", "on": true}, {"id": "t-hz", "label": "Habitable zone", "on": true}]}, {"h": "🔭 Cosmos", "items": [{"id": "t-gal", "label": "Show galaxies", "on": true}, {"id": "t-web", "label": "Cosmic web (2MRS)", "on": true}, {"id": "t-qso", "label": "Quasars", "on": true}, {"id": "t-edge", "label": "Observable universe (CMB)", "on": true}]}, {"h": "🎛️ View", "items": [{"id": "t-real", "label": "Compact view (distances compressed)", "on": false, "inv": 1}, {"id": "t-rot", "label": "Auto-rotation", "on": false}, {"id": "t-freelook", "label": "Free-look flight", "on": false}, {"id": "t-veil", "label": "Red veil", "on": true}, {"id": "t-rings", "label": "Distance rings", "on": true}, {"id": "t-timebar", "label": "Time bar", "on": false, "ui": 1}]}];
-  let closed = $state({});
+  let closed = $state({ 0: true, 1: true, 2: true, 3: true });   // minimalist default: only View open
+  let legOpen = $state(false);
   function tgl(id) { if (id === 't-timebar') { timeBar.update(v => !v); return; } if (api.clickToggle) api.clickToggle(id); }
   function chip(k) {
     if (!api.toggleFac) return;
@@ -14,7 +15,11 @@
 </script>
 
 {#if legend}
-<div class="panel" id={legend ? "hud-tr" : undefined}>
+<div class="panel" id={legend ? "hud-tr" : undefined} class:mini={!legOpen}>
+    <div class="label lbl-btn" onclick={() => legOpen = !legOpen} role="button" tabindex="0"
+         onkeydown={e => e.key === 'Enter' && (legOpen = !legOpen)}>
+      Legend <span class="caret">{legOpen ? '▾' : '▸'}</span></div>
+    {#if legOpen}
     <div class="label">Star colour = temperature</div>
     <div class="spectrum"></div>
     <div class="spectrum-ax"><span>hot · 30,000 K</span><span>cool · 3,000 K</span></div>
@@ -39,6 +44,7 @@
         <span class="mk" style="background:#96beff"></span><span class="mk" style="background:#ffe2a0"></span>
         <span class="mk" style="background:#ff7676"></span><span class="mk" style="background:#6ee6c6"></span>
       </span>Deep-sky: open · globular · nebula · planetary</div>
+    {/if}
   </div>
 {/if}
 

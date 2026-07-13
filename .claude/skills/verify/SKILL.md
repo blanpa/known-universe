@@ -36,6 +36,12 @@ while desktop ANGLE silently accepted it).
 - **Wheel zoom needs the pointer over the canvas** — panel clicks move Playwright's virtual mouse,
   so `page.mouse.move(640, 430)` before `page.mouse.wheel(...)`, else you scroll the panel.
 - Zoom lerps: wait ~100 ms between wheel events, ~1 s after a burst before reading the hash.
+- **Pin the camera via a crafted share hash** instead of waiting for slow lerps — but `page.goto`
+  to the same URL with only the hash changed is a same-document navigation (applyHash runs at boot
+  only): hop through `about:blank` first. Flight-settle detection: the hash rewriter ticks every
+  2 s, so polling must see 2 identical reads ≥4 s apart or it declares mid-flight hashes stable.
+- SwiftShader renders `backdrop-filter` panels as white blocks in full-page screenshots sometimes —
+  verify suspicious "white panels" with an element screenshot / computed style before fixing.
 - External live APIs 429 on repeated headless runs; GIBS tiles 404 on day-offset fallback — noise,
   not failures.
 - Screenshot timeout = compositor stall: historically caused by Canvas2D paths with projected

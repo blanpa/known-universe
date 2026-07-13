@@ -2,6 +2,7 @@
   import SearchBox from './SearchBox.svelte';
   import Controls from './Controls.svelte';
   import LivePanel from './LivePanel.svelte';
+  import PoiBar from './PoiBar.svelte';
   import { timeBar } from '../lib/stores.js';
   let mobPanel = $state(null);
   
@@ -29,6 +30,7 @@
       <Controls legend={false} />
     {:else}
       <SearchBox mode="sheet" onpick={() => { mobPanel = null; }} />
+      <PoiBar onpick={() => { mobPanel = null; }} />
       <div class="ms-actions">
         <button onclick={() => press('solarBtn')}>☉ Solar system</button>
         <button onclick={() => press('tourBtn')}>🧭 Cosmic tour</button>
