@@ -19,8 +19,10 @@ python3 -m http.server 8917 --bind 127.0.0.1 -d site &   # same-origin ./data wo
 
 Playwright chromium lives in `~/.cache/ms-playwright/chromium_headless_shell-1228/chrome-headless-shell-linux64/chrome-headless-shell`.
 `npm i playwright-core` in a scratch dir, then `chromium.launch({ executablePath, args:['--no-sandbox','--use-angle=swiftshader'] })`.
-WebGL works via swiftshader but is flaky: the 3D Earth globe shader occasionally fails to link
-("globe: link failed") — rerun before blaming the change.
+WebGL works via swiftshader. Treat SwiftShader shader compile/link failures as REAL findings,
+not flakiness: SwiftShader enforces strict GLES rules like mobile drivers do ("globe: link failed"
+turned out to be a vertex/fragment uniform precision mismatch that also broke the globe on phones,
+while desktop ANGLE silently accepted it).
 
 ## Proven flows & gotchas
 
