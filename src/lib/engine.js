@@ -2226,7 +2226,7 @@ function bhInit(){
   const vsh=mk(gl.VERTEX_SHADER,`attribute vec2 aP; varying vec2 vP;
     void main(){ vP=aP; gl_Position=vec4(aP,0.0,1.0); }`);
   const fsh=mk(gl.FRAGMENT_SHADER,`precision highp float; varying vec2 vP;
-    uniform highp mat3 uT; uniform sampler2D uBg; uniform float uBgOk;
+    uniform highp mat3 uT; uniform sampler2D uBg; uniform float uBgOk, uMode;
     float hash(vec3 p){ p=fract(p*0.3183+vec3(0.11,0.23,0.37)); p*=17.0;
       return fract(p.x*p.y*p.z*(p.x+p.y+p.z)); }
     void main(){
@@ -2245,7 +2245,21 @@ function bhInit(){
         dir+=-1.5*h2*pos/pow(r,5.0)*dt;      // null-geodesic bending
         pos+=dir*dt;
         float ny=pos.y;
-        if(py*ny<0.0){                       // crossed the disk plane
+        if(uMode>0.5){                       // EHT: hot puffy torus (RIAF), integrated volumetrically
+          float rc=length(pos.xz);
+          float em=exp(-pow((rc-4.6)/1.5,2.0)-pow(pos.y/1.6,2.0));
+          if(em>0.002){
+            float th=atan(pos.z,pos.x);
+            em*=0.72+0.4*sin(3.0*th+0.9);    // the three bright knots
+            float v=0.35*clamp(sqrt(3.0/max(rc,2.0)),0.0,1.0);
+            vec3 vel=normalize(vec3(-pos.z,0.0,pos.x))*v;
+            float g=clamp(1.0/(1.0-dot(vel,normalize(dir))),0.6,1.7);
+            col+=trans*vec3(1.0,0.42,0.08)*em*dt*0.6*pow(g,2.0);
+            trans*=exp(-em*dt*0.16);
+            if(trans<0.04) break;
+          }
+        }
+        else if(py*ny<0.0){                  // Gargantua: crossed the thin-disk plane
           float f=py/(py-ny);
           vec3 hit=mix(pos-dir*dt,pos,f);
           float rh=length(hit.xz);
@@ -2292,11 +2306,12 @@ function bhInit(){
   gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
   _bhgl={cv:cv2,gl,pr,vb,tex,capCv:document.createElement('canvas'),
     aP:gl.getAttribLocation(pr,'aP'),uT:gl.getUniformLocation(pr,'uT'),
-    uBg:gl.getUniformLocation(pr,'uBg'),uBgOk:gl.getUniformLocation(pr,'uBgOk')};
+    uBg:gl.getUniformLocation(pr,'uBg'),uBgOk:gl.getUniformLocation(pr,'uBgOk'),
+    uMode:gl.getUniformLocation(pr,'uMode')};
   _bhFails=0;
   return _bhgl;
 }
-function bhRender(x,y,rpx){
+function bhRender(x,y,rpx,eht){
   const g=bhInit(); if(!g) return null;
   const gl=g.gl, box=rpx*7.4;
   let bgOk=0;                                            // capture the scene behind the hole
@@ -2322,7 +2337,9 @@ function bhRender(x,y,rpx){
   // the disk lies in the GALACTIC PLANE (world-fixed): orbiting the camera really
   // changes the view — edge-on from the plane, face-on from the galactic pole
   const V=globeViewRows();                       // world→camera rows (yaw/pitch)
-  const n=NGP, u=GC;                             // disk normal = galactic north; GC ⊥ NGP
+  // Gargantua: disk in the galactic plane. EHT torus: flow axis points at Earth
+  // (per EHT/GRAVITY we see Sgr A* nearly face-on) — GC ⊥ NGP either way
+  const n=eht?GC:NGP, u=eht?NGP:GC;
   const w=[n[1]*u[2]-n[2]*u[1], n[2]*u[0]-n[0]*u[2], n[0]*u[1]-n[1]*u[0]];
   const B=[u,n,w];                               // world→BH rows (disk plane y=0)
   const M=new Array(9);                          // camera→BH = B·Vᵀ, column-major for GLSL
@@ -2330,7 +2347,7 @@ function bhRender(x,y,rpx){
     M[j*3+i2]=B[i2][0]*V[j][0]+B[i2][1]*V[j][1]+B[i2][2]*V[j][2]; }
   gl.uniformMatrix3fv(g.uT,false,M);
   gl.bindTexture(gl.TEXTURE_2D,g.tex);
-  gl.uniform1i(g.uBg,0); gl.uniform1f(g.uBgOk,bgOk);
+  gl.uniform1i(g.uBg,0); gl.uniform1f(g.uBgOk,bgOk); gl.uniform1f(g.uMode,eht?1:0);
   gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
   return g.cv;
 }
@@ -2363,14 +2380,14 @@ function drawEHT(x,y,r,A){
   ctx.restore();
 }
 // painted fallback (no WebGL / artifact build); ray tracer first
-function drawBlackHole(x,y,r,A){
-  const patch=bhRender(x,y,r);
+function drawBlackHole(x,y,r,A,eht){
+  const patch=bhRender(x,y,r,!!eht);
   if(patch){
     // in patch units the shadow (b=2.6 rs) sits at 2.6/9.6 of the half-box → scale so it spans r
     ctx.drawImage(patch, x-r*3.7, y-r*3.7, r*7.4, r*7.4);
     return;
   }
-  drawBlackHolePainted(x,y,r,A);
+  if(eht) drawEHT(x,y,r,A); else drawBlackHolePainted(x,y,r,A);
 }
 function drawBlackHolePainted(x,y,r,A){
   const disk=r*3.1, flat=0.13;                     // razor-thin disk, Gargantua-style
@@ -2432,15 +2449,10 @@ function drawMW(){
     // close enough → the simulated look (shadow, photon ring, folded disk)
     const rbh=Math.min(Math.min(W,H)*0.28, foc*(S.realScale?500:2.6)/sp.depth);
     if(rbh>=10){
-      if(S.eht){
-        drawEHT(sp.x,sp.y,rbh,1);
-        ctx.font='10px ui-monospace,monospace'; ctx.fillStyle='rgba(255,205,150,0.92)';
-        ctx.fillText('Sagittarius A* · as imaged by the EHT (2022)', sp.x+rbh*1.4, sp.y-rbh*1.6);
-      } else {
-        drawBlackHole(sp.x,sp.y,rbh,1);
-        ctx.font='10px ui-monospace,monospace'; ctx.fillStyle='rgba(255,205,150,0.92)';
-        ctx.fillText('Sagittarius A* · 4.15 million M☉', sp.x+rbh*1.15, sp.y-rbh*1.35);
-      }
+      drawBlackHole(sp.x,sp.y,rbh,1,S.eht);
+      ctx.font='10px ui-monospace,monospace'; ctx.fillStyle='rgba(255,205,150,0.92)';
+      ctx.fillText(S.eht?'Sagittarius A* · hot accretion flow (EHT 2022 geometry)'
+                        :'Sagittarius A* · 4.15 million M☉', sp.x+rbh*1.15, sp.y-rbh*1.35);
       return;
     }
     const gr=ctx.createRadialGradient(sp.x,sp.y,0,sp.x,sp.y,11);
