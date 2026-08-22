@@ -17,6 +17,7 @@ const cv = document.getElementById('sky'), ctx = cv.getContext('2d');
 // other in dense fields, and they all land on top of the geometry.
 const _rawFillText = ctx.fillText.bind(ctx);
 const LBL = { q: [], on: true, prio: 50, grid: new Map(), cell: 48 };
+const LBLW = new Map();                 // font+text -> measured width
 // priority tiers — higher wins a collision. Set LBL.prio before a draw section.
 const P_HUD = 100, P_SEL = 92, P_SOLAR = 80, P_PROBE = 70, P_DEEP = 62,
       P_STAR = 52, P_SMALL = 40, P_GAL = 30, P_GRID = 14;
@@ -63,7 +64,13 @@ function lblFlush() {
     const it = q[i], st = it.st;
     ctx.font = st.f;
     const fs = parseFloat(st.f) || 10;
-    let w = ctx.measureText(it.s).width; if (it.mw !== undefined && w > it.mw) w = it.mw;
+    // measureText is the expensive part of decluttering and the same strings recur every
+    // frame — cache by font+text, and bound the map so a time slider cannot grow it forever
+    const mk = st.f + '\u0000' + it.s;
+    let w = LBLW.get(mk);
+    if (w === undefined) { if (LBLW.size > 4000) LBLW.clear();
+      w = ctx.measureText(it.s).width; LBLW.set(mk, w); }
+    if (it.mw !== undefined && w > it.mw) w = it.mw;
     let x0 = it.x;
     if (st.a === 'center') x0 = it.x - w / 2; else if (st.a === 'right' || st.a === 'end') x0 = it.x - w;
     let y0 = it.y - fs * 0.80, y1 = it.y + fs * 0.26;
@@ -91,6 +98,7 @@ STARS.forEach(s=>{
   const r=s.d||1e-6;
   s._dx=s.x/r; s._dy=s.y/r; s._dz=s.z/r; s._r=r;
   s._col=tempColor(s.t);
+  s._sr=starRadius(s);                       // stellar radius in R☉ — drives the glyph size
   s._search=(s.h+' '+s.p.map(p=>p.n).join(' ')).toLowerCase();
 });
 
@@ -185,9 +193,15 @@ function moonDirAt(eph,ang){                       // rotate epoch vector around
   return [e[0], e[2], e[1]];                       // ecliptic -> world (matches eclToWorld)
 }
 function camDir2(v){                               // world direction -> screen direction
-  const cyw=Math.cos(S.yaw),syw=Math.sin(S.yaw),cp2=Math.cos(S.pitch),sp2=Math.sin(S.pitch);
-  const x1=v[0]*cyw+v[2]*syw, z1=-v[0]*syw+v[2]*cyw, y2=v[1]*cp2 - z1*sp2;
+  camTrig();
+  const x1=v[0]*_cyw+v[2]*_syw, z1=-v[0]*_syw+v[2]*_cyw, y2=v[1]*_cp2 - z1*_sp2;
   return [x1,-y2];
+}
+// allocation-free variant for the per-galaxy position-angle maths
+let _d2x=0,_d2y=0;
+function camDir2i(vx,vy,vz){
+  const x1=vx*_cyw+vz*_syw, z1=-vx*_syw+vz*_cyw;
+  _d2x=x1; _d2y=-(vy*_cp2 - z1*_sp2);
 }
 const EXTRA_MOONS={"Jupiter":[{"n":"Metis","am":128.1,"rk":21.5},{"n":"Adrastea","am":129.0,"rk":8.2},{"n":"Thebe","am":218.7,"rk":49.3},{"n":"Themisto","am":8678.0,"rk":5},{"n":"Elara","am":9861.8,"rk":40.0},{"n":"Leda","am":10997.3,"rk":5.0},{"n":"Lysithea","am":11280.2,"rk":12.0},{"n":"Pandia","am":11643.9,"rk":5},{"n":"Himalia","am":12167.6,"rk":85.0},{"n":"Ersa","am":12615.4,"rk":5},{"n":"Dia","am":15522.8,"rk":5},{"n":"Philophrosyne","am":15869.1,"rk":5},{"n":"Iocaste","am":15893.3,"rk":5},{"n":"Valetudo","am":16858.0,"rk":5},{"n":"Euporie","am":17175.7,"rk":5},{"n":"S2017 J3","am":17187.6,"rk":5},{"n":"Pasithee","am":17501.5,"rk":5},{"n":"Erinome","am":17893.2,"rk":5},{"n":"Chaldene","am":18160.4,"rk":5},{"n":"S2011 J1","am":19091.8,"rk":5},{"n":"Harpalyke","am":19222.6,"rk":5},{"n":"Thelxinoe","am":19259.0,"rk":5},{"n":"Praxidike","am":19262.4,"rk":5},{"n":"S2003 J18","am":19309.0,"rk":5},{"n":"Eirene","am":19825.3,"rk":5},{"n":"Kale","am":20192.3,"rk":5},{"n":"S2017 J2","am":20650.4,"rk":5},{"n":"Ananke","am":20755.1,"rk":10.0},{"n":"Eupheme","am":21120.2,"rk":5},{"n":"Thyone","am":21507.4,"rk":5},{"n":"Callirrhoe","am":21635.7,"rk":5},{"n":"Autonoe","am":21735.3,"rk":5},{"n":"S2016 J1","am":22067.5,"rk":5},{"n":"Pasiphae","am":22313.3,"rk":18.0},{"n":"Helike","am":22559.4,"rk":5},{"n":"Orthosie","am":22898.2,"rk":5},{"n":"Carme","am":23280.2,"rk":15.0},{"n":"Hermippe","am":23504.2,"rk":5},{"n":"S2003 J19","am":23678.4,"rk":5},{"n":"Kalyke","am":23686.9,"rk":5},{"n":"Aoede","am":23851.9,"rk":5},{"n":"Euanthe","am":23985.3,"rk":5},{"n":"Eukelade","am":24152.2,"rk":5},{"n":"S2011 J2","am":24200.7,"rk":5},{"n":"S2017 J7","am":24356.2,"rk":5},{"n":"S2017 J9","am":24509.5,"rk":5},{"n":"S2017 J5","am":24662.5,"rk":5},{"n":"Hegemone","am":24878.0,"rk":5},{"n":"Carpo","am":25507.2,"rk":5},{"n":"Cyllene","am":25709.3,"rk":5},{"n":"Sinope","am":26053.7,"rk":14.0},{"n":"Isonoe","am":26769.0,"rk":5},{"n":"S2017 J8","am":26965.0,"rk":5},{"n":"Eurydome","am":27077.9,"rk":5},{"n":"S2010 J2","am":27710.1,"rk":5},{"n":"Megaclite","am":27731.3,"rk":5},{"n":"Herse","am":27917.8,"rk":5},{"n":"Mneme","am":27959.3,"rk":5},{"n":"S2017 J6","am":28101.0,"rk":5},{"n":"Arche","am":28224.2,"rk":5},{"n":"S2017 J1","am":28906.1,"rk":5},{"n":"Taygete","am":28919.2,"rk":5},{"n":"Sponde","am":28923.7,"rk":5},{"n":"S2010 J1","am":28978.4,"rk":5},{"n":"Aitne","am":29679.0,"rk":5},{"n":"Kallichore","am":29986.4,"rk":5},{"n":"Kore","am":31781.9,"rk":5}],"Saturn":[{"n":"Pan","am":133.6,"rk":17.2},{"n":"Atlas","am":137.7,"rk":20.5},{"n":"Prometheus","am":139.4,"rk":68.2},{"n":"Pandora","am":141.2,"rk":52.2},{"n":"Epimetheus","am":150.0,"rk":64.9},{"n":"Janus","am":151.4,"rk":101.7},{"n":"Aegaeon","am":167.5,"rk":5},{"n":"Methone","am":194.0,"rk":5},{"n":"Anthe","am":197.7,"rk":5},{"n":"Pallene","am":212.2,"rk":5},{"n":"Telesto","am":294.6,"rk":16.3},{"n":"Calypso","am":294.7,"rk":15.3},{"n":"Helene","am":379.8,"rk":16.0},{"n":"Polydeuces","am":383.6,"rk":5},{"n":"Hyperion","am":1434.2,"rk":133.0},{"n":"Paaliaq","am":6458.7,"rk":5},{"n":"Gerd","am":9140.7,"rk":5},{"n":"Bebhionn","am":9838.7,"rk":5},{"n":"Kiviuq","am":9946.3,"rk":5},{"n":"S2004 S29","am":10857.3,"rk":5},{"n":"Erriapus","am":11144.2,"rk":5},{"n":"Geirrod","am":11520.0,"rk":5},{"n":"Phoebe","am":13411.8,"rk":106.6},{"n":"Skoll","am":14694.5,"rk":5},{"n":"Narvi","am":14734.1,"rk":5},{"n":"Gridr","am":15860.6,"rk":5},{"n":"Ijiraq","am":15983.0,"rk":5},{"n":"Ymir","am":16342.5,"rk":5},{"n":"Angrboda","am":16774.6,"rk":5},{"n":"Eggther","am":17150.2,"rk":5},{"n":"Jarnsaxa","am":17266.1,"rk":5},{"n":"Greip","am":18012.2,"rk":5},{"n":"Tarqeq","am":18983.5,"rk":5},{"n":"Hyrrokkin","am":19037.3,"rk":5},{"n":"Skathi","am":19386.6,"rk":5},{"n":"Fenrir","am":19476.0,"rk":5},{"n":"Fornjot","am":19841.7,"rk":5},{"n":"Gunnlod","am":20171.5,"rk":5},{"n":"Surtur","am":20471.5,"rk":5},{"n":"Suttungr","am":21002.0,"rk":5},{"n":"Tarvos","am":21181.0,"rk":5},{"n":"Thrymr","am":21236.3,"rk":5},{"n":"S2004 S34","am":21667.7,"rk":5},{"n":"Hati","am":22019.8,"rk":5},{"n":"Bergelmir","am":22063.1,"rk":5},{"n":"Mundilfari","am":22201.7,"rk":5},{"n":"Beli","am":22242.7,"rk":5},{"n":"Farbauti","am":23548.3,"rk":5},{"n":"Aegir","am":24034.2,"rk":5},{"n":"Siarnaq","am":24339.1,"rk":5},{"n":"Loge","am":24782.5,"rk":5},{"n":"Alvaldi","am":24922.9,"rk":5},{"n":"Albiorix","am":26064.5,"rk":5},{"n":"Skrymir","am":28494.5,"rk":5},{"n":"S2004 S26","am":29063.4,"rk":5},{"n":"Bestla","am":29924.6,"rk":5},{"n":"Kari","am":31178.6,"rk":5},{"n":"Thiazzi","am":34265.7,"rk":5}],"Uranus":[{"n":"Cordelia","am":49.7,"rk":13.0},{"n":"Ophelia","am":53.7,"rk":16.0},{"n":"Bianca","am":59.1,"rk":22.0},{"n":"Cressida","am":61.6,"rk":33.0},{"n":"Desdemona","am":62.8,"rk":29.0},{"n":"Juliet","am":64.7,"rk":42.0},{"n":"Portia","am":66.1,"rk":55.0},{"n":"Rosalind","am":70.1,"rk":29.0},{"n":"Cupid","am":74.8,"rk":5},{"n":"Belinda","am":75.3,"rk":34.0},{"n":"Perdita","am":76.6,"rk":5},{"n":"Puck","am":85.5,"rk":77.0},{"n":"Mab","am":97.4,"rk":5},{"n":"Francisco","am":4617.2,"rk":5},{"n":"Stephano","am":6713.3,"rk":5},{"n":"Caliban","am":7141.4,"rk":5},{"n":"Trinculo","am":10132.7,"rk":5},{"n":"Sycorax","am":14479.9,"rk":5},{"n":"Setebos","am":16347.5,"rk":5},{"n":"Margaret","am":20504.6,"rk":5},{"n":"Prospero","am":22034.3,"rk":5},{"n":"Ferdinand","am":27381.9,"rk":5}],"Neptune":[{"n":"Naiad","am":48.2,"rk":29.0},{"n":"Thalassa","am":50.1,"rk":40.0},{"n":"Despina","am":52.5,"rk":74.0},{"n":"Galatea","am":61.9,"rk":79.0},{"n":"Larissa","am":73.5,"rk":96.0},{"n":"Hippocamp","am":105.2,"rk":5},{"n":"Halimede","am":16290.5,"rk":5},{"n":"Sao","am":24377.0,"rk":5},{"n":"Laomedeia","am":33110.0,"rk":5},{"n":"Psamathe","am":57254.5,"rk":5},{"n":"Neso","am":85266.7,"rk":5}],"Pluto":[{"n":"Styx","am":40.4,"rk":5.2},{"n":"Kerberos","am":56.5,"rk":6.0}]};
 for(const b of [...PLANETS,...DWARFS]){ const ex=EXTRA_MOONS[b.n];
@@ -429,8 +443,19 @@ let tgtYaw=S.yaw, tgtPitch=S.pitch, tgtCamZ=S.camZ;
 const ctr={x:0,y:0,z:0}, tgtCtr={x:0,y:0,z:0};
 let camRight=[1,0,0], camUp=[0,1,0], camFwd=[0,0,1], camDist=0, camPos=[0,0,0];
 const keys=new Set();
+let _cyw=1,_syw=0,_cp2=1,_sp2=0, _trigY=NaN, _trigP=NaN;   // camera trig, cached per frame
+// project() also runs from event handlers (picking, fly-to), where the camera may have
+// moved since the last camBasis() — so the cache validates itself instead of trusting
+// the render loop to have refreshed it.
+function camTrig(){
+  if(_trigY===S.yaw && _trigP===S.pitch) return;
+  _trigY=S.yaw; _trigP=S.pitch;
+  _cyw=Math.cos(S.yaw); _syw=Math.sin(S.yaw);
+  _cp2=Math.cos(S.pitch); _sp2=Math.sin(S.pitch);
+}
 function camBasis(){
   const c=Math.cos(S.yaw),s=Math.sin(S.yaw),cp=Math.cos(S.pitch),sp=Math.sin(S.pitch);
+  _cyw=c; _syw=s; _cp2=cp; _sp2=sp; _trigY=S.yaw; _trigP=S.pitch;
   camRight=[c, sp*s, -cp*s];
   camUp   =[0, cp, sp];
   camFwd  =[s, -sp*c, cp*c];
@@ -481,21 +506,47 @@ function tempColor(t){
 }
 function compress(r){ return scale(r); }   // all layers share the one scale (log or real)
 // point-size multiplier from the largest planet's real radius (Earth radii)
-function radiusScale(re){
-  if(!S.size || !re) return 1;
-  return Math.max(0.55, Math.min(4.2, Math.pow(re/1.4, 0.5)));
+// Host-star glyph size. It used to scale with the system's largest PLANET, which made
+// a red dwarf with a hot Jupiter outrank a real giant. Stellar radius is not in the
+// dataset, but it follows from what is: R/R☉ = √(L/L☉) / (T/5772)². Checked against the
+// literature — Proxima 0.153, TRAPPIST-1 0.124, KELT-9 2.42 R☉, all within a few percent.
+function starRadius(s){
+  if(s.lum>0 && s.t>0) return Math.sqrt(s.lum)/Math.pow(s.t/5772, 2);
+  if(s.t>0) return Math.pow(s.t/5772, 2);      // main-sequence approximation (6% of hosts)
+  return 1;
+}
+// Planets discovered by a given year. Only the year slider changes this, so cache it
+// per star instead of re-walking every planet list on every frame.
+let _pcYear=-1;
+function planetsBy(s, year){
+  if(_pcYear!==year){ _pcYear=year; for(let i=0;i<STARS.length;i++) STARS[i]._pcN=-1; }
+  let n=s._pcN;
+  if(n<0){ n=0; const ps=s.p;
+    for(let k=0;k<ps.length;k++){ const y=ps[k].y; if(y<=year||y===0) n++; }
+    s._pcN=n; }
+  return n;
+}
+function radiusScale(sr){
+  if(!S.size || !sr) return 1;
+  // ^0.7 keeps the 0.012–94 R☉ span usable: dwarfs sit near the floor, giants at the cap
+  return Math.max(0.30, Math.min(4.2, Math.pow(sr, 0.7)));
 }
 
 // ---- projection ----
 let cy,cx,foc;
-function project(px,py,pz){
+function project(px,py,pz){ return projectInto(px,py,pz,{}); }
+// Same maths, writing into a caller-owned object. The hot loops (11.6 k HYG stars,
+// 4.7 k hosts, 869 galaxies) ran project() per point and threw away ~17 000 short-lived
+// objects every frame; they now pass one scratch object and copy the fields out.
+const _pj = {x:0,y:0,depth:0,z2:0};
+function projectInto(px,py,pz,o){
+  camTrig();
   px-=ctr.x; py-=ctr.y; pz-=ctr.z;         // orbit/look around the movable centre
-  const cyaw=Math.cos(S.yaw),syaw=Math.sin(S.yaw);
-  const x1=px*cyaw+pz*syaw, z1=-px*syaw+pz*cyaw, y1=py;
-  const cp=Math.cos(S.pitch),sp=Math.sin(S.pitch);
-  const y2=y1*cp - z1*sp, z2=y1*sp + z1*cp;
+  const x1=px*_cyw+pz*_syw, z1=-px*_syw+pz*_cyw, y1=py;
+  const y2=y1*_cp2 - z1*_sp2, z2=y1*_sp2 + z1*_cp2;
   const depth=S.camZ - z2;                 // >0 in front
-  return {x:cx+foc*x1/depth, y:cy-foc*y2/depth, depth, z2};
+  o.x=cx+foc*x1/depth; o.y=cy-foc*y2/depth; o.depth=depth; o.z2=z2;
+  return o;
 }
 
 // ---- render ----
@@ -517,6 +568,24 @@ function blobSprite(r,g,b,a0,a1){
 // above Earth ≈ 1e9 px). Break paths at this limit like at the near plane.
 const PLIM=32768;
 function offscr(p){ return p.depth<=NEAR || Math.abs(p.x-cx)>PLIM || Math.abs(p.y-cy)>PLIM; }
+// ---- per-layer profiler (off unless api.prof(true)) ------------------------
+// Frame cost is invisible from the outside: everything happens inside one render().
+// P() accumulates wall time per layer so "it feels slow" becomes a number per layer.
+const PROF = { on: false, t: Object.create(null), frames: 0 };
+function P(k, fn) {
+  if (!PROF.on) return fn();
+  const a = performance.now(); const r = fn();
+  PROF.t[k] = (PROF.t[k] || 0) + (performance.now() - a);
+  return r;
+}
+api.prof = on => {
+  if (on) { PROF.on = true; PROF.t = Object.create(null); PROF.frames = 0; return null; }
+  PROF.on = false;
+  const f = PROF.frames || 1;
+  return { frames: PROF.frames,
+    ms: Object.fromEntries(Object.entries(PROF.t)
+      .map(([k, v]) => [k, +(v / f).toFixed(2)]).sort((a, b) => b[1] - a[1])) };
+};
 function render(){
   cx=W/2; cy=H/2; foc=Math.min(W,H)*0.62;
   gwOnScreen=false;
@@ -538,18 +607,18 @@ function render(){
   }
   calcLens();                                    // Sgr A* lensing (needs camBasis + foc)
 
-  if(S.rings) drawRings();
-  if(S.veil) drawVeilSphere();
-  if(S.radio) drawRadioSphere();
-  if(S.bubble) drawBubble();
-  if(S.grid) drawSkyGrid();
-  if(S.ggrid) drawGalGrid();
+  if(S.rings) P('rings',drawRings);
+  if(S.veil) P('veil',drawVeilSphere);
+  if(S.radio) P('radio',drawRadioSphere);
+  if(S.bubble) P('bubble',drawBubble);
+  if(S.grid) P('grid',drawSkyGrid);
+  if(S.ggrid) P('ggrid',drawGalGrid);
 
   // galaxies: project, split behind/in-front of the local cloud for painter order
-  projectGalaxies();
+  P('gal:project',projectGalaxies);
   const backG=[], frontG=[];
   for(const g of galProj){ (g._z2<0?backG:frontG).push(g); }
-  drawGalaxies(backG);
+  P('gal:back',()=>drawGalaxies(backG));
 
   // gather visible
   order.length=0; visSys=0; visPl=0; nearD=Infinity; farD=0;
@@ -558,29 +627,26 @@ function render(){
     if(s.fy>S.year && s.fy!==0) continue;
     if(S.facHidden.has(s.fac)) continue;
     const dr=compress(s._r);
-    const p=project(s._dx*dr,s._dy*dr,s._dz*dr);
+    const p=projectInto(s._dx*dr,s._dy*dr,s._dz*dr,_pj);
     if(p.depth<=NEAR) continue;
     if(p.x<-90||p.x>W+90||p.y<-90||p.y>H+90) continue;   // off-screen cull
     s._sx=p.x; s._sy=p.y; s._depth=p.depth; s._z2=p.z2;
     order.push(s);
     visSys++;
-    let pc=0, rmax=0;
-    for(let k=0;k<s.p.length;k++){ const pp=s.p[k];
-      if(pp.y<=S.year||pp.y===0){ pc++; if(pp.r&&pp.r>rmax) rmax=pp.r; } }
-    s._pc=pc; s._rmax=rmax; visPl+=pc;
+    visPl += planetsBy(s, S.year);
     if(s._r<nearD) nearD=s._r;
     if(s._r>farD) farD=s._r;
   }
-  order.sort((a,b)=>a._z2-b._z2);   // far first (painter)
+  P('stars:sort',()=>order.sort((a,b)=>a._z2-b._z2));   // far first (painter)
 
   // background starfield (HYG) behind the exoplanet hosts
-  projectHyg(); if(glStars()) glRender(); else { glClearCanvas(); drawHyg(); }
+  P('hyg:project',projectHyg); if(glStars()) P('gl:render',glRender); else { glClearCanvas(); P('hyg:draw',drawHyg); }
 
   // draw sun at origin
   const sp=project(0,0,0);
   const gpuH=glStars()&&glBufH;   // GPU draws the host points; 2D keeps picking/rings
   for(const s of order){
-    const size=Math.max(0.7, foc*0.0075/s._depth * radiusScale(s._rmax));
+    const size=Math.max(0.7, foc*0.0075/s._depth * radiusScale(s._sr));
     const fade=Math.max(0.12, Math.min(1, 1.9 - s._depth*0.55));
     const isNew=(s.fy===S.year && s.fy!==0);
     const isSel=(s===S.hover||s===S.pinned||s===S.focusStar);
@@ -647,16 +713,17 @@ function render(){
   lastSun.x=sp.x; lastSun.y=sp.y; lastSun.depth=sp.depth;
 
   // our solar system — detail fades in as we zoom toward the Sun
-  if(solarA>0.01) drawSolar(solarA);
+  if(solarA>0.01) P('solar',()=>drawSolar(solarA));
   // a fellow exoplanet system — its planets on their orbits, when we fly to it
-  if(sysA>0.01) drawSystem(sysA); else sysProj.length=0;
+  if(sysA>0.01) P('system',()=>drawSystem(sysA)); else sysProj.length=0;
 
   if(measureMode) drawMeasure();
   if(ROUTE) drawRoute();                   // interstellar 1g route (Earth → star/galaxy)
-  drawNav();                               // course reticle / off-screen arrow
+  P('nav',drawNav);                        // course reticle / off-screen arrow
   drawScaleBar();                          // where we are on the distance ladder
-  lblFlush();                              // all queued labels, decluttered, on top
-  updateHUD();
+  P('labels:flush',lblFlush);              // all queued labels, decluttered, on top
+  P('hud',updateHUD);
+  PROF.frames++;
 }
 const lastSun={x:0,y:0,depth:0};
 
@@ -666,7 +733,7 @@ function projectGalaxies(){
   galProj.length=0; if(!S.galaxies) return;
   for(const g of GAL){
     const R=scale(g.mpc*1e6); g._x=g.dx*R; g._y=g.dy*R; g._z=g.dz*R;
-    const p=project(g._x,g._y,g._z);
+    const p=projectInto(g._x,g._y,g._z,_pj);
     if(p.depth<=NEAR) continue;
     if(p.x<-90||p.x>W+90||p.y<-90||p.y>H+90) continue;
     g._sx=p.x; g._sy=p.y; g._depth=p.depth; g._z2=p.z2;
@@ -678,20 +745,28 @@ function drawGalaxies(list){ LBL.prio=P_GAL;
   for(const g of list){
     const s=Math.max(1.4, foc*0.011/g._depth*g._gs);
     const c=g.c, a=Math.max(.25,Math.min(.95, 1.7-g._depth*0.045));
-    if(s>3){                       // soft nebulous blob only for the larger/nearer ones
+    if(s>4){                       // soft nebulous blob only for the larger/nearer ones
       const ba=(g.ba&&g.ba>0.05)?g.ba:1;
-      let th=0;
-      if(g.pa!==undefined){          // real position angle: rotate major axis N->E on screen
-        const dx3=g.dx,dy3=g.dy,dz3=g.dz, cd3=Math.max(1e-6,Math.hypot(dx3,dy3));
-        const e2=camDir2([-dy3/cd3, dx3/cd3, 0]);
-        const n2=camDir2([-dz3*dx3/cd3, -dz3*dy3/cd3, cd3]);
-        const pa=g.pa*0.0174533;
-        th=Math.atan2(n2[1]*Math.cos(pa)+e2[1]*Math.sin(pa), n2[0]*Math.cos(pa)+e2[0]*Math.sin(pa));
-      }
-      ctx.save(); ctx.translate(g._sx,g._sy); ctx.rotate(th); ctx.scale(1,ba);
+      const sprite=blobSprite(c[0],c[1],c[2],0.85,0.3);
       ctx.globalAlpha=a;             // sprite carries the stop shape; alpha scales it
-      ctx.drawImage(blobSprite(c[0],c[1],c[2],0.85,0.3), -s, -s, s*2, s*2);
-      ctx.restore(); ctx.globalAlpha=1;
+      // a round galaxy needs no rotation, so it skips the transform entirely; the rest
+      // use setTransform rather than save/rotate/scale/restore (three fewer state ops
+      // per galaxy, and camDir2i keeps the position-angle maths allocation-free)
+      if(ba>0.985 || g.pa===undefined){
+        ctx.drawImage(sprite, g._sx-s, g._sy-s, s*2, s*2);
+      } else {
+        const dx3=g.dx,dy3=g.dy,dz3=g.dz, cd3=Math.max(1e-6,Math.hypot(dx3,dy3));
+        camDir2i(-dy3/cd3, dx3/cd3, 0);           const e2x=_d2x, e2y=_d2y;
+        camDir2i(-dz3*dx3/cd3, -dz3*dy3/cd3, cd3); const n2x=_d2x, n2y=_d2y;
+        const pa=g.pa*0.0174533, cpa=Math.cos(pa), spa=Math.sin(pa);
+        const th=Math.atan2(n2y*cpa+e2y*spa, n2x*cpa+e2x*spa);
+        const ct=Math.cos(th), stt=Math.sin(th);
+        ctx.setTransform(DPR*ct, DPR*stt, -DPR*stt*ba, DPR*ct*ba,
+                         DPR*g._sx, (cv.height/H)*g._sy);
+        ctx.drawImage(sprite, -s, -s, s*2, s*2);
+        ctx.setTransform(DPR,0,0,cv.height/H,0,0);
+      }
+      ctx.globalAlpha=1;
     } else {                       // cheap flat fill for tiny far galaxies — visually identical
       ctx.beginPath(); ctx.arc(g._sx,g._sy,s,0,6.2832);
       ctx.fillStyle=`rgba(${c[0]},${c[1]},${c[2]},${a*0.55})`; ctx.fill();
@@ -887,7 +962,7 @@ function projectHyg(){
       const L=Math.hypot(dx,dy,dz)||1; dx/=L;dy/=L;dz/=L;
     }
     const dr=compress(s.d);
-    const p=project(dx*dr,dy*dr,dz*dr);
+    const p=projectInto(dx*dr,dy*dr,dz*dr,_pj);
     if(p.depth<=NEAR) continue;
     if(p.x<-90||p.x>W+90||p.y<-90||p.y>H+90) continue;
     let bright=6.8-s.m; if(bright<0) bright=0;
@@ -923,13 +998,24 @@ function drawHyg(){ LBL.prio=P_STAR;
 // ---- solar system (positioned on the SAME unified scale: orbit radius = rlog(a·AU)) ----
 let solarProj=[];
 function orbitR(a){ return scale(a*AU_PC); }
+// Bodies are drawn at their TRUE relative radii: the Sun really is 109 Earths across
+// and the Moon really is a quarter of one. (The old model raised the ratio to the 0.42
+// and added a constant, which squeezed the Sun down to ~5 Earths and puffed the Moon up
+// to almost one — everything ended up looking the same size.) Positions stay compressed;
+// only the sizes are honest, with a pixel floor so small moons remain clickable.
+// One shared factor, so the ratios above stay EXACT at every zoom. Its value is set by
+// the one constraint the compressed map imposes: the Sun's disc has to stay inside
+// Earth's orbit. In compact mode 1 AU is a fixed 0.686 world units, so
+//     109.3 · K · 0.02  ≤  0.30 · 0.686   →   K ≤ 0.094.
+// Pick that, and everything else follows from its true radius. (Distances are
+// compressed here and sizes are not, which is why a factor is needed at all — in real
+// scale mode truePx below takes over and both are honest together.)
+const BODY_K = 0.094;
 function bodyPx(rk,depth){
-  // glyphs are symbolic (true physical sizes are invisible next to real distances),
-  // but scaled by real RELATIVE radius so Jupiter>Earth>Mercury stays recognisable.
   const ratio=rk/6371;
   const de = S.realScale ? (depth/S.camZ)*3.2 : depth;   // real: normalise to the log framing range
   // cap 4× the viewport: diving in takes you past full disc INTO the imagery (clouds fill the view)
-  const sym = Math.max(2.0, Math.min(Math.min(W,H)*4,(0.28+Math.pow(ratio,0.42)*0.62)*foc*0.02/de));
+  const sym = Math.max(1.7, Math.min(Math.min(W,H)*4, ratio*BODY_K*foc*0.02/de));
   if(!S.realScale) return sym;
   // real scale: once the TRUE angular size is resolvable it wins — fly at a
   // planet and it grows to a disc, exactly as it would in reality
@@ -1038,7 +1124,7 @@ function drawSolar(alpha){ LBL.prio=P_SOLAR;
         if(spx>46){ ctx.font='9px ui-monospace,monospace'; ctx.fillStyle=`rgba(255,200,140,${A*0.7})`;
           ctx.fillText('GOES SUVI 304 Å · live (~4 min)', sp.x+spx+4, sp.y+16); } }
     }
-    solarProj.push({o:SUN,x:sp.x,y:sp.y,px:spx});
+    solarProj.push({o:SUN,x:sp.x,y:sp.y,px:spx}); window.__solarProj=solarProj;
     ctx.font='11px ui-monospace,monospace'; ctx.fillStyle=`rgba(255,238,178,${A*0.9})`;
     ctx.fillText('Sun', sp.x+spx+4, sp.y+3);
     ctx.font='9px ui-monospace,monospace'; ctx.fillStyle=`rgba(200,208,225,${A*0.6})`;
@@ -1105,8 +1191,12 @@ function drawSolar(alpha){ LBL.prio=P_SOLAR;
     ctx.fillText(b.n, p.x+px+4, p.y+3);
     // moons — spaced by REAL relative orbital distance (am), sized by real radius
     if(S.moons && b.moons.length){
-      const amMax=Math.max.apply(null,b.moons.map(m=>m.am));
-      const ms=b.moons.slice().sort((x,y)=>x.am-y.am);
+      // the moon list is static, but this used to map+slice+sort it on every frame for
+      // every planet — Jupiter alone has 66 moons, so it was ~300 array allocations and
+      // a full sort per frame before a single moon was drawn
+      if(!b._ms){ b._ms=b.moons.slice().sort((x,y)=>x.am-y.am);
+        b._amMax=b.moons.reduce((a,m)=>m.am>a?m.am:a, 0); }
+      const amMax=b._amMax, ms=b._ms;
       const jdM=solarJD();
       ms.forEach((m,mi)=>{
         const msel0=(m===S.hover||m===S.pinned);
@@ -1118,13 +1208,19 @@ function drawSolar(alpha){ LBL.prio=P_SOLAR;
         const eph=MOON_EPH[m.n];
         let mx,my;
         if(eph){                                   // real orbital phase + real orbit plane
-          const d2=camDir2(moonDirAt(eph, eph.w*(jdM-eph.ep)));
-          mx=p.x+d2[0]*sepPx; my=p.y+d2[1]*sepPx;
-          ctx.beginPath();                          // true orbit projected on screen
-          for(let k=0;k<=24;k++){ const rp=camDir2(moonDirAt(eph, k/24*6.2832));
-            const qx=p.x+rp[0]*sepPx, qy=p.y+rp[1]*sepPx;
-            if(k===0) ctx.moveTo(qx,qy); else ctx.lineTo(qx,qy); }
-          ctx.strokeStyle=`rgba(160,175,205,${A*0.15})`; ctx.lineWidth=0.6; ctx.stroke();
+          const dm=moonDirAt(eph, eph.w*(jdM-eph.ep)); camDir2i(dm[0],dm[1],dm[2]);
+          mx=p.x+_d2x*sepPx; my=p.y+_d2y*sepPx;
+          // the orbit outline is 25 segments; below a few pixels of separation it is a
+          // dot, so scale the segment count to what is actually resolvable
+          const seg = sepPx<7 ? 0 : sepPx<40 ? 12 : 24;
+          if(seg){
+            ctx.beginPath();
+            for(let k=0;k<=seg;k++){ const rp=moonDirAt(eph, k/seg*6.2832);
+              camDir2i(rp[0],rp[1],rp[2]);
+              const qx=p.x+_d2x*sepPx, qy=p.y+_d2y*sepPx;
+              if(k===0) ctx.moveTo(qx,qy); else ctx.lineTo(qx,qy); }
+            ctx.strokeStyle=`rgba(160,175,205,${A*0.15})`; ctx.lineWidth=0.6; ctx.stroke();
+          }
         } else {                                    // fallback: schematic ring
           const ang=mi*2.24+0.7;
           mx=p.x+Math.cos(ang)*sepPx; my=p.y+Math.sin(ang)*sepPx*0.9;
@@ -1132,8 +1228,11 @@ function drawSolar(alpha){ LBL.prio=P_SOLAR;
           ctx.strokeStyle=`rgba(160,175,205,${A*0.13})`; ctx.lineWidth=0.6; ctx.stroke();
         }
         const mde=S.realScale?(p.depth/S.camZ)*3.2:p.depth;
-        let mpx=Math.max(1.1,Math.min(10,Math.pow(m.rk/6371,0.42)*0.62*foc*0.02/mde));
-        if(S.realScale) mpx=Math.min(Math.max(mpx, foc*(m.rk*3.2408e-14)/p.depth), Math.min(W,H)*0.5);
+        // same law AND the same caps as bodyPx — moons used to cap at 10 px / half the
+        // viewport while planets capped at 4×, so up close every moon clipped to the same
+        // size and Io ended up two thirds of Jupiter instead of a fortieth
+        let mpx=Math.max(1.1,Math.min(Math.min(W,H)*4,(m.rk/6371)*BODY_K*foc*0.02/mde));
+        if(S.realScale) mpx=Math.min(Math.max(mpx, foc*(m.rk*3.2408e-14)/p.depth), Math.min(W,H)*4);
         ballFill(mx,my,mpx,m.c,A);
         if(m.n==='Moon'&&mpx>=26){                 // the Moon gets its real face up close
           const gcv=bodyGlobe({n:'Moon',_e:b._e},mpx,jdM);
@@ -3949,9 +4048,9 @@ function initGL(){
     const FACIDX={kepler:0,tess:1,k2:2,rv:3,micro:4,imaging:5,ground:6,other:7};
     const ha=new Float32Array(STARS.length*10);
     for(let i=0;i<STARS.length;i++){ const st2=STARS[i],o=i*10;
-      let rmax=0; for(const pp of st2.p) if(pp.r&&pp.r>rmax) rmax=pp.r;
+      const sr2=st2._sr!==undefined?st2._sr:starRadius(st2);
       ha[o]=st2._dx; ha[o+1]=st2._dy; ha[o+2]=st2._dz; ha[o+3]=st2._r;
-      ha[o+4]=rmax?Math.max(0.55,Math.min(4.2,Math.pow(rmax/1.4,0.5))):1;
+      ha[o+4]=sr2?Math.max(0.30,Math.min(4.2,Math.pow(sr2,0.7))):1;   // same curve as radiusScale()
       ha[o+5]=st2._col[0]/255; ha[o+6]=st2._col[1]/255; ha[o+7]=st2._col[2]/255;
       ha[o+8]=FACIDX[st2.fac]!==undefined?FACIDX[st2.fac]:7; ha[o+9]=st2.fy||0; }
     glBufH=mkFloatVAO(gl,ha);
@@ -4426,4 +4525,4 @@ loadExtragal();
 requestAnimationFrame(frame);
 }
 
-export function runEngine(){ __run(); }
+export function runEngine(){ __run(); window.__kuapi=api; }

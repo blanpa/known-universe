@@ -7052,6 +7052,7 @@ function __run() {
 		grid: /* @__PURE__ */ new Map(),
 		cell: 48
 	};
+	const LBLW = /* @__PURE__ */ new Map();
 	const P_HUD = 100, P_SEL = 92, P_SOLAR = 80, P_PROBE = 70, P_DEEP = 62, P_STAR = 52, P_SMALL = 40, P_GAL = 30, P_GRID = 14;
 	function _paint(s, x, y, mw, st) {
 		ctx.font = st.f;
@@ -7134,7 +7135,13 @@ function __run() {
 			const it = q[i], st = it.st;
 			ctx.font = st.f;
 			const fs = parseFloat(st.f) || 10;
-			let w = ctx.measureText(it.s).width;
+			const mk = st.f + "\0" + it.s;
+			let w = LBLW.get(mk);
+			if (w === void 0) {
+				if (LBLW.size > 4e3) LBLW.clear();
+				w = ctx.measureText(it.s).width;
+				LBLW.set(mk, w);
+			}
 			if (it.mw !== void 0 && w > it.mw) w = it.mw;
 			let x0 = it.x;
 			if (st.a === "center") x0 = it.x - w / 2;
@@ -7174,6 +7181,7 @@ function __run() {
 		s._dz = s.z / r;
 		s._r = r;
 		s._col = tempColor(s.t);
+		s._sr = starRadius(s);
 		s._search = (s.h + " " + s.p.map((p) => p.n).join(" ")).toLowerCase();
 	});
 	const S = {
@@ -13918,9 +13926,15 @@ function __run() {
 		];
 	}
 	function camDir2(v) {
-		const cyw = Math.cos(S.yaw), syw = Math.sin(S.yaw), cp2 = Math.cos(S.pitch), sp2 = Math.sin(S.pitch);
-		const x1 = v[0] * cyw + v[2] * syw, z1 = -v[0] * syw + v[2] * cyw;
-		return [x1, -(v[1] * cp2 - z1 * sp2)];
+		camTrig();
+		const x1 = v[0] * _cyw + v[2] * _syw, z1 = -v[0] * _syw + v[2] * _cyw;
+		return [x1, -(v[1] * _cp2 - z1 * _sp2)];
+	}
+	let _d2x = 0, _d2y = 0;
+	function camDir2i(vx, vy, vz) {
+		const x1 = vx * _cyw + vz * _syw, z1 = -vx * _syw + vz * _cyw;
+		_d2x = x1;
+		_d2y = -(vy * _cp2 - z1 * _sp2);
 	}
 	const EXTRA_MOONS = {
 		"Jupiter": [
@@ -47426,8 +47440,24 @@ function __run() {
 		0
 	];
 	const keys = /* @__PURE__ */ new Set();
+	let _cyw = 1, _syw = 0, _cp2 = 1, _sp2 = 0, _trigY = NaN, _trigP = NaN;
+	function camTrig() {
+		if (_trigY === S.yaw && _trigP === S.pitch) return;
+		_trigY = S.yaw;
+		_trigP = S.pitch;
+		_cyw = Math.cos(S.yaw);
+		_syw = Math.sin(S.yaw);
+		_cp2 = Math.cos(S.pitch);
+		_sp2 = Math.sin(S.pitch);
+	}
 	function camBasis() {
 		const c = Math.cos(S.yaw), s = Math.sin(S.yaw), cp = Math.cos(S.pitch), sp = Math.sin(S.pitch);
+		_cyw = c;
+		_syw = s;
+		_cp2 = cp;
+		_sp2 = sp;
+		_trigY = S.yaw;
+		_trigP = S.pitch;
 		camRight = [
 			c,
 			sp * s,
@@ -47533,26 +47563,56 @@ function __run() {
 	function compress(r) {
 		return scale(r);
 	}
-	function radiusScale(re) {
-		if (!S.size || !re) return 1;
-		return Math.max(.55, Math.min(4.2, Math.pow(re / 1.4, .5)));
+	function starRadius(s) {
+		if (s.lum > 0 && s.t > 0) return Math.sqrt(s.lum) / Math.pow(s.t / 5772, 2);
+		if (s.t > 0) return Math.pow(s.t / 5772, 2);
+		return 1;
+	}
+	let _pcYear = -1;
+	function planetsBy(s, year) {
+		if (_pcYear !== year) {
+			_pcYear = year;
+			for (let i = 0; i < STARS.length; i++) STARS[i]._pcN = -1;
+		}
+		let n = s._pcN;
+		if (n < 0) {
+			n = 0;
+			const ps = s.p;
+			for (let k = 0; k < ps.length; k++) {
+				const y = ps[k].y;
+				if (y <= year || y === 0) n++;
+			}
+			s._pcN = n;
+		}
+		return n;
+	}
+	function radiusScale(sr) {
+		if (!S.size || !sr) return 1;
+		return Math.max(.3, Math.min(4.2, Math.pow(sr, .7)));
 	}
 	let cy, cx, foc;
 	function project(px, py, pz) {
+		return projectInto(px, py, pz, {});
+	}
+	const _pj = {
+		x: 0,
+		y: 0,
+		depth: 0,
+		z2: 0
+	};
+	function projectInto(px, py, pz, o) {
+		camTrig();
 		px -= ctr.x;
 		py -= ctr.y;
 		pz -= ctr.z;
-		const cyaw = Math.cos(S.yaw), syaw = Math.sin(S.yaw);
-		const x1 = px * cyaw + pz * syaw, z1 = -px * syaw + pz * cyaw, y1 = py;
-		const cp = Math.cos(S.pitch), sp = Math.sin(S.pitch);
-		const y2 = y1 * cp - z1 * sp, z2 = y1 * sp + z1 * cp;
+		const x1 = px * _cyw + pz * _syw, z1 = -px * _syw + pz * _cyw, y1 = py;
+		const y2 = y1 * _cp2 - z1 * _sp2, z2 = y1 * _sp2 + z1 * _cp2;
 		const depth = S.camZ - z2;
-		return {
-			x: cx + foc * x1 / depth,
-			y: cy - foc * y2 / depth,
-			depth,
-			z2
-		};
+		o.x = cx + foc * x1 / depth;
+		o.y = cy - foc * y2 / depth;
+		o.depth = depth;
+		o.z2 = z2;
+		return o;
 	}
 	let visSys = 0, visPl = 0, nearD = Infinity, farD = 0;
 	const order = [];
@@ -47578,6 +47638,32 @@ function __run() {
 	function offscr(p) {
 		return p.depth <= NEAR || Math.abs(p.x - cx) > PLIM || Math.abs(p.y - cy) > PLIM;
 	}
+	const PROF = {
+		on: false,
+		t: Object.create(null),
+		frames: 0
+	};
+	function P(k, fn) {
+		if (!PROF.on) return fn();
+		const a = performance.now();
+		const r = fn();
+		PROF.t[k] = (PROF.t[k] || 0) + (performance.now() - a);
+		return r;
+	}
+	api.prof = (on) => {
+		if (on) {
+			PROF.on = true;
+			PROF.t = Object.create(null);
+			PROF.frames = 0;
+			return null;
+		}
+		PROF.on = false;
+		const f = PROF.frames || 1;
+		return {
+			frames: PROF.frames,
+			ms: Object.fromEntries(Object.entries(PROF.t).map(([k, v]) => [k, +(v / f).toFixed(2)]).sort((a, b) => b[1] - a[1]))
+		};
+	};
 	function render() {
 		cx = W / 2;
 		cy = H / 2;
@@ -47597,16 +47683,16 @@ function __run() {
 		sysA = 0;
 		if (focusSys && focusSysW) sysA = lodA(Math.hypot(camPos[0] - focusSysW[0], camPos[1] - focusSysW[1], camPos[2] - focusSysW[2]), 8e-6, 8e-4);
 		calcLens();
-		if (S.rings) drawRings();
-		if (S.veil) drawVeilSphere();
-		if (S.radio) drawRadioSphere();
-		if (S.bubble) drawBubble();
-		if (S.grid) drawSkyGrid();
-		if (S.ggrid) drawGalGrid();
-		projectGalaxies();
+		if (S.rings) P("rings", drawRings);
+		if (S.veil) P("veil", drawVeilSphere);
+		if (S.radio) P("radio", drawRadioSphere);
+		if (S.bubble) P("bubble", drawBubble);
+		if (S.grid) P("grid", drawSkyGrid);
+		if (S.ggrid) P("ggrid", drawGalGrid);
+		P("gal:project", projectGalaxies);
 		const backG = [], frontG = [];
 		for (const g of galProj) (g._z2 < 0 ? backG : frontG).push(g);
-		drawGalaxies(backG);
+		P("gal:back", () => drawGalaxies(backG));
 		order.length = 0;
 		visSys = 0;
 		visPl = 0;
@@ -47617,7 +47703,7 @@ function __run() {
 			if (s.fy > S.year && s.fy !== 0) continue;
 			if (S.facHidden.has(s.fac)) continue;
 			const dr = compress(s._r);
-			const p = project(s._dx * dr, s._dy * dr, s._dz * dr);
+			const p = projectInto(s._dx * dr, s._dy * dr, s._dz * dr, _pj);
 			if (p.depth <= NEAR) continue;
 			if (p.x < -90 || p.x > W + 90 || p.y < -90 || p.y > H + 90) continue;
 			s._sx = p.x;
@@ -47626,31 +47712,21 @@ function __run() {
 			s._z2 = p.z2;
 			order.push(s);
 			visSys++;
-			let pc = 0, rmax = 0;
-			for (let k = 0; k < s.p.length; k++) {
-				const pp = s.p[k];
-				if (pp.y <= S.year || pp.y === 0) {
-					pc++;
-					if (pp.r && pp.r > rmax) rmax = pp.r;
-				}
-			}
-			s._pc = pc;
-			s._rmax = rmax;
-			visPl += pc;
+			visPl += planetsBy(s, S.year);
 			if (s._r < nearD) nearD = s._r;
 			if (s._r > farD) farD = s._r;
 		}
-		order.sort((a, b) => a._z2 - b._z2);
-		projectHyg();
-		if (glStars()) glRender();
+		P("stars:sort", () => order.sort((a, b) => a._z2 - b._z2));
+		P("hyg:project", projectHyg);
+		if (glStars()) P("gl:render", glRender);
 		else {
 			glClearCanvas();
-			drawHyg();
+			P("hyg:draw", drawHyg);
 		}
 		const sp = project(0, 0, 0);
 		const gpuH = glStars() && glBufH;
 		for (const s of order) {
-			const size = Math.max(.7, foc * .0075 / s._depth * radiusScale(s._rmax));
+			const size = Math.max(.7, foc * .0075 / s._depth * radiusScale(s._sr));
 			const fade = Math.max(.12, Math.min(1, 1.9 - s._depth * .55));
 			const isNew = s.fy === S.year && s.fy !== 0;
 			const isSel = s === S.hover || s === S.pinned || s === S.focusStar;
@@ -47752,15 +47828,16 @@ function __run() {
 		lastSun.x = sp.x;
 		lastSun.y = sp.y;
 		lastSun.depth = sp.depth;
-		if (solarA > .01) drawSolar(solarA);
-		if (sysA > .01) drawSystem(sysA);
+		if (solarA > .01) P("solar", () => drawSolar(solarA));
+		if (sysA > .01) P("system", () => drawSystem(sysA));
 		else sysProj.length = 0;
 		if (measureMode) drawMeasure();
 		if (ROUTE) drawRoute();
-		drawNav();
+		P("nav", drawNav);
 		drawScaleBar();
-		lblFlush();
-		updateHUD();
+		P("labels:flush", lblFlush);
+		P("hud", updateHUD);
+		PROF.frames++;
 	}
 	const lastSun = {
 		x: 0,
@@ -47776,7 +47853,7 @@ function __run() {
 			g._x = g.dx * R;
 			g._y = g.dy * R;
 			g._z = g.dz * R;
-			const p = project(g._x, g._y, g._z);
+			const p = projectInto(g._x, g._y, g._z, _pj);
 			if (p.depth <= NEAR) continue;
 			if (p.x < -90 || p.x > W + 90 || p.y < -90 || p.y > H + 90) continue;
 			g._sx = p.x;
@@ -47792,31 +47869,24 @@ function __run() {
 		for (const g of list) {
 			const s = Math.max(1.4, foc * .011 / g._depth * g._gs);
 			const c = g.c, a = Math.max(.25, Math.min(.95, 1.7 - g._depth * .045));
-			if (s > 3) {
+			if (s > 4) {
 				const ba = g.ba && g.ba > .05 ? g.ba : 1;
-				let th = 0;
-				if (g.pa !== void 0) {
-					const dx3 = g.dx, dy3 = g.dy, dz3 = g.dz, cd3 = Math.max(1e-6, Math.hypot(dx3, dy3));
-					const e2 = camDir2([
-						-dy3 / cd3,
-						dx3 / cd3,
-						0
-					]);
-					const n2 = camDir2([
-						-dz3 * dx3 / cd3,
-						-dz3 * dy3 / cd3,
-						cd3
-					]);
-					const pa = g.pa * .0174533;
-					th = Math.atan2(n2[1] * Math.cos(pa) + e2[1] * Math.sin(pa), n2[0] * Math.cos(pa) + e2[0] * Math.sin(pa));
-				}
-				ctx.save();
-				ctx.translate(g._sx, g._sy);
-				ctx.rotate(th);
-				ctx.scale(1, ba);
+				const sprite = blobSprite(c[0], c[1], c[2], .85, .3);
 				ctx.globalAlpha = a;
-				ctx.drawImage(blobSprite(c[0], c[1], c[2], .85, .3), -s, -s, s * 2, s * 2);
-				ctx.restore();
+				if (ba > .985 || g.pa === void 0) ctx.drawImage(sprite, g._sx - s, g._sy - s, s * 2, s * 2);
+				else {
+					const dx3 = g.dx, dy3 = g.dy, dz3 = g.dz, cd3 = Math.max(1e-6, Math.hypot(dx3, dy3));
+					camDir2i(-dy3 / cd3, dx3 / cd3, 0);
+					const e2x = _d2x, e2y = _d2y;
+					camDir2i(-dz3 * dx3 / cd3, -dz3 * dy3 / cd3, cd3);
+					const n2x = _d2x, n2y = _d2y;
+					const pa = g.pa * .0174533, cpa = Math.cos(pa), spa = Math.sin(pa);
+					const th = Math.atan2(n2y * cpa + e2y * spa, n2x * cpa + e2x * spa);
+					const ct = Math.cos(th), stt = Math.sin(th);
+					ctx.setTransform(DPR * ct, DPR * stt, -DPR * stt * ba, DPR * ct * ba, DPR * g._sx, cv.height / H * g._sy);
+					ctx.drawImage(sprite, -s, -s, s * 2, s * 2);
+					ctx.setTransform(DPR, 0, 0, cv.height / H, 0, 0);
+				}
 				ctx.globalAlpha = 1;
 			} else {
 				ctx.beginPath();
@@ -48211,7 +48281,7 @@ function __run() {
 				dz /= L;
 			}
 			const dr = compress(s.d);
-			const p = project(dx * dr, dy * dr, dz * dr);
+			const p = projectInto(dx * dr, dy * dr, dz * dr, _pj);
 			if (p.depth <= NEAR) continue;
 			if (p.x < -90 || p.x > W + 90 || p.y < -90 || p.y > H + 90) continue;
 			let bright = 6.8 - s.m;
@@ -48264,10 +48334,11 @@ function __run() {
 	function orbitR(a) {
 		return scale(a * AU_PC);
 	}
+	const BODY_K = .094;
 	function bodyPx(rk, depth) {
 		const ratio = rk / 6371;
 		const de = S.realScale ? depth / S.camZ * 3.2 : depth;
-		const sym = Math.max(2, Math.min(Math.min(W, H) * 4, (.28 + Math.pow(ratio, .42) * .62) * foc * .02 / de));
+		const sym = Math.max(1.7, Math.min(Math.min(W, H) * 4, ratio * BODY_K * foc * .02 / de));
 		if (!S.realScale) return sym;
 		const truePx = foc * (rk * 32408e-18) / depth;
 		return Math.min(Math.max(sym, truePx), Math.min(W, H) * .75);
@@ -48454,6 +48525,7 @@ function __run() {
 				y: sp.y,
 				px: spx
 			});
+			window.__solarProj = solarProj;
 			ctx.font = "11px ui-monospace,monospace";
 			ctx.fillStyle = `rgba(255,238,178,${A * .9})`;
 			ctx.fillText("Sun", sp.x + spx + 4, sp.y + 3);
@@ -48550,8 +48622,11 @@ function __run() {
 			ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},${A * (faint ? .72 : .95)})`;
 			ctx.fillText(b.n, p.x + px + 4, p.y + 3);
 			if (S.moons && b.moons.length) {
-				const amMax = Math.max.apply(null, b.moons.map((m) => m.am));
-				const ms = b.moons.slice().sort((x, y) => x.am - y.am);
+				if (!b._ms) {
+					b._ms = b.moons.slice().sort((x, y) => x.am - y.am);
+					b._amMax = b.moons.reduce((a, m) => m.am > a ? m.am : a, 0);
+				}
+				const amMax = b._amMax, ms = b._ms;
 				const jdM = solarJD();
 				ms.forEach((m, mi) => {
 					const msel0 = m === S.hover || m === S.pinned;
@@ -48562,19 +48637,24 @@ function __run() {
 					const eph = MOON_EPH[m.n];
 					let mx, my;
 					if (eph) {
-						const d2 = camDir2(moonDirAt(eph, eph.w * (jdM - eph.ep)));
-						mx = p.x + d2[0] * sepPx;
-						my = p.y + d2[1] * sepPx;
-						ctx.beginPath();
-						for (let k = 0; k <= 24; k++) {
-							const rp = camDir2(moonDirAt(eph, k / 24 * 6.2832));
-							const qx = p.x + rp[0] * sepPx, qy = p.y + rp[1] * sepPx;
-							if (k === 0) ctx.moveTo(qx, qy);
-							else ctx.lineTo(qx, qy);
+						const dm = moonDirAt(eph, eph.w * (jdM - eph.ep));
+						camDir2i(dm[0], dm[1], dm[2]);
+						mx = p.x + _d2x * sepPx;
+						my = p.y + _d2y * sepPx;
+						const seg = sepPx < 7 ? 0 : sepPx < 40 ? 12 : 24;
+						if (seg) {
+							ctx.beginPath();
+							for (let k = 0; k <= seg; k++) {
+								const rp = moonDirAt(eph, k / seg * 6.2832);
+								camDir2i(rp[0], rp[1], rp[2]);
+								const qx = p.x + _d2x * sepPx, qy = p.y + _d2y * sepPx;
+								if (k === 0) ctx.moveTo(qx, qy);
+								else ctx.lineTo(qx, qy);
+							}
+							ctx.strokeStyle = `rgba(160,175,205,${A * .15})`;
+							ctx.lineWidth = .6;
+							ctx.stroke();
 						}
-						ctx.strokeStyle = `rgba(160,175,205,${A * .15})`;
-						ctx.lineWidth = .6;
-						ctx.stroke();
 					} else {
 						const ang = mi * 2.24 + .7;
 						mx = p.x + Math.cos(ang) * sepPx;
@@ -48586,8 +48666,8 @@ function __run() {
 						ctx.stroke();
 					}
 					const mde = S.realScale ? p.depth / S.camZ * 3.2 : p.depth;
-					let mpx = Math.max(1.1, Math.min(10, Math.pow(m.rk / 6371, .42) * .62 * foc * .02 / mde));
-					if (S.realScale) mpx = Math.min(Math.max(mpx, foc * (m.rk * 32408e-18) / p.depth), Math.min(W, H) * .5);
+					let mpx = Math.max(1.1, Math.min(Math.min(W, H) * 4, m.rk / 6371 * BODY_K * foc * .02 / mde));
+					if (S.realScale) mpx = Math.min(Math.max(mpx, foc * (m.rk * 32408e-18) / p.depth), Math.min(W, H) * 4);
 					ballFill(mx, my, mpx, m.c, A);
 					if (m.n === "Moon" && mpx >= 26) {
 						const gcv = bodyGlobe({
@@ -53452,13 +53532,12 @@ void main(){                                             // soft shoulder above 
 			const ha = new Float32Array(STARS.length * 10);
 			for (let i = 0; i < STARS.length; i++) {
 				const st2 = STARS[i], o = i * 10;
-				let rmax = 0;
-				for (const pp of st2.p) if (pp.r && pp.r > rmax) rmax = pp.r;
+				const sr2 = st2._sr !== void 0 ? st2._sr : starRadius(st2);
 				ha[o] = st2._dx;
 				ha[o + 1] = st2._dy;
 				ha[o + 2] = st2._dz;
 				ha[o + 3] = st2._r;
-				ha[o + 4] = rmax ? Math.max(.55, Math.min(4.2, Math.pow(rmax / 1.4, .5))) : 1;
+				ha[o + 4] = sr2 ? Math.max(.3, Math.min(4.2, Math.pow(sr2, .7))) : 1;
 				ha[o + 5] = st2._col[0] / 255;
 				ha[o + 6] = st2._col[1] / 255;
 				ha[o + 7] = st2._col[2] / 255;
@@ -54517,6 +54596,7 @@ void main(){                                             // soft shoulder above 
 }
 function runEngine() {
 	__run();
+	window.__kuapi = api;
 }
 //#endregion
 //#region src/lib/stores.js
@@ -56049,7 +56129,7 @@ function MobileNav($$anchor, $$props) {
 		}
 		var text = sibling(node_5);
 		var small = sibling(text);
-		small.textContent = `· b15:16`;
+		small.textContent = `· b16:13`;
 		reset(span);
 		var span_1 = sibling(span, 2);
 		var button_5 = child(span_1);

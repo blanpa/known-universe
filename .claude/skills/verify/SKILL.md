@@ -28,6 +28,22 @@ while desktop ANGLE silently accepted it).
 
 - **Quantitative camera evidence**: `location.hash` is a `v1_yaw_pitch_camZ_ctrX_ctrY_ctrZ_real_...`
   share hash, rewritten every 2 s — read camZ/ctr/realScale from it instead of screenshots.
+- **Measurement hooks** (both live, both cheap):
+  - `window.__kuapi` — the engine `api` object. `__kuapi.prof(true)` starts the per-layer
+    profiler, `__kuapi.prof(false)` returns `{frames, ms:{layer: msPerFrame}}`. Off by default.
+  - `window.__solarProj` — the current frame's solar-system projection, `[{o, x, y, px}]`.
+    `px` is the glyph radius (floored at 4 for picking), which is how the body-size model
+    gets checked without eyeballing screenshots.
+- **Do NOT trust wall-clock frame timings from this environment.** SwiftShader rasterises
+  in software at ~0.5 fps when the point clouds are on, so per-frame numbers swing 3× run
+  to run and per-second work (hash rewrite, live fetches) is divided over a handful of
+  frames. Use `__kuapi.prof` with the heavy layers off (the "Solar system" preset) to get
+  enough frames for a comparison, and treat only *relative* per-layer numbers from a
+  matched configuration as evidence. Idle cost IS reliable: it should be ~0.1 ms/60 fps,
+  because render() is skipped unless something changed.
+- **Flights do not complete here**: the camera lerps ~0.12/frame, so a fly-to needs ~40
+  frames = over a minute at SwiftShader's rate. Apply the "Solar system" preset first to
+  drop the GL clouds, or drive the camera with `page.mouse.wheel` over the target.
 - Wait ~7 s after `goto` (data fetch + first hash write).
 - **Layer toggles live behind the rail now**: `page.locator('#rail .rb', { hasText: 'Layers' }).click()`
   first, then `page.locator('#hud-ctl .toggle', { hasText: 'Compact view' }).click()`. The panes stay
