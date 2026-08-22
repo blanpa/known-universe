@@ -1,8 +1,9 @@
 <script>
   // split out of Controls so the rail can show it on its own
   import Icon from './Icon.svelte';
+  import { untrack } from 'svelte';
   let { collapsible = false } = $props();
-  let open = $state(!collapsible);
+  let open = $state(untrack(() => !collapsible));   // initial value on purpose
 </script>
 
 <div class="panel" id="hud-tr" class:mini={collapsible && !open}>

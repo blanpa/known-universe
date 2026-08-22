@@ -1,7 +1,8 @@
 <script>
   import Icon from './Icon.svelte';
+  import { untrack } from 'svelte';
   let { collapsible = true } = $props();
-  let open = $state(!collapsible);
+  let open = $state(untrack(() => !collapsible));   // initial value on purpose
 </script>
 
 <div class="panel" id="hud-mwmap" class:mini={collapsible && !open}>

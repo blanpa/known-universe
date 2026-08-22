@@ -2,9 +2,10 @@
   import { api } from '../lib/engine.js';
   import { liveData, activeShowers } from '../lib/live.js';
   import Icon from './Icon.svelte';
+  import { untrack } from 'svelte';
   let { onpick = null, collapsible = true } = $props();
   let showAll = $state(false);
-  let open = $state(!collapsible);
+  let open = $state(untrack(() => !collapsible));   // initial value on purpose
 
   const kpCol = k => k >= 6 ? '#ff7676' : k >= 4 ? '#ffd27a' : '#7fe08a';
   const xrCol = x => !x ? 'var(--dim)' : x[0] === 'X' ? '#ff7676' : x[0] === 'M' ? '#ffab6e' : x[0] === 'C' ? '#ffd27a' : '#9fb0d0';

@@ -54654,8 +54654,9 @@ var root_1$6 = /* @__PURE__ */ from_html(`<div class="label">Milky Way · top-do
 var root_2$4 = /* @__PURE__ */ from_html(`<div class="mwcap">Schematic · ~100,000 light-years across</div>`);
 var root_3$3 = /* @__PURE__ */ from_html(`<div id="hud-mwmap"><!> <canvas id="mwmap" width="198" height="150" aria-label="Schematic top-down map of the Milky Way with the Sun marked"></canvas> <!></div>`);
 function MwMap($$anchor, $$props) {
+	push($$props, true);
 	let collapsible = prop($$props, "collapsible", 3, true);
-	let open = /* @__PURE__ */ state(!collapsible());
+	let open = /* @__PURE__ */ state(proxy(untrack(() => !collapsible())));
 	var div = root_3$3();
 	let classes;
 	var node = child(div);
@@ -54697,6 +54698,7 @@ function MwMap($$anchor, $$props) {
 		set_style(canvas, `width:198px;height:150px;display:${get(open) ? "block" : "none"}`);
 	});
 	append($$anchor, div);
+	pop();
 }
 delegate(["click"]);
 //#endregion
@@ -55338,8 +55340,9 @@ var root_1$4 = /* @__PURE__ */ from_html(`<div class="label">Legend</div>`);
 var root_2$2 = /* @__PURE__ */ from_html(`<div class="label lg-sub">Star colour = temperature</div> <div class="spectrum"></div> <div class="spectrum-ax"><span>hot · 30,000 K</span><span>cool · 3,000 K</span></div> <div class="leg-row"><span style="display:flex;align-items:center;gap:5px;flex:0 0 auto"><span class="mk" style="width:4px;height:4px;background:var(--txt-2)"></span><span class="mk" style="width:11px;height:11px;background:var(--txt-2)"></span></span>Size = planet radius</div> <div class="leg-row"><span class="mk" style="background:#eafffb;box-shadow:0 0 8px #fff"></span>Sun — you are here</div> <div class="leg-row"><span class="mk" style="background:var(--cyan)"></span>discovered in the selected year</div> <div class="leg-row"><span class="mk" style="background:#e6473c;box-shadow:0 0 8px #e6473c"></span>beyond the neighbourhood</div> <div class="leg-row"><span class="mk" style="width:5px;height:5px;background:#cfe0ff"></span>real stars · HYG catalogue</div> <div class="leg-row lg-grp"><span style="display:flex;gap:5px;flex:0 0 auto"><span class="mk" style="background:#c7dbff"></span> <span class="mk" style="background:#ffdeb0"></span> <span class="mk" style="background:#acc6ee"></span></span>Galaxies: spiral · elliptical · irregular</div> <div class="leg-row" style="flex-wrap:wrap"><span style="display:flex;gap:5px;flex:0 0 auto"><span class="mk" style="background:#ce966c"></span><span class="mk" style="background:#6ec4b8"></span> <span class="mk" style="background:#6e96e0"></span><span class="mk" style="background:#e2b484"></span></span>Planets: rocky · super-Earth · Neptune · gas giant</div> <div class="leg-row" style="flex-wrap:wrap"><span style="display:flex;gap:5px;flex:0 0 auto"><span class="mk" style="background:#96beff"></span><span class="mk" style="background:#ffe2a0"></span> <span class="mk" style="background:#ff7676"></span><span class="mk" style="background:#6ee6c6"></span></span>Deep-sky: open · globular · nebula · planetary</div>`, 1);
 var root_3$1 = /* @__PURE__ */ from_html(`<div id="hud-tr"><!> <!></div>`);
 function Legend($$anchor, $$props) {
+	push($$props, true);
 	let collapsible = prop($$props, "collapsible", 3, false);
-	let open = /* @__PURE__ */ state(!collapsible());
+	let open = /* @__PURE__ */ state(proxy(untrack(() => !collapsible())));
 	var div = root_3$1();
 	let classes;
 	var node = child(div);
@@ -55379,6 +55382,7 @@ function Legend($$anchor, $$props) {
 	reset(div);
 	template_effect(() => classes = set_class(div, 1, "panel", null, classes, { mini: collapsible() && !get(open) }));
 	append($$anchor, div);
+	pop();
 }
 delegate(["click"]);
 //#endregion
@@ -55457,7 +55461,7 @@ function LivePanel($$anchor, $$props) {
 	const [$$stores, $$cleanup] = setup_stores();
 	let onpick = prop($$props, "onpick", 3, null), collapsible = prop($$props, "collapsible", 3, true);
 	let showAll = /* @__PURE__ */ state(false);
-	let open = /* @__PURE__ */ state(!collapsible());
+	let open = /* @__PURE__ */ state(proxy(untrack(() => !collapsible())));
 	const kpCol = (k) => k >= 6 ? "#ff7676" : k >= 4 ? "#ffd27a" : "#7fe08a";
 	const xrCol = (x) => !x ? "var(--dim)" : x[0] === "X" ? "#ff7676" : x[0] === "M" ? "#ffab6e" : x[0] === "C" ? "#ffd27a" : "#9fb0d0";
 	const dt = (t) => new Date(t).toLocaleString("en-US", {
@@ -56045,7 +56049,7 @@ function MobileNav($$anchor, $$props) {
 		}
 		var text = sibling(node_5);
 		var small = sibling(text);
-		small.textContent = `· b15:11`;
+		small.textContent = `· b15:16`;
 		reset(span);
 		var span_1 = sibling(span, 2);
 		var button_5 = child(span_1);
