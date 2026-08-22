@@ -241,6 +241,35 @@ missing or simplified, honestly:
   distances from redshift (assuming H₀ = 70, flat ΛCDM). Positions are real; some
   distances carry large uncertainties.
 
+## Repository layout
+
+```
+src/            the app — Svelte components + the framework-free engine
+  lib/engine.js   renderer, camera, picking, every layer  (the bulk of it)
+  lib/icons.js    the inline SVG icon set, shared with the engine
+  components/     panels, rail, sheet — the DOM; the engine binds by id
+site/           exactly what gets served (GitHub Pages + nginx)
+  assets/         the built bundle    (npm run build writes it)
+  data/           the datasets        (the pipeline writes them)
+pipeline/       everything that produces site/data — see pipeline/README.md
+  inputs/         curated inputs, version-controlled
+  raw/            downloaded catalogue dumps, gitignored
+tools/          dev tooling: single-file artifact build, mount test
+deploy/         Dockerfile, nginx.conf, the auto-update container
+```
+
+Two rules that keep this honest:
+
+- **`src/` is the only source of truth for the app.** `site/index.html` and
+  `site/assets/` are build output — never edit them by hand.
+- **`site/data/` is written by `pipeline/`, never by the app.**
+
+```bash
+npm run build           # src/ -> site/
+npm run test:mount      # mounts the real bundle (happy-dom) — run before deploying
+npm run build:artifact  # single self-contained HTML with the data embedded
+```
+
 ## Deployment with Docker
 
 ```bash
@@ -253,7 +282,7 @@ Snapshot only, without auto-update:
 ```bash
 docker compose up -d --build web  # web service only
 # or without Compose at all:
-docker build -t galactica .
+docker build -f deploy/Dockerfile -t galactica .
 docker run -d -p 8477:80 --name galactica galactica
 ```
 
@@ -262,7 +291,7 @@ Stop: `docker compose down`.
 ## Auto-update
 
 The `updater` service (see `docker-compose.yml`) periodically fetches fresh raw
-data from all three sources, runs `build_data.py` and writes a new
+data from all three sources, runs `pipeline/build_data.py` and writes a new
 `site/data/data.json`, which the web service serves via a bind mount. The map
 stays up to date automatically — the NASA archive grows weekly.
 
@@ -280,42 +309,42 @@ stays up to date automatically — the NASA archive grows weekly.
 # Exoplanets (NASA Exoplanet Archive)
 curl -G "https://exoplanetarchive.ipac.caltech.edu/TAP/sync" \
   --data-urlencode "query=select pl_name,hostname,ra,dec,sy_dist,disc_year,discoverymethod,disc_facility,st_teff,st_spectype,st_mass,st_lum,st_rad,pl_rade,pl_bmasse,pl_orbsmax,pl_orbper,sy_pnum from pscomppars where sy_dist is not null and ra is not null and dec is not null" \
-  --data-urlencode "format=csv" -o data-raw.csv
+  --data-urlencode "format=csv" -o pipeline/raw/data-raw.csv
 
 # Galaxies (Local Volume, VizieR TAP)
 curl -G "https://tapvizier.cds.unistra.fr/TAPVizieR/tap/sync" \
   --data-urlencode "REQUEST=doQuery" --data-urlencode "LANG=ADQL" --data-urlencode "FORMAT=csv" \
   --data-urlencode 'QUERY=SELECT * FROM "J/AJ/145/101/catalog" WHERE Dist IS NOT NULL AND Dist>0' \
-  -o galaxies-raw.csv
+  -o pipeline/raw/galaxies-raw.csv
 
 # Stars (full HYG catalogue; build_data.py filters to mag ≤ 6.5 or < 25 pc)
 curl -L "https://raw.githubusercontent.com/astronexus/HYG-Database/main/hyg/CURRENT/hygdata_v41.csv" \
-  -o hyg-raw.csv
+  -o pipeline/raw/hyg-raw.csv
 
-python3 build_data.py   # -> site/data/data.json
+python3 pipeline/build_data.py   # -> site/data/data.json
 
 # Gaia DR3 point cloud (< 100 pc) — one-off; Gaia DR3 is a static release
 curl -G "https://gea.esac.esa.int/tap-server/tap/sync" \
   --data-urlencode "REQUEST=doQuery" --data-urlencode "LANG=ADQL" \
   --data-urlencode "FORMAT=csv" --data-urlencode "MAXREC=4000000" \
   --data-urlencode "QUERY=SELECT ra,dec,parallax,phot_g_mean_mag,bp_rp FROM gaiadr3.gaia_source WHERE parallax>10 AND parallax_over_error>5 AND phot_g_mean_mag IS NOT NULL" \
-  -o gaia_100pc.csv
-python3 build_gaia.py   # -> site/data/gaia.bin
+  -o pipeline/raw/gaia_100pc.csv
+python3 pipeline/build_gaia.py   # -> site/data/gaia.bin
 
 # Complete outer solar system — human probes + TNOs (JPL Horizons + SBDB, live)
-python3 build_solar_extra.py   # prints PROBES / TNOS constants (baked into the template)
+python3 pipeline/build_solar_extra.py   # prints PROBES / TNOS constants (baked into engine.js)
 
 # Deep-sky / extragalactic point clouds (VizieR TAP; see the queries in each script)
-#   pulsars_raw.csv (ATNF)  -> PULSARS constant (baked in)
-#   twomrs_raw.csv (2MRS), quasars_raw.csv (Milliquas)
-python3 build_extragal.py      # -> site/data/cosmicweb.bin, site/data/quasars.bin
+#   raw/pulsars_raw.csv (ATNF)  -> PULSARS constant (baked in)
+#   raw/twomrs_raw.csv (2MRS), raw/quasars_raw.csv (Milliquas)
+python3 pipeline/build_extragal.py      # -> site/data/cosmicweb.bin, site/data/quasars.bin
 
 # Optional millions-of-stars catalogue for the Docker deployment (< 150 pc, ~1.76 M).
 # Fetched at runtime as data/gaiabig.bin and shown in place of the 540 k set; the
 # browser Artifact keeps the embedded 540 k (it cannot embed a 14 MB binary).
 ```
 
-**Rendering layers (toggles in the right-hand panel):** GPU stars, Gaia stars,
+**Rendering layers (toggles in the Layers panel, via the icon rail on the right):** GPU stars, Gaia stars,
 cosmic web (2MRS), quasars (20 k embedded / 1.01 M on Docker), pulsars, open
 clusters (catalog), asteroid field (49 k), spacecraft, trans-Neptunian &
 Centaurs, heliosphere, Milky Way structure (3D spiral arms/bar/bulge),
@@ -324,13 +353,14 @@ nebulae & clusters, constellations, proper motion, habitable zone, …).
 
 ```bash
 # Small-body field + open clusters (snapshot; re-run to refresh positions)
-python3 build_belt.py          # sb_*.json (SBDB Query API) -> site/data/belt.bin
+python3 pipeline/build_belt.py          # raw/sb_*.json (SBDB Query API) -> site/data/belt.bin
 # quasarsbig.bin: full Milliquas -> Docker-only (see git history for the query)
 ```
 
-The bundled `*-raw.csv` files are the raw dumps; `site/data/data.json` is
-computed from them (RA/Dec/distance → Cartesian coordinates, Sun at the origin).
-Constellation lines come from `constlines.json` (d3-celestial).
+The `pipeline/raw/*.csv` files are the raw dumps (gitignored, all regenerable);
+`site/data/data.json` is computed from them (RA/Dec/distance → Cartesian
+coordinates, Sun at the origin). Constellation lines come from
+`pipeline/inputs/constlines.json` (d3-celestial). See `pipeline/README.md`.
 
 ## License
 

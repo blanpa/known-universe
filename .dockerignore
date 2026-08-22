@@ -1,9 +1,11 @@
-README.md
-*.md
-data-raw.csv
-galaxies-raw.csv
-hyg-raw.csv
-build_data.py
-updater/
+# the image only needs deploy/nginx.conf and site/
 .git
 .gitignore
+*.md
+node_modules/
+dist/
+dist-artifact/
+src/
+tools/
+pipeline/
+deploy/updater.py

@@ -4,7 +4,7 @@
 Two loops:
   - weekly (UPDATE_INTERVAL): fresh catalogues -> data.json + belt.bin
     (download/build logic shared with the weekly-data GitHub Action,
-    see tools/refresh_data.py, mounted at /app/refresh_data.py)
+    see pipeline/refresh_data.py, mounted at /app/refresh_data.py)
   - hourly: live-extra.json (GW superevents + fireballs — APIs without CORS)
 
 Environment variables:

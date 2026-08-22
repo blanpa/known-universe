@@ -1,7 +1,8 @@
 FROM nginx:1.27-alpine
 
-# Serve the static 3D map via nginx
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Serve the static 3D map via nginx. Build context is the repo root:
+#   docker build -f deploy/Dockerfile -t galactica .
+COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf
 COPY site/ /usr/share/nginx/html/
 
 EXPOSE 80

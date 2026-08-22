@@ -1,26 +1,13 @@
-# large raw catalogue dumps (regenerable via the fetch commands in README)
-gaia_100pc.csv
-gaia_150pc.csv
-milliquas_full.csv
-obstars.csv
-leda_pa.csv
-chime_frb.csv
-cepheids.csv
-rrlyrae.csv
-twomrs_raw.csv
-quasars_raw.csv
-pulsars_raw.csv
-openclusters_raw.csv
-data-raw.csv
-galaxies-raw.csv
-hyg-raw.csv
-harris.dat
-baumgardt.txt
-horizons_mb.txt
-sb_*.json
-satvec/
-gwosc_probe.txt
+# Raw catalogue dumps — hundreds of MB, all regenerable
+# (see pipeline/README.md for the fetch commands).
+pipeline/raw/
+
+# Build output
 node_modules/
 dist/
 dist-artifact/
+__pycache__/
+*.pyc
+
+# Written by the live-data job / updater, not by hand
 site/data/live-extra.json

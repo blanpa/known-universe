@@ -14,8 +14,12 @@ eclToWorld convention (ecliptic x,y,z -> world x,z,y).
 import json, math, os, struct, time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-SRC_DIR = os.environ.get("BELT_SRC", HERE)
-DST = os.environ.get("BELT_DST", os.path.join(HERE, "site", "data", "belt.bin"))
+ROOT = os.path.dirname(HERE)                  # repo root
+RAW  = os.path.join(HERE, "raw")              # downloaded catalogue dumps (gitignored)
+IN   = os.path.join(HERE, "inputs")           # curated, hand-maintained inputs
+OUT  = os.path.join(ROOT, "site", "data")     # what the app is served from
+SRC_DIR = os.environ.get("BELT_SRC", RAW)
+DST = os.environ.get("BELT_DST", os.path.join(OUT, "belt.bin"))
 D2R = math.pi / 180.0
 JD_NOW = time.time() / 86400.0 + 2440587.5
 

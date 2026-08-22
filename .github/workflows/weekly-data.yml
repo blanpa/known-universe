@@ -20,7 +20,7 @@ jobs:
       - name: Rebuild catalogues
         run: |
           cp site/data/data.json /tmp/old-data.json
-          python3 tools/refresh_data.py /tmp/work site/data/data.json .
+          python3 pipeline/refresh_data.py /tmp/work site/data/data.json pipeline
       - name: Check for new data
         run: |
           python3 - << 'EOF'

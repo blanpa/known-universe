@@ -15,8 +15,12 @@ identical to the HYG star colours, so no colour bytes are stored.
 import csv, os, struct, base64
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-SRC  = os.path.join(HERE, "gaia_100pc.csv")
-DST  = os.path.join(HERE, "site", "data", "gaia.bin")
+ROOT = os.path.dirname(HERE)                  # repo root
+RAW  = os.path.join(HERE, "raw")              # downloaded catalogue dumps (gitignored)
+IN   = os.path.join(HERE, "inputs")           # curated, hand-maintained inputs
+OUT  = os.path.join(ROOT, "site", "data")     # what the app is served from
+SRC  = os.path.join(RAW, "gaia_100pc.csv")
+DST  = os.path.join(OUT, "gaia.bin")
 
 
 def clamp(v, lo, hi):

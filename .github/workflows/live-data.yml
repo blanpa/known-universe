@@ -16,7 +16,7 @@ jobs:
       - name: Build live-extra.json
         run: |
           mkdir -p out
-          python3 tools/fetch_live_extra.py out/live-extra.json
+          python3 pipeline/fetch_live_extra.py out/live-extra.json
           head -c 300 out/live-extra.json; echo
       - name: Push to live-data branch
         run: |

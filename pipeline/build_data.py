@@ -12,10 +12,14 @@ auto-update container).
 import csv, json, math, os, re
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-SRC  = os.environ.get("SRC",  os.path.join(HERE, "data-raw.csv"))
-GSRC = os.environ.get("GSRC", os.path.join(HERE, "galaxies-raw.csv"))
-HSRC = os.environ.get("HSRC", os.path.join(HERE, "hyg-raw.csv"))
-DST  = os.environ.get("DST",  os.path.join(HERE, "site", "data", "data.json"))
+ROOT = os.path.dirname(HERE)                  # repo root
+RAW  = os.path.join(HERE, "raw")              # downloaded catalogue dumps (gitignored)
+IN   = os.path.join(HERE, "inputs")           # curated, hand-maintained inputs
+OUT  = os.path.join(ROOT, "site", "data")     # what the app is served from
+SRC  = os.environ.get("SRC",  os.path.join(RAW, "data-raw.csv"))
+GSRC = os.environ.get("GSRC", os.path.join(RAW, "galaxies-raw.csv"))
+HSRC = os.environ.get("HSRC", os.path.join(RAW, "hyg-raw.csv"))
+DST  = os.environ.get("DST",  os.path.join(OUT, "data.json"))
 
 
 # ---------- Colours ----------
@@ -159,7 +163,7 @@ def build_galaxies():
     if not os.path.exists(GSRC): return gals
     # measured position angles (LEDA match, see galaxy_pa.json) for oriented disks
     pa_map = {}
-    pa_path = os.path.join(HERE, "galaxy_pa.json")
+    pa_path = os.path.join(IN, "galaxy_pa.json")
     if os.path.exists(pa_path):
         pa_map = json.load(open(pa_path))
     with open(GSRC) as f:
@@ -221,7 +225,7 @@ def build_hyg():
 
 # ---------- Constellation lines ----------
 def build_constellations():
-    path = os.path.join(HERE, "constlines.json")
+    path = os.path.join(IN, "constlines.json")
     if not os.path.exists(path):
         return []
     data = json.load(open(path))

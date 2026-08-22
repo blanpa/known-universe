@@ -9,7 +9,11 @@ Distances are decoded in JS to parsec. cz uses H0=70; z uses flat LCDM comoving.
 import csv, math, os, struct
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-DATA = os.path.join(HERE, "site", "data")
+ROOT = os.path.dirname(HERE)                  # repo root
+RAW  = os.path.join(HERE, "raw")              # downloaded catalogue dumps (gitignored)
+IN   = os.path.join(HERE, "inputs")           # curated, hand-maintained inputs
+OUT  = os.path.join(ROOT, "site", "data")     # what the app is served from
+DATA = OUT
 H0 = 70.0
 C = 299792.458            # km/s
 DH = C / H0               # Hubble distance, Mpc (~4283)
@@ -34,7 +38,7 @@ def comoving_mpc(z):
     return DH * (z / n) / 3.0 * s
 
 
-def pack_web(src=os.path.join(HERE, "twomrs_raw.csv"),
+def pack_web(src=os.path.join(RAW, "twomrs_raw.csv"),
              dst=os.path.join(DATA, "cosmicweb.bin")):
     buf = bytearray(); n = 0
     with open(src) as f:
@@ -63,7 +67,7 @@ def pack_web(src=os.path.join(HERE, "twomrs_raw.csv"),
     return n
 
 
-def pack_qso(src=os.path.join(HERE, "quasars_raw.csv"),
+def pack_qso(src=os.path.join(RAW, "quasars_raw.csv"),
              dst=os.path.join(DATA, "quasars.bin")):
     buf = bytearray(); n = 0
     with open(src) as f:

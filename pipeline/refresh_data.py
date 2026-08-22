@@ -63,5 +63,5 @@ def refresh(work, dst, builders="/app"):
 if __name__ == "__main__":
     work = sys.argv[1] if len(sys.argv) > 1 else "/tmp/galactica-work"
     dst = sys.argv[2] if len(sys.argv) > 2 else "site/data/data.json"
-    builders = sys.argv[3] if len(sys.argv) > 3 else os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    builders = sys.argv[3] if len(sys.argv) > 3 else os.path.dirname(os.path.abspath(__file__))
     refresh(work, os.path.abspath(dst), builders)
