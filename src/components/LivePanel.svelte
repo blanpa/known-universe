@@ -1,9 +1,10 @@
 <script>
   import { api } from '../lib/engine.js';
   import { liveData, activeShowers } from '../lib/live.js';
-  let { onpick = null } = $props();
+  import Icon from './Icon.svelte';
+  let { onpick = null, collapsible = true } = $props();
   let showAll = $state(false);
-  let open = $state(false);
+  let open = $state(!collapsible);
 
   const kpCol = k => k >= 6 ? '#ff7676' : k >= 4 ? '#ffd27a' : '#7fe08a';
   const xrCol = x => !x ? 'var(--dim)' : x[0] === 'X' ? '#ff7676' : x[0] === 'M' ? '#ffab6e' : x[0] === 'C' ? '#ffd27a' : '#9fb0d0';
@@ -33,9 +34,13 @@
 
 {#if $liveData}
 <div class="panel live-panel" class:mini={!open}>
-  <div class="label lbl-btn" onclick={() => open = !open} role="button" tabindex="0"
-       onkeydown={e => e.key === 'Enter' && (open = !open)}>
-    🌞 Space weather · live <span class="caret">{open ? '▾' : '▸'}</span></div>
+  {#if collapsible}
+    <button type="button" class="label lbl-btn" aria-expanded={open} onclick={() => open = !open}>
+      <span class="lb-t"><Icon name="live" size={14} />Space weather · live</span>
+      <span class="caret" class:open><Icon name="chevron" size={13} /></span></button>
+  {:else}
+    <div class="label"><span class="lb-t"><Icon name="live" size={14} />Space weather · live</span></div>
+  {/if}
   {#if $liveData.wx}
     <div class="lv-wx">
       <span class="lv-chip">Kp <b style="color:{kpCol($liveData.wx.kp ?? 0)}">{$liveData.wx.kp?.toFixed(1) ?? '–'}</b></span>
@@ -45,11 +50,11 @@
     </div>
   {/if}
   {#if !open && active.some(c => c.earthDir)}
-    <div class="lv-sub"><b style="color:#ffab6e">⚠ Earth-directed CME in flight</b></div>
+    <div class="lv-sub"><b style="color:#ffab6e">Earth-directed CME in flight</b></div>
   {/if}
   {#if open}
   {#if $liveData.regions?.length}
-    <div class="lv-sub">☀ {$liveData.regions.length} active regions on the Sun{maxM ? ` · M-flare odds ${maxM}%` : ''}</div>
+    <div class="lv-sub">{$liveData.regions.length} active regions on the Sun{maxM ? ` · M-flare odds ${maxM}%` : ''}</div>
   {/if}
   {#if active.length}
     <div class="lv-sub">{active.length} CME{active.length > 1 ? 's' : ''} in flight
@@ -66,27 +71,25 @@
   {/if}
 
   {#if $liveData.neos.length}
-    <div class="label" style="margin-top:10px">☄️ Earth flybys · next 7 days</div>
+    <div class="label" style="margin-top:10px"><span class="lb-t"><Icon name="comet" size={13} />Earth flybys · next 7 days</span></div>
     {#each neos as o (o.id)}
-      <div class="lv-row lv-click" class:lv-off={!o.kd} onclick={() => go(o.id)} role="button" tabindex="0"
-           onkeydown={e => e.key === 'Enter' && go(o.id)}>
+      <button type="button" class="lv-row lv-click" class:lv-off={!o.kd} onclick={() => go(o.id)}>
         <span class="lv-dot" style="background:{o.pha || o.sentry ? '#ff6e5a' : '#ffb260'}"></span>
         <span class="lv-nm">{o.n}{o.pha ? ' ⚠' : ''}</span>
         <span class="lv-val">{dt(o.t)} · {ldf(o.ld)} LD · {dia(o.dia)}</span>
-      </div>
+      </button>
     {/each}
     {#if $liveData.neos.length > 5}
-      <div class="lv-more" onclick={() => showAll = !showAll} role="button" tabindex="0"
-           onkeydown={e => e.key === 'Enter' && (showAll = !showAll)}>
-        {showAll ? '– fewer' : `+ ${$liveData.neos.length - 5} more`}</div>
+      <button type="button" class="lv-more" onclick={() => showAll = !showAll}>
+        {showAll ? '– fewer' : `+ ${$liveData.neos.length - 5} more`}</button>
     {/if}
   {/if}
   {#if fbs.length}
-    <div class="lv-sub">💥 {fbs.length} fireballs in 30 d · biggest {biggestFb} kt — marked on Earth</div>
+    <div class="lv-sub">{fbs.length} fireballs in 30 d · biggest {biggestFb} kt — marked on Earth</div>
   {/if}
 
   {#if gw.length}
-    <div class="label" style="margin-top:10px">🌊 Gravitational waves</div>
+    <div class="label" style="margin-top:10px"><span class="lb-t"><Icon name="live" size={13} />Gravitational waves</span></div>
     {#each gw.slice(0, 3) as g (g.id)}
       <div class="lv-row">
         <span class="lv-dot" style="background:#9fb8ff"></span>
@@ -97,7 +100,7 @@
   {/if}
 
   {#if $liveData.launches?.length}
-    <div class="label" style="margin-top:10px">🚀 Next launches</div>
+    <div class="label" style="margin-top:10px"><span class="lb-t"><Icon name="probe" size={13} />Next launches</span></div>
     {#each $liveData.launches.slice(0, 3) as l (l.n + l.t)}
       <div class="lv-row">
         <span class="lv-dot" style="background:#c9d6f2"></span>
@@ -108,13 +111,13 @@
   {/if}
 
   {#if showers.length}
-    <div class="lv-sub" style="margin-top:8px">🌠 active showers: {showers.map(s => `${s.n} (ZHR ${s.zhr})`).join(' · ')}</div>
+    <div class="lv-sub" style="margin-top:8px">active showers: {showers.map(s => `${s.n} (ZHR ${s.zhr})`).join(' · ')}</div>
   {/if}
   {#if $liveData.sats}
-    <div class="lv-sub">🛰 {$liveData.sats} satellites tracked — zoom to Earth</div>
+    <div class="lv-sub">{$liveData.sats} satellites tracked — zoom to Earth</div>
   {/if}
   {#if stats?.exoY}
-    <div class="lv-sub">🪐 {stats.exoY} systems discovered in {stats.year}</div>
+    <div class="lv-sub">{stats.exoY} systems discovered in {stats.year}</div>
   {/if}
   <div class="lv-src">SWPC · DONKI · NeoWs · CelesTrak · GraceDB · CNEOS · LL2</div>
   {/if}

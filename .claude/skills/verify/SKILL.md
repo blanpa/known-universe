@@ -29,7 +29,17 @@ while desktop ANGLE silently accepted it).
 - **Quantitative camera evidence**: `location.hash` is a `v1_yaw_pitch_camZ_ctrX_ctrY_ctrZ_real_...`
   share hash, rewritten every 2 s — read camZ/ctr/realScale from it instead of screenshots.
 - Wait ~7 s after `goto` (data fetch + first hash write).
-- Toggles: `page.locator('#hud-ctl .toggle', { hasText: 'Real scale' }).click()` — works for all layer toggles.
+- **Layer toggles live behind the rail now**: `page.locator('#rail .rb', { hasText: 'Layers' }).click()`
+  first, then `page.locator('#hud-ctl .toggle', { hasText: 'Compact view' }).click()`. The panes stay
+  mounted while hidden, so `getElementById` works without opening, but Playwright clicks need it open.
+  Rail buttons: Layers · Legend · Map · Live. `Escape` closes the open pane.
+  Toggles are `<button role="switch" aria-checked>` — assert on `aria-checked`, not on a class.
+- Presets (`#hud-ctl .preset`) set a whole scene at once; layer state persists in
+  `localStorage['ku_layers_v2']` and is restored after boot, so **clear it between runs**
+  (`context.clearCookies()` does not cover it — use `page.evaluate(()=>localStorage.clear())`)
+  or an earlier run's preset silently changes what the next one renders.
+- Mobile sheet has snap points (peek/half/full): open with `#mobbar .mb` (Search·Layers·Time·Tour),
+  drag `#mobsheet .ms-grab` to resize, tap it to cycle. The scene stays visible above it.
 - Search: fill `#hud-search .searchIn`, press Enter. Then `document.activeElement.blur()` before
   keyboard shortcuts (keydown handler ignores INPUT focus).
 - `.` frames the pinned object and FOLLOWs it — the reliable way to center Earth before zooming.

@@ -3,6 +3,7 @@ import './app.css';
 import App from './App.svelte';
 import { UI, runEngine } from './lib/engine.js';
 import { toggleState, labels, searchMsg, facList } from './lib/stores.js';
+import { restore } from './lib/prefs.js';
 
 // visible error reporter — a phone has no console
 function showErr(msg){
@@ -24,8 +25,11 @@ UI.setLabel   = (id, txt) => labels.update(m => ({ ...m, [id]: txt }));
 UI.msg        = txt => searchMsg.set(txt);
 UI.fac        = list => facList.set(list);
 
-// boot: embedded data (artifact) or fetch (Pages/Docker)
-if (window.__DATA__) runEngine();
+// boot: embedded data (artifact) or fetch (Pages/Docker).
+// Layer state is restored AFTER the engine booted — setToggle runs each layer's real
+// side effect, so a restored session is the real state, not just repainted switches.
+function boot() { runEngine(); try { restore(); } catch (e) {} }
+if (window.__DATA__) boot();
 else fetch('data/data.json').then(r => r.json())
-  .then(d => { window.__DATA__ = d; runEngine(); })
+  .then(d => { window.__DATA__ = d; boot(); })
   .catch(e => { document.body.innerHTML = '<p style="color:#e9edfa;font-family:monospace;padding:2em">Error loading data: ' + e + '</p>'; });

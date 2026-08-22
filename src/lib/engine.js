@@ -1,6 +1,7 @@
 // Known Universe engine — the renderer + app logic (framework-free by design).
 // Svelte owns the DOM structure; this module binds to it by element id.
 import { LIVE, startLive, satEcl, groundEcl, activeShowers } from './live.js';
+import { svgIcon } from './icons.js';
 export const UI={};
 export const api={};
 
@@ -9,16 +10,74 @@ function __run(){
 const DATA = window.__DATA__, META = DATA.meta, STARS = DATA.stars;
 const PC2LY = 3.261564;
 const cv = document.getElementById('sky'), ctx = cv.getContext('2d');
-// label halo: a thin dark outline keeps text readable over dense starfields
+// ---- label pipeline: halo + priority declutter -------------------------------
+// Every canvas label goes through ctx.fillText. Instead of painting immediately we
+// queue it, then flush once per frame highest-priority-first, dropping any label whose
+// box overlaps one already placed. Two consequences, both wanted: labels never bury each
+// other in dense fields, and they all land on top of the geometry.
 const _rawFillText = ctx.fillText.bind(ctx);
-ctx.fillText = (s, x, y, mw) => {
-  if (!S.labels) return;                          // clean view: every canvas label goes through here
+const LBL = { q: [], on: true, prio: 50, grid: new Map(), cell: 48 };
+// priority tiers — higher wins a collision. Set LBL.prio before a draw section.
+const P_HUD = 100, P_SEL = 92, P_SOLAR = 80, P_PROBE = 70, P_DEEP = 62,
+      P_STAR = 52, P_SMALL = 40, P_GAL = 30, P_GRID = 14;
+function _paint(s, x, y, mw, st) {
+  ctx.font = st.f; ctx.fillStyle = st.c; ctx.textAlign = st.a; ctx.textBaseline = st.b;
+  ctx.globalAlpha = st.g;
   const pw = ctx.lineWidth, ps = ctx.strokeStyle, pj = ctx.lineJoin;
   ctx.lineWidth = 2.4; ctx.lineJoin = 'round'; ctx.strokeStyle = 'rgba(5,7,14,0.75)';
   mw === undefined ? ctx.strokeText(s, x, y) : ctx.strokeText(s, x, y, mw);
   ctx.lineWidth = pw; ctx.strokeStyle = ps; ctx.lineJoin = pj;
   mw === undefined ? _rawFillText(s, x, y) : _rawFillText(s, x, y, mw);
+}
+ctx.fillText = (s, x, y, mw) => {
+  if (!S.labels) return;                          // clean view: one switch kills all text
+  const st = { f: ctx.font, c: ctx.fillStyle, a: ctx.textAlign, b: ctx.textBaseline, g: ctx.globalAlpha };
+  if (!LBL.on) { _paint(s, x, y, mw, st); ctx.globalAlpha = st.g; return; }
+  LBL.q.push({ s, x, y, mw, p: LBL.prio, st });
 };
+function lblReset() { LBL.q.length = 0; LBL.grid.clear(); LBL.prio = P_STAR; }
+// uniform-grid occupancy test — labels are small and clustered, so a hash beats an O(n²) sweep
+function lblFits(x0, y0, x1, y1, place) {
+  const c = LBL.cell;
+  const gx0 = Math.floor(x0 / c), gx1 = Math.floor(x1 / c),
+        gy0 = Math.floor(y0 / c), gy1 = Math.floor(y1 / c);
+  for (let gx = gx0; gx <= gx1; gx++) for (let gy = gy0; gy <= gy1; gy++) {
+    const bucket = LBL.grid.get(gx * 8192 + gy); if (!bucket) continue;
+    for (let i = 0; i < bucket.length; i++) { const b = bucket[i];
+      if (x0 < b[2] && x1 > b[0] && y0 < b[3] && y1 > b[1]) return false; }
+  }
+  if (place) { const box = [x0, y0, x1, y1];
+    for (let gx = gx0; gx <= gx1; gx++) for (let gy = gy0; gy <= gy1; gy++) {
+      const k = gx * 8192 + gy; let bucket = LBL.grid.get(k);
+      if (!bucket) LBL.grid.set(k, bucket = []); bucket.push(box); } }
+  return true;
+}
+function lblFlush() {
+  if (!LBL.q.length) return;
+  const q = LBL.q;
+  // stable sort by priority, high first — draw order breaks ties inside a tier
+  for (let i = 0; i < q.length; i++) q[i]._i = i;
+  q.sort((a, b) => (b.p - a.p) || (a._i - b._i));
+  const pf = ctx.font, pc = ctx.fillStyle, pa = ctx.textAlign, pb = ctx.textBaseline, pg = ctx.globalAlpha;
+  for (let i = 0; i < q.length; i++) {
+    const it = q[i], st = it.st;
+    ctx.font = st.f;
+    const fs = parseFloat(st.f) || 10;
+    let w = ctx.measureText(it.s).width; if (it.mw !== undefined && w > it.mw) w = it.mw;
+    let x0 = it.x;
+    if (st.a === 'center') x0 = it.x - w / 2; else if (st.a === 'right' || st.a === 'end') x0 = it.x - w;
+    let y0 = it.y - fs * 0.80, y1 = it.y + fs * 0.26;
+    if (st.b === 'top' || st.b === 'hanging') { y0 = it.y; y1 = it.y + fs * 1.06; }
+    else if (st.b === 'middle') { y0 = it.y - fs * 0.53; y1 = it.y + fs * 0.53; }
+    // off-screen labels neither draw nor block anything on screen; a label that would
+    // be sliced by the right edge is dropped rather than shown as a truncated word
+    if (x0 > W || x0 + w < 0 || y0 > H || y1 < 0) continue;
+    if (it.p < P_HUD && (x0 + w > W - 2 || x0 < -2)) continue;
+    if (!lblFits(x0 - 1, y0 - 1, x0 + w + 1, y1 + 1, true) && it.p < P_HUD) continue;
+    _paint(it.s, it.x, it.y, it.mw, st);
+  }
+  ctx.font = pf; ctx.fillStyle = pc; ctx.textAlign = pa; ctx.textBaseline = pb; ctx.globalAlpha = pg;
+}
 // UI api FIRST: layer toggles + search stay usable even if a later boot step fails
 api.clickToggle=clickToggle; api.doSearch=doSearch; api.suggest=suggestList;
 api.toggleFac=toggleFac; api.facColorToggle=facColorToggle;
@@ -462,8 +521,9 @@ function render(){
   cx=W/2; cy=H/2; foc=Math.min(W,H)*0.62;
   gwOnScreen=false;
   ctx.clearRect(0,0,W,H);                        // no vignette — space is black
+  lblReset();
 
-  if(surfUpdate()){ drawSurface(); updateHUD(); return; }   // descended to the Earth's surface
+  if(surfUpdate()){ drawSurface(); lblFlush(); updateHUD(); return; }   // descended to the Earth's surface
 
   camBasis();
   NEAR = S.realScale ? Math.max(1e-13, S.camZ*0.02) : Math.min(0.05, Math.max(0.001, S.camZ*0.35));
@@ -581,7 +641,7 @@ function render(){
     ctx.font='10px ui-monospace,monospace'; ctx.fillStyle='rgba(233,237,250,.55)';
     ctx.fillText('Milky Way · all exoplanets', sp.x+14, sp.y-10);
     if(solarA<0.15){ ctx.fillStyle='rgba(255,238,178,.7)'; ctx.font='9px ui-monospace,monospace';
-      ctx.fillText('☉ click → into the solar system', sp.x+14, sp.y+4); }
+      ctx.fillText('click → into the solar system', sp.x+14, sp.y+4); }
     ctx.globalAlpha=1;
   }
   lastSun.x=sp.x; lastSun.y=sp.y; lastSun.depth=sp.depth;
@@ -594,6 +654,8 @@ function render(){
   if(measureMode) drawMeasure();
   if(ROUTE) drawRoute();                   // interstellar 1g route (Earth → star/galaxy)
   drawNav();                               // course reticle / off-screen arrow
+  drawScaleBar();                          // where we are on the distance ladder
+  lblFlush();                              // all queued labels, decluttered, on top
   updateHUD();
 }
 const lastSun={x:0,y:0,depth:0};
@@ -612,7 +674,7 @@ function projectGalaxies(){
   }
   galProj.sort((a,b)=>a._z2-b._z2);
 }
-function drawGalaxies(list){
+function drawGalaxies(list){ LBL.prio=P_GAL;
   for(const g of list){
     const s=Math.max(1.4, foc*0.011/g._depth*g._gs);
     const c=g.c, a=Math.max(.25,Math.min(.95, 1.7-g._depth*0.045));
@@ -642,7 +704,8 @@ function drawGalaxies(list){
     if(g.f||sel){
       ctx.font=(sel?'11px':'10px')+' ui-monospace,monospace';
       ctx.fillStyle=`rgba(${c[0]},${c[1]},${c[2]},${sel?1:0.72})`;
-      ctx.fillText(g.n, g._sx+s+4, g._sy+3);
+      LBL.prio=sel?P_SEL:P_GAL;
+      ctx.fillText(g.n, g._sx+s+4, g._sy+3); LBL.prio=P_GAL;
     }
   }
 }
@@ -654,7 +717,7 @@ const RINGS=[
   {pc:1*LY_PC,l:'1 ly'}, {pc:100*LY_PC,l:'100 ly'},
   {pc:1e4*LY_PC,l:'10,000 ly'}, {pc:1e6*LY_PC,l:'1 Mly'}, {pc:1e7*LY_PC,l:'10 Mly'},
 ];
-function drawRings(){
+function drawRings(){ LBL.prio=P_GRID;
   ctx.save();
   for(const R of RINGS){
     const dr=scale(R.pc);
@@ -678,7 +741,7 @@ function drawRings(){
 }
 
 // ---- coordinate grids on a sun-centred sky sphere ----
-function drawSkyGrid(){                          // equatorial RA/Dec
+function drawSkyGrid(){ LBL.prio=P_GRID;                          // equatorial RA/Dec
   const R=scale(BND*3);
   ctx.save(); ctx.setLineDash([1,4]);
   for(const dec of [-60,-30,0,30,60]){
@@ -706,7 +769,7 @@ function drawSkyGrid(){                          // equatorial RA/Dec
   if(pp.depth>NEAR&&!offscr(pp)) ctx.fillText('celestial N pole', pp.x+4, pp.y);
   ctx.restore();
 }
-function drawGalGrid(){                          // galactic l/b
+function drawGalGrid(){ LBL.prio=P_GRID;                          // galactic l/b
   const R=scale(BND*3.2);
   const gx=GC, gz=NGP,
         gy=[gz[1]*gx[2]-gz[2]*gx[1], gz[2]*gx[0]-gz[0]*gx[2], gz[0]*gx[1]-gz[1]*gx[0]];
@@ -741,7 +804,7 @@ function drawGalGrid(){                          // galactic l/b
 }
 // the human radio bubble: how far our first broadcasts have travelled (since ~1901),
 // time-slider aware — scrub the future and watch it grow
-function drawRadioSphere(){
+function drawRadioSphere(){ LBL.prio=P_GRID;
   const yr=2000+(solarJD()-2451545)/365.25, lyr=yr-1901;
   if(lyr<1) return;
   const R=scale(lyr*0.306601);
@@ -764,7 +827,7 @@ function drawRadioSphere(){
 }
 // the Local Bubble: the supernova-blown cavity we live in (≈Zucker+ 2022 extents,
 // drawn as a schematic ellipsoid in galactic coordinates)
-function drawBubble(){
+function drawBubble(){ LBL.prio=P_GRID;
   ctx.save(); ctx.setLineDash([3,6]);
   for(const [e1,e2,a,b] of [[GPu,GPv,95,95],[GPu,NGP,95,150],[GPv,NGP,95,150]]){
     ctx.beginPath(); let first=true;
@@ -784,7 +847,7 @@ function drawBubble(){
   ctx.restore();
 }
 // red veil boundary: three great circles forming a sphere at the neighbourhood edge
-function drawVeilSphere(){
+function drawVeilSphere(){ LBL.prio=P_GRID;
   const dr=compress(BND);
   const planes=[[0,1],[0,2],[1,2]]; // xy, xz, yz
   ctx.save();
@@ -835,7 +898,7 @@ function projectHyg(){
   }
   hygProj.sort((a,b)=>a._z2-b._z2);
 }
-function drawHyg(){
+function drawHyg(){ LBL.prio=P_STAR;
   for(const s of hygProj){
     const bright=s._bright, size=Math.max(0.35, Math.min(3.6, s._size));
     const c=s.c, a=Math.max(.22,Math.min(1,(0.28+bright*0.12)*Math.min(1,1.9-s._depth*0.4)));
@@ -851,7 +914,8 @@ function drawHyg(){
     if(s.n && (sel || (s.m<1.7 && S.camZ<3.2))){        // label very bright / selected
       ctx.font=(sel?'11px':'9.5px')+' ui-monospace,monospace';
       ctx.fillStyle=`rgba(${c[0]},${c[1]},${c[2]},${sel?1:.6})`;
-      ctx.fillText(s.n, s._sx+size+4, s._sy+3);
+      LBL.prio=sel?P_SEL:P_STAR;
+      ctx.fillText(s.n, s._sx+size+4, s._sy+3); LBL.prio=P_STAR;
     }
   }
 }
@@ -934,7 +998,7 @@ function suviImage(){
   }
   return _suvi.ok?_suvi.im:null;
 }
-function drawSolar(alpha){
+function drawSolar(alpha){ LBL.prio=P_SOLAR;
   ctx.globalAlpha=alpha; solarProj.length=0;
   const A=alpha;
   updateSolarPositions(solarJD());               // real positions for the selected date
@@ -1116,7 +1180,7 @@ function drawSolar(alpha){
   ctx.globalAlpha=1;
 }
 function outerHidden(b){ return (b.kind==='Trans-Neptunian object'||b.kind==='Centaur') && !S.tno; }
-function drawProbes(A){
+function drawProbes(A){ LBL.prio=P_PROBE;
   const sun=project(0,0,0);
   const drawn=PROBES.map(p=>{ const w=eclToWorld(p._e[0],p._e[1],p._e[2]); return {p,pr:project(w[0],w[1],w[2])}; })
     .filter(d=>d.pr.depth>NEAR).sort((a,b)=>a.pr.z2-b.pr.z2);
@@ -1158,7 +1222,7 @@ function isoEcl(o,jd){
           (sO*cw+cO*sw*ci)*xw+(-sO*sw+cO*cw*ci)*yw,
           (sw*si)*xw+(cw*si)*yw];
 }
-function drawISO(A){
+function drawISO(A){ LBL.prio=P_PROBE;
   const jd=solarJD();
   for(const o of ISO){
     o._e=isoEcl(o,jd); o._r=Math.hypot(o._e[0],o._e[1],o._e[2]);
@@ -1187,7 +1251,7 @@ function drawISO(A){
   }
 }
 // large asteroids & comets on their real orbits (time-aware)
-function drawSmall(A, jd){
+function drawSmall(A, jd){ LBL.prio=P_SMALL;
   const sun=project(0,0,0);
   for(const o of SMALL){
     o._el=keplerSB(o.kd,jd); o._e=orbPoint(o._el,o._el.E); o._r=Math.hypot(o._e[0],o._e[1],o._e[2]);
@@ -1212,7 +1276,8 @@ function drawSmall(A, jd){
     if(sel){ ctx.beginPath(); ctx.arc(p.x,p.y,px+5,0,6.2832); ctx.strokeStyle='rgba(79,214,200,.9)'; ctx.lineWidth=1.1; ctx.stroke(); }
     solarProj.push({o,x:p.x,y:p.y,px:Math.max(6,px)});
     if((A>0.5||sel)&&(!bulk||sel)){ ctx.font=(sel?'10px':'8.5px')+' ui-monospace,monospace';
-      ctx.fillStyle=`rgba(${c[0]},${c[1]},${c[2]},${sel?1:0.72})`; ctx.fillText(o.n, p.x+px+3, p.y+3); }
+      ctx.fillStyle=`rgba(${c[0]},${c[1]},${c[2]},${sel?1:0.72})`;
+      LBL.prio=sel?P_SEL:P_SMALL; ctx.fillText(o.n, p.x+px+3, p.y+3); LBL.prio=P_SMALL; }
   }
 }
 
@@ -1220,7 +1285,7 @@ function drawSmall(A, jd){
 // CME direction: DONKI lat/lon are Stonyhurst (Earth at lon 0, west positive).
 // Frame: x̂ = Sun→Earth (ecliptic), ŷ = ẑ×x̂ (solar west ≈ Earth's orbital motion), ẑ = ecliptic north.
 function cmeSolarMs(){ return (solarJD()-2440587.5)*86400000; }
-function drawCME(A){
+function drawCME(A){ LBL.prio=P_SMALL;
   if(!LIVE.cmes.length) return;
   const earth=PLANETS.find(p=>p.n==='Earth'); if(!earth||!earth._e) return;
   const nowMs=cmeSolarMs(), lamE=Math.atan2(earth._e[1],earth._e[0]);
@@ -1293,7 +1358,7 @@ function drawCME(A){
     }
   }
 }
-function drawLiveNeo(A){
+function drawLiveNeo(A){ LBL.prio=P_SMALL;
   if(!LIVE.neos.length) return;
   const jd=solarJD(), nowMs=cmeSolarMs();
   const earth=PLANETS.find(p=>p.n==='Earth');
@@ -1618,7 +1683,7 @@ function surfTile(z,x,y){
   }
   return t.ok?t.im:null;
 }
-function drawSurface(){
+function drawSurface(){ LBL.prio=P_HUD;
   const mpp=surfMpp(), latR=SURF.lat*D2R;
   const zf=Math.log2(156543.034*Math.cos(latR)/mpp);
   const zt=Math.max(2,Math.min(9,Math.round(zf)));
@@ -1663,7 +1728,7 @@ function stonyhurstEcl(latDeg,lonDeg,lamE){            // Stonyhurst (W+) → ec
   const cE=Math.cos(lamE), sE=Math.sin(lamE);
   return [hx*cE-hy*sE, hx*sE+hy*cE, hz];
 }
-function drawSunspots(A, sp, spx){
+function drawSunspots(A, sp, spx){ LBL.prio=P_SMALL;
   if(!LIVE.regions.length || spx<10) return;
   const earth=PLANETS.find(p=>p.n==='Earth'); if(!earth||!earth._e) return;
   const lamE=Math.atan2(earth._e[1],earth._e[0]);
@@ -1688,7 +1753,7 @@ function drawSunspots(A, sp, spx){
 }
 // ---- live satellites: CelesTrak TLEs, SGP4-propagated around the Earth glyph ----
 let SATCUR=0;                                          // rotating SGP4 budget cursor
-function drawSats(A){
+function drawSats(A){ LBL.prio=P_SMALL;
   if(!LIVE.sats.length) return;
   const earth=PLANETS.find(p=>p.n==='Earth');
   if(!earth||!earth._e||!earth._p) return;
@@ -1742,7 +1807,7 @@ function drawSats(A){
   }
 }
 // ---- fireballs: recent atmospheric impacts (JPL, via live-extra proxy) on the Earth glyph ----
-function drawFireballs(A){
+function drawFireballs(A){ LBL.prio=P_SMALL;
   const fb=LIVE.extra&&LIVE.extra.fireballs; if(!fb||!fb.length) return;
   const earth=PLANETS.find(p=>p.n==='Earth');
   if(!earth||!earth._p) return;
@@ -1846,10 +1911,10 @@ function computeTransfer(b){
   for(let i=0;i<=N;i++) pts.push(propagateUV(r1,w.v1,w.tof*i/N));
   TRANSFER={to:b,dep:w.dep,tof:w.tof,dv:w.dv,r1,v1:w.v1,pts};
   TRANSFER._o={xfer:true,n:'Earth → '+b.n+' transfer',T:TRANSFER};
-  if(UI.msg) UI.msg(`🚀 launch ${dateStr(w.dep)} · ${Math.round(w.tof)} d · Δv ${w.dv.toFixed(1)} km/s — ride the time slider`);
+  if(UI.msg) UI.msg(`launch ${dateStr(w.dep)} · ${Math.round(w.tof)} d · Δv ${w.dv.toFixed(1)} km/s — ride the time slider`);
   lastInfo=undefined; dirty=true;
 }
-function drawTransfer(A){
+function drawTransfer(A){ LBL.prio=P_PROBE;
   const T=TRANSFER; if(!T) return;
   ctx.setLineDash([5,4]); ctx.beginPath(); let first=true;
   for(const q of T.pts){ const w=eclToWorld(q[0],q[1],q[2]), p=project(w[0],w[1],w[2]);
@@ -1912,7 +1977,7 @@ function computeRoute(o){
   ROUTE={o, n:o.n||o.h||'target', distPc, dir:[w[0]/wl,w[1]/wl,w[2]/wl], dep:solarJD()};
   ROUTE._o={iroute:true, n:'Route: Earth → '+ROUTE.n, R:ROUTE};
   const r=route1g(distPc*PC2LY);
-  if(UI.msg) UI.msg(`🚀 1g starship: ${fmtYears(r.T)} Earth time · ${fmtYears(r.TAU)} ship time — ride the time slider`);
+  if(UI.msg) UI.msg(`1g starship: ${fmtYears(r.T)} Earth time · ${fmtYears(r.TAU)} ship time — ride the time slider`);
   lastInfo=undefined; dirty=true;
 }
 function fmtYears(y){
@@ -1922,7 +1987,7 @@ function fmtYears(y){
   if(y<1e9) return (y/1e6).toFixed(2)+' Myr';
   return (y/1e9).toFixed(2)+' Gyr';
 }
-function drawRoute(){
+function drawRoute(){ LBL.prio=P_SEL;
   const R=ROUTE, w=navWorld(R.o);
   if(!w){ return; }
   const wr=Math.hypot(w[0],w[1],w[2]);
@@ -1972,7 +2037,7 @@ const LAG_PTS=[];   // persistent objects so hover/pin identity survives frames
 for(const [pl,pts] of [['Earth',['L1','L2','L3','L4','L5']],['Jupiter',['L4','L5']]])
   for(const L of pts) LAG_PTS.push({n:L+' · Sun–'+pl, lp:true, pl, L,
     kind:'Lagrange point', note:LAG_NOTE[L+' · Sun–'+pl]});
-function drawLagrange(A){
+function drawLagrange(A){ LBL.prio=P_SMALL;
   const byName={}; for(const b of SOLAR_BODIES) byName[b.n]=b;
   // Hill spheres: dashed circle in the ecliptic plane, TRUE radius — sub-pixel
   // from afar (as in reality), grows into view as you zoom toward a planet
@@ -2035,7 +2100,7 @@ function planetColor(r){
   if(r<8)    return [110,150,224];   // Neptune-like
   return [226,180,132];              // Gas giant
 }
-function drawSystem(alpha){
+function drawSystem(alpha){ LBL.prio=P_SOLAR;
   sysProj.length=0;
   const s=focusSys; if(!s||!focusSysW) return;
   const sp=project(focusSysW[0],focusSysW[1],focusSysW[2]);
@@ -2094,7 +2159,7 @@ function drawSystem(alpha){
 }
 
 // ---- constellation lines (sky sphere at fixed radius) ----
-function drawConstellations(){
+function drawConstellations(){ LBL.prio=P_GRID;
   if(!S.con) return;
   const R=scale(30);                        // sky-sphere radius among the local stars
   ctx.strokeStyle='rgba(128,150,215,0.15)'; ctx.lineWidth=1;
@@ -2113,7 +2178,7 @@ function drawConstellations(){
   }
 }
 // ---- meteor-shower radiants active on the selected date (IMO calendar, sky sphere) ----
-function drawShowers(){
+function drawShowers(){ LBL.prio=P_SMALL;
   const act=activeShowers(cmeSolarMs()); if(!act.length) return;
   const R=scale(30);
   for(const s of act){
@@ -2134,7 +2199,7 @@ let dsoProj=[];
 let pulsarProj=[];
 let cluProj=[];
 let gwOnScreen=false;    // a GW event is visible → frame loop keeps the ripples moving
-function drawDSO(){
+function drawDSO(){ LBL.prio=P_DEEP;
   dsoProj.length=0; if(!S.dso) return;
   for(const o of DSO){
     const R=scale(o.d); o._x=o._dir[0]*R; o._y=o._dir[1]*R; o._z=o._dir[2]*R;
@@ -2173,7 +2238,7 @@ function drawDSO(){
     ctx.fillText(o.n, p.x+sz*1.9+3, p.y+3);
   }
 }
-function drawClusters(){
+function drawClusters(){ LBL.prio=P_DEEP;
   cluProj.length=0; if(!S.oclu) return;
   for(const c of CLUSTERS){
     const R=scale(c.d); const x=c._dir[0]*R, y=c._dir[1]*R, z=c._dir[2]*R;
@@ -2193,7 +2258,7 @@ function drawClusters(){
       ctx.font='9px ui-monospace,monospace'; ctx.fillStyle=`rgba(${cc[0]},${cc[1]},${cc[2]},0.95)`; ctx.fillText(c.n, p.x+sz+4, p.y+3); }
   }
 }
-function drawPulsars(){
+function drawPulsars(){ LBL.prio=P_SMALL;
   pulsarProj.length=0; if(!S.psr) return;
   for(const q of PULSARS){
     const R=scale(q.d); const x=q._dir[0]*R, y=q._dir[1]*R, z=q._dir[2]*R;
@@ -2227,7 +2292,7 @@ function s2XY(jd){                                  // Thiele-Innes: orbit -> (e
   const A2=cO*cw-sO*sw*ci, B2=sO*cw+cO*sw*ci, F2=-cO*sw-sO*cw*ci, G2=-sO*sw+cO*cw*ci;
   return [B2*X+G2*Y, A2*X+F2*Y];                    // [east, north]
 }
-function drawS2(){
+function drawS2(){ LBL.prio=P_DEEP;
   if(!S.mw||!sgraScreen) return;
   const sgW=[SGRA._x,SGRA._y,SGRA._z];
   const dS=Math.hypot(camPos[0]-sgW[0],camPos[1]-sgW[1],camPos[2]-sgW[2]);
@@ -2255,7 +2320,7 @@ function drawS2(){
   ctx.globalAlpha=1;
 }
 // ---- observable-universe boundary (CMB shell, ~46 Gly) ----
-function drawEdge(){
+function drawEdge(){ LBL.prio=P_GRID;
   const R=scale(14300e6);
   ctx.strokeStyle='rgba(120,150,255,0.11)'; ctx.lineWidth=1;
   for(let pl=0;pl<3;pl++){
@@ -2306,7 +2371,7 @@ const MW_ARMS=[
   {n:'Sagittarius Arm',       t0:1.92, c:[165,205,255]},
   {n:'Scutum-Centaurus Arm',  t0:3.49, c:[150,185,255]},
   {n:'Norma / Outer Arm',     t0:5.06, c:[165,200,255]} ];
-function drawGalaxyModel(){
+function drawGalaxyModel(){ LBL.prio=P_GAL;
   const k=0.235;                               // pitch angle ~13 deg
   { const w=mwWorld(0.0001,0), p=project(w[0],w[1],w[2]);
     if(p.depth>NEAR){ const sz=Math.max(6,Math.min(70, foc*0.14/p.depth));
@@ -2568,7 +2633,7 @@ function drawBlackHolePainted(x,y,r,A){
   ctx.restore(); ctx.restore();
   ctx.restore();
 }
-function drawMW(){
+function drawMW(){ LBL.prio=P_DEEP;
   sgraScreen=null; if(!S.mw) return;
   { const R=scale(SGRA.d); SGRA._x=SGRA._dir[0]*R; SGRA._y=SGRA._dir[1]*R; SGRA._z=SGRA._dir[2]*R; }
   // the galactic plane, drawn as great circles in that plane (the "Milky Way band")
@@ -2635,7 +2700,71 @@ function fmtLight(pc){ const ly=pc*3.261564;
   if(ly<1e3) return fmt(ly)+' years';
   if(ly<1e6) return (ly/1e3).toFixed(1)+' thousand years';
   return (ly/1e6).toFixed(2)+' million years'; }
-function drawNav(){
+// ---- scale readout ---------------------------------------------------------
+// A linear scale bar would be a lie in the compact view: that projection is
+// logarithmic and radial, so a fixed screen length is a fixed *ratio*, not a fixed
+// distance. So we draw the honest thing for each mode — a decade ladder in the
+// compact view, a real 1-2-5 bar when distances are proportional.
+function fmtDist(pc){
+  if(!isFinite(pc)||pc<=0) return '0';
+  const au=pc/AU_PC;
+  if(au<0.02) return (au*1.496e8).toFixed(0)+' km';
+  if(au<2000) return (au<10?au.toFixed(2):fmt(au))+' AU';
+  const ly=pc*PC2LY;
+  if(ly<1e3) return (ly<10?ly.toFixed(2):fmt(ly))+' ly';
+  if(ly<1e6) return (ly/1e3).toFixed(ly<1e4?2:1)+' kly';
+  if(ly<1e9) return (ly/1e6).toFixed(ly<1e7?2:1)+' Mly';
+  return (ly/1e9).toFixed(2)+' Gly';
+}
+function niceLen(v){                      // round down to the nearest 1 / 2 / 5 × 10^n
+  const e=Math.pow(10,Math.floor(Math.log10(v))), m=v/e;
+  return (m>=5?5:m>=2?2:1)*e;
+}
+function drawScaleBar(){
+  if(!S.labels) return;
+  const narrow = W<=720;
+  // the docked timeline strip owns the bottom edge when it is on
+  const strip = document.body.classList.contains('show-time') ? 48 : 0;
+  const x0 = 16, y0 = H - (narrow?92:30) - strip;
+  const dim='rgba(154,163,184,0.85)', ink='rgba(232,235,244,0.95)';
+  LBL.prio=P_HUD;
+  ctx.textAlign='left'; ctx.textBaseline='alphabetic';
+  // how far out the camera itself sits — the "where am I" number
+  const here = camDist>1e-9 ? invScale(camDist) : 0;
+  ctx.font='10px ui-monospace,monospace'; ctx.fillStyle=dim;
+  ctx.fillText(here>0 ? 'eye · '+fmtDist(here)+' from the Sun' : 'eye · at the Sun', x0, y0-22);
+
+  if(S.realScale){                        // proportional space → a true scale bar
+    const pcPerPx=S.camZ/foc;
+    let L=niceLen(pcPerPx*(narrow?90:150));
+    let px=L/pcPerPx;
+    if(px<40){ L=niceLen(pcPerPx*220); px=L/pcPerPx; }
+    if(!isFinite(px)||px<8) return;
+    px=Math.min(px, W*0.4);
+    ctx.strokeStyle=dim; ctx.lineWidth=1.2; ctx.beginPath();
+    ctx.moveTo(x0,y0-9); ctx.lineTo(x0,y0-3); ctx.lineTo(x0+px,y0-3); ctx.lineTo(x0+px,y0-9);
+    ctx.stroke();
+    ctx.font='11px ui-monospace,monospace'; ctx.fillStyle=ink;
+    ctx.fillText(fmtDist(L), x0, y0+9);
+  } else {                                // logarithmic space → a decade ladder
+    const dec=KDEC*foc/S.camZ;            // screen px for one factor of 10
+    if(!isFinite(dec)||dec<2) return;
+    let k=1; while(dec*k<64 && k<12) k++;
+    let px=dec*k;
+    if(px>W*0.42){ px=dec; k=1; }
+    if(px<18) return;
+    ctx.strokeStyle=dim; ctx.lineWidth=1.2;
+    ctx.beginPath(); ctx.moveTo(x0,y0-9); ctx.lineTo(x0,y0-3); ctx.lineTo(x0+px,y0-3); ctx.lineTo(x0+px,y0-9); ctx.stroke();
+    if(k===1 && dec>26){                  // room for the intermediate decade ticks
+      for(let i=1;i<10;i++){ const tx=x0+Math.log10(i+1)*dec;
+        ctx.beginPath(); ctx.moveTo(tx,y0-3); ctx.lineTo(tx,y0-6.5); ctx.stroke(); }
+    }
+    ctx.font='11px ui-monospace,monospace'; ctx.fillStyle=ink;
+    ctx.fillText('×'+(k===1?'10':'10^'+k)+' distance', x0, y0+9);
+  }
+  LBL.prio=P_STAR;
+}
+function drawNav(){ LBL.prio=P_HUD;
   if(!navTarget) return;
   const w=navWorld(navTarget); if(!w) return;
   const c=camXY(w[0],w[1],w[2]);
@@ -2679,13 +2808,13 @@ function updateHUD(){
     lastInfo=s; lastInfoNav=isNav;
     if(s){ showInfo(s);
       if(s===SUN||navWorld(s)) info.insertAdjacentHTML('beforeend',
-        `<button class="lockset">${FOLLOW===s?'🔓 Unlock view':'🔒 Lock & zoom'}</button>`);
+        `<button class="lockset">${FOLLOW===s?svgIcon('unlock')+'Unlock view':svgIcon('lock')+'Lock & zoom'}</button>`);
       if(navPhys(s)) info.insertAdjacentHTML('beforeend',
-        `<button class="navset">${isNav?'✓ Target set':'🎯 Set course'}</button>`);
+        `<button class="navset">${isNav?svgIcon('check')+'Target set':svgIcon('scope')+'Set course'}</button>`);
       // interstellar route button on every cosmic target (solar bodies get Lambert instead)
       if(navPhys(s) && s._e===undefined && s.rk===undefined && !s.lp && !s.iroute && !s.xfer)
         info.insertAdjacentHTML('beforeend',
-          `<button class="transferset">${ROUTE&&ROUTE.o===s?'✕ Clear route':'🚀 Route from Earth · 1g ship'}</button>`);
+          `<button class="transferset">${ROUTE&&ROUTE.o===s?svgIcon('close')+'Clear route':svgIcon('probe')+'Route from Earth · 1g ship'}</button>`);
     } else info.classList.remove('show');
   }
   updateNavPanel();
@@ -2889,7 +3018,7 @@ function showInfo(s){
     h+=links([{t:'NASA',u:q},
       {t:'Wikipedia',u:`https://en.wikipedia.org/wiki/${encodeURIComponent(s.n)}`}]);
     if((s.k||s.kd) && s.n!=='Earth' && s.kind!=='Moon' && s.kind!=='Spacecraft')
-      h+=`<button class="transferset">${TRANSFER&&TRANSFER.to===s?'✕ Clear transfer orbit':'🚀 Transfer Earth → '+s.n}</button>`;
+      h+=`<button class="transferset">${TRANSFER&&TRANSFER.to===s?svgIcon('close')+'Clear transfer orbit':svgIcon('probe')+'Transfer Earth → '+s.n}</button>`;
     h+=`<div class="hint">${S.pinned?'Click empty space to release':'Click to pin'}</div>`;
     el.innerHTML=h; el.classList.add('show'); return;
   }
@@ -3275,6 +3404,11 @@ const TOGGLE_REG={}, TOGGLE_ACT={};
 function bindToggle(id,key,fn){ TOGGLE_REG[key]=id; TOGGLE_ACT[id]={key,fn}; }
 function clickToggle(id){ const t=TOGGLE_ACT[id]; if(!t) return;
   S[t.key]=!S[t.key]; syncToggle(id,S[t.key]); if(t.fn)t.fn(); dirty=true; }
+// set a toggle to an explicit value (presets + restored session state) — no-op if already there
+function setToggle(id,on){ const t=TOGGLE_ACT[id]; if(!t) return; if(!!S[t.key]===!!on) return; clickToggle(id); }
+api.setToggle=setToggle;
+api.toggleIds=()=>Object.keys(TOGGLE_ACT);
+api.readToggles=()=>{ const o={}; for(const id in TOGGLE_ACT) o[id]=!!S[TOGGLE_ACT[id].key]; return o; };
 bindToggle('t-rot','autorot');
 bindToggle('t-freelook','freelook');
 bindToggle('t-hyg','hyg');
@@ -3367,7 +3501,7 @@ document.getElementById('navGo').addEventListener('click',()=>{
   if(objWorld(navTarget)) flyTo(navTarget);
   else { const w=navWorld(navTarget); if(w) aim(w[0],w[1],w[2], scale(3e-6)); }
 });
-bindToggle('t-mw','mw',()=>{ document.getElementById('hud-mwmap').style.display=S.mw?'block':'none'; });
+bindToggle('t-mw','mw',()=>{ const el=document.getElementById('hud-mwmap'); if(el) el.style.display=S.mw?'block':'none'; });
 
 // top-down schematic of the Milky Way (spiral arms + bar + "you are here")
 function drawMWMap(){
@@ -4075,7 +4209,7 @@ function physPos(o){                              // object -> physical position
 function measWorld(P){ const r=Math.hypot(P[0],P[1],P[2]); if(r<1e-15) return [0,0,0];
   const R=scale(r)/r; return [P[0]*R,P[1]*R,P[2]*R]; }
 function measName(o){ return o.n||o.h||'object'; }
-function drawMeasure(){
+function drawMeasure(){ LBL.prio=P_HUD;
   if(!measA||!measA.P) return;
   const wA=measWorld(measA.P), pA=project(wA[0],wA[1],wA[2]);
   ctx.beginPath(); ctx.arc(pA.x,pA.y,6,0,6.2832); ctx.strokeStyle='rgba(255,207,107,.9)'; ctx.lineWidth=1.4; ctx.stroke();
@@ -4092,17 +4226,17 @@ function drawMeasure(){
 }
 function measurePick(hit){
   const P=physPos(hit); if(!P) return;
-  if(!measA||measB){ measA={o:hit,P:P}; measB=null; searchMsg.textContent='📏 '+measName(hit)+' — pick a second object'; }
+  if(!measA||measB){ measA={o:hit,P:P}; measB=null; searchMsg.textContent=measName(hit)+' — pick a second object'; }
   else { measB={o:hit,P:P};
     const dpc=Math.hypot(measA.P[0]-P[0],measA.P[1]-P[1],measA.P[2]-P[2]);
-    searchMsg.textContent='📏 '+measName(measA.o)+' ↔ '+measName(hit)+' = '
+    searchMsg.textContent=measName(measA.o)+' ↔ '+measName(hit)+' = '
       +(dpc<0.001?(dpc/AU_PC).toFixed(2)+' AU':fmt(dpc*PC2LY)+' ly'); }
   dirty=true;
 }
 document.getElementById('measureBtn').addEventListener('click',()=>{
   measureMode=!measureMode; measA=measB=null;
   document.getElementById('measureBtn').classList.toggle('active',measureMode);
-  searchMsg.textContent=measureMode?'📏 click the first object':''; dirty=true;
+  searchMsg.textContent=measureMode?'Measure: click the first object':''; dirty=true;
 });
 // ---- guided tour: Earth -> the edge of the observable universe ----
 const TOUR=[
@@ -4254,12 +4388,12 @@ let uniTimer=null;
 if(uniEl&&uniEl.addEventListener){
   uniEl.addEventListener('input',ev=>setUni(+ev.target.value));
   if(uniPlayBtn) uniPlayBtn.addEventListener('click',()=>{
-    if(uniTimer){ clearInterval(uniTimer); uniTimer=null; uniPlayBtn.textContent='▶'; }
-    else { uniPlayBtn.textContent='⏸';
+    if(uniTimer){ clearInterval(uniTimer); uniTimer=null; uniPlayBtn.innerHTML=svgIcon('play',14); }
+    else { uniPlayBtn.innerHTML=svgIcon('pause',14);
       uniTimer=setInterval(()=>{ let v=+uniEl.value+2; if(v>1000)v=-1000; uniEl.value=v; setUni(v); },120); }
   });
   if(uniNowBtn) uniNowBtn.addEventListener('click',()=>{ uniEl.value=0; setUni(0);
-    if(uniTimer){clearInterval(uniTimer);uniTimer=null;if(uniPlayBtn)uniPlayBtn.textContent='▶';} });
+    if(uniTimer){clearInterval(uniTimer);uniTimer=null;if(uniPlayBtn)uniPlayBtn.innerHTML=svgIcon('play',14);} });
 }
 api.clickToggle=clickToggle; api.doSearch=doSearch; api.getS=()=>S; api.suggest=suggestList;
 api.searchMsgText=()=>searchMsg.textContent; api.toggleFac=toggleFac; api.facColorToggle=facColorToggle;

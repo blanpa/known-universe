@@ -247,9 +247,6 @@
       max-height:36vh;overflow-y:auto;z-index:85}
     #tourPanel{max-width:none!important;left:8px!important;right:8px!important;transform:none!important;bottom:64px!important}
   }
-  #mobsheet{position:fixed;inset:0;z-index:120;display:flex;flex-direction:column;
-    background:rgba(7,10,20,.98);backdrop-filter:blur(8px);
-    padding-bottom:calc(56px + env(safe-area-inset-bottom,0))}
   .ms-head{display:flex;align-items:center;justify-content:space-between;flex:0 0 auto;
     padding:13px 16px;border-bottom:1px solid rgba(120,140,190,.25);
     font-family:var(--mono);color:var(--amber);letter-spacing:.1em;font-size:12px;text-transform:uppercase}
@@ -373,13 +370,6 @@ input[type=range]::-webkit-slider-thumb{width:18px;height:18px}
   #hud-tr .leg-row{font-size:10px}
   .chips{max-height:120px;overflow-y:auto}
 }
-/* bullet-proof geometry for everything inside the mobile sheet */
-#mobsheet .panel,#mobsheet .ctl-group,#mobsheet .toggle,#mobsheet .ctl-h{
-  position:static!important;display:block!important;visibility:visible!important;opacity:1!important;
-  transform:none!important;height:auto!important;min-height:0!important;width:auto!important;
-  max-height:none!important;overflow:visible!important;columns:auto!important}
-#mobsheet .toggle,#mobsheet .colby{display:flex!important;font-size:14px;padding:11px 4px}
-#mobsheet .ctl-h{display:flex!important}
 
 /* time bar is opt-in via the View options (and the mobile clock button) */
 body:not(.show-time) #hud-time,body:not(.show-time) #hud-soltime{display:none!important}
@@ -444,3 +434,313 @@ body:not(.show-time) #hud-uni{display:none!important}
 #zoomctl .jog:active span{background:var(--acc);opacity:1}
 @media (max-width:720px){ #zoomctl{right:8px;top:auto;bottom:130px;transform:none} }
 .lv-trunc{max-width:46%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ============================================================
+   Layout v3 — icon rail, snap-point sheet, real controls.
+   Final cascade layer: everything here deliberately wins.
+   ============================================================ */
+
+/* ---- shared: controls that are <button> now, and must not look like one ---- */
+.toggle, .colby, .ctl-h, .lbl-btn, .chip, .preset, .rb, .mb, .poi, .lv-row.lv-click,
+.lv-more, .ms-x, .ms-grab, .lf-x, .s-x, .sugbox button, .zoomctl button {
+  font: inherit; color: inherit; background: none; border: 0; margin: 0;
+  cursor: pointer; text-align: left; -webkit-tap-highlight-color: transparent;
+}
+.toggle, .colby, .ctl-h, .lbl-btn { width: 100%; }
+.tg-l { min-width: 0; }
+
+/* one visible focus ring for the whole app — keyboard only */
+:where(button, input, [tabindex], a):focus-visible {
+  outline: 2px solid var(--acc); outline-offset: 2px; border-radius: 8px;
+}
+:where(button, input, [tabindex]):focus:not(:focus-visible) { outline: none; }
+
+/* chevrons are SVG now: one class rotates them all */
+.caret { display: flex; align-items: center; color: var(--txt-2);
+  transition: transform .18s ease; transform: rotate(90deg); }
+.caret.open { transform: rotate(-90deg); }
+.ctl-h .caret { transform: rotate(-90deg); }
+.ctl-group.closed .ctl-h .caret { transform: rotate(90deg); }
+.ctl-h::after, .ctl-group.closed .ctl-h::after { content: none; }
+.ctl-hl, .lb-t { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.lbl-btn { display: flex; align-items: center; justify-content: space-between; }
+
+/* ---- right icon rail + one overlay panel ---------------------------------- */
+#rail-wrap { position: fixed; top: 0; right: 0; bottom: 0; z-index: 80;
+  display: flex; align-items: stretch; pointer-events: none; }
+#rail { pointer-events: auto; width: 56px; flex: 0 0 56px;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 14px 0 16px; background: rgba(10,13,22,.74);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  border-left: 1px solid var(--line); }
+.rb { width: 46px; height: 48px; flex: 0 0 auto; border-radius: 11px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  color: var(--txt-2); border: 1px solid transparent; transition: background .15s, color .15s; }
+.rb-l { font-family: var(--ui); font-size: 8.5px; letter-spacing: .03em; }
+.rb:hover { background: rgba(255,255,255,.07); color: var(--txt-1); }
+.rb.on { background: var(--acc-soft); border-color: rgba(143,179,255,.5); color: var(--acc); }
+.rail-gap { flex: 1 1 auto; min-height: 12px; }
+
+#railpanel { pointer-events: auto; display: none; width: 348px; flex: 0 0 348px;
+  padding: 14px 0 14px 14px; }
+#railpanel.open { display: block; }
+.rp-pane { display: none; height: 100%; }
+.rp-pane.on { display: block; }
+#railpanel .panel { position: relative; inset: auto; width: auto; max-height: 100%;
+  overflow-y: auto; overscroll-behavior: contain;
+  scrollbar-width: thin; scrollbar-color: rgba(160,175,210,.35) transparent; }
+#railpanel .panel::-webkit-scrollbar { width: 7px; }
+#railpanel .panel::-webkit-scrollbar-thumb { background: rgba(160,175,210,.3); border-radius: 4px; }
+/* single column inside the rail panel — the old two-column split was only there
+   to survive the 440 px fixed column */
+#railpanel #hud-ctl { columns: auto; display: flex; flex-direction: column; gap: 4px; }
+
+/* ---- presets: one tap for a whole scene ----------------------------------- */
+.presets { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-bottom: 10px; }
+.preset { display: flex; align-items: center; gap: 6px; padding: 8px 9px; border-radius: 9px;
+  border: 1px solid var(--line-strong); background: rgba(255,255,255,.05);
+  color: var(--txt-1); font-size: 11.5px; font-weight: 550; transition: background .15s, border-color .15s; }
+.preset:hover { background: var(--acc-soft); border-color: var(--acc); }
+.preset.on { background: var(--acc-soft); border-color: var(--acc); color: var(--acc); }
+.preset:last-child:nth-child(odd) { grid-column: 1 / -1; }
+
+/* ---- layer filter --------------------------------------------------------- */
+.lfilter { display: flex; align-items: center; gap: 7px; padding: 7px 10px; margin-bottom: 8px;
+  border: 1px solid var(--line-strong); border-radius: 9px; background: rgba(255,255,255,.05);
+  color: var(--txt-2); }
+.lfilter:focus-within { border-color: var(--acc); }
+.lfilter input { flex: 1; min-width: 0; background: none; border: 0; outline: none;
+  color: var(--txt-1); font-family: var(--ui); font-size: 12px; }
+.lfilter input::placeholder { color: var(--txt-2); }
+.lf-x { display: flex; color: var(--txt-2); }
+.lf-x:hover { color: var(--txt-1); }
+.lf-none { font-size: 11.5px; color: var(--txt-2); padding: 8px 2px; }
+
+/* ---- discovery chips as real buttons -------------------------------------- */
+.chips { display: flex; flex-direction: column; gap: 4px; }
+.chip { display: flex; align-items: center; gap: 8px; width: 100%; font-size: 11px;
+  color: var(--txt-1); border: 1px solid var(--line-strong); border-radius: 999px;
+  padding: 5px 10px; background: rgba(255,255,255,.05); transition: opacity .15s, border-color .15s; }
+.chip .cl { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chip .cn { margin-left: auto; font-family: var(--mono); font-size: 10px; color: var(--txt-2);
+  font-variant-numeric: tabular-nums; }
+
+/* ---- search field: the field IS the surface (no panel wrapper) ------------- */
+.searchwrap { width: 100%; }
+.searchfield { display: flex; align-items: center; gap: 8px; padding: 10px 12px;
+  border: 1px solid var(--line-strong); border-radius: 12px; color: var(--txt-2);
+  background: var(--bg-1); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 8px 28px rgba(0,0,0,.42); }
+.searchfield:focus-within { border-color: var(--acc); box-shadow: 0 0 0 3px var(--acc-soft); }
+.searchIn { flex: 1; min-width: 0; width: auto; background: none; border: 0; outline: none;
+  box-shadow: none; padding: 0; color: var(--txt-1); font-family: var(--ui); font-size: 13px; }
+.searchIn:focus { border: 0; box-shadow: none; }
+.s-x { display: flex; color: var(--txt-2); }
+.s-x:hover { color: var(--txt-1); }
+.sugbox { margin-top: 6px; border: 1px solid var(--line); border-radius: 12px;
+  background: var(--bg-1); backdrop-filter: blur(10px); overflow: hidden; display: block; }
+.sugbox button { display: flex; align-items: baseline; gap: 10px; width: 100%;
+  padding: 9px 12px; font-size: 12.5px; color: var(--txt-1); }
+.sugbox button + button { border-top: 1px solid var(--line); }
+.sugbox button:hover, .sugbox button.sel { background: var(--acc-soft); }
+.sg-n { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sg-k { flex: 0 0 auto; font-size: 9.5px; color: var(--txt-2); letter-spacing: .04em; }
+
+/* ---- quick-jump bar: one row that scrolls, never a stack of wrapped rows --- */
+.poibar-top { position: fixed; top: 14px; left: 322px; right: 68px; z-index: 60;
+  display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 6px; justify-content: flex-start;
+  scrollbar-width: none; padding-bottom: 2px; -webkit-mask-image:
+    linear-gradient(90deg, transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%); }
+.poibar-top::-webkit-scrollbar { display: none; }
+body.rail-open .poibar-top { right: 416px; }
+.poi { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; font-size: 11.5px;
+  color: var(--txt-1); background: rgba(10,14,26,.66); border: 1px solid var(--line);
+  border-radius: 999px; padding: 5px 12px 5px 9px; white-space: nowrap;
+  backdrop-filter: blur(6px); transition: background .15s, border-color .15s; }
+.poi:hover { background: var(--acc-soft); border-color: var(--acc); }
+@media (max-width: 1150px) { .poibar-top { left: 322px; right: 68px; } }
+
+/* ---- zoom: in the rail on desktop, floating on the phone ------------------- */
+.zoomctl { display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 5px; border-radius: 12px; background: rgba(255,255,255,.045);
+  border: 1px solid var(--line); }
+.zoomctl button { width: 34px; height: 32px; border-radius: 8px; display: grid; place-items: center;
+  background: rgba(255,255,255,.07); border: 1px solid var(--line-strong); color: var(--txt-1);
+  touch-action: none; user-select: none; }
+.zoomctl button:hover { background: var(--acc-soft); border-color: var(--acc); }
+.zoomctl .jog { width: 34px; height: 74px; border-radius: 8px; background: rgba(255,255,255,.05);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px;
+  cursor: ns-resize; touch-action: none; user-select: none; }
+.zoomctl .jog span { width: 15px; height: 2px; border-radius: 1px; background: var(--txt-2); opacity: .5; }
+.zoomctl .jog:active span { background: var(--acc); opacity: 1; }
+.zoom-float { position: fixed; right: 10px; bottom: 132px; z-index: 70;
+  background: rgba(12,15,26,.9); backdrop-filter: blur(10px); }
+@media (min-width: 721px) { .zoom-float { display: none; } }
+@media (max-width: 720px) { .zoom-rail { display: none; } }
+
+/* ---- left column: no fixed inner widths ----------------------------------- */
+#left-col { width: min(292px, calc(100vw - 32px)); gap: 10px; }
+#left-col > * { pointer-events: auto; }
+#hud-tl h1 .dot { animation: none; }
+#solarBtn, #btnGrid button { display: flex; align-items: center; justify-content: center; gap: 7px; }
+
+/* the old fixed right column is gone */
+#right-col { display: none !important; }
+
+/* ---- mobile: bottom sheet with snap points --------------------------------- */
+@media (max-width: 720px) {
+  #rail-wrap { display: none; }
+  .poibar-top { display: none; }
+}
+#mobbar { display: none; }
+@media (max-width: 720px) {
+  #mobbar { display: flex; }
+  #mobsheet {
+    position: fixed; left: 0; right: 0; inset-inline: 0; top: auto;
+    bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+    height: 92vh; height: 92dvh; z-index: 120;
+    display: flex; flex-direction: column;
+    background: rgba(10,13,22,.97); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    border-top: 1px solid var(--line-strong); border-radius: 20px 20px 0 0;
+    box-shadow: 0 -14px 44px rgba(0,0,0,.6); padding-bottom: 0;
+    transition: transform .3s cubic-bezier(.32,.72,0,1); will-change: transform;
+  }
+  #mobsheet.dragging { transition: none; }
+}
+.mb { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 3px; font-family: var(--ui); font-size: 9.5px; letter-spacing: .04em; color: var(--txt-2);
+  touch-action: manipulation; user-select: none; }
+.mb.active { color: var(--acc); }
+.ms-head { display: block; flex: 0 0 auto; padding: 0 14px 9px;
+  border-bottom: 1px solid var(--line); user-select: none; }
+.ms-head:active { cursor: grabbing; }
+.ms-grab { display: block; width: 100%; padding: 10px 0 8px; touch-action: none; cursor: grab; }
+.ms-grab:active { cursor: grabbing; }
+.ms-grab span { display: block; width: 40px; height: 4px; border-radius: 2px;
+  background: rgba(255,255,255,.24); margin: 0 auto; }
+.ms-grab:hover span { background: rgba(255,255,255,.4); }
+.ms-headrow { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.ms-title { display: flex; align-items: center; gap: 8px; font-family: var(--ui);
+  font-size: 14px; font-weight: 650; color: var(--txt-1); }
+.ms-title small { font-family: var(--mono); font-size: 10px; font-weight: 400; color: var(--txt-2); }
+.ms-btns { display: flex; gap: 6px; }
+.ms-x { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 9px;
+  background: rgba(255,255,255,.07); border: 1px solid var(--line-strong); color: var(--txt-1); }
+.ms-x:first-child .ic { transform: rotate(-90deg); }
+.ms-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+  padding: 12px 12px calc(20px + env(safe-area-inset-bottom, 0px));
+  display: flex; flex-direction: column; gap: 12px; }
+.ms-body .panel { background: none; border: 0; box-shadow: none; padding: 0; }
+.ms-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.ms-actions button { display: flex; align-items: center; justify-content: center; gap: 7px;
+  padding: 13px 10px; border-radius: 11px; font-family: var(--ui); font-size: 12.5px;
+  background: rgba(255,255,255,.07); border: 1px solid var(--line-strong); color: var(--txt-1); }
+#mobsheet .presets { grid-template-columns: 1fr 1fr; }
+#mobsheet .preset { padding: 11px 10px; font-size: 13px; }
+#mobsheet .poibar { display: flex; flex-wrap: wrap; gap: 7px; }
+#mobsheet .poi { font-size: 12.5px; padding: 8px 13px 8px 10px; }
+#mobsheet .toggle, #mobsheet .colby { padding: 11px 4px; font-size: 14px; }
+#mobsheet .lfilter input { font-size: 16px; }   /* 16px: iOS must not zoom the field */
+#mobsheet .searchIn { font-size: 16px; }
+
+/* ---- live rows are buttons now -------------------------------------------- */
+.lv-row { display: flex; align-items: center; gap: 7px; width: 100%; padding: 3.5px 0;
+  font-size: 11px; color: var(--txt-2); min-width: 0; }
+.lv-more { font-size: 10.5px; color: var(--acc); padding: 4px 0; }
+
+/* ---- info panel sits in the left column, so drop the old anchoring --------- */
+#info { position: relative; inset: auto; width: auto; }
+
+/* ---- the timeline strip must clear the rail -------------------------------- */
+@media (min-width: 721px) { #hud-uni { right: 56px; } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; }
+}
+
+/* ---- type scale: `font: inherit` in the button reset above wipes sizes, so the
+       controls declare theirs here, in one place, for both the rail and the sheet ---- */
+.toggle, .colby { font-size: 12.5px; font-weight: 400; color: var(--txt-1);
+  padding: 6px 3px; border-radius: 8px; line-height: 1.35; }
+.toggle:hover, .colby:hover { background: rgba(255,255,255,.05); }
+.ctl-h { font-size: 12px; font-weight: 600; color: var(--txt-1);
+  padding: 10px 3px 7px; border-bottom: 1px solid var(--line); }
+.ctl-h:hover { color: var(--acc); }
+.chip { font-size: 11px; }
+.preset { font-size: 11.5px; }
+.poi { font-size: 11.5px; }
+.rb-l { font-size: 8.5px; }
+.mb { font-size: 9.5px; }
+.hint { font-size: 10px; font-style: normal; line-height: 1.65; color: var(--txt-2);
+  margin-top: 10px; padding-top: 9px; border-top: 1px solid var(--line); }
+.lv-row, .lv-sub { font-size: 11px; }
+.lv-more { font-size: 10.5px; }
+.ms-actions button { font-size: 12.5px; }
+.ms-x { font-size: 12px; }
+.sugbox button { font-size: 12.5px; }
+.searchIn { font-size: 13px; }
+.lfilter input { font-size: 12px; }
+
+/* ---- the switch, defined once (older layers disagreed on left vs transform) ---- */
+.sw { position: relative; width: 34px; height: 20px; flex: 0 0 34px; border: 0;
+  border-radius: 999px; background: rgba(255,255,255,.15); transition: background .18s; }
+.sw::after { content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px;
+  border-radius: 50%; background: #fff; opacity: .8; transform: none;
+  transition: transform .18s, opacity .18s; box-shadow: 0 1px 3px rgba(0,0,0,.45); }
+.toggle.on .sw, .colby.on .sw { background: var(--acc); }
+.toggle.on .sw::after, .colby.on .sw::after { left: 2px; transform: translateX(14px); opacity: 1; }
+@media (pointer: coarse) { .toggle, .colby { font-size: 14px; padding: 10px 4px; } }
+
+/* content inside the sheet flows full-width — the old full-screen sheet shrink-wrapped it */
+#mobsheet .panel { position: relative; inset: auto; width: 100%; max-height: none;
+  overflow: visible; columns: auto; }
+#mobsheet .ctl-group, #mobsheet .toggle, #mobsheet .colby, #mobsheet .ctl-h,
+#mobsheet .chip, #mobsheet .lfilter { width: 100%; }
+#mobsheet .ms-body > * { flex: 0 0 auto; }
+
+/* ---- 721–820 px: the old breakpoint hid the controls that now live in the rail ---- */
+@media (min-width: 721px) and (max-width: 820px) {
+  #hud-tr, #hud-ctl, #hud-mwmap { display: block; }
+  #railpanel:not(.open) #hud-ctl { display: block; }
+  #hud-search { display: block; }
+  #hud-tl { max-width: none; }
+  #railpanel { width: 300px; flex: 0 0 300px; }
+}
+
+/* ---- selected-object card: its own layer, placed per breakpoint ---- */
+#info { position: fixed; left: 16px; bottom: 62px; width: min(292px, calc(100vw - 32px));
+  z-index: 65; opacity: 0; transform: translateY(8px); pointer-events: none;
+  transition: opacity .18s, transform .18s; }
+#info.show { opacity: 1; transform: none; pointer-events: auto; }
+@media (max-width: 720px) {
+  #info { left: 8px; right: 8px; width: auto;
+    bottom: calc(64px + env(safe-area-inset-bottom, 0px)); max-height: 40vh; overflow-y: auto; }
+  #info.show { display: block; }
+}
+
+/* ---- phone: a slim identity strip at the top, so the view is never contextless ---- */
+@media (max-width: 720px) {
+  #left-col { display: flex; position: fixed; top: 0; left: 0; right: 0; width: auto;
+    max-height: none; gap: 0; z-index: 55; }
+  #left-col #hud-search { display: none; }
+  #hud-tl { display: flex; align-items: center; gap: 12px; flex-wrap: nowrap;
+    width: 100%; max-width: none; border-radius: 0 0 16px 16px; border-top: 0;
+    padding: 7px 13px 8px; padding-top: calc(7px + env(safe-area-inset-top, 0px)); }
+  #hud-tl h1 { margin: 0; font-size: 13px; flex: 0 0 auto; }
+  #hud-tl .stats { display: flex; gap: 13px; margin-left: auto; flex: 0 1 auto;
+    grid-template-columns: none; overflow: hidden; }
+  #hud-tl .stat .k { font-size: 12px; }
+  #hud-tl .stat .l { font-size: 6.5px; letter-spacing: .06em; }
+  #hud-tl .stat:nth-child(n+3) { display: none; }   /* nearest/farthest need the room */
+  #hud-tl #solarBtn, #hud-tl #btnGrid { display: none; }
+}
+
+/* engine-built buttons carry an inline <svg class="ic"> now */
+#info .lockset, #info .navset, #info .transferset {
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  font-family: var(--ui); font-size: 12px; letter-spacing: 0; }
+#hud-uni button { display: grid; place-items: center; width: 32px; height: 30px; }
+
+/* below ~980 px there is no honest room for the quick-jump row between the two
+   columns — search covers the same targets */
+@media (max-width: 980px) { .poibar-top { display: none; } }
