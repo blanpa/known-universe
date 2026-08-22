@@ -52552,10 +52552,18 @@ function __run() {
 		const k = S.realScale ? .0026 : tgtCamZ < .45 ? .0019 : 88e-5;
 		zoomFactorAt(mx, my, Math.exp(k * d));
 	}
+	function zoomRange() {
+		return S.realScale ? [1e-12, 6e7] : [1e-4, 16];
+	}
 	function zoomFactorAt(mx, my, f) {
+		let [zmin, zmax] = zoomRange();
+		if (tgtCamZ * f > zmax && f > 1 && S.realScale || tgtCamZ * f < zmin && f < 1 && !S.realScale) {
+			clickToggle("t-real");
+			S.camZ = tgtCamZ;
+			[zmin, zmax] = zoomRange();
+		}
 		const before = tgtCamZ;
 		tgtCamZ *= f;
-		const zmin = S.realScale ? 1e-12 : 1e-4, zmax = S.realScale ? 6e7 : 16;
 		tgtCamZ = Math.max(zmin, Math.min(zmax, tgtCamZ));
 		if (SURF.on) {
 			const eff = tgtCamZ / before;
@@ -52693,11 +52701,11 @@ function __run() {
 	bindToggle("t-real", "realScale", () => {
 		const wasReal = !S.realScale;
 		const inv = (v) => wasReal ? v / REALK : Math.pow(10, v / KDEC + LOG0);
-		const physCam = inv(S.camZ);
+		const physCam = inv(S.camZ), physTgt = inv(tgtCamZ);
 		const cm = Math.hypot(ctr.x, ctr.y, ctr.z), physCtr = cm > 0 ? inv(cm) : 0;
-		S.camZ = tgtCamZ = scale(physCam);
-		const zf = S.realScale ? 1e-12 : 1e-4;
-		if (tgtCamZ < zf) S.camZ = tgtCamZ = zf;
+		const zr = zoomRange(), cl = (v) => Math.max(zr[0], Math.min(zr[1], v));
+		S.camZ = cl(scale(physCam));
+		tgtCamZ = cl(scale(physTgt));
 		if (cm > 0) {
 			const nm = scale(physCtr) / cm;
 			ctr.x *= nm;
@@ -52864,6 +52872,10 @@ function __run() {
 		g.fillText("Sun", sx + 5, sy + 3);
 	}
 	drawMWMap();
+	function goCosmos() {
+		if (S.realScale) clickToggle("t-real");
+		tgtCamZ = camCosmos();
+	}
 	document.getElementById("resetBtn").addEventListener("click", () => {
 		tgtYaw = .5;
 		tgtPitch = -.35;
@@ -52871,7 +52883,7 @@ function __run() {
 		S.pinned = null;
 		focusSys = null;
 		tgtCtr.x = tgtCtr.y = tgtCtr.z = 0;
-		tgtCamZ = camCosmos();
+		goCosmos();
 		S.autorot = false;
 		syncToggle("t-rot", false);
 	});
@@ -52898,7 +52910,7 @@ function __run() {
 	}
 	solarBtn.addEventListener("click", () => {
 		if (solarA > .5) {
-			tgtCamZ = camCosmos();
+			goCosmos();
 			tgtPitch = -.35;
 			tgtCtr.x = tgtCtr.y = tgtCtr.z = 0;
 		} else enterSolar();
@@ -54076,7 +54088,7 @@ void main(){                                             // soft shoulder above 
 			ctr.z += (tgtCtr.z - ctr.z) * .18;
 			S.yaw += (tgtYaw - S.yaw) * .12;
 			S.pitch += (tgtPitch - S.pitch) * .12;
-			S.camZ += (tgtCamZ - S.camZ) * .12;
+			S.camZ = S.camZ > 0 && tgtCamZ > 0 ? S.camZ * Math.pow(tgtCamZ / S.camZ, .12) : S.camZ + (tgtCamZ - S.camZ) * .12;
 			try {
 				render();
 			} catch (err) {
@@ -54541,6 +54553,11 @@ void main(){                                             // soft shoulder above 
 	api.doSearch = doSearch;
 	api.getS = () => S;
 	api.suggest = suggestList;
+	api.getCam = () => ({
+		camZ: S.camZ,
+		tgt: tgtCamZ,
+		real: S.realScale
+	});
 	api.searchMsgText = () => searchMsg.textContent;
 	api.toggleFac = toggleFac;
 	api.facColorToggle = facColorToggle;
@@ -56129,7 +56146,7 @@ function MobileNav($$anchor, $$props) {
 		}
 		var text = sibling(node_5);
 		var small = sibling(text);
-		small.textContent = `· b16:13`;
+		small.textContent = `· b16:44`;
 		reset(span);
 		var span_1 = sibling(span, 2);
 		var button_5 = child(span_1);

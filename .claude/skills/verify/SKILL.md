@@ -31,6 +31,10 @@ while desktop ANGLE silently accepted it).
 - **Measurement hooks** (both live, both cheap):
   - `window.__kuapi` — the engine `api` object. `__kuapi.prof(true)` starts the per-layer
     profiler, `__kuapi.prof(false)` returns `{frames, ms:{layer: msPerFrame}}`. Off by default.
+  - `__kuapi.getCam()` — `{camZ, tgt, real}`. Assert on **tgt**, not camZ: camZ eases toward
+    it, so a burst of zoom input leaves camZ orders of magnitude behind and a test that
+    reads camZ concludes "zoom is stuck" when it is merely still travelling. Physical
+    framing in pc is `real ? tgt : 10**(tgt-6)`, which is comparable across both modes.
   - `window.__solarProj` — the current frame's solar-system projection, `[{o, x, y, px}]`.
     `px` is the glyph radius (floored at 4 for picking), which is how the body-size model
     gets checked without eyeballing screenshots.
@@ -41,6 +45,10 @@ while desktop ANGLE silently accepted it).
   enough frames for a comparison, and treat only *relative* per-layer numbers from a
   matched configuration as evidence. Idle cost IS reliable: it should be ~0.1 ms/60 fps,
   because render() is skipped unless something changed.
+- **Zoom spans both scale modes.** Compact covers 1e-4..16 world units, real covers
+  1e-12..6e7 pc, and the wheel hands over between them at the limits (see zoomFactorAt),
+  so a zoom test must expect `real` to flip mid-sweep. One handoff per direction is
+  correct; more than one means it is oscillating.
 - **Flights do not complete here**: the camera lerps ~0.12/frame, so a fly-to needs ~40
   frames = over a minute at SwiftShader's rate. Apply the "Solar system" preset first to
   drop the GL clouds, or drive the camera with `page.mouse.wheel` over the target.

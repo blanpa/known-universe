@@ -3444,14 +3444,24 @@ function zoomAt(mx,my,delta,deltaMode){
   const k=S.realScale?0.0026:(tgtCamZ<0.45?0.0019:0.00088);
   zoomFactorAt(mx,my,Math.exp(k*d));
 }
+// Each scale mode covers only part of the range: compact spans 1e-4..16 world units
+// (log decades), real spans 1e-12..6e7 pc. The app boots in real mode and camCosmos() is
+// 3e7 there, so "Reset" left you one notch below the ceiling and the wheel simply stopped
+// — no way to reach the galaxies by zooming, only by finding the Compact view switch.
+// The two ranges overlap by orders of magnitude, so hand over at the limit instead:
+// clickToggle('t-real') already remaps camZ and ctr through physical distance, which
+// makes the switch invisible. Zoom is one continuous range from the CMB to a planet.
+function zoomRange(){ return S.realScale ? [1e-12, 6e7] : [1e-4, 16]; }
 function zoomFactorAt(mx,my,f){
+  let [zmin,zmax]=zoomRange();
+  if((tgtCamZ*f>zmax && f>1 && S.realScale) ||        // out of real scale -> compact
+     (tgtCamZ*f<zmin && f<1 && !S.realScale)){        // deeper than compact -> real
+    clickToggle('t-real');                            // remaps the camera, framing preserved
+    S.camZ=tgtCamZ;                                   // never lerp across the boundary:
+    [zmin,zmax]=zoomRange();                          // the two modes' units are unrelated
+  }
   const before=tgtCamZ;
   tgtCamZ*=f;
-  // log mode used to stop at 0.9 — 0.02 lets you dive until a planet fills the view
-  // (NEAR shrinks with camZ so the glyph isn't culled at close range)
-  // real mode: 1e-12 pc ≈ 31 km — deep enough that Earth's true disc fills the
-  // view and the surface-mode handoff fires (old floor 1e-7 pc = 3 million km)
-  const zmin=S.realScale?1e-12:1e-4, zmax=S.realScale?6e7:16;
   tgtCamZ=Math.max(zmin,Math.min(zmax,tgtCamZ));
   if(SURF.on){                                   // surface map: keep the geo point under the cursor
     const eff=tgtCamZ/before;
@@ -3530,11 +3540,16 @@ bindToggle('t-oclu','oclu');
 bindToggle('t-real','realScale',()=>{
   const wasReal=!S.realScale;                       // clickToggle already flipped S
   const inv=v=> wasReal ? v/REALK : Math.pow(10, v/KDEC + LOG0);
-  const physCam=inv(S.camZ);
+  // Convert the zoom TARGET as well as the current value. camZ lerps toward tgtCamZ, so
+  // during a fast scroll they are far apart; converting only camZ (as this did) left
+  // tgtCamZ in the old mode's units and threw the camera to the opposite end of the
+  // scale — the "zoom suddenly goes somewhere else" symptom.
+  const physCam=inv(S.camZ), physTgt=inv(tgtCamZ);
   const cm=Math.hypot(ctr.x,ctr.y,ctr.z), physCtr=cm>0?inv(cm):0;
-  S.camZ=tgtCamZ=scale(physCam);
-  // deep real zoom maps below the log-scale zero → clamp to each mode's floor (camZ=0 breaks projection)
-  const zf=S.realScale?1e-12:1e-4; if(tgtCamZ<zf) S.camZ=tgtCamZ=zf;
+  // clamp both ends: deep real zoom maps below the log-scale zero, and a compact camZ
+  // near the ceiling maps above real's (camZ=0 or an out-of-range camZ breaks projection)
+  const zr=zoomRange(), cl=v=>Math.max(zr[0],Math.min(zr[1],v));
+  S.camZ=cl(scale(physCam)); tgtCamZ=cl(scale(physTgt));
   if(cm>0){ const nm=scale(physCtr)/cm; ctr.x*=nm;ctr.y*=nm;ctr.z*=nm;
     tgtCtr.x=ctr.x;tgtCtr.y=ctr.y;tgtCtr.z=ctr.z; }
   if(focusSys) focusSysW=objWorld(focusSys);
@@ -3631,10 +3646,13 @@ function drawMWMap(){
 }
 drawMWMap();
 
+// the overview is only reachable in the compact view — real scale tops out at 6e7 pc,
+// a thousandth of the way to the CMB shell
+function goCosmos(){ if(S.realScale) clickToggle('t-real'); tgtCamZ=camCosmos(); }
 document.getElementById('resetBtn').addEventListener('click',()=>{
   tgtYaw=0.5;tgtPitch=-0.35;S.focusStar=null;S.pinned=null;focusSys=null;
   tgtCtr.x=tgtCtr.y=tgtCtr.z=0;                    // back to the Sun
-  tgtCamZ=camCosmos();                             // overview: the whole universe
+  goCosmos();                                      // overview: the whole universe
   S.autorot=false;syncToggle('t-rot',false);
 });
 
@@ -3647,7 +3665,7 @@ const solarBtn=document.getElementById('solarBtn');
 function enterSolar(){ S.pinned=null; S.hover=null; tgtCamZ=camSolar(); tgtPitch=-0.5;
   tgtCtr.x=tgtCtr.y=tgtCtr.z=0; }
 solarBtn.addEventListener('click',()=>{
-  if(solarA>0.5){ tgtCamZ=camCosmos(); tgtPitch=-0.35;          // fly back out
+  if(solarA>0.5){ goCosmos(); tgtPitch=-0.35;                  // fly back out
     tgtCtr.x=tgtCtr.y=tgtCtr.z=0; }
   else enterSolar();                                             // fly in
   S.pinned=null;
@@ -4291,7 +4309,13 @@ function frame(t){
     ||(Math.abs(tgtCtr.x-ctr.x)+Math.abs(tgtCtr.y-ctr.y)+Math.abs(tgtCtr.z-ctr.z))>cs*1e-5;
   if(dirty||anim){
     ctr.x+=(tgtCtr.x-ctr.x)*0.18; ctr.y+=(tgtCtr.y-ctr.y)*0.18; ctr.z+=(tgtCtr.z-ctr.z)*0.18;
-    S.yaw+=(tgtYaw-S.yaw)*0.12; S.pitch+=(tgtPitch-S.pitch)*0.12; S.camZ+=(tgtCamZ-S.camZ)*0.12;
+    S.yaw+=(tgtYaw-S.yaw)*0.12; S.pitch+=(tgtPitch-S.pitch)*0.12;
+    // Zoom eases GEOMETRICALLY. The additive lerp moved a fixed fraction of the absolute
+    // gap, which over a range spanning 22 orders of magnitude meant the last decades
+    // crawled — a hard scroll took hundreds of frames to land. A constant ratio per frame
+    // covers each decade in the same time, which is also how a log zoom should feel.
+    S.camZ = (S.camZ>0 && tgtCamZ>0) ? S.camZ*Math.pow(tgtCamZ/S.camZ, 0.12)
+                                     : S.camZ+(tgtCamZ-S.camZ)*0.12;
     try{ render(); }catch(err){ if(!window.__rerr){ window.__rerr=1; console.error('render error:',err); } }
     dirty=false;
   }
@@ -4495,6 +4519,7 @@ if(uniEl&&uniEl.addEventListener){
     if(uniTimer){clearInterval(uniTimer);uniTimer=null;if(uniPlayBtn)uniPlayBtn.innerHTML=svgIcon('play',14);} });
 }
 api.clickToggle=clickToggle; api.doSearch=doSearch; api.getS=()=>S; api.suggest=suggestList;
+api.getCam=()=>({camZ:S.camZ, tgt:tgtCamZ, real:S.realScale});
 api.searchMsgText=()=>searchMsg.textContent; api.toggleFac=toggleFac; api.facColorToggle=facColorToggle;
 api.facList=()=>facList; api.searchInput=q=>{ if(q&&q.trim().length>2) doSearch(q); };
 // live layer: fly to a close-approach NEO from the panel list
