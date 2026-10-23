@@ -1,4 +1,4 @@
-import { _ as toggleState, a as startLive, c as facColor, d as measure, f as nav, g as timeline, h as stats, i as satEcl, l as facList$1, m as selection, n as activeShowers, o as RESERVED, p as searchMsg, r as groundEcl, s as camera, t as LIVE, u as labels, v as tour, y as api } from "./index-GztT6vnO.js";
+import { _ as toggleState, a as startLive, c as facColor, d as measure, f as nav, g as timeline, h as stats, i as satEcl, l as facList$1, m as selection, n as activeShowers, o as RESERVED, p as searchMsg, r as groundEcl, s as camera, t as LIVE, u as labels, v as tour, y as api } from "./index-DdNHgGm8.js";
 //#region src/engine/canvas.js
 var cv = document.getElementById("sky");
 var ctx = cv.getContext("2d");
@@ -3776,11 +3776,15 @@ var solarProj = [];
 function orbitR(a) {
 	return scale(a * AU_PC);
 }
-var BODY_K = .094;
+var SYM_PX = 3;
+var SYM_K = .35;
+var SYM_MIN = 1.3;
+function symPx(rk, de) {
+	return Math.max(SYM_MIN, SYM_PX * Math.pow(rk / 6371, SYM_K) * (3.2 / de) * (V.foc / 560));
+}
 function bodyPx(rk, depth) {
-	const ratio = rk / 6371;
 	const de = S.realScale ? depth / S.camZ * 3.2 : depth;
-	const sym = Math.max(1.7, Math.min(Math.min(W, H) * 4, ratio * BODY_K * V.foc * .02 / de));
+	const sym = Math.min(Math.min(W, H) * 4, symPx(rk, de));
 	if (!S.realScale) return sym;
 	const truePx = V.foc * (rk * 32408e-18) / depth;
 	return Math.min(Math.max(sym, truePx), Math.min(W, H) * .75);
@@ -4055,7 +4059,7 @@ function drawSolar(alpha) {
 			const jdM = solarJD();
 			if (!S.realScale || V.foc * (amMax * 32408e-15) / p.depth > 1.2 || S.pinned && S.pinned.parent === b.n || S.hover && S.hover.parent === b.n) ms.forEach((m, mi) => {
 				const msel0 = m === S.hover || m === S.pinned;
-				if (m.minor && px < 13 && !msel0) return;
+				if (m.minor && px < 9 && !msel0) return;
 				const t = Math.log10(m.am + 1) / Math.log10(amMax + 1);
 				const rr = px + 12 + t * Math.min(130, px * 3.2 + 80);
 				const sepPx = Math.min(S.realScale ? V.foc * (m.am * 32408e-15) / p.depth : rr, 8 * Math.max(W, H));
@@ -4091,7 +4095,7 @@ function drawSolar(alpha) {
 					ctx.stroke();
 				}
 				const mde = S.realScale ? p.depth / S.camZ * 3.2 : p.depth;
-				let mpx = Math.max(1.1, Math.min(Math.min(W, H) * 4, m.rk / 6371 * BODY_K * V.foc * .02 / mde));
+				let mpx = Math.min(Math.min(W, H) * 4, symPx(m.rk, mde) * .8);
 				if (S.realScale) mpx = Math.min(Math.max(mpx, V.foc * (m.rk * 32408e-18) / p.depth), Math.min(W, H) * 4);
 				ballFill(mx, my, mpx, m.c, A);
 				if (m.n === "Moon" && mpx >= 26) {
@@ -4115,7 +4119,7 @@ function drawSolar(alpha) {
 					y: my,
 					px: Math.max(4, mpx)
 				});
-				if ((px > 9 || msel) && (!m.minor || msel)) {
+				if ((px > 6 || msel) && (!m.minor || msel)) {
 					ctx.font = "9px ui-monospace,monospace";
 					ctx.fillStyle = `rgba(${m.c[0]},${m.c[1]},${m.c[2]},${A * .8})`;
 					ctx.fillText(m.n, mx + mpx + 3, my + 3);

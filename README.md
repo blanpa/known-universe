@@ -66,8 +66,11 @@ as a fourth dimension.
   ~13 orders of magnitude: from the solar system (AU) through the stellar
   neighbourhood (parsec) to the galaxies (megaparsec). The real emptiness
   between the solar system and the nearest star stays visible as a true gap.
-  *(Physical object sizes are necessarily symbolic across 13 decades — glyphs
-  scale by real* relative *radius, so e.g. Jupiter > Earth stays recognisable.)*
+  *(Physical object sizes are necessarily symbolic across 13 decades. A body's
+  glyph follows its real radius with a power law (radius^0.35: Sun 16 px,
+  Jupiter 7, Earth 3, the Moon 2 at the framing distance), so the ordering is
+  real and the spread stays legible; in real scale the true disc takes over as
+  you fly at a body.)*
 - **Tech:** Svelte 5 + Vite for the UI chrome; the renderer is a set of
   framework-free ES modules (`src/engine/`). The engine publishes state through
   Svelte stores (selection, camera band, course, tour, timeline) and the

@@ -24,12 +24,19 @@ function orbitR(a){ return scale(a*AU_PC); }
 // Pick that, and everything else follows from its true radius. (Distances are
 // compressed here and sizes are not, which is why a factor is needed at all — in real
 // scale mode truePx below takes over and both are honest together.)
-const BODY_K = 0.094;
+// Symbolic body size at the framing distance. Every body in view is sub-pixel at its
+// true angular size, so a symbol stands in — and the symbol used to be LINEAR in the real
+// radius: the Sun got 36 px, Jupiter 3.7, and Earth, Mars, the Moon all sat on the
+// 1.7-px floor. The eye read "one big ball, some dust". A power law keeps the real
+// ordering with a legible spread: Sun 16 · Jupiter 7 · Saturn 6.5 · Earth 3 · Mars 2.4 ·
+// Moon 1.9 (at a 900-px viewport). Perspective still applies: nearer than the framing
+// distance a body grows, and in real scale its true disc takes over as you fly at it.
+const SYM_PX=3.0, SYM_K=0.35, SYM_MIN=1.3;
+export function symPx(rk,de){ return Math.max(SYM_MIN, SYM_PX*Math.pow(rk/6371,SYM_K)*(3.2/de)*(V.foc/560)); }
 export function bodyPx(rk,depth){
-  const ratio=rk/6371;
-  const de = S.realScale ? (depth/S.camZ)*3.2 : depth;   // real: normalise to the log framing range
+  const de = S.realScale ? (depth/S.camZ)*3.2 : depth;   // real: normalise to the framing distance
   // cap 4× the viewport: diving in takes you past full disc INTO the imagery (clouds fill the view)
-  const sym = Math.max(1.7, Math.min(Math.min(W,H)*4, ratio*BODY_K*V.foc*0.02/de));
+  const sym = Math.min(Math.min(W,H)*4, symPx(rk,de));
   if(!S.realScale) return sym;
   // real scale: once the TRUE angular size is resolvable it wins — fly at a
   // planet and it grows to a disc, exactly as it would in reality
@@ -218,7 +225,7 @@ export function drawSolar(alpha){ LBL.prio=P_SOLAR;
         || (S.pinned&&S.pinned.parent===b.n) || (S.hover&&S.hover.parent===b.n);
       if(resolvable) ms.forEach((m,mi)=>{
         const msel0=(m===S.hover||m===S.pinned);
-        if(m.minor && px<13 && !msel0) return;      // small irregular moons: close zoom only
+        if(m.minor && px<9 && !msel0) return;       // small irregular moons: close zoom only
         const t=Math.log10(m.am+1)/Math.log10(amMax+1);       // 0..1 by true distance
         const rr=px+12 + t*Math.min(130, px*3.2+80);
         // separation on screen: TRUE angular separation in real scale, exploded (log) otherwise
@@ -249,7 +256,7 @@ export function drawSolar(alpha){ LBL.prio=P_SOLAR;
         // same law AND the same caps as bodyPx — moons used to cap at 10 px / half the
         // viewport while planets capped at 4×, so up close every moon clipped to the same
         // size and Io ended up two thirds of Jupiter instead of a fortieth
-        let mpx=Math.max(1.1,Math.min(Math.min(W,H)*4,(m.rk/6371)*BODY_K*V.foc*0.02/mde));
+        let mpx=Math.min(Math.min(W,H)*4, symPx(m.rk,mde)*0.8);   // same law, a notch below the planet
         if(S.realScale) mpx=Math.min(Math.max(mpx, V.foc*(m.rk*3.2408e-14)/p.depth), Math.min(W,H)*4);
         ballFill(mx,my,mpx,m.c,A);
         if(m.n==='Moon'&&mpx>=26){                 // the Moon gets its real face up close
@@ -260,7 +267,7 @@ export function drawSolar(alpha){ LBL.prio=P_SOLAR;
         if(msel){ ctx.beginPath(); ctx.arc(mx,my,mpx+5,0,6.2832);
           ctx.strokeStyle='rgba(79,214,200,.9)'; ctx.lineWidth=1; ctx.stroke(); }
         solarProj.push({o:m,x:mx,y:my,px:Math.max(4,mpx)});
-        if((px>9||msel)&&(!m.minor||msel)){ ctx.font='9px ui-monospace,monospace';
+        if((px>6||msel)&&(!m.minor||msel)){ ctx.font='9px ui-monospace,monospace';
           ctx.fillStyle=`rgba(${m.c[0]},${m.c[1]},${m.c[2]},${A*0.8})`;
           ctx.fillText(m.n, mx+mpx+3, my+3); }
       });
