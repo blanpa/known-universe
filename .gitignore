@@ -11,3 +11,6 @@ __pycache__/
 
 # Written by the live-data job / updater, not by hand
 site/data/live-extra.json
+
+# end-to-end screenshots (npm run test:e2e)
+tools/e2e-out/

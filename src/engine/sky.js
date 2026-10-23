@@ -6,24 +6,29 @@ import { LBL, P_GRID, P_SMALL } from './labels.js';
 import { CONS, CON_NAME, dirOf } from './sky-data.js';
 import { cmeSolarMs } from './solar-live.js';
 import { S, V } from './state.js';
-import { project, scale } from './view.js';
+import { camDist, invScale, project, scale } from './view.js';
 // ---- constellation lines (sky sphere at fixed radius) ----
+// The figures live on a sphere 30 pc out. From much farther away that sphere is a
+// knot of 89 names around the Sun, so the layer fades out between 20 and 80 pc.
+export function skyAlpha(){ const d=camDist>1e-9?invScale(camDist):0; return Math.max(0,Math.min(1,(80-d)/60)); }
 export function drawConstellations(){ LBL.prio=P_GRID;
   if(!S.con) return;
+  const A=skyAlpha(); if(A<=0.02) return;
   const R=scale(30);                        // sky-sphere radius among the local stars
   for(const k of CONS){
     for(const pl of k._L){
       pathBegin();
       for(const d of pl) pathPt(project(d[0]*R,d[1]*R,d[2]*R));
-      pathStroke('rgba(128,150,215,0.15)',1);
+      pathStroke(`rgba(128,150,215,${0.15*A})`,1);
     }
     const cp=project(k.c[0]*R,k.c[1]*R,k.c[2]*R);
-    if(cp.depth>V.NEAR){ ctx.font='8.5px ui-monospace,monospace'; ctx.fillStyle='rgba(150,170,225,0.38)';
+    if(cp.depth>V.NEAR){ ctx.font='8.5px ui-monospace,monospace'; ctx.fillStyle=`rgba(150,170,225,${0.38*A})`;
       ctx.fillText(CON_NAME[k.id]||k.id, cp.x+3, cp.y); }
   }
 }
 // ---- meteor-shower radiants active on the selected date (IMO calendar, sky sphere) ----
 export function drawShowers(){ LBL.prio=P_SMALL;
+  if(skyAlpha()<=0.02) return;                 // radiants sit on the same sphere
   const act=activeShowers(cmeSolarMs()); if(!act.length) return;
   const R=scale(30);
   for(const s of act){

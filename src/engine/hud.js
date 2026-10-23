@@ -106,7 +106,7 @@ let _stat='', _selKey='', _cam='', _nav='';
 // which part of the map the camera is in, by its physical distance from the Sun
 export function bandOf(pc){
   if(pc<0.02)   return 'Solar system';
-  if(pc<120)    return 'Stellar neighbourhood';
+  if(pc<300)    return 'Stellar neighbourhood';
   if(pc<4e4)    return 'Milky Way';
   if(pc<3e6)    return 'Local Group';
   if(pc<1.5e9)  return 'Cosmic web';

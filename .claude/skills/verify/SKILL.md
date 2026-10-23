@@ -8,16 +8,39 @@ description: How to build, launch and drive Known Universe headlessly to verify 
 Surface: browser GUI (Canvas2D + WebGL). Mount test alone (`npm run test:mount`) only catches
 component/mount errors — runtime rendering, zoom, picking need a real browser.
 
-## Build & serve
+## The short way
+
+```bash
+npm run build && npm run test:e2e      # real browser: boot, chrome, interaction, CPU budget, screenshots
+```
+`tools/e2e.mjs` serves `site/` itself and uses `/usr/bin/google-chrome` headless **with the GPU**
+(`--headless=new --enable-gpu --use-angle=gl-egl`) when present, else Playwright's headless
+shell on SwiftShader. Screenshots land in `tools/e2e-out/`. Add a check there rather than
+hand-rolling a script when the thing you verify will matter again.
+
+## Build & serve by hand
 
 ```bash
 npm run build                                  # → site/ (also what Pages/docker serve)
 python3 -m http.server 8917 --bind 127.0.0.1 -d site &   # same-origin ./data works
 ```
 
-## Drive headlessly (no system chrome installed)
+## Frame-rate numbers that mean something
 
-Playwright chromium lives in `~/.cache/ms-playwright/chromium_headless_shell-1228/chrome-headless-shell-linux64/chrome-headless-shell`.
+- Headless Google Chrome with the GPU flags above renders on the real GPU (check the
+  `WEBGL_debug_renderer_info` string: Intel/NVIDIA, not SwiftShader). Its absolute fps
+  drifts with CPU/GPU clocks between runs — compare A/B **within one run**, alternating.
+- The frame cost depends on the heading: rotate and the same scene swings 2× (what is on
+  screen changes). Measure at **fixed headings**: load a share hash, then loop
+  `window.__ku.redraw()` + rAF and count frames; never with auto-rotation.
+- A visible Chrome tab in the user's own browser is the ground truth, but Chrome throttles
+  rAF to 1–3 Hz when the window is occluded — check `idle rAF/s ≈ 60` first.
+- Live tuning without a rebuild: `window.__ku.tune = { web: { a: 2, px: 1.6 } }` overrides a
+  point layer's alpha factor and minimum size for the next frames.
+
+## Drive headlessly without a system chrome
+
+Playwright's shell lives in `~/.cache/ms-playwright/chromium_headless_shell-*/chrome-headless-shell-linux64/chrome-headless-shell`.
 `npm i playwright-core` in a scratch dir, then `chromium.launch({ executablePath, args:['--no-sandbox','--use-angle=swiftshader'] })`.
 WebGL works via swiftshader. Treat SwiftShader shader compile/link failures as REAL findings,
 not flakiness: SwiftShader enforces strict GLES rules like mobile drivers do ("globe: link failed"
@@ -29,8 +52,11 @@ while desktop ANGLE silently accepted it).
 - **Quantitative camera evidence**: `location.hash` is a `v1_yaw_pitch_camZ_ctrX_ctrY_ctrZ_real_...`
   share hash, rewritten every 2 s — read camZ/ctr/realScale from it instead of screenshots.
 - **Measurement hooks** (both live, both cheap):
-  - `window.__kuapi` — the engine `api` object. `__kuapi.prof(true)` starts the per-layer
-    profiler, `__kuapi.prof(false)` returns `{frames, ms:{layer: msPerFrame}}`. Off by default.
+  - `window.__kuapi` — the engine `api` object: `doSearch`, `setToggle`/`readToggles`,
+    `flyToScale(pc)`, `lock`, `setCourse`/`engage`, `route`, `transfer`, `tour.start/next/end`,
+    `timeline.set(v)/play/now`, `share()`, `measure()`, `reset()`, `toggleSolar()`, `getCam()`.
+    `__kuapi.prof(true)` starts the per-layer profiler, `__kuapi.prof(false)` returns
+    `{frames, ms:{layer: msPerFrame}}` — JS time inside render(), reliable in any environment.
   - `__kuapi.getCam()` — `{camZ, tgt, real}`. Assert on **tgt**, not camZ: camZ eases toward
     it, so a burst of zoom input leaves camZ orders of magnitude behind and a test that
     reads camZ concludes "zoom is stuck" when it is merely still travelling. Physical
@@ -53,16 +79,22 @@ while desktop ANGLE silently accepted it).
   frames = over a minute at SwiftShader's rate. Apply the "Solar system" preset first to
   drop the GL clouds, or drive the camera with `page.mouse.wheel` over the target.
 - Wait ~7 s after `goto` (data fetch + first hash write).
-- **Layer toggles live behind the rail now**: `page.locator('#rail .rb', { hasText: 'Layers' }).click()`
+- **Layer toggles live behind the rail**: `page.locator('#rail .rb', { hasText: 'Layers' }).click()`
   first, then `page.locator('#hud-ctl .toggle', { hasText: 'Compact view' }).click()`. The panes stay
   mounted while hidden, so `getElementById` works without opening, but Playwright clicks need it open.
-  Rail buttons: Layers · Legend · Map · Live. `Escape` closes the open pane.
-  Toggles are `<button role="switch" aria-checked>` — assert on `aria-checked`, not on a class.
+  Rail buttons: Layers · Legend · Map · Live, then Tour · Measure · Share · Reset at the bottom.
+  `Escape` closes the open pane. Toggles are `<button role="switch" aria-checked>` — assert on
+  `aria-checked`, not on a class.
+- **The chrome is store-driven**: the info card is `#info` (`.in-name`, `.in-actions button`),
+  the course bar `#hud-nav`, the tour `#tourPanel`, the timeline `#hud-uni`, the header
+  `#hud-head` (`.ctx-band` = Solar system · Stellar neighbourhood · Milky Way · …), the scale
+  ladder `#ladder`. There is no `#solarBtn`/`#tourBtn`/`#resetBtn` any more — call `api.*`.
 - Presets (`#hud-ctl .preset`) set a whole scene at once; layer state persists in
   `localStorage['ku_layers_v2']` and is restored after boot, so **clear it between runs**
   (`context.clearCookies()` does not cover it — use `page.evaluate(()=>localStorage.clear())`)
   or an earlier run's preset silently changes what the next one renders.
-- Mobile sheet has snap points (peek/half/full): open with `#mobbar .mb` (Search·Layers·Time·Tour),
+- Phone: `#mobhead` shows band + distance; the card `#info` docks above `#mobbar`; the ladder is
+  the `.ladder-strip`. The sheet has snap points (peek/half/full): open with `#mobbar .mb` (Search·Layers·Time·Tour),
   drag `#mobsheet .ms-grab` to resize, tap it to cycle. The scene stays visible above it.
 - Search: fill `#hud-search .searchIn`, press Enter. Then `document.activeElement.blur()` before
   keyboard shortcuts (keydown handler ignores INPUT focus).
@@ -82,5 +114,5 @@ while desktop ANGLE silently accepted it).
   give screenshots there `timeout: 180000` and expect flights to take minutes; it is NOT a bug
   (GL point layers in software; 17 ms/frame with GPU stars off).
 - Screenshot timeout = compositor stall: historically caused by Canvas2D paths with projected
-  coords in the millions of px (see PLIM guard in engine.js). JS stays responsive (evaluate works),
+  coords in the millions of px (see the PLIM guard in src/engine/draw.js). JS stays responsive (evaluate works),
   only screenshots hang — that signature means a pathological draw op, not a JS loop.

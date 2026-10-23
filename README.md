@@ -69,8 +69,10 @@ as a fourth dimension.
   *(Physical object sizes are necessarily symbolic across 13 decades — glyphs
   scale by real* relative *radius, so e.g. Jupiter > Earth stays recognisable.)*
 - **Tech:** Svelte 5 + Vite for the UI chrome; the renderer is a set of
-  framework-free ES modules (`src/engine/`) that Svelte binds to via a thin
-  store bridge. Build: `npm install && npm run build` → static `site/`
+  framework-free ES modules (`src/engine/`). The engine publishes state through
+  Svelte stores (selection, camera band, course, tour, timeline) and the
+  components call back through one `api` object — the engine touches no panel
+  DOM, only its two canvases. Build: `npm install && npm run build` → static `site/`
   (committed — Pages needs no CI build); `npm run build:artifact` emits the
   self-contained single-file HTML. Stars render on the **GPU via WebGL 2**: the binary catalogues
   (Gaia, asteroid field, 2MRS, quasars, …) are uploaded to the GPU
@@ -92,15 +94,17 @@ as a fourth dimension.
 | Free flight         | **WASD** / arrow keys, **R/F** up·down                   |
 | Free-look flight    | Toggle **Free-look flight** → left-drag turns the camera in place (spaceship style) |
 | Travel to           | Click an object → the camera flies there                 |
-| Zoom                | Mouse wheel                                              |
-| 4th dimension       | Time slider at the bottom + play button                  |
-| Search              | Field at the top — finds **everything**: `Sirius`, `TRAPPIST-1`, `Andromeda`, `PSR J0332+5434`, `Melotte 22`, `Voyager 1`, `Sedna` |
-| 🧭 Cosmic tour      | Button top-left — a guided 9-stop flight from Earth to the CMB |
-| 📏 Measure          | Button top-left — click two objects → real distance & light-travel time |
-| Touch               | One finger rotate · two-finger pinch zoom |
-| Share a view        | **🔗 Share this view** (top-left) — copies a URL that restores this exact camera position, scale and layer set |
-| Into the solar system | Button top-left **☉ Into the solar system** or click the Sun |
-| Layers on/off       | Right side: galaxies · stars (HYG) · moons · rings · veil · … |
+| Zoom                | Mouse wheel, or the **scale ladder** at the right edge: click a rung (1 AU … 10 Gly) to frame that scale, drag to zoom |
+| Where am I          | Header top-left: the band of the map you are in (Solar system · Stellar neighbourhood · Milky Way · Local Group · Cosmic web · Observable universe) and your distance from the Sun |
+| 4th dimension       | **Timeline** (View → Timeline): one slider from −50,000 to +50,000 years — planets on their orbits (±100 yr), stars along their proper motions |
+| Search              | Field at the top-left — finds **everything**: `Sirius`, `TRAPPIST-1`, `Andromeda`, `PSR J0332+5434`, `Melotte 22`, `Voyager 1`, `Sedna` |
+| Info card           | Hover or click an object: data, catalogue links and the actions **Lock** (keep it centred) · **Course** (distance, light time, bearing, Engage) · **1 g route** · **Transfer** |
+| 🧭 Cosmic tour      | Rail, bottom — a guided 9-stop flight from Earth to the CMB |
+| 📏 Measure          | Rail, bottom — click two objects → real distance & light-travel time |
+| Touch               | One finger rotate · two-finger pinch zoom · the ladder is a strip at the right edge |
+| Share a view        | Rail, bottom — copies a URL that restores this exact camera position, scale and layer set |
+| Into the solar system | Button in the header, or click the Sun |
+| Layers on/off       | Rail: **Layers** — presets (Solar system · Neighbourhood · Deep sky · Cosmos · Everything), a filter, 40 switches |
 
 **Layers & tools**
 
@@ -270,7 +274,10 @@ Two rules that keep this honest:
 
 ```bash
 npm run build           # src/ -> site/
-npm run test:mount      # mounts the real bundle (happy-dom) — run before deploying
+npm run test:mount      # mounts the real bundle (happy-dom) — seconds, no browser
+npm run test:e2e        # the built site in a real browser: boot, chrome, interaction,
+                        # render() CPU budget, one screenshot per scale band (tools/e2e-out/)
+npx eslint src          # no-undef / no-import-assign across the engine modules
 npm run build:artifact  # single self-contained HTML with the data embedded
 ```
 
@@ -336,10 +343,10 @@ curl -G "https://gea.esac.esa.int/tap-server/tap/sync" \
 python3 pipeline/build_gaia.py   # -> site/data/gaia.bin
 
 # Complete outer solar system — human probes + TNOs (JPL Horizons + SBDB, live)
-python3 pipeline/build_solar_extra.py   # prints PROBES / TNOS constants (baked into engine.js)
+python3 pipeline/build_solar_extra.py   # -> site/data/catalog.json (probes, tnos)
 
 # Deep-sky / extragalactic point clouds (VizieR TAP; see the queries in each script)
-#   raw/pulsars_raw.csv (ATNF)  -> PULSARS constant (baked in)
+#   raw/pulsars_raw.csv (ATNF)  -> catalog.json `pulsars`
 #   raw/twomrs_raw.csv (2MRS), raw/quasars_raw.csv (Milliquas)
 python3 pipeline/build_extragal.py      # -> site/data/cosmicweb.bin, site/data/quasars.bin
 

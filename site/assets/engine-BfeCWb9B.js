@@ -1,4 +1,4 @@
-import { _ as toggleState, a as startLive, c as facColor, d as measure, f as nav, g as timeline, h as stats, i as satEcl, l as facList$1, m as selection, n as activeShowers, o as RESERVED, p as searchMsg, r as groundEcl, s as camera, t as LIVE, u as labels, v as tour, y as api } from "./index-hPtaxZhk.js";
+import { _ as toggleState, a as startLive, c as facColor, d as measure, f as nav, g as timeline, h as stats, i as satEcl, l as facList$1, m as selection, n as activeShowers, o as RESERVED, p as searchMsg, r as groundEcl, s as camera, t as LIVE, u as labels, v as tour, y as api } from "./index-GztT6vnO.js";
 //#region src/engine/canvas.js
 var cv = document.getElementById("sky");
 var ctx = cv.getContext("2d");
@@ -1980,7 +1980,7 @@ var _cam = "";
 var _nav = "";
 function bandOf(pc) {
 	if (pc < .02) return "Solar system";
-	if (pc < 120) return "Stellar neighbourhood";
+	if (pc < 300) return "Stellar neighbourhood";
 	if (pc < 4e4) return "Milky Way";
 	if (pc < 3e6) return "Local Group";
 	if (pc < 15e8) return "Cosmic web";
@@ -7472,26 +7472,33 @@ function measureToggle() {
 api.measure = measureToggle;
 //#endregion
 //#region src/engine/sky.js
+function skyAlpha() {
+	const d = camDist > 1e-9 ? invScale(camDist) : 0;
+	return Math.max(0, Math.min(1, (80 - d) / 60));
+}
 function drawConstellations() {
 	LBL.prio = 14;
 	if (!S.con) return;
+	const A = skyAlpha();
+	if (A <= .02) return;
 	const R = scale(30);
 	for (const k of CONS) {
 		for (const pl of k._L) {
 			pathBegin();
 			for (const d of pl) pathPt(project(d[0] * R, d[1] * R, d[2] * R));
-			pathStroke("rgba(128,150,215,0.15)", 1);
+			pathStroke(`rgba(128,150,215,${.15 * A})`, 1);
 		}
 		const cp = project(k.c[0] * R, k.c[1] * R, k.c[2] * R);
 		if (cp.depth > V.NEAR) {
 			ctx.font = "8.5px ui-monospace,monospace";
-			ctx.fillStyle = "rgba(150,170,225,0.38)";
+			ctx.fillStyle = `rgba(150,170,225,${.38 * A})`;
 			ctx.fillText(CON_NAME[k.id] || k.id, cp.x + 3, cp.y);
 		}
 	}
 }
 function drawShowers() {
 	LBL.prio = 40;
+	if (skyAlpha() <= .02) return;
 	const act = activeShowers(cmeSolarMs());
 	if (!act.length) return;
 	const R = scale(30);
