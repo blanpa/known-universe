@@ -5,7 +5,7 @@ import { aim, enterSolar } from './actions.js';
 import { ctx } from './canvas.js';
 import { offscr, pathBegin, pathPt, pathStroke } from './draw.js';
 import { LBL, P_SMALL } from './labels.js';
-import { D2R, PLANETS, eclToWorld, keplerSB, orbPoint, solarJD } from './solar-data.js';
+import { D2R, PLANETS, eclDir, eclToWorld, keplerSB, orbPoint, solarJD } from './solar-data.js';
 import { bodyPx, drawOrbitEllipse, solarProj } from './solar.js';
 import { S, V } from './state.js';
 import { AU_PC, camDir2, project, scale } from './view.js';
@@ -137,7 +137,7 @@ export function drawSunspots(A, sp, spx){ LBL.prio=P_SMALL;
   const lamE=Math.atan2(earth._e[1],earth._e[0]);
   for(const r of LIVE.regions){
     const e=stonyhurstEcl(r.lat,r.lon,lamE);
-    const d=dirScreen([e[0],e[2],e[1]]);               // ecl → world axis swap
+    const d=dirScreen(eclDir(e[0],e[1],e[2]));            // ecl → world (obliquity)
     if(d[2]<=0.05) continue;                           // far side / limb
     const x=sp.x+d[0]*spx*0.94, y=sp.y+d[1]*spx*0.94;
     const rr=Math.max(1.2, Math.sqrt(r.area||20)*spx/280);
@@ -221,7 +221,7 @@ export function drawFireballs(A){ LBL.prio=P_SMALL;
     if(f.lat==null||f.lon==null) continue;
     const age=(nowMs-f.t)/86400000; if(age<0||age>30) continue;
     const e=groundEcl(f.lat,f.lon,f.t);
-    const d=dirScreen([e[0],e[2],e[1]]);
+    const d=dirScreen(eclDir(e[0],e[1],e[2]));
     if(d[2]<=0.05) continue;                           // far side
     const x=ep.x+d[0]*px*0.97, y=ep.y+d[1]*px*0.97;
     const rr=Math.max(1.6, 2.2+Math.log10(f.kt||0.1));

@@ -4,7 +4,7 @@ import { drawHalo, haloSprite, offscr, pathBegin, pathBreak, pathPt, pathStroke 
 import { PTEX, _gbl, bodyGlobe, earthGlobe, earthImage } from './earth.js';
 import { LBL, P_PROBE, P_SEL, P_SMALL, P_SOLAR } from './labels.js';
 import { drawLagrange } from './lagrange.js';
-import { D2R, MOON_EPH, PROBES, SMALL, SOLAR_BODIES, SUN, dateStr, eclToWorld, keplerSB, moonDirAt, orbPoint, solarJD, updateSolarPositions } from './solar-data.js';
+import { D2R, MOON_EPH, PROBES, SMALL, SOLAR_BODIES, SUN, dateStr, eclToWorld, keplerSB, moonAt, moonOrbitPoint, orbPoint, solarJD, updateSolarPositions } from './solar-data.js';
 import { drawCME, drawFireballs, drawLiveNeo, drawSats, drawSunspots } from './solar-live.js';
 import { S, V } from './state.js';
 import { drawTransfer } from './transfer.js';
@@ -232,17 +232,21 @@ export function drawSolar(alpha){ LBL.prio=P_SOLAR;
         const sepPx=Math.min(S.realScale ? V.foc*(m.am*3.2408e-11)/p.depth : rr, 8*Math.max(W,H));
         const eph=MOON_EPH[m.n];
         let mx,my;
-        if(eph){                                   // real orbital phase + real orbit plane
-          const dm=moonDirAt(eph, eph.w*(jdM-eph.ep)); camDir2i(dm[0],dm[1],dm[2]);
-          mx=p.x+_d2x*sepPx; my=p.y+_d2y*sepPx;
-          // the orbit outline is 25 segments; below a few pixels of separation it is a
-          // dot, so scale the segment count to what is actually resolvable
+        if(eph&&eph.a){                            // real orbit: phase, plane and eccentricity
+          const mp=moonAt(eph,jdM);
+          // screen separation per km: true angular size in real scale, the exploded
+          // (log) spacing otherwise — in both, the eccentric orbit keeps its true shape
+          const kmPx = S.realScale ? V.foc*3.2408e-14/p.depth : sepPx/(m.am*1000||eph.a);
+          camDir2i(mp.dir[0],mp.dir[1],mp.dir[2]);
+          mx=p.x+_d2x*mp.r*kmPx; my=p.y+_d2y*mp.r*kmPx;
+          // the orbit outline is sampled in eccentric anomaly; below a few pixels of
+          // separation it is a dot, so the segment count follows what is resolvable
           const seg = sepPx<7 ? 0 : sepPx<40 ? 12 : 24;
           if(seg){
             ctx.beginPath();
-            for(let k=0;k<=seg;k++){ const rp=moonDirAt(eph, k/seg*6.2832);
+            for(let k=0;k<=seg;k++){ const rp=moonOrbitPoint(eph, k/seg*6.2832);
               camDir2i(rp[0],rp[1],rp[2]);
-              const qx=p.x+_d2x*sepPx, qy=p.y+_d2y*sepPx;
+              const qx=p.x+_d2x*kmPx, qy=p.y+_d2y*kmPx;
               if(k===0) ctx.moveTo(qx,qy); else ctx.lineTo(qx,qy); }
             ctx.strokeStyle=`rgba(160,175,205,${A*0.15})`; ctx.lineWidth=0.6; ctx.stroke();
           }

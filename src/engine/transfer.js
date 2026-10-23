@@ -6,7 +6,7 @@ import { pathBegin, pathPt, pathStroke } from './draw.js';
 import { fmt } from './hud.js';
 import { LBL, P_PROBE, P_SEL } from './labels.js';
 import { navPhys, navWorld } from './nav.js';
-import { PLANETS, dateStr, eclToWorld, keplerEcl, keplerSB, orbPoint, solarJD } from './solar-data.js';
+import { PLANETS, dateStr, eclToWorld, elementsAt, keplerEcl, keplerSB, orbPoint, solarJD } from './solar-data.js';
 import { solarProj } from './solar.js';
 import { S, V } from './state.js';
 import { project, scale } from './view.js';
@@ -52,7 +52,7 @@ function propagateUV(r0v,v0v,dt){
   const z=alpha*x*x, f=1-x*x/r0*stC(z), g=dt-x*x*x/sq*stS(z);
   return [f*r0v[0]+g*v0v[0], f*r0v[1]+g*v0v[1], f*r0v[2]+g*v0v[2]];
 }
-function bodyEclAt(b,jd){ const el=b.k?keplerEcl(b.k,(jd-2451545)/36525):keplerSB(b.kd,jd); return orbPoint(el,el.E); }
+function bodyEclAt(b,jd){ const el=elementsAt(b,jd); return orbPoint(el,el.E); }
 function bodyVelAt(b,jd){ const p=bodyEclAt(b,jd+0.5), m=bodyEclAt(b,jd-0.5);
   return [p[0]-m[0],p[1]-m[1],p[2]-m[2]]; }
 // scan departure × time-of-flight for the min-Δv window, then refine locally

@@ -4,7 +4,10 @@
   - Milliquas quasar sample -> the distant universe (comoving distance from z)
 Output: site/data/cosmicweb.bin and site/data/quasars.bin (8 bytes/object):
   uint16 ra, uint16 dec, uint16 dist, uint8 b6, uint8 b7   (little-endian)
-Distances are decoded in JS to parsec. cz uses H0=70; z uses flat LCDM comoving.
+Distances are decoded in JS to parsec. Both are flat-LCDM comoving distances (H0=70,
+Om=0.3); the 2MRS heliocentric cz is first moved to the CMB rest frame (Planck 2018
+dipole: 369.82 km/s toward l=264.021°, b=48.253°), which removes a systematic of up to
+±370 km/s — several Mpc for the nearby web. Peculiar velocities remain (±300 km/s).
 """
 import csv, math, os, struct
 
@@ -38,6 +41,16 @@ def comoving_mpc(z):
     return DH * (z / n) / 3.0 * s
 
 
+# Solar motion with respect to the CMB (Planck 2018): 369.82 km/s toward l=264.021 b=48.253
+V_CMB, L_APEX, B_APEX = 369.82, math.radians(264.021), math.radians(48.253)
+
+
+def cz_cmb(cz, glon, glat):
+    l, b = math.radians(glon), math.radians(glat)
+    cosang = math.sin(b) * math.sin(B_APEX) + math.cos(b) * math.cos(B_APEX) * math.cos(l - L_APEX)
+    return cz + V_CMB * cosang
+
+
 def pack_web(src=os.path.join(RAW, "twomrs_raw.csv"),
              dst=os.path.join(DATA, "cosmicweb.bin")):
     buf = bytearray(); n = 0
@@ -45,11 +58,15 @@ def pack_web(src=os.path.join(RAW, "twomrs_raw.csv"),
         for r in csv.DictReader(f):
             try:
                 ra = float(r["RAJ2000"]); dec = float(r["DEJ2000"]); cz = float(r["cz"])
+                glon = float(r["GLON"]); glat = float(r["GLAT"])
             except (ValueError, KeyError):
                 continue
             if cz <= 0:
                 continue
-            dist = cz / H0                          # Mpc
+            v = cz_cmb(cz, glon, glat)
+            if v <= 0:
+                continue
+            dist = comoving_mpc(v / C)              # Mpc, flat LCDM
             if dist > WEB_MAX or dist <= 0:
                 continue
             try:

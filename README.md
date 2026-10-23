@@ -246,8 +246,15 @@ missing or simplified, honestly:
 
 - Distances are best-available and **heterogeneous**: pulsar distances from
   dispersion measure, nebula/SNR distances representative, galaxy/quasar
-  distances from redshift (assuming H₀ = 70, flat ΛCDM). Positions are real; some
-  distances carry large uncertainties.
+  distances from redshift (flat ΛCDM, H₀ = 70; 2MRS velocities first moved to
+  the CMB rest frame, peculiar velocities of ±300 km/s remain). Positions are
+  real; some distances carry large uncertainties.
+- Solar-system positions: JPL osculating elements at a recent epoch within ±2
+  years of it (arcminutes), the Standish long-term formulas beyond (a degree over
+  centuries). Moons run on their JPL osculating orbits about their planet — true
+  phase, plane and eccentricity. Exoplanets with a transit epoch sit at their true
+  phase on an orbit edge-on to us; the node's orientation around the line of sight
+  is unknown and drawn through celestial north.
 
 ## Repository layout
 

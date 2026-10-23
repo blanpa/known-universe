@@ -139,7 +139,8 @@ void main(){
     float rAU=max(0.05, dist/0.0000048481368);
     float ang=0.0172021242/pow(rAU,1.5)*u_beltDt;
     float ca=cos(ang), sa=sin(ang);
-    dir=vec3(dir.x*ca - dir.z*sa, dir.y, dir.x*sa + dir.z*ca);   // world y = ecliptic pole
+    vec3 k=vec3(0.0,-0.39777716,0.91748206);                      // the ecliptic pole in the equatorial world
+    dir=dir*ca + cross(k,dir)*sa + k*dot(k,dir)*(1.0-ca);           // Rodrigues: rotate about the pole
   }
   ${glTail(false)}
 }`;

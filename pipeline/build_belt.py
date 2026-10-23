@@ -8,8 +8,9 @@ Output: site/data/belt.bin — 8 bytes per object, little-endian:
   uint16 dist : heliocentric distance /120 AU
   uint8  H    : absolute magnitude * 10 (clamped 25.5)
   uint8  cls  : 0=MBA 1=TJN 2=NEO 3=TNO
-Positions propagated to today via Kepler; world frame matches the app's
-eclToWorld convention (ecliptic x,y,z -> world x,z,y).
+Positions propagated to today via Kepler; the world frame is equatorial J2000 like the
+star catalogues, so the ecliptic position is rotated by the obliquity (as the app's
+eclToWorld does).
 """
 import json, math, os, struct, time
 
@@ -21,6 +22,8 @@ OUT  = os.path.join(ROOT, "site", "data")     # what the app is served from
 SRC_DIR = os.environ.get("BELT_SRC", RAW)
 DST = os.environ.get("BELT_DST", os.path.join(OUT, "belt.bin"))
 D2R = math.pi / 180.0
+OBLQ = 23.4392911 * D2R
+COB, SOB = math.cos(OBLQ), math.sin(OBLQ)
 JD_NOW = time.time() / 86400.0 + 2440587.5
 
 SETS = [("sb_mba.json", 0), ("sb_tjn.json", 1), ("sb_neo.json", 2), ("sb_tno.json", 3)]
@@ -75,8 +78,8 @@ def main():
             r = math.hypot(xe, ye, ze)
             if r <= 0 or r > 120:
                 continue
-            # app world frame: eclToWorld(x,y,z) = [x, z, y]
-            wx, wy, wz = xe / r, ze / r, ye / r
+            # app world frame = equatorial J2000: rotate the ecliptic vector by the obliquity
+            wx, wy, wz = xe / r, (ye * COB - ze * SOB) / r, (ye * SOB + ze * COB) / r
             ra = math.degrees(math.atan2(wy, wx)) % 360.0
             dec = math.degrees(math.asin(clamp(wz, -1, 1)))
             buf += struct.pack("<HHHBB",

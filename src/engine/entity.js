@@ -1,18 +1,18 @@
 // One place that knows what an object IS.
+import { objWorld } from './actions.js';
+import { PC2LY } from './data.js';
+import { fmt } from './hud.js';
+import { CLU_T, DSO_T } from './sky-data.js';
+import { FAC, SOLAR_BODIES, SUN, dateStr, eclDir, eclToWorld } from './solar-data.js';
+import { S } from './state.js';
+import { planetColor } from './system.js';
+import { fmtYears, route1g } from './transfer.js';
+import { AU_PC } from './view.js';
 //
 // The catalogues keep their native shapes — an exoplanet host is {h, p:[…]}, a pulsar
 // is [ra,dec,d,name] with a flag, a planet is {n, rk, _e} — because the hot loops are
 // written against them. Everything that has to treat objects alike (picking, flying,
 // measuring, the info card, the nav console) asks here instead of testing fields.
-import { PC2LY } from './data.js';
-import { fmt } from './hud.js';
-import { objWorld } from './actions.js';
-import { CLU_T, DSO_T } from './sky-data.js';
-import { FAC, SOLAR_BODIES, SUN, dateStr, eclToWorld } from './solar-data.js';
-import { S } from './state.js';
-import { planetColor } from './system.js';
-import { fmtYears, route1g } from './transfer.js';
-import { AU_PC } from './view.js';
 
 const GTYPE={Sp:'Spiral galaxy',E:'Elliptical galaxy',S0:'Lenticular galaxy',
   Irr:'Irregular galaxy',dSph:'Dwarf galaxy'};
@@ -93,8 +93,8 @@ export function physPos(o){
     default: return o._e ? eclPos(o._e) : null;
   }
 }
-// ecliptic AU → world parsec, with the axis order eclToWorld() uses (x, z, y)
-function eclPos(e){ return [e[0]*AU_PC, e[2]*AU_PC, e[1]*AU_PC]; }
+// ecliptic AU → world parsec (the obliquity rotation eclToWorld() uses)
+function eclPos(e){ const d=eclDir(e[0],e[1],e[2]); return [d[0]*AU_PC, d[1]*AU_PC, d[2]*AU_PC]; }
 
 // Position on the unified (scaled) world — where the thing is drawn right now.
 export function worldPos(o){

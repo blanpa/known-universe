@@ -5,7 +5,7 @@ import { fmt } from './hud.js';
 import { LBL, P_SOLAR } from './labels.js';
 import { solarJD } from './solar-data.js';
 import { S, V } from './state.js';
-import { H, W, project } from './view.js';
+import { H, W, _d2x, _d2y, camDir2i, project } from './view.js';
 // ---- other exoplanet systems: an orbital diagram around the focused host star ----
 export let sysProj=[];
 export function planetColor(r){
@@ -32,28 +32,36 @@ export function drawSystem(alpha){ LBL.prio=P_SOLAR;
   ctx.beginPath(); ctx.arc(sp.x,sp.y,Math.max(3,5*A),0,6.2832);
   ctx.fillStyle=`rgba(${sc[0]},${sc[1]},${sc[2]},${A})`; ctx.fill();
   // habitable zone (from the host's real luminosity)
-  if(S.hz && s.lum){
-    const sq=Math.sqrt(s.lum), rOf=au=>{ const t=Math.max(0,Math.min(1.06, pls.length>1?Math.log10(au/aMin)/lr:0.5));
-      return S0*(0.13+t*0.84); };
-    const ri=rOf(0.95*sq), ro=rOf(1.67*sq);
-    ctx.beginPath(); ctx.ellipse(sp.x,sp.y,ro,ro*0.42,0,0,6.2832);
-    ctx.ellipse(sp.x,sp.y,ri,ri*0.42,0,0,6.2832);
-    ctx.fillStyle=`rgba(90,220,130,${A*0.11})`; ctx.fill('evenodd');
-    ctx.strokeStyle=`rgba(110,230,150,${A*0.32})`; ctx.lineWidth=1;
-    ctx.beginPath(); ctx.ellipse(sp.x,sp.y,ri,ri*0.42,0,0,6.2832); ctx.stroke();
-    ctx.beginPath(); ctx.ellipse(sp.x,sp.y,ro,ro*0.42,0,0,6.2832); ctx.stroke();
+  // habitable zone (from the host's real luminosity), drawn after the orbit frame below
+  const HZ = (S.hz && s.lum) ? (()=>{ const sq=Math.sqrt(s.lum), rOf=au=>{ const t=Math.max(0,Math.min(1.06, pls.length>1?Math.log10(au/aMin)/lr:0.5));
+      return S0*(0.13+t*0.84); }; return [rOf(0.95*sq), rOf(1.67*sq)]; })() : null;
+  // Orbit geometry. A planet with a transit epoch orbits EDGE-ON to us: its plane holds
+  // the line of sight, and at t0 it stands in front of its star. Where the orbit's node
+  // points around that line the data does not say, so the plane is laid through the
+  // local celestial north — honest about phase, elongation and in-front/behind, silent
+  // about the rest. Planets without an epoch keep a schematic face-on circle.
+  const u=[-s._dx,-s._dy,-s._dz];                            // star → us
+  let v=[0,0,1]; { const d=v[2]*u[2]; v=[-d*u[0],-d*u[1],1-d*u[2]]; const l=Math.hypot(v[0],v[1],v[2])||1; v=[v[0]/l,v[1]/l,v[2]/l]; }
+  const w=[u[1]*v[2]-u[2]*v[1], u[2]*v[0]-u[0]*v[2], u[0]*v[1]-u[1]*v[0]];
+  const ringPt=(r,a,b,th)=>{ const c=Math.cos(th), sn=Math.sin(th);
+    camDir2i(a[0]*c+b[0]*sn, a[1]*c+b[1]*sn, a[2]*c+b[2]*sn); return [sp.x+_d2x*r, sp.y+_d2y*r]; };
+  const ring=(r,a,b)=>{ ctx.beginPath(); for(let k=0;k<=48;k++){ const q=ringPt(r,a,b,k/48*6.2832); if(k) ctx.lineTo(q[0],q[1]); else ctx.moveTo(q[0],q[1]); } };
+  if(HZ){ const [ri,ro]=HZ;                                  // in the sky plane, like a face-on orbit
+    ring(ro,v,w); ring(ri,v,w); ctx.fillStyle=`rgba(90,220,130,${A*0.11})`; ctx.fill('evenodd');
+    ctx.strokeStyle=`rgba(110,230,150,${A*0.32})`; ctx.lineWidth=1; ring(ri,v,w); ctx.stroke(); ring(ro,v,w); ctx.stroke();
     ctx.font='8.5px ui-monospace,monospace'; ctx.fillStyle=`rgba(120,230,150,${A*0.72})`;
-    ctx.fillText('habitable zone', sp.x+ro*0.5, sp.y-ro*0.42-3);
-  }
+    const lp=ringPt(ro,v,w,-0.9); ctx.fillText('habitable zone', lp[0]+4, lp[1]-3); }
   pls.forEach((p,i)=>{
     const t = pls.length>1 ? Math.log10(p.a/aMin)/lr : 0.5;
     const orb = S0*(0.13+t*0.84);
-    ctx.beginPath(); ctx.ellipse(sp.x,sp.y,orb,orb*0.42,0,0,6.2832);
+    const transit = p.per>0 && p.t0>0;
+    const pa = transit ? u : v, pb = transit ? v : w;        // the orbit's plane
+    ring(orb,pa,pb);
     ctx.strokeStyle=`rgba(150,170,210,${A*0.22})`; ctx.lineWidth=1; ctx.stroke();
     let ang;                                       // real transit phase when the ephemeris exists
-    if(p.per>0 && p.t0>0){ const ph=((solarJD()-p.t0)/p.per)%1; ang=(ph<0?ph+1:ph)*6.2832; }
+    if(transit){ const ph=((solarJD()-p.t0)/p.per)%1; ang=(ph<0?ph+1:ph)*6.2832; }
     else ang=i*2.399+0.6;
-    const mx=sp.x+Math.cos(ang)*orb, my=sp.y+Math.sin(ang)*orb*0.42;
+    const [mx,my]=ringPt(orb,pa,pb,ang);
     const pc=planetColor(p.r), ppx=Math.max(2.2,Math.min(17,(p.r?Math.pow(p.r,0.4)*2.6:4)*A));
     const psel=(p===S.hover||p===S.pinned);
     ctx.beginPath(); ctx.arc(mx,my,ppx,0,6.2832);

@@ -2,7 +2,7 @@
 import { LIVE } from '../lib/live.js';
 import { ctx } from './canvas.js';
 import { LBL, P_HUD } from './labels.js';
-import { D2R, PLANETS, solarJD } from './solar-data.js';
+import { D2R, PLANETS, eclDir, solarJD } from './solar-data.js';
 import { S, V } from './state.js';
 import { H, W } from './view.js';
 // ---- EPIC: today's photo of Earth as the glyph texture (lazy, CORS image) ----
@@ -42,14 +42,15 @@ export function earthImage(px){
 export let _gbl=null;
 function gmstRad(jd){ const d=jd-2451545; let g=(280.46061837+360.98564736629*d)%360;
   if(g<0)g+=360; return g*D2R; }
-const OBLQ=23.439*Math.PI/180;
 export function globeViewRows(){
   const cy=Math.cos(S.yaw),sy=Math.sin(S.yaw),cp=Math.cos(S.pitch),sp=Math.sin(S.pitch);
   return [[cy,0,sy],[sy*sp,cp,-cy*sp],[-sy*cp,sp,cy*cp]];   // rows of project()'s rotation
 }
-function globeModelRows(t,eps){                              // spin angle t, axial tilt eps
-  const ct=Math.cos(t), st=Math.sin(t), ce=Math.cos(eps), se=Math.sin(eps);
-  return [[ct,-st,0],[-se*st,-se*ct,ce],[ce*st,ce*ct,se]];  // world ← ecl ← equatorial ← geographic
+function globeModelRows(t){                                  // spin angle t (GMST)
+  // the world frame is equatorial, so the axis is world z and the tilt is already in
+  // where the Sun stands (eclDir); the model is the daily spin alone
+  const ct=Math.cos(t), st=Math.sin(t);
+  return [[ct,-st,0],[st,ct,0],[0,0,1]];                    // world ← geographic
 }
 const rows2col=r=>[r[0][0],r[1][0],r[2][0], r[0][1],r[1][1],r[2][1], r[0][2],r[1][2],r[2][2]];
 let _gblFails=0, _gblNextTry=0;
@@ -187,7 +188,7 @@ function renderGlobe(px,tex,Mrows,body){                 // shared sphere pass (
   gl.uniformMatrix3fv(g.uV,false,rows2col(globeViewRows()));
   gl.uniformMatrix3fv(g.uM,false,rows2col(Mrows));
   let sun=[0,0,1];
-  if(body&&body._e){ const w=[-body._e[0],-body._e[2],-body._e[1]];
+  if(body&&body._e){ const w=eclDir(-body._e[0],-body._e[1],-body._e[2]);
     const l=Math.hypot(w[0],w[1],w[2])||1; sun=[w[0]/l,w[1]/l,w[2]/l]; }
   gl.uniform3fv(g.uSun,sun);
   gl.bindTexture(gl.TEXTURE_2D,tex);
@@ -199,7 +200,7 @@ export function earthGlobe(px,jd){
   const g=globeInit(); if(!g) return null;
   if(!g.texReady){ globeTexture(); return null; }        // GOES disc until the mosaic is in
   const earth=PLANETS.find(p=>p.n==='Earth');
-  return renderGlobe(px,g.tex,globeModelRows(gmstRad(jd),OBLQ),earth);
+  return renderGlobe(px,g.tex,globeModelRows(gmstRad(jd)),earth);
 }
 // planet globes: local equirect maps (Solar System Scope · CC BY 4.0) on the same
 // sphere pass — real sun direction, spin from the true rotation period (schematic pole)
@@ -233,7 +234,7 @@ export function bodyGlobe(b,px,jd){
 function globeInverse(u,v){
   const rho=Math.hypot(u,v); if(rho>=1) return null;
   const nv=[u,-v,Math.sqrt(1-rho*rho)];
-  const V=globeViewRows(), M=globeModelRows(gmstRad(solarJD()),OBLQ);
+  const V=globeViewRows(), M=globeModelRows(gmstRad(solarJD()));
   const wrl=[V[0][0]*nv[0]+V[1][0]*nv[1]+V[2][0]*nv[2],   // Vᵀ·nv
              V[0][1]*nv[0]+V[1][1]*nv[1]+V[2][1]*nv[2],
              V[0][2]*nv[0]+V[1][2]*nv[1]+V[2][2]*nv[2]];

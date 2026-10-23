@@ -73,20 +73,24 @@ TNOS.forEach(t=>{ t.kind=/Chariklo|Chiron|Pholus/.test(t.n)?'Centaur':'Trans-Nep
 PROBES.forEach(p=>{ p.kind='Spacecraft'; p.moons=[]; });
 // ---- real moon ephemerides (JPL Horizons state vectors -> circular propagation) ----
 export const MOON_EPH=CAT.moonEph;;
-export function moonDirAt(eph,ang){                       // rotate epoch vector around the orbit normal
-  const ca=Math.cos(ang), sa=Math.sin(ang), p0=eph.p, n=eph.n;
-  const dot=p0[0]*n[0]+p0[1]*n[1]+p0[2]*n[2];
-  const cr=[n[1]*p0[2]-n[2]*p0[1], n[2]*p0[0]-n[0]*p0[2], n[0]*p0[1]-n[1]*p0[0]];
-  const e=[p0[0]*ca+cr[0]*sa+n[0]*dot*(1-ca),
-           p0[1]*ca+cr[1]*sa+n[1]*dot*(1-ca),
-           p0[2]*ca+cr[2]*sa+n[2]*dot*(1-ca)];
-  return [e[0], e[2], e[1]];                       // ecliptic -> world (matches eclToWorld)
+// A moon's position about its planet from JPL osculating elements (catalog.json
+// `moonEph`: a in km, ecliptic J2000). Kepler's equation gives the true phase, plane and
+// eccentricity — the Moon's orbit is 5 % eccentric, Nereid's 75 %. Returns the world-axis
+// direction (ecliptic → world, as eclToWorld) and the distance in km.
+export function moonAt(kd,jd){
+  const el=keplerSB(kd,jd), q=orbPoint(el,el.E), r=Math.hypot(q[0],q[1],q[2])||1, d=eclDir(q[0],q[1],q[2]);
+  return { dir:[d[0]/r, d[1]/r, d[2]/r], r };
+}
+export function moonOrbitPoint(kd,E){              // a point of the orbit outline (world axes, km)
+  const el={a:kd.a,e:kd.e,I:kd.i*D2R,om:kd.w*D2R,O:kd.om*D2R,E}, q=orbPoint(el,E);
+  return eclDir(q[0],q[1],q[2]);
 }
 const EXTRA_MOONS=CAT.extraMoons;
 for(const b of [...PLANETS,...DWARFS]){ const ex=EXTRA_MOONS[b.n];
   if(ex) for(const m of ex){ m.minor=true; m.c=[152,152,158]; b.moons.push(m); } }
 export const SUNHIT={sunhit:true};
-PLANETS.forEach(p=>{p.kind='Planet'; p.moons.forEach(m=>{m.kind='Moon'; m.parent=p.n; m.pc=p.c;});});
+PLANETS.forEach(p=>{p.kind='Planet'; p.moons.forEach(m=>{m.kind='Moon'; m.parent=p.n; m.pc=p.c;});
+  if(CAT.planetsOsc&&CAT.planetsOsc[p.n]) p.osc=CAT.planetsOsc[p.n]; });
 DWARFS.forEach(p=>{p.kind='Dwarf planet'; p.moons.forEach(m=>{m.kind='Moon'; m.parent=p.n; m.pc=p.c;});});
 SUN.kind='Star';
 export const SOLAR_BODIES=[...PLANETS,...DWARFS,...TNOS];
@@ -122,16 +126,32 @@ export function keplerSB(kd,jd){
   for(let i=0;i<18;i++){ const dE=(E-e*Math.sin(E)-M)/(1-e*Math.cos(E)); E-=dE; if(Math.abs(dE)<1e-8)break; }
   return {a:kd.a,e:kd.e,I:kd.i*D2R,om:kd.w*D2R,O:kd.om*D2R,E};
 }
-// ecliptic AU → unified world coords (ecliptic plane = world XZ, north = world +Y)
+// ---- frames ----
+// The catalogues are equatorial J2000: x toward the vernal equinox, z toward the celestial
+// north pole. The solar system is computed in the ecliptic J2000 frame, and ONE rotation
+// by the obliquity puts it into the same sky. (It used to be an axis swap, which stood the
+// whole solar system 90° against the stars — the Sun was in the wrong constellation.)
+export const OBLQ=23.4392911*D2R, cOB=Math.cos(OBLQ), sOB=Math.sin(OBLQ);
+export function eclDir(xe,ye,ze){ return [xe, ye*cOB-ze*sOB, ye*sOB+ze*cOB]; }
+// ecliptic AU → unified world coords (direction in the equatorial frame, radius scaled)
 export function eclToWorld(xe,ye,ze){
   const r=Math.hypot(xe,ye,ze)||1e-12, R=scale(r*AU_PC)/r;
-  return [xe*R, ze*R, ye*R];
+  return [xe*R, (ye*cOB-ze*sOB)*R, (ye*sOB+ze*cOB)*R];
 }
 // recompute every body's orbit elements + position for a given Julian date
+// Orbit elements of a body for a date. Planets carry two sets: JPL osculating elements
+// at a recent epoch (catalog.json `planetsOsc`, exact to arcminutes near the epoch) and
+// the long-term Standish formulas (good to a degree over centuries). Within ±2 years of
+// the epoch the osculating set wins; beyond, a Kepler orbit would drift with perturbations.
+const OSC_SPAN=730;
+export function elementsAt(b,jd){
+  if(b.osc && Math.abs(jd-b.osc.ep)<OSC_SPAN) return keplerSB(b.osc,jd);
+  if(b.k) return keplerEcl(b.k,(jd-2451545.0)/36525);
+  return b.kd ? keplerSB(b.kd,jd) : null;
+}
 export function updateSolarPositions(jd){
-  const T=(jd-2451545.0)/36525;
   for(const b of SOLAR_BODIES){
-    b._el = b.k ? keplerEcl(b.k,T) : b.kd ? keplerSB(b.kd,jd) : null;
+    b._el = elementsAt(b,jd);
     b._e  = b._el ? orbPoint(b._el,b._el.E) : null;
     if(b._e) b._r = Math.hypot(b._e[0],b._e[1],b._e[2]);
   }

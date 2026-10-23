@@ -1,4 +1,4 @@
-import { _ as toggleState, a as startLive, c as facColor, d as measure, f as nav, g as timeline, h as stats, i as satEcl, l as facList$1, m as selection, n as activeShowers, o as RESERVED, p as searchMsg, r as groundEcl, s as camera, t as LIVE, u as labels, v as tour, y as api } from "./index-CMbr2e42.js";
+import { _ as toggleState, a as startLive, c as facColor, d as measure, f as nav, g as timeline, h as stats, i as satEcl, l as facList$1, m as selection, n as activeShowers, o as RESERVED, p as searchMsg, r as groundEcl, s as camera, t as LIVE, u as labels, v as tour, y as api } from "./index-kFfkSiFH.js";
 //#region src/engine/canvas.js
 var cv = document.getElementById("sky");
 var ctx = cv.getContext("2d");
@@ -450,7 +450,7 @@ var DSO = [
 		t: "GC",
 		ra: 6.02,
 		dec: -72.08,
-		d: 4e3
+		d: 4450
 	},
 	{
 		n: "M5",
@@ -492,7 +492,7 @@ var DSO = [
 		t: "EN",
 		ra: 83.82,
 		dec: -5.39,
-		d: 412
+		d: 388
 	},
 	{
 		n: "Lagoon Nebula · M8",
@@ -555,7 +555,7 @@ var DSO = [
 		t: "PN",
 		ra: 283.4,
 		dec: 33.03,
-		d: 700
+		d: 787
 	},
 	{
 		n: "Dumbbell Nebula · M27",
@@ -786,7 +786,7 @@ var DSO = [
 		t: "BD",
 		ra: 181.89,
 		dec: -39.55,
-		d: 52.4
+		d: 64.4
 	},
 	{
 		n: "Teide 1 · Pleiades",
@@ -2877,24 +2877,27 @@ PROBES.forEach((p) => {
 	p.moons = [];
 });
 var MOON_EPH = CAT.moonEph;
-function moonDirAt(eph, ang) {
-	const ca = Math.cos(ang), sa = Math.sin(ang), p0 = eph.p, n = eph.n;
-	const dot = p0[0] * n[0] + p0[1] * n[1] + p0[2] * n[2];
-	const cr = [
-		n[1] * p0[2] - n[2] * p0[1],
-		n[2] * p0[0] - n[0] * p0[2],
-		n[0] * p0[1] - n[1] * p0[0]
-	];
-	const e = [
-		p0[0] * ca + cr[0] * sa + n[0] * dot * (1 - ca),
-		p0[1] * ca + cr[1] * sa + n[1] * dot * (1 - ca),
-		p0[2] * ca + cr[2] * sa + n[2] * dot * (1 - ca)
-	];
-	return [
-		e[0],
-		e[2],
-		e[1]
-	];
+function moonAt(kd, jd) {
+	const el = keplerSB(kd, jd), q = orbPoint(el, el.E), r = Math.hypot(q[0], q[1], q[2]) || 1, d = eclDir(q[0], q[1], q[2]);
+	return {
+		dir: [
+			d[0] / r,
+			d[1] / r,
+			d[2] / r
+		],
+		r
+	};
+}
+function moonOrbitPoint(kd, E) {
+	const q = orbPoint({
+		a: kd.a,
+		e: kd.e,
+		I: kd.i * D2R,
+		om: kd.w * D2R,
+		O: kd.om * D2R,
+		E
+	}, E);
+	return eclDir(q[0], q[1], q[2]);
 }
 var EXTRA_MOONS = CAT.extraMoons;
 for (const b of [...PLANETS, ...DWARFS]) {
@@ -2917,6 +2920,7 @@ PLANETS.forEach((p) => {
 		m.parent = p.n;
 		m.pc = p.c;
 	});
+	if (CAT.planetsOsc && CAT.planetsOsc[p.n]) p.osc = CAT.planetsOsc[p.n];
 });
 DWARFS.forEach((p) => {
 	p.kind = "Dwarf planet";
@@ -2993,18 +2997,33 @@ function keplerSB(kd, jd) {
 		E
 	};
 }
+var OBLQ = 23.4392911 * D2R;
+var cOB = Math.cos(OBLQ);
+var sOB = Math.sin(OBLQ);
+function eclDir(xe, ye, ze) {
+	return [
+		xe,
+		ye * cOB - ze * sOB,
+		ye * sOB + ze * cOB
+	];
+}
 function eclToWorld(xe, ye, ze) {
 	const r = Math.hypot(xe, ye, ze) || 1e-12, R = scale(r * AU_PC) / r;
 	return [
 		xe * R,
-		ze * R,
-		ye * R
+		(ye * cOB - ze * sOB) * R,
+		(ye * sOB + ze * cOB) * R
 	];
 }
+var OSC_SPAN = 730;
+function elementsAt(b, jd) {
+	if (b.osc && Math.abs(jd - b.osc.ep) < OSC_SPAN) return keplerSB(b.osc, jd);
+	if (b.k) return keplerEcl(b.k, (jd - 2451545) / 36525);
+	return b.kd ? keplerSB(b.kd, jd) : null;
+}
 function updateSolarPositions(jd) {
-	const T = (jd - 2451545) / 36525;
 	for (const b of SOLAR_BODIES) {
-		b._el = b.k ? keplerEcl(b.k, T) : b.kd ? keplerSB(b.kd, jd) : null;
+		b._el = elementsAt(b, jd);
 		b._e = b._el ? orbPoint(b._el, b._el.E) : null;
 		if (b._e) b._r = Math.hypot(b._e[0], b._e[1], b._e[2]);
 	}
@@ -3139,43 +3158,87 @@ function drawSystem(alpha) {
 	ctx.arc(sp.x, sp.y, Math.max(3, 5 * A), 0, 6.2832);
 	ctx.fillStyle = `rgba(${sc[0]},${sc[1]},${sc[2]},${A})`;
 	ctx.fill();
-	if (S.hz && s.lum) {
+	const HZ = S.hz && s.lum ? (() => {
 		const sq = Math.sqrt(s.lum), rOf = (au) => {
 			const t = Math.max(0, Math.min(1.06, pls.length > 1 ? Math.log10(au / aMin) / lr : .5));
 			return S0 * (.13 + t * .84);
 		};
-		const ri = rOf(.95 * sq), ro = rOf(1.67 * sq);
+		return [rOf(.95 * sq), rOf(1.67 * sq)];
+	})() : null;
+	const u = [
+		-s._dx,
+		-s._dy,
+		-s._dz
+	];
+	let v = [
+		0,
+		0,
+		1
+	];
+	{
+		const d = v[2] * u[2];
+		v = [
+			-d * u[0],
+			-d * u[1],
+			1 - d * u[2]
+		];
+		const l = Math.hypot(v[0], v[1], v[2]) || 1;
+		v = [
+			v[0] / l,
+			v[1] / l,
+			v[2] / l
+		];
+	}
+	const w = [
+		u[1] * v[2] - u[2] * v[1],
+		u[2] * v[0] - u[0] * v[2],
+		u[0] * v[1] - u[1] * v[0]
+	];
+	const ringPt = (r, a, b, th) => {
+		const c = Math.cos(th), sn = Math.sin(th);
+		camDir2i(a[0] * c + b[0] * sn, a[1] * c + b[1] * sn, a[2] * c + b[2] * sn);
+		return [sp.x + _d2x * r, sp.y + _d2y * r];
+	};
+	const ring = (r, a, b) => {
 		ctx.beginPath();
-		ctx.ellipse(sp.x, sp.y, ro, ro * .42, 0, 0, 6.2832);
-		ctx.ellipse(sp.x, sp.y, ri, ri * .42, 0, 0, 6.2832);
+		for (let k = 0; k <= 48; k++) {
+			const q = ringPt(r, a, b, k / 48 * 6.2832);
+			if (k) ctx.lineTo(q[0], q[1]);
+			else ctx.moveTo(q[0], q[1]);
+		}
+	};
+	if (HZ) {
+		const [ri, ro] = HZ;
+		ring(ro, v, w);
+		ring(ri, v, w);
 		ctx.fillStyle = `rgba(90,220,130,${A * .11})`;
 		ctx.fill("evenodd");
 		ctx.strokeStyle = `rgba(110,230,150,${A * .32})`;
 		ctx.lineWidth = 1;
-		ctx.beginPath();
-		ctx.ellipse(sp.x, sp.y, ri, ri * .42, 0, 0, 6.2832);
+		ring(ri, v, w);
 		ctx.stroke();
-		ctx.beginPath();
-		ctx.ellipse(sp.x, sp.y, ro, ro * .42, 0, 0, 6.2832);
+		ring(ro, v, w);
 		ctx.stroke();
 		ctx.font = "8.5px ui-monospace,monospace";
 		ctx.fillStyle = `rgba(120,230,150,${A * .72})`;
-		ctx.fillText("habitable zone", sp.x + ro * .5, sp.y - ro * .42 - 3);
+		const lp = ringPt(ro, v, w, -.9);
+		ctx.fillText("habitable zone", lp[0] + 4, lp[1] - 3);
 	}
 	pls.forEach((p, i) => {
 		const t = pls.length > 1 ? Math.log10(p.a / aMin) / lr : .5;
 		const orb = S0 * (.13 + t * .84);
-		ctx.beginPath();
-		ctx.ellipse(sp.x, sp.y, orb, orb * .42, 0, 0, 6.2832);
+		const transit = p.per > 0 && p.t0 > 0;
+		const pa = transit ? u : v, pb = transit ? v : w;
+		ring(orb, pa, pb);
 		ctx.strokeStyle = `rgba(150,170,210,${A * .22})`;
 		ctx.lineWidth = 1;
 		ctx.stroke();
 		let ang;
-		if (p.per > 0 && p.t0 > 0) {
+		if (transit) {
 			const ph = (solarJD() - p.t0) / p.per % 1;
 			ang = (ph < 0 ? ph + 1 : ph) * 6.2832;
 		} else ang = i * 2.399 + .6;
-		const mx = sp.x + Math.cos(ang) * orb, my = sp.y + Math.sin(ang) * orb * .42;
+		const [mx, my] = ringPt(orb, pa, pb, ang);
 		const pc = planetColor(p.r), ppx = Math.max(2.2, Math.min(17, (p.r ? Math.pow(p.r, .4) * 2.6 : 4) * A));
 		const psel = p === S.hover || p === S.pinned;
 		ctx.beginPath();
@@ -3573,11 +3636,7 @@ function drawSunspots(A, sp, spx) {
 	const lamE = Math.atan2(earth._e[1], earth._e[0]);
 	for (const r of LIVE.regions) {
 		const e = stonyhurstEcl(r.lat, r.lon, lamE);
-		const d = dirScreen([
-			e[0],
-			e[2],
-			e[1]
-		]);
+		const d = dirScreen(eclDir(e[0], e[1], e[2]));
 		if (d[2] <= .05) continue;
 		const x = sp.x + d[0] * spx * .94, y = sp.y + d[1] * spx * .94;
 		const rr = Math.max(1.2, Math.sqrt(r.area || 20) * spx / 280);
@@ -3719,11 +3778,7 @@ function drawFireballs(A) {
 		const age = (nowMs - f.t) / 864e5;
 		if (age < 0 || age > 30) continue;
 		const e = groundEcl(f.lat, f.lon, f.t);
-		const d = dirScreen([
-			e[0],
-			e[2],
-			e[1]
-		]);
+		const d = dirScreen(eclDir(e[0], e[1], e[2]));
 		if (d[2] <= .05) continue;
 		const x = ep.x + d[0] * px * .97, y = ep.y + d[1] * px * .97;
 		const rr = Math.max(1.6, 2.2 + Math.log10(f.kt || .1));
@@ -4065,18 +4120,19 @@ function drawSolar(alpha) {
 				const sepPx = Math.min(S.realScale ? V.foc * (m.am * 32408e-15) / p.depth : rr, 8 * Math.max(W, H));
 				const eph = MOON_EPH[m.n];
 				let mx, my;
-				if (eph) {
-					const dm = moonDirAt(eph, eph.w * (jdM - eph.ep));
-					camDir2i(dm[0], dm[1], dm[2]);
-					mx = p.x + _d2x * sepPx;
-					my = p.y + _d2y * sepPx;
+				if (eph && eph.a) {
+					const mp = moonAt(eph, jdM);
+					const kmPx = S.realScale ? V.foc * 32408e-18 / p.depth : sepPx / (m.am * 1e3 || eph.a);
+					camDir2i(mp.dir[0], mp.dir[1], mp.dir[2]);
+					mx = p.x + _d2x * mp.r * kmPx;
+					my = p.y + _d2y * mp.r * kmPx;
 					const seg = sepPx < 7 ? 0 : sepPx < 40 ? 12 : 24;
 					if (seg) {
 						ctx.beginPath();
 						for (let k = 0; k <= seg; k++) {
-							const rp = moonDirAt(eph, k / seg * 6.2832);
+							const rp = moonOrbitPoint(eph, k / seg * 6.2832);
 							camDir2i(rp[0], rp[1], rp[2]);
-							const qx = p.x + _d2x * sepPx, qy = p.y + _d2y * sepPx;
+							const qx = p.x + _d2x * kmPx, qy = p.y + _d2y * kmPx;
 							if (k === 0) ctx.moveTo(qx, qy);
 							else ctx.lineTo(qx, qy);
 						}
@@ -4481,7 +4537,7 @@ function propagateUV(r0v, v0v, dt) {
 	];
 }
 function bodyEclAt(b, jd) {
-	const el = b.k ? keplerEcl(b.k, (jd - 2451545) / 36525) : keplerSB(b.kd, jd);
+	const el = elementsAt(b, jd);
 	return orbPoint(el, el.E);
 }
 function bodyVelAt(b, jd) {
@@ -4892,10 +4948,11 @@ function physPos(o) {
 	}
 }
 function eclPos(e) {
+	const d = eclDir(e[0], e[1], e[2]);
 	return [
-		e[0] * AU_PC,
-		e[2] * AU_PC,
-		e[1] * AU_PC
+		d[0] * AU_PC,
+		d[1] * AU_PC,
+		d[2] * AU_PC
 	];
 }
 function worldPos(o) {
@@ -5620,7 +5677,8 @@ void main(){
     float rAU=max(0.05, dist/0.0000048481368);
     float ang=0.0172021242/pow(rAU,1.5)*u_beltDt;
     float ca=cos(ang), sa=sin(ang);
-    dir=vec3(dir.x*ca - dir.z*sa, dir.y, dir.x*sa + dir.z*ca);   // world y = ecliptic pole
+    vec3 k=vec3(0.0,-0.39777716,0.91748206);                      // the ecliptic pole in the equatorial world
+    dir=dir*ca + cross(k,dir)*sa + k*dot(k,dir)*(1.0-ca);           // Rodrigues: rotate about the pole
   }
   ${glTail(false)}
 }`;
@@ -7924,7 +7982,6 @@ function gmstRad(jd) {
 	if (g < 0) g += 360;
 	return g * D2R;
 }
-var OBLQ = 23.439 * Math.PI / 180;
 function globeViewRows() {
 	const cy = Math.cos(S.yaw), sy = Math.sin(S.yaw), cp = Math.cos(S.pitch), sp = Math.sin(S.pitch);
 	return [
@@ -7945,8 +8002,8 @@ function globeViewRows() {
 		]
 	];
 }
-function globeModelRows(t, eps) {
-	const ct = Math.cos(t), st = Math.sin(t), ce = Math.cos(eps), se = Math.sin(eps);
+function globeModelRows(t) {
+	const ct = Math.cos(t), st = Math.sin(t);
 	return [
 		[
 			ct,
@@ -7954,14 +8011,14 @@ function globeModelRows(t, eps) {
 			0
 		],
 		[
-			-se * st,
-			-se * ct,
-			ce
+			st,
+			ct,
+			0
 		],
 		[
-			ce * st,
-			ce * ct,
-			se
+			0,
+			0,
+			1
 		]
 	];
 }
@@ -8209,11 +8266,7 @@ function renderGlobe(px, tex, Mrows, body) {
 		1
 	];
 	if (body && body._e) {
-		const w = [
-			-body._e[0],
-			-body._e[2],
-			-body._e[1]
-		];
+		const w = eclDir(-body._e[0], -body._e[1], -body._e[2]);
 		const l = Math.hypot(w[0], w[1], w[2]) || 1;
 		sun = [
 			w[0] / l,
@@ -8235,7 +8288,7 @@ function earthGlobe(px, jd) {
 		return null;
 	}
 	const earth = PLANETS.find((p) => p.n === "Earth");
-	return renderGlobe(px, g.tex, globeModelRows(gmstRad(jd), OBLQ), earth);
+	return renderGlobe(px, g.tex, globeModelRows(gmstRad(jd)), earth);
 }
 var PTEX = {
 	Moon: [
@@ -8320,7 +8373,7 @@ function globeInverse(u, v) {
 		-v,
 		Math.sqrt(1 - rho * rho)
 	];
-	const V = globeViewRows(), M = globeModelRows(gmstRad(solarJD()), OBLQ);
+	const V = globeViewRows(), M = globeModelRows(gmstRad(solarJD()));
 	const wrl = [
 		V[0][0] * nv[0] + V[1][0] * nv[1] + V[2][0] * nv[2],
 		V[0][1] * nv[0] + V[1][1] * nv[1] + V[2][1] * nv[2],
