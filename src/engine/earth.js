@@ -1,4 +1,5 @@
 // The Earth up close: EPIC/GOES imagery, the 3D globe, the surface tile map.
+import { declare, mark, timg } from '../lib/sources.js';
 import { LIVE } from '../lib/live.js';
 import { ctx } from './canvas.js';
 import { LBL, P_HUD } from './labels.js';
@@ -7,11 +8,15 @@ import { S, V } from './state.js';
 import { H, W } from './view.js';
 // ---- EPIC: today's photo of Earth as the glyph texture (lazy, CORS image) ----
 let _epicImg=null,_epicState=0;
+declare('gibs', {name:'NASA GIBS · VIIRS true-colour surface tiles', host:'gibs.earthdata.nasa.gov', group:'earth'});
+declare('goes', {name:'NOAA GOES-19 · full-disk Earth image', host:'cdn.star.nesdis.noaa.gov', group:'earth'});
+declare('nasa-epic-img', {name:'NASA EPIC · Earth photo', host:'api.nasa.gov', group:'earth'});
 function epicImage(){
   if(_epicState===0 && LIVE.epic){ _epicState=1;
     const im=new Image(); im.crossOrigin='anonymous';
     im.onload=()=>{ _epicImg=im; V.dirty=true; };
     im.onerror=()=>{ _epicState=2; };
+    timg('nasa-epic-img', {name:'NASA EPIC · Earth photo', host:'api.nasa.gov', group:'earth'}, im);
     im.src=LIVE.epic.url;
   }
   return _epicImg;
@@ -26,6 +31,7 @@ function loadGoes(res){
   const im=new Image(); im.crossOrigin='anonymous';
   im.onload=()=>{ _goesImg=im; _goesTs=Date.now(); _goesHi=res>2000; _goesLoading=false; V.dirty=true; };
   im.onerror=()=>{ _goesLoading=false; _goesFail++; };
+  timg('goes', {name:'NOAA GOES-19 · full-disk Earth image', host:'cdn.star.nesdis.noaa.gov', group:'earth'}, im);
   im.src=`https://cdn.star.nesdis.noaa.gov/GOES19/ABI/FD/GEOCOLOR/${res}x${res}.jpg`
         +'?t='+Math.floor(Date.now()/600000);          // 10-min cache-buster
 }
@@ -149,6 +155,7 @@ function globeTexture(){
   const tryDay=off=>{
     if(off>5){ finish(); return; }
     const date=new Date(Date.now()-off*86400000).toISOString().slice(0,10);
+    mark('gibs', {state:'busy', msg:'mosaic for '+date});
     const cnv=document.createElement('canvas'); cnv.width=5120; cnv.height=2560;
     const c2=cnv.getContext('2d');
     let n=0, failed=false;
@@ -162,11 +169,13 @@ function globeTexture(){
           if(!g.best || frac<g.best.frac) g.best={cnv,frac,date,off};
           if(frac>0.06){
             try{console.log('globe: mosaic',date,'is',(frac*100).toFixed(0)+'% black — trying an earlier day');}catch(e){}
+            mark('gibs', {state:'warn', msg:date+' is '+(frac*100).toFixed(0)+'% black, trying an earlier day'});
             tryDay(off+1); return;
           }
+          mark('gibs', {state:'ok', n:50, msg:'50 tiles · '+date});
           finish();
         } };
-      im.onerror=()=>{ if(!failed){ failed=true; tryDay(off+1); } };
+      im.onerror=()=>{ if(!failed){ failed=true; mark('gibs', {state:'warn', msg:'tile missing for '+date+', trying an earlier day'}); tryDay(off+1); } };
       im.src=`https://gibs.earthdata.nasa.gov/wmts/epsg4326/best/VIIRS_SNPP_CorrectedReflectance_TrueColor/default/${date}/250m/3/${r}/${c}.jpg`;
     }
   };

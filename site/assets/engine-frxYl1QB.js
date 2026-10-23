@@ -1,4 +1,4 @@
-import { C as toggleState, D as api, E as userLayer, S as timeline, T as transit, _ as selection, a as startLive, b as survey, c as encounters, d as fieldQuery, f as labels, g as searchMsg, h as nav, i as satEcl, l as facColor, m as movers, n as activeShowers, o as RESERVED, p as measure, r as groundEcl, s as camera, t as LIVE, u as facList$1, v as skyCursor, w as tour, x as timeBar, y as stats } from "./index-CdtWPa8j.js";
+import { A as declare, C as timeline, D as userLayer, E as transit, M as tfetch, N as timg, O as api, S as timeBar, T as tour, _ as searchMsg, a as satEcl, b as stats, c as camera, d as facList$1, f as fieldQuery, g as nav, h as movers, i as refreshLive, j as mark, k as count, l as encounters, m as measure, n as activeShowers, o as startLive, p as labels, r as groundEcl, s as RESERVED, t as LIVE, u as facColor, v as selection, w as toggleState, x as survey, y as skyCursor } from "./index-DD_m1yYD.js";
 //#region src/engine/canvas.js
 var cv = document.getElementById("sky");
 var ctx = cv.getContext("2d");
@@ -3217,6 +3217,23 @@ function surveyAlpha() {
 var CACHE = /* @__PURE__ */ new Map();
 var _loads = 0;
 var cacheSize = () => CACHE.size;
+var TSTAT = {};
+function tileStat(sv, ok) {
+	const c = TSTAT[sv.id] || (TSTAT[sv.id] = {
+		ok: 0,
+		failed: 0
+	});
+	if (ok) c.ok++;
+	else c.failed++;
+	mark("tiles-" + sv.id, {
+		name: sv.n + " tiles · " + sv.epoch,
+		host: "alasky.cds.unistra.fr",
+		group: "sky",
+		n: c.ok,
+		state: c.failed === 0 ? "ok" : c.failed > c.ok ? "error" : "warn",
+		msg: c.failed ? `${c.failed} tiles failed` : ""
+	});
+}
 function tileKey(sv, order, pix) {
 	return sv.id + "/" + order + "/" + pix;
 }
@@ -3242,10 +3259,12 @@ function requestTile(sv, order, pix) {
 		_loads--;
 		t.ok = true;
 		V.dirty = true;
+		tileStat(sv, true);
 	};
 	t.img.onerror = () => {
 		_loads--;
 		t.failed = true;
+		tileStat(sv, false);
 	};
 	t.img.src = tileURL(sv, order, pix);
 	if (CACHE.size > 600) {
@@ -4997,6 +5016,11 @@ var _suvi = {
 	t: 0,
 	loading: false
 };
+declare("suvi", {
+	name: "NOAA SWPC · SUVI 304 Å solar image",
+	host: "services.swpc.noaa.gov",
+	group: "live"
+});
 function suviImage() {
 	if (!_suvi.loading && Date.now() - _suvi.t > 10 * 6e4) {
 		_suvi.loading = true;
@@ -5013,6 +5037,11 @@ function suviImage() {
 			_suvi.t = Date.now();
 			_suvi.loading = false;
 		};
+		timg("suvi", {
+			name: "NOAA SWPC · SUVI 304 Å solar image",
+			host: "services.swpc.noaa.gov",
+			group: "live"
+		}, im);
 		im.src = "https://services.swpc.noaa.gov/images/animations/suvi/primary/304/latest.png";
 	}
 	return _suvi.ok ? _suvi.im : null;
@@ -7236,6 +7265,7 @@ function cloudLabel(id, txt) {
 function buildGaia(bytes) {
 	const r = buildCloudBuf(bytes, "gaia");
 	if (!r) return;
+	count("file-gaia", r.n);
 	CL.G = r;
 	gaiaRaw = bytes;
 	gaiaRange = 100;
@@ -7261,6 +7291,7 @@ function attachGaiaPm() {
 function buildGaiaBig(bytes) {
 	const r = buildCloudBuf(bytes, "gaiabig");
 	if (!r) return;
+	count("file-gaiabig", r.n);
 	CL.G = r;
 	gaiaRaw = bytes;
 	gaiaRange = 150;
@@ -7272,6 +7303,7 @@ function buildBelt(bytes) {
 	bytes = bytes.subarray(8);
 	const r = buildCloudBuf(bytes, "belt");
 	if (!r) return;
+	count("file-belt", r.n);
 	CL.B = r;
 	beltRaw = bytes;
 	cloudLabel("t-belt", "Asteroid field (" + (r.n / 1e3 | 0) + "k)");
@@ -7279,6 +7311,7 @@ function buildBelt(bytes) {
 function buildVars(bytes) {
 	const r = buildCloudBuf(bytes, "vars");
 	if (!r) return;
+	count("file-variables", r.n);
 	CL.V = r;
 	varRaw = bytes;
 	cloudLabel("t-var", "Variable stars (" + (r.n / 1e3 | 0) + "k Cepheids·RR Lyr)");
@@ -7286,6 +7319,7 @@ function buildVars(bytes) {
 function buildOB(bytes) {
 	const r = buildCloudBuf(bytes, "ob");
 	if (!r) return;
+	count("file-obstars", r.n);
 	CL.O = r;
 	obRaw = bytes;
 	cloudLabel("t-ob", "OB stars (" + (r.n / 1e3 | 0) + "k arm tracers)");
@@ -7293,6 +7327,7 @@ function buildOB(bytes) {
 function buildWeb(bytes) {
 	const r = buildCloudBuf(bytes, "web");
 	if (!r) return;
+	count("file-cosmicweb", r.n);
 	CL.W = r;
 	webRaw = bytes;
 	cloudLabel("t-web", "Cosmic web (" + (r.n / 1e3 | 0) + "k galaxies)");
@@ -7301,6 +7336,7 @@ function buildQso(bytes) {
 	if (bytes && CL.Q && bytes.length / 8 <= CL.Q.n) return;
 	const r = buildCloudBuf(bytes, "qso");
 	if (!r) return;
+	count("file-quasars", r.n);
 	CL.Q = r;
 	qsoRaw = bytes;
 	cloudLabel("t-qso", "Quasars (" + (r.n / 1e3 | 0) + "k)");
@@ -7341,28 +7377,49 @@ function loadExtragal() {
 		if (typeof window.__WEB_B64__ === "string" && window.__WEB_B64__.length) {
 			buildWeb(b64ToBytes(window.__WEB_B64__));
 			window.__WEB_B64__ = null;
-		} else fetch("data/cosmicweb.bin?b=b22:20").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		} else tfetch("file-cosmicweb", {
+			name: "cosmicweb.bin",
+			group: "catalogue"
+		}, "data/cosmicweb.bin?b=b22:34").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildWeb(new Uint8Array(a));
 		}).catch(() => {});
 		if (typeof window.__QSO_B64__ === "string" && window.__QSO_B64__.length) {
 			buildQso(b64ToBytes(window.__QSO_B64__));
 			window.__QSO_B64__ = null;
-		} else fetch("data/quasars.bin?b=b22:20").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		} else tfetch("file-quasars", {
+			name: "quasars.bin",
+			group: "catalogue"
+		}, "data/quasars.bin?b=b22:34").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildQso(new Uint8Array(a));
 		}).catch(() => {});
-		fetch("data/quasarsbig.bin?b=b22:20").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		tfetch("file-quasarsbig", {
+			name: "quasarsbig.bin",
+			group: "catalogue",
+			optional: true
+		}, "data/quasarsbig.bin?b=b22:34").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildQso(new Uint8Array(a));
 		}).catch(() => {});
 		if (typeof window.__BELT_B64__ === "string" && window.__BELT_B64__.length) {
 			buildBelt(b64ToBytes(window.__BELT_B64__));
 			window.__BELT_B64__ = null;
-		} else fetch("data/belt.bin?b=b22:20").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		} else tfetch("file-belt", {
+			name: "belt.bin",
+			group: "catalogue"
+		}, "data/belt.bin?b=b22:34").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildBelt(new Uint8Array(a));
 		}).catch(() => {});
-		fetch("data/gaiabig.bin?b=b22:20").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		tfetch("file-gaiabig", {
+			name: "gaiabig.bin",
+			group: "catalogue",
+			optional: true
+		}, "data/gaiabig.bin?b=b22:34").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) {
 				buildGaiaBig(new Uint8Array(a));
-				fetch("data/gaiabig_pm.bin?b=b22:20").then((r) => r.ok ? r.arrayBuffer() : null).then((p) => {
+				tfetch("file-gaiabig_pm", {
+					name: "gaiabig_pm.bin",
+					group: "catalogue",
+					optional: true
+				}, "data/gaiabig_pm.bin?b=b22:34").then((r) => r.ok ? r.arrayBuffer() : null).then((p) => {
 					if (p) {
 						gaiaPm = new Uint8Array(p);
 						if (CL.G) CL.G.pm = false;
@@ -7374,13 +7431,19 @@ function loadExtragal() {
 		if (typeof window.__OB_B64__ === "string" && window.__OB_B64__.length) {
 			buildOB(b64ToBytes(window.__OB_B64__));
 			window.__OB_B64__ = null;
-		} else fetch("data/obstars.bin?b=b22:20").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		} else tfetch("file-obstars", {
+			name: "obstars.bin",
+			group: "catalogue"
+		}, "data/obstars.bin?b=b22:34").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildOB(new Uint8Array(a));
 		}).catch(() => {});
 		if (typeof window.__VAR_B64__ === "string" && window.__VAR_B64__.length) {
 			buildVars(b64ToBytes(window.__VAR_B64__));
 			window.__VAR_B64__ = null;
-		} else fetch("data/variables.bin?b=b22:20").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		} else tfetch("file-variables", {
+			name: "variables.bin",
+			group: "catalogue"
+		}, "data/variables.bin?b=b22:34").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildVars(new Uint8Array(a));
 		}).catch(() => {});
 	} catch (e) {}
@@ -7398,10 +7461,17 @@ function loadGaia() {
 			window.__GAIA_B64__ = null;
 			return;
 		}
-		fetch("data/gaia.bin?b=b22:20").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		tfetch("file-gaia", {
+			name: "gaia.bin",
+			group: "catalogue"
+		}, "data/gaia.bin?b=b22:34").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildGaia(new Uint8Array(a));
 		}).catch(() => {});
-		fetch("data/gaia_pm.bin?b=b22:20").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		tfetch("file-gaia_pm", {
+			name: "gaia_pm.bin",
+			group: "catalogue",
+			optional: true
+		}, "data/gaia_pm.bin?b=b22:34").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a && (!gaiaPm || gaiaRange === 100)) {
 				gaiaPm = new Uint8Array(a);
 				attachGaiaPm();
@@ -9276,6 +9346,21 @@ function lblFlush() {
 //#region src/engine/earth.js
 var _epicImg = null;
 var _epicState = 0;
+declare("gibs", {
+	name: "NASA GIBS · VIIRS true-colour surface tiles",
+	host: "gibs.earthdata.nasa.gov",
+	group: "earth"
+});
+declare("goes", {
+	name: "NOAA GOES-19 · full-disk Earth image",
+	host: "cdn.star.nesdis.noaa.gov",
+	group: "earth"
+});
+declare("nasa-epic-img", {
+	name: "NASA EPIC · Earth photo",
+	host: "api.nasa.gov",
+	group: "earth"
+});
 function epicImage() {
 	if (_epicState === 0 && LIVE.epic) {
 		_epicState = 1;
@@ -9288,6 +9373,11 @@ function epicImage() {
 		im.onerror = () => {
 			_epicState = 2;
 		};
+		timg("nasa-epic-img", {
+			name: "NASA EPIC · Earth photo",
+			host: "api.nasa.gov",
+			group: "earth"
+		}, im);
 		im.src = LIVE.epic.url;
 	}
 	return _epicImg;
@@ -9313,6 +9403,11 @@ function loadGoes(res) {
 		_goesLoading = false;
 		_goesFail++;
 	};
+	timg("goes", {
+		name: "NOAA GOES-19 · full-disk Earth image",
+		host: "cdn.star.nesdis.noaa.gov",
+		group: "earth"
+	}, im);
 	im.src = `https://cdn.star.nesdis.noaa.gov/GOES19/ABI/FD/GEOCOLOR/${res}x${res}.jpg?t=` + Math.floor(Date.now() / 6e5);
 }
 function earthImage(px) {
@@ -9554,6 +9649,10 @@ function globeTexture() {
 			return;
 		}
 		const date = (/* @__PURE__ */ new Date(Date.now() - off * 864e5)).toISOString().slice(0, 10);
+		mark("gibs", {
+			state: "busy",
+			msg: "mosaic for " + date
+		});
 		const cnv = document.createElement("canvas");
 		cnv.width = 5120;
 		cnv.height = 2560;
@@ -9580,15 +9679,28 @@ function globeTexture() {
 						try {
 							console.log("globe: mosaic", date, "is", (frac * 100).toFixed(0) + "% black — trying an earlier day");
 						} catch (e) {}
+						mark("gibs", {
+							state: "warn",
+							msg: date + " is " + (frac * 100).toFixed(0) + "% black, trying an earlier day"
+						});
 						tryDay(off + 1);
 						return;
 					}
+					mark("gibs", {
+						state: "ok",
+						n: 50,
+						msg: "50 tiles · " + date
+					});
 					finish();
 				}
 			};
 			im.onerror = () => {
 				if (!failed) {
 					failed = true;
+					mark("gibs", {
+						state: "warn",
+						msg: "tile missing for " + date + ", trying an earlier day"
+					});
 					tryDay(off + 1);
 				}
 			};
@@ -10478,7 +10590,19 @@ var dms = (d) => {
 	const s = d < 0 ? "−" : "+", a = Math.abs(d);
 	return `${s}${String(Math.floor(a)).padStart(2, "0")}°${String(Math.floor((a - Math.floor(a)) * 60)).padStart(2, "0")}′`;
 };
-async function tap(url, adql) {
+var QMETA = {
+	"q-simbad": {
+		name: "SIMBAD · field query (TAP)",
+		host: "simbad.cds.unistra.fr",
+		group: "query"
+	},
+	"q-vizier": {
+		name: "VizieR · Gaia DR3 cone search",
+		host: "vizier.cds.unistra.fr",
+		group: "query"
+	}
+};
+async function tap(id, url, adql) {
 	const body = new URLSearchParams({
 		REQUEST: "doQuery",
 		LANG: "ADQL",
@@ -10487,7 +10611,7 @@ async function tap(url, adql) {
 	});
 	const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 45e3);
 	try {
-		const r = await fetch(url, {
+		const r = await tfetch(id, QMETA[id], url, {
 			method: "POST",
 			body,
 			signal: ctl.signal
@@ -10506,7 +10630,7 @@ async function asuGaia(ra, dec, r) {
 	const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 12e4);
 	try {
 		const u = `${ASU}?-source=I/355/gaiadr3&-c=${encodeURIComponent(ra.toFixed(5) + " " + (dec >= 0 ? "+" : "") + dec.toFixed(5))}&-c.rd=${r.toFixed(4)}&-out=Source,RA_ICRS,DE_ICRS,Plx,pmRA,pmDE,Gmag,BP-RP&-out.max=${SOURCES.gaia.limit}&-sort=Gmag`;
-		const res = await fetch(u, { signal: ctl.signal });
+		const res = await tfetch("q-vizier", QMETA["q-vizier"], u, { signal: ctl.signal });
 		if (!res.ok) throw new Error("HTTP " + res.status);
 		const lines = (await res.text()).split(/\r?\n/).filter((l) => l && !l.startsWith("#"));
 		const i = lines.findIndex((l) => /^-+(\t-+)*\t?$/.test(l.trim()));
@@ -10532,11 +10656,12 @@ async function queryField(src) {
 			busy: src,
 			msg: `asking VizieR for Gaia DR3 in ${field}… (can take a minute when the server is busy)`
 		});
-		const n = importUser(src === "gaia" ? await asuGaia(ra, dec, r) : await tap(SIM, adql(src, ra, dec, r)), `${S_.n} · ${field}`, {
+		const n = importUser(src === "gaia" ? await asuGaia(ra, dec, r) : await tap("q-simbad", SIM, adql(src, ra, dec, r)), `${S_.n} · ${field}`, {
 			src,
 			epoch: S_.epoch,
 			prefix: S_.prefix
 		});
+		count(src === "gaia" ? "q-vizier" : "q-simbad", n);
 		fieldQuery.set({
 			busy: null,
 			msg: n ? `${n} rows from ${S_.n}${n >= S_.limit ? " (the brightest; the cone holds more)" : ""}` : `${S_.n}: nothing in this field`
@@ -11139,6 +11264,7 @@ function gotoEncounter(i) {
 	const q = hygPos(e.s, e.t), L = Math.hypot(q[0], q[1], q[2]) || 1e-9, d = compress(L) / L;
 	aim(q[0] * d, q[1] * d, q[2] * d, scale(Math.max(L * .35, 3e-5)));
 }
+api.liveRefresh = refreshLive;
 Object.assign(api, {
 	importUser,
 	clearUser,

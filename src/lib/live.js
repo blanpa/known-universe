@@ -11,10 +11,26 @@ export const LIVE = { cmes: [], neos: [], wx: null, sats: [], regions: [],
 
 const AU_KM = 1.496e8;
 function nasaKey(){ try{ return localStorage.getItem('nasa_api_key') || 'DEMO_KEY'; }catch(e){ return 'DEMO_KEY'; } }
-function j(url){ return fetch(url).then(r => r.ok ? r.json() : null).catch(() => null); }
+import { count, tfetch, tracked } from './sources.js';
+const LIVE_META = {
+  'swpc-wx':      { name: 'NOAA SWPC · space weather (Kp, wind, X-rays)', host: 'services.swpc.noaa.gov' },
+  'nasa-donki':   { name: 'NASA DONKI · coronal mass ejections', host: 'api.nasa.gov' },
+  'nasa-neo':     { name: 'NASA NEO · asteroid flybys this week', host: 'api.nasa.gov' },
+  'nasa-neo-kd':  { name: 'NASA NEO · orbit lookups', host: 'api.nasa.gov' },
+  'swpc-regions': { name: 'NOAA SWPC · sunspot regions', host: 'services.swpc.noaa.gov' },
+  'celestrak':    { name: 'CelesTrak · satellite elements', host: 'celestrak.org' },
+  'live-extra':   { name: 'Live extra · GW events, fireballs (6-hourly workflow)', host: 'raw.githubusercontent.com' },
+  'nasa-epic':    { name: 'NASA EPIC · latest Earth photo (index)', host: 'api.nasa.gov' },
+  'launchlib':    { name: 'Launch Library 2 · upcoming launches', host: 'll.thespacedevs.com' },
+};
+function j(url, id){ const p = id ? tfetch(id, { group: 'live', ...LIVE_META[id] }, url) : fetch(url);
+  return p.then(r => r.ok ? r.json() : null).catch(() => null); }
 function day(off){ return new Date(Date.now() + off * 86400000).toISOString().slice(0, 10); }
 
 function publish(){
+  count('nasa-donki', LIVE.cmes.length); count('nasa-neo', LIVE.neos.length); count('swpc-regions', LIVE.regions.length);
+  count('celestrak', LIVE.sats.length); if (LIVE.launches) count('launchlib', LIVE.launches.length);
+  if (LIVE.extra) count('live-extra', (LIVE.extra.gw || []).length + (LIVE.extra.fireballs || []).length);
   liveData.set({ wx: LIVE.wx, cmes: LIVE.cmes, neos: LIVE.neos, regions: LIVE.regions,
     sats: LIVE.sats.length, extra: LIVE.extra, launches: LIVE.launches, ts: Date.now() });
   if (LIVE.onUpdate) LIVE.onUpdate();
@@ -23,12 +39,16 @@ function publish(){
 // ---- NOAA SWPC: Kp, solar wind, GOES X-ray flux ----
 async function fetchWeather(){
   const B = 'https://services.swpc.noaa.gov/';
-  const [kp, sp, mag, xr] = await Promise.all([
-    j(B + 'products/noaa-planetary-k-index.json'),
-    j(B + 'products/summary/solar-wind-speed.json'),
-    j(B + 'products/summary/solar-wind-mag-field.json'),
-    j(B + 'json/goes/primary/xrays-6-hour.json'),
-  ]);
+  const [kp, sp, mag, xr] = await tracked('swpc-wx', { group: 'live', ...LIVE_META['swpc-wx'] }, async () => {
+    const rs = await Promise.all([
+      j(B + 'products/noaa-planetary-k-index.json'),
+      j(B + 'products/summary/solar-wind-speed.json'),
+      j(B + 'products/summary/solar-wind-mag-field.json'),
+      j(B + 'json/goes/primary/xrays-6-hour.json'),
+    ]);
+    const bad = rs.filter(x => !x).length; if (bad === rs.length) throw new Error('no answer from any feed');
+    rs.__stat = { n: rs.length - bad, state: bad ? 'warn' : 'ok', msg: bad ? bad + ' of 4 feeds missing' : '' }; return rs;
+  }).catch(() => [null, null, null, null]);
   const wx = {};
   if (kp && kp.length){ const l = kp[kp.length - 1]; wx.kp = +l.Kp; wx.kpTime = l.time_tag; }
   if (sp && sp[0]) wx.wind = +sp[0].proton_speed;
@@ -49,7 +69,7 @@ async function fetchWeather(){
 // ---- NASA DONKI: CME analyses of the last 5 days ----
 async function fetchCmes(){
   const d = await j(`https://api.nasa.gov/DONKI/CMEAnalysis?startDate=${day(-5)}&endDate=${day(0)}`
-    + `&mostAccurateOnly=true&api_key=${nasaKey()}`);
+    + `&mostAccurateOnly=true&api_key=${nasaKey()}`, 'nasa-donki');
   if (!d || !Array.isArray(d)) return;
   LIVE.cmes = d.filter(c => c.time21_5 && c.speed && c.latitude != null && c.longitude != null)
     .map(c => {
@@ -69,7 +89,7 @@ function storeKd(id, kd){ try{ localStorage.setItem('ku_neokd_' + id, JSON.strin
 async function lookupKd(id){
   const hit = cachedKd(id);
   if (hit) return hit;
-  const d = await j(`https://api.nasa.gov/neo/rest/v1/neo/${id}?api_key=${nasaKey()}`);
+  const d = await j(`https://api.nasa.gov/neo/rest/v1/neo/${id}?api_key=${nasaKey()}`, 'nasa-neo-kd');
   const o = d && d.orbital_data;
   if (!o || !+o.semi_major_axis || !+o.mean_motion) return null;
   const kd = { a: +o.semi_major_axis, e: +o.eccentricity, i: +o.inclination,
@@ -80,7 +100,7 @@ async function lookupKd(id){
 }
 
 async function fetchNeos(){
-  const d = await j(`https://api.nasa.gov/neo/rest/v1/feed?start_date=${day(0)}&end_date=${day(7)}&api_key=${nasaKey()}`);
+  const d = await j(`https://api.nasa.gov/neo/rest/v1/feed?start_date=${day(0)}&end_date=${day(7)}&api_key=${nasaKey()}`, 'nasa-neo');
   if (!d || !d.near_earth_objects) return;
   const out = [];
   for (const date of Object.keys(d.near_earth_objects))
@@ -128,7 +148,7 @@ async function fetchSats(){
   for (const g of SAT_GROUPS){
     const e = c.groups[g];
     if (e && Date.now() - e.ts < 6 * 3600e3) continue;   // per-group TTL: one failed group
-    const t = await fetch(`https://celestrak.org/NORAD/elements/gp.php?GROUP=${g}&FORMAT=tle`)
+    const t = await tfetch('celestrak', { group: 'live', ...LIVE_META.celestrak }, `https://celestrak.org/NORAD/elements/gp.php?GROUP=${g}&FORMAT=tle`)
       .then(r => r.ok ? r.text() : null).catch(() => null);
     if (t && t[0] !== '<'){ c.groups[g] = { ts: Date.now(), txt: t }; changed = true; }   // 403 ban page is HTML
   }                                                      // doesn't block the others (stale-if-error per group)
@@ -175,7 +195,7 @@ export function groundEcl(latDeg, lonDeg, ms){
 
 // ---- SWPC active solar regions (sunspots) ----
 async function fetchRegions(){
-  const d = await j('https://services.swpc.noaa.gov/json/solar_regions.json');
+  const d = await j('https://services.swpc.noaa.gov/json/solar_regions.json', 'swpc-regions');
   if (!d || !d.length) return;
   let latest = '';
   for (const r of d) if (r.observed_date > latest) latest = r.observed_date;
@@ -190,14 +210,14 @@ async function fetchRegions(){
 
 // ---- live-extra.json: GW superevents + fireballs (proxied — no CORS at the sources) ----
 async function fetchExtra(){
-  let d = await j('data/live-extra.json');                                  // docker (nginx + updater)
-  if (!d) d = await j('https://raw.githubusercontent.com/blanpa/known-universe/live-data/live-extra.json'); // Pages (Action)
+  let d = await j('data/live-extra.json', 'live-extra');                                  // docker (nginx + updater)
+  if (!d) d = await j('https://raw.githubusercontent.com/blanpa/known-universe/live-data/live-extra.json', 'live-extra'); // Pages (Action)
   if (d && (d.gw || d.fireballs)) LIVE.extra = d;
 }
 
 // ---- EPIC: today's real photo of Earth (DSCOVR, L1) ----
 async function fetchEpic(){
-  const d = await j(`https://api.nasa.gov/EPIC/api/natural?api_key=${nasaKey()}`);
+  const d = await j(`https://api.nasa.gov/EPIC/api/natural?api_key=${nasaKey()}`, 'nasa-epic');
   if (!d || !d.length) return;
   const it = d[d.length - 1], dd = it.date.slice(0, 10).replace(/-/g, '/');
   LIVE.epic = { url: `https://api.nasa.gov/EPIC/archive/natural/${dd}/jpg/${it.image}.jpg?api_key=${nasaKey()}`,
@@ -206,7 +226,7 @@ async function fetchEpic(){
 
 // ---- upcoming rocket launches (Launch Library 2 — free tier: 15 req/h, so 2 h cadence) ----
 async function fetchLaunches(){
-  const d = await j('https://ll.thespacedevs.com/2.2.0/launch/upcoming/?limit=5&mode=list');
+  const d = await j('https://ll.thespacedevs.com/2.2.0/launch/upcoming/?limit=5&mode=list', 'launchlib');
   if (d && d.results) LIVE.launches = d.results.map(l => ({
     n: l.name, t: Date.parse(l.net), status: l.status ? (l.status.abbrev || '') : '' }));
 }
@@ -234,6 +254,8 @@ export function activeShowers(ms){
 }
 
 let started = false;
+let _runAll = null;
+export function refreshLive(){ if (_runAll) _runAll(); }
 export function startLive(){
   if (started) return;
   started = true;
@@ -242,6 +264,7 @@ export function startLive(){
   const midi = () => Promise.allSettled([fetchExtra(), fetchLaunches()]).then(publish);
   const slow = () => Promise.allSettled([fetchSats(), fetchEpic()]).then(publish);
   wx(); ev(); midi(); slow();
+  _runAll = () => { wx(); ev(); midi(); slow(); };
   setInterval(wx, 5 * 60 * 1000);
   setInterval(ev, 30 * 60 * 1000);
   setInterval(midi, 2 * 60 * 60 * 1000);

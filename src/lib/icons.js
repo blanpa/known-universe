@@ -16,6 +16,7 @@ export const ICONS = {
   chevron:  '<path d="m9.5 5.5 6.5 6.5-6.5 6.5"/>',
   sliders:  '<path d="M4 8h9M17 8h3M4 16h3M11 16h9"/><circle cx="15" cy="8" r="2.1"/><circle cx="9" cy="16" r="2.1"/>',
   scope:    '<circle cx="12" cy="12" r="8.5"/><path d="M12 1.8v3.4M12 18.8v3.4M1.8 12h3.4M18.8 12h3.4"/><circle cx="12" cy="12" r="2"/>',
+  db:       '<ellipse cx="12" cy="6" rx="7" ry="2.6"/><path d="M5 6v12c0 1.4 3.1 2.6 7 2.6s7-1.2 7-2.6V6"/><path d="M5 12c0 1.4 3.1 2.6 7 2.6s7-1.2 7-2.6"/>',
   live:     '<path d="M2.8 12h3.6l2.6-6.4L12.6 18l2.4-6h6.2"/>',
   legend:   '<circle cx="5.4" cy="6.6" r="2.1"/><path d="M10.6 6.6H21"/><circle cx="5.4" cy="12" r="2.1"/><path d="M10.6 12H21"/><circle cx="5.4" cy="17.4" r="2.1"/><path d="M10.6 17.4H21"/>',
   lock:     '<rect x="4.6" y="10.2" width="14.8" height="9.8" rx="2.2"/><path d="M8 10.2V7.4a4 4 0 0 1 8 0v2.8"/>',

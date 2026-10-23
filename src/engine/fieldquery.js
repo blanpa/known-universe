@@ -2,6 +2,7 @@
 // VizieR's TAP service, SIMBAD from its own; both answer CSV with CORS headers, so
 // the browser asks them directly and the rows land in the "Your data" layer, named
 // after the source and the field. No key, no backend, nothing stored on a server.
+import { count, tfetch } from '../lib/sources.js';
 import { fieldQuery as store } from '../lib/stores.js';
 import { fovDeg } from './survey.js';
 import { importUser } from './userdata.js';
@@ -22,10 +23,11 @@ export function fieldCentre(){
 export function fieldRadiusDeg(){ return Math.min(2.5, Math.max(0.02, fovDeg()*0.55)); }   // the services cap big cones anyway
 const hms=ra=>{ const h=ra/15, hh=Math.floor(h), m=(h-hh)*60; return `${String(hh).padStart(2,'0')}h${String(Math.floor(m)).padStart(2,'0')}m`; };
 const dms=d=>{ const s=d<0?'−':'+', a=Math.abs(d); return `${s}${String(Math.floor(a)).padStart(2,'0')}°${String(Math.floor((a-Math.floor(a))*60)).padStart(2,'0')}′`; };
-async function tap(url,adql){
+const QMETA={ 'q-simbad':{name:'SIMBAD · field query (TAP)', host:'simbad.cds.unistra.fr', group:'query'}, 'q-vizier':{name:'VizieR · Gaia DR3 cone search', host:'vizier.cds.unistra.fr', group:'query'} };
+async function tap(id,url,adql){
   const body=new URLSearchParams({REQUEST:'doQuery',LANG:'ADQL',FORMAT:'csv',QUERY:adql});
   const ctl=new AbortController(), t=setTimeout(()=>ctl.abort(),45000);
-  try{ const r=await fetch(url,{method:'POST',body,signal:ctl.signal}); if(!r.ok) throw new Error('HTTP '+r.status); return await r.text(); }
+  try{ const r=await tfetch(id,QMETA[id],url,{method:'POST',body,signal:ctl.signal}); if(!r.ok) throw new Error('HTTP '+r.status); return await r.text(); }
   finally{ clearTimeout(t); }
 }
 function adql(src,ra,dec,r){                          // SIMBAD
@@ -37,7 +39,7 @@ async function asuGaia(ra,dec,r){
   const ctl=new AbortController(), t=setTimeout(()=>ctl.abort(),120000);
   try{
     const u=`${ASU}?-source=I/355/gaiadr3&-c=${encodeURIComponent(ra.toFixed(5)+' '+(dec>=0?'+':'')+dec.toFixed(5))}&-c.rd=${r.toFixed(4)}&-out=Source,RA_ICRS,DE_ICRS,Plx,pmRA,pmDE,Gmag,BP-RP&-out.max=${SOURCES.gaia.limit}&-sort=Gmag`;
-    const res=await fetch(u,{signal:ctl.signal}); if(!res.ok) throw new Error('HTTP '+res.status);
+    const res=await tfetch('q-vizier',QMETA['q-vizier'],u,{signal:ctl.signal}); if(!res.ok) throw new Error('HTTP '+res.status);
     const lines=(await res.text()).split(/\r?\n/).filter(l=>l&&!l.startsWith('#'));
     const i=lines.findIndex(l=>/^-+(\t-+)*\t?$/.test(l.trim()));
     if(i>=2) lines.splice(1,i);                                   // drop units + dashes
@@ -52,8 +54,9 @@ export async function queryField(src){
   _busy=src; store.set({ busy:src, msg:`asking ${S_.n} for ${field}…` });
   try{
     if(src==='gaia') store.set({ busy:src, msg:`asking VizieR for Gaia DR3 in ${field}… (can take a minute when the server is busy)` });
-    const text = src==='gaia' ? await asuGaia(ra,dec,r) : await tap(SIM, adql(src,ra,dec,r));
+    const text = src==='gaia' ? await asuGaia(ra,dec,r) : await tap('q-simbad', SIM, adql(src,ra,dec,r));
     const n=importUser(text, `${S_.n} · ${field}`, { src, epoch:S_.epoch, prefix:S_.prefix });
+    count(src==='gaia'?'q-vizier':'q-simbad', n);
     store.set({ busy:null, msg:n ? `${n} rows from ${S_.n}${n>=S_.limit?' (the brightest; the cone holds more)':''}` : `${S_.n}: nothing in this field` });
     return n;
   }catch(e){ store.set({ busy:null, msg:`${S_.n} query failed: ${e.name==='AbortError'?'timeout':e.message}` }); return 0; }

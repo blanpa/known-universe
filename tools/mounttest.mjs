@@ -35,7 +35,9 @@ try {
   const sheetSearch = doc.getElementById('mobsheet')?.querySelector('.searchIn') ? 'yes' : 'NO';
   console.log('MOUNT OK | missing ids:', missing.length ? missing : 'none',
     '| toggles:', toggles, '| MOBILE layers sheet toggles:', sheetToggles, '| search sheet input:', sheetSearch);
+  process.exit(0);                       // components keep timers (status clocks); do not wait for them
 } catch (e) {
   console.log('MOUNT FAILED:', e.message);
   console.log((e.stack||'').split('\n').slice(0,6).join('\n'));
+  process.exit(1);
 }

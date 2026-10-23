@@ -1,5 +1,6 @@
 // Actions: everything a button, a key or a search can ask the engine to do.
 import { api } from '../lib/api.js';
+import { refreshLive } from '../lib/live.js';
 import { facColor as facColorStore, searchMsg as searchMsgStore, timeBar as timeBarStore } from '../lib/stores.js';
 import { clickToggle, syncToggle } from './controls.js';
 import { GAL, PC2LY, STARS } from './data.js';
@@ -258,6 +259,7 @@ export function gotoEncounter(i){
   const q=hygPos(e.s,e.t), L=Math.hypot(q[0],q[1],q[2])||1e-9, d=compress(L)/L;
   aim(q[0]*d,q[1]*d,q[2]*d, scale(Math.max(L*0.35, 3e-5)));
 }
+api.liveRefresh=refreshLive;
 Object.assign(api, { importUser, clearUser, removeSet, queryField, skyView, lookAt, lookAtSelection, setFov, setSurvey, setBlink, gotoEncounter, lock:lockToggle, setCourse, clearCourse, engage:engageCourse, route:routeToggle,
   transfer:transferToggle, deselect, reset:resetView, toggleSolar, enterSolar, flyToScale,
   doSearch, toggleFac, facColorToggle, facList:()=>facList, msgText });

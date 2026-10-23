@@ -315,6 +315,23 @@ body.show-time .tourp { bottom: 72px; }
 .enc.mov { max-height: 32vh; }
 .enc-n.usr { color: #ffc482; }
 .hint.busy { color: var(--sel); }
+/* data sources */
+.src-sum { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin: 6px 0 2px; font-size: 11.5px; color: var(--txt-2); }
+.d { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--txt-3); flex: none; }
+.d.ok { background: #5ad28a; } .d.busy { background: var(--sel); animation: srcpulse 1s ease-in-out infinite; } .d.warn { background: #f0b36a; } .d.error { background: #ef6b6b; } .d.absent, .d.idle { background: var(--txt-3); opacity: .5; }
+@keyframes srcpulse { 50% { opacity: .35; } }
+.src { list-style: none; margin: 4px 0 0; padding: 0; }
+.src-row { display: grid; grid-template-columns: auto 1fr auto; gap: 1px 8px; align-items: baseline; padding: 6px 2px; border-top: 1px solid var(--line); font-size: 12px; }
+.src-row:first-child { border-top: 0; }
+.src-row .d { align-self: center; }
+.src-n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.src-s { font-size: 11px; color: var(--txt-2); white-space: nowrap; }
+.src-row.error .src-s { color: #ef8a8a; } .src-row.warn .src-s { color: #f0b36a; } .src-row.busy .src-s { color: var(--sel); }
+.src-d { grid-column: 2 / 4; font-size: 10.5px; color: var(--txt-3); overflow-wrap: anywhere; }
+.src-key { flex: 1; min-width: 120px; padding: 5px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg-2); color: var(--txt-1); font-size: 11.5px; }
+.rb { position: relative; }
+.rb-dot { position: absolute; top: 7px; right: 9px; width: 7px; height: 7px; border-radius: 50%; background: var(--sel); animation: srcpulse 1s ease-in-out infinite; }
+.rb-dot.err { background: #ef6b6b; animation: none; }
 /* telescope status line */
 #skystatus { position: fixed; left: 50%; bottom: 14px; transform: translateX(-50%); z-index: 60; display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 12px;
   max-width: calc(100vw - 140px); padding: 6px 12px; border-radius: 10px; background: var(--bg-1); border: 1px solid var(--line); font-size: 11.5px; color: var(--txt-1); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); pointer-events: none; }

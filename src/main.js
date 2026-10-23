@@ -1,4 +1,5 @@
 import { mount } from 'svelte';
+import { count, tfetch } from './lib/sources.js';
 import './app.css';
 import App from './App.svelte';
 import { restore } from './lib/prefs.js';
@@ -22,9 +23,9 @@ mount(App, { target: document.getElementById('app') });
 // side effect, so a restored session is the real state, not just repainted switches.
 // the engine module runs at import time, so it is imported only once the data is there
 function boot() { return import('./engine/index.js').then(() => { try { restore(); } catch (e) {} }); }
-const getJSON = u => fetch(u).then(r => { if (!r.ok) throw new Error(u + ' → HTTP ' + r.status); return r.json(); });
+const getJSON = (u, id, name) => tfetch(id, { name, group: 'catalogue' }, u).then(r => { if (!r.ok) throw new Error(u + ' → HTTP ' + r.status); return r.json(); });
 const fail = e => { document.body.innerHTML = '<p style="color:#e9edfa;font-family:monospace;padding:2em">Error loading data: ' + e + '</p>'; };
 if (window.__DATA__) boot().catch(fail);
-else Promise.all([getJSON('data/data.json?b=' + __BUILD__), getJSON('data/catalog.json?b=' + __BUILD__)])
-  .then(([d, c]) => { window.__DATA__ = d; window.__CATALOG__ = c; return boot(); })
+else Promise.all([getJSON('data/data.json?b=' + __BUILD__, 'data-json', 'data.json · stars, exoplanets, galaxies'), getJSON('data/catalog.json?b=' + __BUILD__, 'catalog-json', 'catalog.json · solar system, deep sky, pulsars')])
+  .then(([d, c]) => { window.__DATA__ = d; window.__CATALOG__ = c; const m = d.meta || {}; count('data-json', (m.nHyg || 0) + (m.nStars || 0) + (m.nGal || 0)); count('catalog-json', Object.keys(c || {}).length); return boot(); })
   .catch(fail);

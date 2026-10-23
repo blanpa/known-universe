@@ -11,6 +11,8 @@
   import TimePane from './components/TimePane.svelte';
   import SkyPane from './components/SkyPane.svelte';
   import SkyStatus from './components/SkyStatus.svelte';
+  import DataPane from './components/DataPane.svelte';
+  import { sources } from './lib/sources.js';
   import TransitCard from './components/TransitCard.svelte';
   import MobileNav from './components/MobileNav.svelte';
   import ScaleLadder from './components/ScaleLadder.svelte';
@@ -29,7 +31,10 @@
     { k: 'live',   icon: 'live',   label: 'Live' },
     { k: 'time',   icon: 'clock',  label: 'Time' },
     { k: 'sky',    icon: 'scope',  label: 'Sky' },
+    { k: 'data',   icon: 'db',     label: 'Data' },
   ];
+  let srcErr = $derived(Object.values($sources).some(r => r.state === 'error'));
+  let srcBusy = $derived(Object.values($sources).some(r => r.state === 'busy'));
   let panel = $state(null);
   // the quick-jump bar and the ladder yield when a panel is out, so nothing overlaps
   $effect(() => { document.body.classList.toggle('rail-open', !!panel); });
@@ -68,6 +73,7 @@
     <div class="rp-pane" class:on={panel === 'live'}><LivePanel collapsible={false} /></div>
     <div class="rp-pane" class:on={panel === 'time'}><TimePane /></div>
     <div class="rp-pane" class:on={panel === 'sky'}><SkyPane /></div>
+    <div class="rp-pane" class:on={panel === 'data'}><DataPane /></div>
   </div>
 
   <nav id="rail" aria-label="Panels and tools" use:reserve={'rail'}>
@@ -75,6 +81,7 @@
       <button type="button" class="rb" class:on={panel === r.k} aria-pressed={panel === r.k}
               title={r.label} onclick={() => pick(r.k)}>
         <Icon name={r.icon} size={19} /><span class="rb-l">{r.label}</span>
+        {#if r.k === 'data' && (srcErr || srcBusy)}<span class="rb-dot" class:err={srcErr} aria-hidden="true"></span>{/if}
       </button>
     {/each}
     <div class="rail-gap"></div>

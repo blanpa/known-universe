@@ -86,6 +86,19 @@ async function open(vp, mobile, hash) {
   await page.screenshot({ path: join(OUT, 'desktop-layers.png') });
   await page.keyboard.press('Escape');
 
+  // the Data pane: what is running and what failed
+  await page.locator('#rail .rb', { hasText: 'Data' }).click();
+  await page.waitForTimeout(800);
+  const src = await page.evaluate(() => { const rows = [...document.querySelectorAll('#hud-data .src-row')];
+    const st = s => rows.filter(r => r.classList.contains(s)).length;
+    const bad = rows.filter(r => r.classList.contains('error') && !r.querySelector('.src-d')?.textContent.trim()).length;
+    return { n: rows.length, ok: st('ok'), error: st('error'), busy: st('busy'), noReason: bad, sum: document.querySelector('#hud-data .src-sum')?.textContent.replace(/\s+/g, ' ').trim(),
+      files: rows.filter(r => /\.bin|\.json/.test(r.textContent) && r.classList.contains('ok')).length }; });
+  ok(src.n >= 12 && src.files >= 6, `Data pane lists ${src.n} sources, ${src.files} catalogue files loaded (${src.sum})`);
+  ok(src.noReason === 0, `every failed source names a reason (${src.error} failed, ${src.busy} running)`);
+  await page.screenshot({ path: join(OUT, 'desktop-data.png') });
+  await page.keyboard.press('Escape');
+
   // the telescope: sky view at the Pleiades on DSS2 tiles, north up, east left, blink
   await page.evaluate(() => { const a = window.__kuapi; a.skyView(true); a.setSurvey('dss'); a.lookAt(56.75, 24.12); a.setFov(6); });
   await page.waitForTimeout(gpu ? 9000 : 15000);

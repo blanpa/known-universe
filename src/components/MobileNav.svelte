@@ -2,6 +2,7 @@
   import SearchBox from './SearchBox.svelte';
   import Controls from './Controls.svelte';
   import SkyPane from './SkyPane.svelte';
+  import DataPane from './DataPane.svelte';
   import LivePanel from './LivePanel.svelte';
   import PoiBar from './PoiBar.svelte';
   import Icon from './Icon.svelte';
@@ -120,6 +121,7 @@
         <button type="button" onclick={() => act(() => api.reset?.())}><Icon name="reset" size={15} />Start view</button>
       </div>
       <LivePanel onpick={() => { mobPanel = null; }} />
+      <DataPane compact />
     {/if}
   </div>
 </div>

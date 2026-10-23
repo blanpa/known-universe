@@ -1,4 +1,5 @@
 // Sky surveys as a backdrop: real images of the sky (DSS2, 2MASS, AllWISE, Pan-STARRS)
+import { mark } from '../lib/sources.js';
 import { survey as surveyStore } from '../lib/stores.js';
 import { nest2xyf, tileCentre, tileDir, tileRadiusDeg } from './healpix.js';
 import { S, V } from './state.js';
@@ -45,6 +46,13 @@ export function surveyAlpha(){
 const CACHE=new Map();                                      // key → {img, tex, ok, failed}
 let _loads=0;
 export const cacheSize=()=>CACHE.size;
+const TSTAT={};
+function tileStat(sv,ok){
+  const c=TSTAT[sv.id]||(TSTAT[sv.id]={ok:0,failed:0});
+  if(ok) c.ok++; else c.failed++;
+  mark('tiles-'+sv.id, { name:sv.n+' tiles · '+sv.epoch, host:'alasky.cds.unistra.fr', group:'sky', n:c.ok,
+    state: c.failed===0?'ok':c.failed>c.ok?'error':'warn', msg: c.failed?`${c.failed} tiles failed`:'' });
+}
 export function tileKey(sv,order,pix){ return sv.id+'/'+order+'/'+pix; }
 export function tileURL(sv,order,pix){ return `${sv.base}/Norder${order}/Dir${Math.floor(pix/10000)*10000}/Npix${pix}.${sv.ext}`; }
 export function requestTile(sv,order,pix){
@@ -53,8 +61,8 @@ export function requestTile(sv,order,pix){
   if(_loads>=12) return null;                               // a dozen in flight is plenty
   t={img:new Image(), tex:null, ok:false, failed:false, at:performance.now()}; CACHE.set(k,t); _loads++;
   t.img.crossOrigin='anonymous';
-  t.img.onload=()=>{ _loads--; t.ok=true; V.dirty=true; };
-  t.img.onerror=()=>{ _loads--; t.failed=true; };
+  t.img.onload=()=>{ _loads--; t.ok=true; V.dirty=true; tileStat(sv,true); };
+  t.img.onerror=()=>{ _loads--; t.failed=true; tileStat(sv,false); };
   t.img.src=tileURL(sv,order,pix);
   if(CACHE.size>600){                                       // drop the oldest finished tiles
     const old=[...CACHE.entries()].filter(e=>e[1].ok||e[1].failed).sort((a,b)=>a[1].at-b[1].at).slice(0,150);

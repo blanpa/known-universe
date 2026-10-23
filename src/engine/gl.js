@@ -1,4 +1,5 @@
 // WebGL 2 point-cloud renderer with HDR accumulation.
+import { count, tfetch } from '../lib/sources.js';
 import { labels } from '../lib/stores.js';
 import { BND, STARS, starRadius } from './data.js';
 import { tNow, tSince } from './motion.js';
@@ -311,7 +312,7 @@ function buildCloudBuf(bytes,key){   // raw bytes -> GPU verbatim (uvec4 attribu
   V.dirty=true; return {vao,n,key};
 }
 function cloudLabel(id,txt){ labels.update(m => ({ ...m, [id]: txt })); }
-function buildGaia(bytes){ const r=buildCloudBuf(bytes,'gaia'); if(!r) return;
+function buildGaia(bytes){ const r=buildCloudBuf(bytes,'gaia'); if(!r) return; count('file-gaia', r.n);
   CL.G=r; gaiaRaw=bytes; gaiaRange=100; attachGaiaPm();
   cloudLabel('t-gaia','Gaia stars ('+(r.n>=1000?((r.n/1000)|0)+'k':r.n)+' <100 pc)'); }
 // gaia_pm.bin: int16 pmRA*, pmDec per star in gaia.bin's order — a second attribute on its VAO
@@ -325,24 +326,24 @@ function attachGaiaPm(){
   gl.bindVertexArray(null); gl.bindBuffer(gl.ARRAY_BUFFER,null);
   CL.G.pm=true; V.dirty=true;
 }
-function buildGaiaBig(bytes){ const r=buildCloudBuf(bytes,'gaiabig'); if(!r) return;
+function buildGaiaBig(bytes){ const r=buildCloudBuf(bytes,'gaiabig'); if(!r) return; count('file-gaiabig', r.n);
   CL.G=r; gaiaRaw=bytes; gaiaRange=150;
   cloudLabel('t-gaia','Gaia stars ('+(r.n/1e6).toFixed(1)+'M <150 pc)'); }
 function buildBelt(bytes){
   if(!bytes||bytes.length<16) return;
   beltEpoch=new DataView(bytes.buffer,bytes.byteOffset,8).getFloat64(0,true)||0;
   bytes=bytes.subarray(8);
-  const r=buildCloudBuf(bytes,'belt'); if(!r) return;
+  const r=buildCloudBuf(bytes,'belt'); if(!r) return; count('file-belt', r.n);
   CL.B=r; beltRaw=bytes;
   cloudLabel('t-belt','Asteroid field ('+((r.n/1000)|0)+'k)'); }
-function buildVars(bytes){ const r=buildCloudBuf(bytes,'vars'); if(!r) return; CL.V=r; varRaw=bytes;
+function buildVars(bytes){ const r=buildCloudBuf(bytes,'vars'); if(!r) return; count('file-variables', r.n); CL.V=r; varRaw=bytes;
   cloudLabel('t-var','Variable stars ('+((r.n/1000)|0)+'k Cepheids·RR Lyr)'); }
-function buildOB(bytes){ const r=buildCloudBuf(bytes,'ob'); if(!r) return; CL.O=r; obRaw=bytes;
+function buildOB(bytes){ const r=buildCloudBuf(bytes,'ob'); if(!r) return; count('file-obstars', r.n); CL.O=r; obRaw=bytes;
   cloudLabel('t-ob','OB stars ('+((r.n/1000)|0)+'k arm tracers)'); }
-function buildWeb(bytes){ const r=buildCloudBuf(bytes,'web'); if(!r) return; CL.W=r; webRaw=bytes;
+function buildWeb(bytes){ const r=buildCloudBuf(bytes,'web'); if(!r) return; count('file-cosmicweb', r.n); CL.W=r; webRaw=bytes;
   cloudLabel('t-web','Cosmic web ('+((r.n/1000)|0)+'k galaxies)'); }
 function buildQso(bytes){ if(bytes && CL.Q && (bytes.length/8)<=CL.Q.n) return;
-  const r=buildCloudBuf(bytes,'qso'); if(!r) return; CL.Q=r; qsoRaw=bytes;
+  const r=buildCloudBuf(bytes,'qso'); if(!r) return; count('file-quasars', r.n); CL.Q=r; qsoRaw=bytes;
   cloudLabel('t-qso','Quasars ('+((r.n/1000)|0)+'k)'); }
 function glRestoreClouds(){          // re-upload retained raw bytes after a context restore
   if(!glOK) return;
@@ -357,18 +358,18 @@ export function loadExtragal(){
   if(!glOK) return;
   try{
     if(typeof window.__WEB_B64__==='string' && window.__WEB_B64__.length){ buildWeb(b64ToBytes(window.__WEB_B64__)); window.__WEB_B64__=null; }
-    else fetch('data/cosmicweb.bin?b='+__BUILD__).then(r=>r.ok?r.arrayBuffer():null).then(a=>{ if(a) buildWeb(new Uint8Array(a)); }).catch(()=>{});
+    else tfetch('file-cosmicweb',{name:'cosmicweb.bin',group:'catalogue'},'data/cosmicweb.bin?b='+__BUILD__).then(r=>r.ok?r.arrayBuffer():null).then(a=>{ if(a) buildWeb(new Uint8Array(a)); }).catch(()=>{});
     if(typeof window.__QSO_B64__==='string' && window.__QSO_B64__.length){ buildQso(b64ToBytes(window.__QSO_B64__)); window.__QSO_B64__=null; }
-    else fetch('data/quasars.bin?b='+__BUILD__).then(r=>r.ok?r.arrayBuffer():null).then(a=>{ if(a) buildQso(new Uint8Array(a)); }).catch(()=>{});
-    fetch('data/quasarsbig.bin?b='+__BUILD__).then(r=>r.ok?r.arrayBuffer():null).then(a=>{ if(a) buildQso(new Uint8Array(a)); }).catch(()=>{});
+    else tfetch('file-quasars',{name:'quasars.bin',group:'catalogue'},'data/quasars.bin?b='+__BUILD__).then(r=>r.ok?r.arrayBuffer():null).then(a=>{ if(a) buildQso(new Uint8Array(a)); }).catch(()=>{});
+    tfetch('file-quasarsbig',{name:'quasarsbig.bin',group:'catalogue',optional:true},'data/quasarsbig.bin?b='+__BUILD__).then(r=>r.ok?r.arrayBuffer():null).then(a=>{ if(a) buildQso(new Uint8Array(a)); }).catch(()=>{});
     if(typeof window.__BELT_B64__==='string' && window.__BELT_B64__.length){ buildBelt(b64ToBytes(window.__BELT_B64__)); window.__BELT_B64__=null; }
-    else fetch('data/belt.bin?b='+__BUILD__).then(r=>r.ok?r.arrayBuffer():null).then(a=>{ if(a) buildBelt(new Uint8Array(a)); }).catch(()=>{});
-    fetch('data/gaiabig.bin?b='+__BUILD__).then(r=>r.ok?r.arrayBuffer():null).then(a=>{ if(a){ buildGaiaBig(new Uint8Array(a));
-      fetch('data/gaiabig_pm.bin?b='+__BUILD__).then(r=>r.ok?r.arrayBuffer():null).then(p=>{ if(p){ gaiaPm=new Uint8Array(p); if(CL.G) CL.G.pm=false; attachGaiaPm(); } }).catch(()=>{}); } }).catch(()=>{});
+    else tfetch('file-belt',{name:'belt.bin',group:'catalogue'},'data/belt.bin?b='+__BUILD__).then(r=>r.ok?r.arrayBuffer():null).then(a=>{ if(a) buildBelt(new Uint8Array(a)); }).catch(()=>{});
+    tfetch('file-gaiabig',{name:'gaiabig.bin',group:'catalogue',optional:true},'data/gaiabig.bin?b='+__BUILD__).then(r=>r.ok?r.arrayBuffer():null).then(a=>{ if(a){ buildGaiaBig(new Uint8Array(a));
+      tfetch('file-gaiabig_pm',{name:'gaiabig_pm.bin',group:'catalogue',optional:true},'data/gaiabig_pm.bin?b='+__BUILD__).then(r=>r.ok?r.arrayBuffer():null).then(p=>{ if(p){ gaiaPm=new Uint8Array(p); if(CL.G) CL.G.pm=false; attachGaiaPm(); } }).catch(()=>{}); } }).catch(()=>{});
     if(typeof window.__OB_B64__==='string' && window.__OB_B64__.length){ buildOB(b64ToBytes(window.__OB_B64__)); window.__OB_B64__=null; }
-    else fetch('data/obstars.bin?b='+__BUILD__).then(r=>r.ok?r.arrayBuffer():null).then(a=>{ if(a) buildOB(new Uint8Array(a)); }).catch(()=>{});
+    else tfetch('file-obstars',{name:'obstars.bin',group:'catalogue'},'data/obstars.bin?b='+__BUILD__).then(r=>r.ok?r.arrayBuffer():null).then(a=>{ if(a) buildOB(new Uint8Array(a)); }).catch(()=>{});
     if(typeof window.__VAR_B64__==='string' && window.__VAR_B64__.length){ buildVars(b64ToBytes(window.__VAR_B64__)); window.__VAR_B64__=null; }
-    else fetch('data/variables.bin?b='+__BUILD__).then(r=>r.ok?r.arrayBuffer():null).then(a=>{ if(a) buildVars(new Uint8Array(a)); }).catch(()=>{});
+    else tfetch('file-variables',{name:'variables.bin',group:'catalogue'},'data/variables.bin?b='+__BUILD__).then(r=>r.ok?r.arrayBuffer():null).then(a=>{ if(a) buildVars(new Uint8Array(a)); }).catch(()=>{});
   }catch(e){}
 }
 function b64ToBytes(b64){ const bin=atob(b64), len=bin.length, u=new Uint8Array(len);
@@ -378,9 +379,9 @@ export function loadGaia(){
   try{
     if(typeof window.__GAIA_B64__==='string' && window.__GAIA_B64__.length){
       buildGaia(b64ToBytes(window.__GAIA_B64__)); window.__GAIA_B64__=null; return; }
-    fetch('data/gaia.bin?b='+__BUILD__).then(r=>r.ok?r.arrayBuffer():null)
+    tfetch('file-gaia',{name:'gaia.bin',group:'catalogue'},'data/gaia.bin?b='+__BUILD__).then(r=>r.ok?r.arrayBuffer():null)
       .then(a=>{ if(a) buildGaia(new Uint8Array(a)); }).catch(()=>{});
-    fetch('data/gaia_pm.bin?b='+__BUILD__).then(r=>r.ok?r.arrayBuffer():null)
+    tfetch('file-gaia_pm',{name:'gaia_pm.bin',group:'catalogue',optional:true},'data/gaia_pm.bin?b='+__BUILD__).then(r=>r.ok?r.arrayBuffer():null)
       .then(a=>{ if(a&&(!gaiaPm||gaiaRange===100)){ gaiaPm=new Uint8Array(a); attachGaiaPm(); } }).catch(()=>{});
   }catch(e){}
 }

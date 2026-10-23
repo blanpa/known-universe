@@ -1,4 +1,5 @@
 // Our solar system: Sun, planets, moons, probes, interstellar visitors, small bodies.
+import { declare, timg } from '../lib/sources.js';
 import { ctx } from './canvas.js';
 import { drawHalo, haloSprite, offscr, pathBegin, pathBreak, pathPt, pathStroke } from './draw.js';
 import { PTEX, _gbl, bodyGlobe, earthGlobe, earthImage } from './earth.js';
@@ -91,12 +92,14 @@ export function drawOrbitEllipse(el,style){        // true (eccentric, inclined)
 }
 // live Sun: GOES SUVI 304 Å (chromosphere, prominences) — SWPC serves it with CORS
 let _suvi={im:null,ok:false,t:0,loading:false};
+declare('suvi', {name:'NOAA SWPC · SUVI 304 Å solar image', host:'services.swpc.noaa.gov', group:'live'});
 function suviImage(){
   if(!_suvi.loading && Date.now()-_suvi.t>10*60e3){
     _suvi.loading=true;
     const im=new Image(); im.crossOrigin='anonymous';
     im.onload=()=>{ _suvi.im=im; _suvi.ok=true; _suvi.t=Date.now(); _suvi.loading=false; V.dirty=true; };
     im.onerror=()=>{ _suvi.t=Date.now(); _suvi.loading=false; };   // keep the last good frame
+    timg('suvi', {name:'NOAA SWPC · SUVI 304 Å solar image', host:'services.swpc.noaa.gov', group:'live'}, im);
     im.src='https://services.swpc.noaa.gov/images/animations/suvi/primary/304/latest.png';
   }
   return _suvi.ok?_suvi.im:null;
