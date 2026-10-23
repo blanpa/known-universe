@@ -46,11 +46,12 @@ export function drawSystem(alpha){ LBL.prio=P_SOLAR;
   const ringPt=(r,a,b,th)=>{ const c=Math.cos(th), sn=Math.sin(th);
     camDir2i(a[0]*c+b[0]*sn, a[1]*c+b[1]*sn, a[2]*c+b[2]*sn); return [sp.x+_d2x*r, sp.y+_d2y*r]; };
   const ring=(r,a,b)=>{ ctx.beginPath(); for(let k=0;k<=48;k++){ const q=ringPt(r,a,b,k/48*6.2832); if(k) ctx.lineTo(q[0],q[1]); else ctx.moveTo(q[0],q[1]); } };
-  if(HZ){ const [ri,ro]=HZ;                                  // in the sky plane, like a face-on orbit
-    ring(ro,v,w); ring(ri,v,w); ctx.fillStyle=`rgba(90,220,130,${A*0.11})`; ctx.fill('evenodd');
-    ctx.strokeStyle=`rgba(110,230,150,${A*0.32})`; ctx.lineWidth=1; ring(ri,v,w); ctx.stroke(); ring(ro,v,w); ctx.stroke();
+  if(HZ){ const [ri,ro]=HZ;                                  // in the plane the planets use
+    const edgeOn=pls.some(p=>p.per>0&&p.t0>0), ha=edgeOn?u:v, hb=edgeOn?v:w;
+    ring(ro,ha,hb); ring(ri,ha,hb); ctx.fillStyle=`rgba(90,220,130,${A*0.11})`; ctx.fill('evenodd');
+    ctx.strokeStyle=`rgba(110,230,150,${A*0.32})`; ctx.lineWidth=1; ring(ri,ha,hb); ctx.stroke(); ring(ro,ha,hb); ctx.stroke();
     ctx.font='8.5px ui-monospace,monospace'; ctx.fillStyle=`rgba(120,230,150,${A*0.72})`;
-    const lp=ringPt(ro,v,w,-0.9); ctx.fillText('habitable zone', lp[0]+4, lp[1]-3); }
+    const lp=ringPt(ro,ha,hb,-0.9); ctx.fillText('habitable zone', lp[0]+4, lp[1]-3); }
   pls.forEach((p,i)=>{
     const t = pls.length>1 ? Math.log10(p.a/aMin)/lr : 0.5;
     const orb = S0*(0.13+t*0.84);

@@ -1,4 +1,4 @@
-import { _ as toggleState, a as startLive, c as facColor, d as measure, f as nav, g as timeline, h as stats, i as satEcl, l as facList$1, m as selection, n as activeShowers, o as RESERVED, p as searchMsg, r as groundEcl, s as camera, t as LIVE, u as labels, v as tour, y as api } from "./index-kFfkSiFH.js";
+import { _ as toggleState, a as startLive, c as facColor, d as measure, f as nav, g as timeline, h as stats, i as satEcl, l as facList$1, m as selection, n as activeShowers, o as RESERVED, p as searchMsg, r as groundEcl, s as camera, t as LIVE, u as labels, v as tour, y as api } from "./index-CNIg_tgO.js";
 //#region src/engine/canvas.js
 var cv = document.getElementById("sky");
 var ctx = cv.getContext("2d");
@@ -3209,19 +3209,20 @@ function drawSystem(alpha) {
 	};
 	if (HZ) {
 		const [ri, ro] = HZ;
-		ring(ro, v, w);
-		ring(ri, v, w);
+		const edgeOn = pls.some((p) => p.per > 0 && p.t0 > 0), ha = edgeOn ? u : v, hb = edgeOn ? v : w;
+		ring(ro, ha, hb);
+		ring(ri, ha, hb);
 		ctx.fillStyle = `rgba(90,220,130,${A * .11})`;
 		ctx.fill("evenodd");
 		ctx.strokeStyle = `rgba(110,230,150,${A * .32})`;
 		ctx.lineWidth = 1;
-		ring(ri, v, w);
+		ring(ri, ha, hb);
 		ctx.stroke();
-		ring(ro, v, w);
+		ring(ro, ha, hb);
 		ctx.stroke();
 		ctx.font = "8.5px ui-monospace,monospace";
 		ctx.fillStyle = `rgba(120,230,150,${A * .72})`;
-		const lp = ringPt(ro, v, w, -.9);
+		const lp = ringPt(ro, ha, hb, -.9);
 		ctx.fillText("habitable zone", lp[0] + 4, lp[1] - 3);
 	}
 	pls.forEach((p, i) => {
