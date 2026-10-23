@@ -7055,21 +7055,34 @@ function __run() {
 	};
 	const LBLW = /* @__PURE__ */ new Map();
 	const P_HUD = 100, P_SEL = 92, P_SOLAR = 80, P_PROBE = 70, P_DEEP = 62, P_STAR = 52, P_SMALL = 40, P_GAL = 30, P_GRID = 14;
+	const HALO_DX = [
+		1,
+		-1,
+		0,
+		0,
+		1,
+		1,
+		-1,
+		-1
+	], HALO_DY = [
+		0,
+		0,
+		1,
+		-1,
+		1,
+		-1,
+		1,
+		-1
+	];
 	function _paint(s, x, y, mw, st) {
 		ctx.font = st.f;
-		ctx.fillStyle = st.c;
 		ctx.textAlign = st.a;
 		ctx.textBaseline = st.b;
 		ctx.globalAlpha = st.g;
-		const pw = ctx.lineWidth, ps = ctx.strokeStyle, pj = ctx.lineJoin;
-		ctx.lineWidth = 2.4;
-		ctx.lineJoin = "round";
-		ctx.strokeStyle = "rgba(5,7,14,0.75)";
-		mw === void 0 ? ctx.strokeText(s, x, y) : ctx.strokeText(s, x, y, mw);
-		ctx.lineWidth = pw;
-		ctx.strokeStyle = ps;
-		ctx.lineJoin = pj;
-		mw === void 0 ? _rawFillText(s, x, y) : _rawFillText(s, x, y, mw);
+		ctx.fillStyle = "rgba(5,7,14,0.6)";
+		for (let k = 0; k < 8; k++) _rawFillText(s, x + HALO_DX[k], y + HALO_DY[k], mw);
+		ctx.fillStyle = st.c;
+		_rawFillText(s, x, y, mw);
 	}
 	ctx.fillText = (s, x, y, mw) => {
 		if (!S.labels) return;
@@ -10291,16 +10304,21 @@ function __run() {
 					ctx.setTransform(DPR, 0, 0, cv.height / H, 0, 0);
 				}
 				ctx.globalAlpha = 1;
+			} else if (s < 1.8) {
+				ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},${Math.min(1, a * .55 + .3)})`;
+				ctx.fillRect(g._sx - s, g._sy - s, s * 2, s * 2);
 			} else {
 				ctx.beginPath();
 				ctx.arc(g._sx, g._sy, s, 0, 6.2832);
 				ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},${a * .55})`;
 				ctx.fill();
 			}
-			ctx.beginPath();
-			ctx.arc(g._sx, g._sy, Math.max(.8, s * .26), 0, 6.2832);
-			ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},${Math.min(1, a + .25)})`;
-			ctx.fill();
+			if (s >= 1.8) {
+				ctx.beginPath();
+				ctx.arc(g._sx, g._sy, Math.max(.8, s * .26), 0, 6.2832);
+				ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},${Math.min(1, a + .25)})`;
+				ctx.fill();
+			}
 			const sel = g === S.hover || g === S.pinned;
 			if (sel) {
 				ctx.beginPath();
@@ -18545,7 +18563,7 @@ function MobileNav($$anchor, $$props) {
 		}
 		var text = sibling(node_5);
 		var small = sibling(text);
-		small.textContent = `· b16:28`;
+		small.textContent = `· b16:43`;
 		reset(span);
 		var span_1 = sibling(span, 2);
 		var button_5 = child(span_1);
