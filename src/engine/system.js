@@ -1,4 +1,5 @@
 // A foreign exoplanet system: planets on their orbits around the focused host.
+import { transit as transitStore } from '../lib/stores.js';
 import { ctx } from './canvas.js';
 import { PC2LY } from './data.js';
 import { fmt } from './hud.js';
@@ -8,6 +9,19 @@ import { S, V } from './state.js';
 import { H, W, _d2x, _d2y, camDir2i, project } from './view.js';
 // ---- other exoplanet systems: an orbital diagram around the focused host star ----
 export let sysProj=[];
+// the transit light curve lives in a component; the engine publishes the ingredients once
+// per visible change: depth (Rp/R*)², central-transit duration, ingress, and the epochs
+let _transitKey='';
+const R_EARTH_AU=4.2635e-5, R_SUN_AU=4.6505e-3;
+function publishTransits(s,jd){
+  const key=s.h+'|'+jd.toFixed(2); if(key===_transitKey) return; _transitKey=key;
+  const rstar=s._sr||1, rsAU=rstar*R_SUN_AU;
+  const planets=s.p.filter(p=>p.per>0&&p.t0>0&&p.r>0&&p.a>0).map(p=>{
+    const k=p.r*R_EARTH_AU/rsAU, dur=p.per/Math.PI*Math.asin(Math.min(1,rsAU*(1+k)/p.a));
+    return {n:p.n, per:p.per, t0:p.t0, depth:k*k, dur, ing:Math.max(1e-4,dur*k/(1+k))}; });
+  transitStore.set({host:s.h, rstar, now:jd, planets});
+}
+export function clearTransits(){ if(_transitKey){ _transitKey=''; transitStore.set(null); } }
 export function planetColor(r){
   if(!r)     return [180,185,195];
   if(r<1.6)  return [206,150,108];   // Gestein
@@ -21,6 +35,7 @@ export function drawSystem(alpha){ LBL.prio=P_SOLAR;
   const sp=project(V.focusSysW[0],V.focusSysW[1],V.focusSysW[2]);
   if(sp.depth<=V.NEAR) return;
   const A=alpha; ctx.globalAlpha=A;
+  publishTransits(s, solarJD());
   const pls=s.p.filter(p=>p.a>0).slice().sort((x,y)=>x.a-y.a);
   const aMin=pls.length?pls[0].a:1, aMax=pls.length?pls[pls.length-1].a:1;
   const lr=Math.log10(aMax/aMin)||1, S0=Math.min(W,H)*0.34*A;

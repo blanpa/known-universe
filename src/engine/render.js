@@ -11,12 +11,13 @@ import { drawNav, drawScaleBar, updateHUD } from './hud.js';
 import { drawHyg, projectHyg } from './hyg.js';
 import { LBL, P_SOLAR, P_STAR, lblFlush, lblReset } from './labels.js';
 import { drawMeasure, measureMode } from './measure.js';
+import { hostPos, tNow } from './motion.js';
 import { LENS_EXAG, calcLens, drawGalaxyModel, drawMW, lensPar } from './mw.js';
 import { drawConstellations, drawShowers } from './sky.js';
 import { FAC } from './solar-data.js';
 import { drawSolar } from './solar.js';
 import { S, V } from './state.js';
-import { drawSystem, sysProj } from './system.js';
+import { clearTransits, drawSystem, sysProj } from './system.js';
 import { drawRoute } from './transfer.js';
 import { H, W, _pj, camBasis, camDist, camPos, compress, lodA, project, projectInto } from './view.js';
 export let visSys=0,visPl=0,nearD=Infinity,farD=0;
@@ -57,12 +58,15 @@ export function render(){
 
   // gather visible
   order.length=0; visSys=0; visPl=0; nearD=Infinity; farD=0;
+  const tMove=tNow();
   for(let i=0;i<STARS.length;i++){
     const s=STARS[i];
     if(s.fy>S.year && s.fy!==0) continue;
     if(S.facHidden.has(s.fac)) continue;
-    const dr=compress(s._r);
-    const p=projectInto(s._dx*dr,s._dy*dr,s._dz*dr,_pj);
+    let ddx=s._dx, ddy=s._dy, ddz=s._dz, dNow=s._r;
+    if(tMove){ const q=hostPos(s,tMove); dNow=Math.hypot(q[0],q[1],q[2])||1e-9; ddx=q[0]/dNow; ddy=q[1]/dNow; ddz=q[2]/dNow; }
+    const dr=compress(dNow);
+    const p=projectInto(ddx*dr,ddy*dr,ddz*dr,_pj);
     if(p.depth<=V.NEAR) continue;
     if(p.x<-90||p.x>W+90||p.y<-90||p.y>H+90) continue;   // off-screen cull
     s._sx=p.x; s._sy=p.y; s._depth=p.depth; s._z2=p.z2;
@@ -152,7 +156,7 @@ export function render(){
   // our solar system — detail fades in as we zoom toward the Sun
   if(V.solarA>0.01) P('solar',()=>drawSolar(V.solarA));
   // a fellow exoplanet system — its planets on their orbits, when we fly to it
-  if(V.sysA>0.01) P('system',()=>drawSystem(V.sysA)); else sysProj.length=0;
+  if(V.sysA>0.01) P('system',()=>drawSystem(V.sysA)); else { sysProj.length=0; clearTransits(); }
 
   if(measureMode) drawMeasure();
   if(V.ROUTE) drawRoute();                   // interstellar 1g route (Earth → star/galaxy)

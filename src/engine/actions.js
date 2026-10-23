@@ -1,18 +1,20 @@
 // Actions: everything a button, a key or a search can ask the engine to do.
-// Each is a plain function; the ones the UI needs are published on `api` at the end.
 import { api } from '../lib/api.js';
-import { facColor as facColorStore, searchMsg as searchMsgStore } from '../lib/stores.js';
+import { facColor as facColorStore, searchMsg as searchMsgStore, timeBar as timeBarStore } from '../lib/stores.js';
 import { clickToggle, syncToggle } from './controls.js';
 import { GAL, PC2LY, STARS } from './data.js';
 import { physPos, worldPos } from './entity.js';
 import { fmt } from './hud.js';
 import { zoomRange } from './interact.js';
+import { ENCOUNTERS, hostPos, hygPos, tNow } from './motion.js';
 import { CLUSTERS, DSO, PULSARS, SGRA } from './sky-data.js';
 import { FAC, HYG, PROBES, SMALL, SOLAR_BODIES, SUN, TNOS } from './solar-data.js';
 import { ISO } from './solar.js';
 import { S, V } from './state.js';
+import { setTime, sliderOf } from './timeline.js';
 import { computeRoute, computeTransfer } from './transfer.js';
 import { camCosmos, camSolar, compress, invScale, scale, tgtCtr } from './view.js';
+// Each is a plain function; the ones the UI needs are published on `api` at the end.
 
 // ---- one-line feedback (search, measure, share) ----
 let _lastMsg='';
@@ -161,8 +163,13 @@ export function objWorld(o){
     const R=scale(o.d); return [o._dir[0]*R,o._dir[1]*R,o._dir[2]*R]; }
   if(o.sgra||o.dso) return [o._x,o._y,o._z];                     // Sgr A* / deep-sky (fallback)
   if(o.mpc!==undefined) return [o._x,o._y,o._z];                       // galaxy
-  if(o.p && o._dx!==undefined){ const d=compress(o._r); return [o._dx*d,o._dy*d,o._dz*d]; } // exoplanet host
-  if(o.m!==undefined && o.dx!==undefined){ const d=compress(o.d); return [o.dx*d,o.dy*d,o.dz*d]; } // HYG star
+  const t=tNow();
+  if(o.p && o._dx!==undefined){                                         // exoplanet host
+    if(t){ const q=hostPos(o,t), L=Math.hypot(q[0],q[1],q[2])||1e-9, d=compress(L)/L; return [q[0]*d,q[1]*d,q[2]*d]; }
+    const d=compress(o._r); return [o._dx*d,o._dy*d,o._dz*d]; }
+  if(o.m!==undefined && o.dx!==undefined){                              // HYG star
+    if(t){ const q=hygPos(o,t), L=Math.hypot(q[0],q[1],q[2])||1e-9, d=compress(L)/L; return [q[0]*d,q[1]*d,q[2]*d]; }
+    const d=compress(o.d); return [o.dx*d,o.dy*d,o.dz*d]; }
   return null;
 }
 export function flyTo(o){
@@ -190,6 +197,16 @@ export function focusOnHyg(s){
   const dr=compress(s.d); aim(s.dx*dr,s.dy*dr,s.dz*dr, scale(s.d*0.2));
 }
 
-Object.assign(api, { lock:lockToggle, setCourse, clearCourse, engage:engageCourse, route:routeToggle,
+// a close stellar encounter: set the clock to the moment of closest approach and fly to the star
+export function gotoEncounter(i){
+  const e=ENCOUNTERS[i]; if(!e) return;
+  timeBarStore.set(true);
+  setTime(sliderOf(e.t));
+  if(!S.hyg){S.hyg=true;syncToggle('t-hyg',true);}
+  S.pinned=e.s; S.focusStar=null; V.focusSys=null; V.FOLLOW=null;
+  const q=hygPos(e.s,e.t), L=Math.hypot(q[0],q[1],q[2])||1e-9, d=compress(L)/L;
+  aim(q[0]*d,q[1]*d,q[2]*d, scale(Math.max(L*0.35, 3e-5)));
+}
+Object.assign(api, { gotoEncounter, lock:lockToggle, setCourse, clearCourse, engage:engageCourse, route:routeToggle,
   transfer:transferToggle, deselect, reset:resetView, toggleSolar, enterSolar, flyToScale,
   doSearch, toggleFac, facColorToggle, facList:()=>facList, msgText });

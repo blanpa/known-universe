@@ -1,4 +1,4 @@
-import { _ as toggleState, a as startLive, c as facColor, d as measure, f as nav, g as timeline, h as stats, i as satEcl, l as facList$1, m as selection, n as activeShowers, o as RESERVED, p as searchMsg, r as groundEcl, s as camera, t as LIVE, u as labels, v as tour, y as api } from "./index-CNIg_tgO.js";
+import { S as api, _ as timeBar, a as startLive, b as tour, c as encounters, d as labels, f as measure, g as stats, h as selection, i as satEcl, l as facColor, m as searchMsg, n as activeShowers, o as RESERVED, p as nav, r as groundEcl, s as camera, t as LIVE, u as facList$1, v as timeline, x as transit, y as toggleState } from "./index-CHA664ad.js";
 //#region src/engine/canvas.js
 var cv = document.getElementById("sky");
 var ctx = cv.getContext("2d");
@@ -3105,8 +3105,108 @@ var FAC = {
 };
 var HYG = DATA.hyg || [];
 //#endregion
+//#region src/engine/motion.js
+var MAS2RAD = Math.PI / (180 * 3600 * 1e3);
+var KMS2PCYR = 10227e-10;
+function velocityOf(dir, d, pr, pd, rv) {
+	const cd = Math.hypot(dir[0], dir[1]) || 1e-6;
+	const ex = -dir[1] / cd, ey = dir[0] / cd;
+	const nx = -dir[2] * dir[0] / cd, ny = -dir[2] * dir[1] / cd, nz = cd;
+	const vE = (pr || 0) * MAS2RAD * d, vN = (pd || 0) * MAS2RAD * d, vR = (rv || 0) * KMS2PCYR;
+	return [
+		ex * vE + nx * vN + dir[0] * vR,
+		ey * vE + ny * vN + dir[1] * vR,
+		nz * vN + dir[2] * vR
+	];
+}
+for (const s of HYG) s._v = velocityOf([
+	s.dx,
+	s.dy,
+	s.dz
+], s.d, s.pr, s.pd, s.rv);
+for (const s of STARS) s._v = velocityOf([
+	s._dx,
+	s._dy,
+	s._dz
+], s._r, s.pr, s.pd, s.rv);
+var tNow = () => S.pm ? S.pmYears : 0;
+function hygPos(s, t) {
+	return [
+		s.dx * s.d + s._v[0] * t,
+		s.dy * s.d + s._v[1] * t,
+		s.dz * s.d + s._v[2] * t
+	];
+}
+function hostPos(s, t) {
+	return [
+		s._dx * s._r + s._v[0] * t,
+		s._dy * s._r + s._v[1] * t,
+		s._dz * s._r + s._v[2] * t
+	];
+}
+var ENCOUNTERS = (() => {
+	const out = [];
+	for (const s of HYG) {
+		if (s.rv === void 0) continue;
+		const v = s._v, rx = s.dx * s.d, ry = s.dy * s.d, rz = s.dz * s.d;
+		const vv = v[0] * v[0] + v[1] * v[1] + v[2] * v[2];
+		if (vv <= 0) continue;
+		const t = -(rx * v[0] + ry * v[1] + rz * v[2]) / vv;
+		if (Math.abs(t) > 2e6) continue;
+		const d = Math.hypot(rx + v[0] * t, ry + v[1] * t, rz + v[2] * t);
+		if (d < 1.5 && d < s.d * .9) out.push({
+			s,
+			t: Math.round(t),
+			d,
+			v: Math.sqrt(vv) / KMS2PCYR
+		});
+	}
+	out.sort((a, b) => a.d - b.d);
+	return out.slice(0, 40);
+})();
+encounters.set(ENCOUNTERS.map((e, i) => ({
+	i,
+	name: e.s.n || "HIP " + e.s.hip,
+	t: e.t,
+	d: e.d,
+	v: e.v,
+	dNow: e.s.d
+})));
+//#endregion
 //#region src/engine/system.js
 var sysProj = [];
+var _transitKey = "";
+var R_EARTH_AU = 42635e-9;
+var R_SUN_AU = .0046505;
+function publishTransits(s, jd) {
+	const key = s.h + "|" + jd.toFixed(2);
+	if (key === _transitKey) return;
+	_transitKey = key;
+	const rstar = s._sr || 1, rsAU = rstar * R_SUN_AU;
+	const planets = s.p.filter((p) => p.per > 0 && p.t0 > 0 && p.r > 0 && p.a > 0).map((p) => {
+		const k = p.r * R_EARTH_AU / rsAU, dur = p.per / Math.PI * Math.asin(Math.min(1, rsAU * (1 + k) / p.a));
+		return {
+			n: p.n,
+			per: p.per,
+			t0: p.t0,
+			depth: k * k,
+			dur,
+			ing: Math.max(1e-4, dur * k / (1 + k))
+		};
+	});
+	transit.set({
+		host: s.h,
+		rstar,
+		now: jd,
+		planets
+	});
+}
+function clearTransits() {
+	if (_transitKey) {
+		_transitKey = "";
+		transit.set(null);
+	}
+}
 function planetColor(r) {
 	if (!r) return [
 		180,
@@ -3143,6 +3243,7 @@ function drawSystem(alpha) {
 	if (sp.depth <= V.NEAR) return;
 	const A = alpha;
 	ctx.globalAlpha = A;
+	publishTransits(s, solarJD());
 	const pls = s.p.filter((p) => p.a > 0).slice().sort((x, y) => x.a - y.a);
 	const aMin = pls.length ? pls[0].a : 1, aMax = pls.length ? pls[pls.length - 1].a : 1;
 	const lr = Math.log10(aMax / aMin) || 1, S0 = Math.min(W, H) * .34 * A;
@@ -4921,22 +5022,8 @@ function physPos(o) {
 				o.dz * d
 			];
 		}
-		case "host": {
-			const d = o._r;
-			return [
-				o._dx * d,
-				o._dy * d,
-				o._dz * d
-			];
-		}
-		case "star": {
-			const d = o.d;
-			return [
-				o.dx * d,
-				o.dy * d,
-				o.dz * d
-			];
-		}
+		case "host": return hostPos(o, tNow());
+		case "star": return hygPos(o, tNow());
 		case "moon": {
 			const p = SOLAR_BODIES.find((b) => b.n === o.parent);
 			return p && p._e ? eclPos(p._e) : null;
@@ -5234,6 +5321,10 @@ function card(o) {
 			const [ra, dec] = radec(o.dx, o.dy, o.dz);
 			c.title = o.n || "Star";
 			c.rows.push(["Distance", `${ly$1(o.d)} · ${o.d} pc`], ["Apparent mag.", String(o.m)]);
+			if (tNow()) {
+				const q = hygPos(o, tNow()), L = Math.hypot(q[0], q[1], q[2]);
+				c.rows.push(["On the timeline", `${L < .5 ? (L * 206265).toFixed(0) + " AU" : ly$1(L)} away`]);
+			}
 			if (o.con) c.rows.push(["Constellation", o.con]);
 			c.rows.push(["RA / Dec", radecText(o.dx, o.dy, o.dz)]);
 			c.links = [{
@@ -5250,6 +5341,10 @@ function card(o) {
 			const pls = o.p.filter((p) => p.y <= S.year || p.y === 0).sort((a, b) => (a.y || 9999) - (b.y || 9999));
 			const fc = FAC[o.fac] || FAC.other, [ra, dec] = radec(o.x / o.d, o.y / o.d, o.z / o.d);
 			c.rows.push(["Distance", `${ly$1(o.d)} · ${fmt(o.d)} pc`], ["Star", o.sp ? o.sp : o.t ? fmt(o.t) + " K" : "—"], ["Discovered", String(o.fy || "—")], ["Instrument", fc.l]);
+			if (tNow()) {
+				const q = hostPos(o, tNow()), L = Math.hypot(q[0], q[1], q[2]);
+				c.rows.push(["On the timeline", `${ly$1(L)} away`]);
+			}
 			c.instrumentColor = fc.c;
 			c.planets = pls.slice(0, 6).map((p) => ({
 				n: p.n,
@@ -5618,19 +5713,15 @@ function glTail(host) {
 }
 var GL_VSF = `#version 300 es
 precision highp float;
-in vec3 a_dir; in float a_dist; in float a_mag; in vec3 a_color; in vec2 a_pm;
+in vec3 a_dir; in float a_dist; in float a_mag; in vec3 a_color; in vec2 a_pm; in vec3 a_vel;
 ${GL_UNI}
 uniform float u_pmYears,u_hostMode,u_year,u_facColor,u_sizeOn,u_veil,u_bnd,u_glow;
 uniform float u_facVis[8]; uniform vec3 u_pal[8];
 void main(){
-  vec3 dir=a_dir;
-  if(u_pmYears!=0.0 && u_hostMode<0.5){
-    float cd=max(1e-6, length(a_dir.xy));
-    float mas=3.14159265/(180.0*3600.0*1000.0);
-    float tE=a_pm.x*u_pmYears*mas, tN=a_pm.y*u_pmYears*mas;
-    vec3 east=vec3(-a_dir.y/cd, a_dir.x/cd, 0.0);
-    vec3 north=vec3(-a_dir.z*a_dir.x/cd, -a_dir.z*a_dir.y/cd, cd);
-    dir=normalize(a_dir + east*tE + north*tN);
+  vec3 dir=a_dir; float distM=a_dist;
+  if(u_pmYears!=0.0){                                    // straight-line 3D motion, pc/yr
+    vec3 pos=a_dir*a_dist + a_vel*u_pmYears;
+    distM=max(1e-6, length(pos)); dir=pos/distM;
   }
   vec3 col=a_color; float rs=1.0;
   if(u_hostMode>0.5){
@@ -5641,7 +5732,7 @@ void main(){
     if(u_facColor>0.5) col=u_pal[ci];
     if(u_sizeOn>0.5) rs=a_mag;                           // a_mag carries radiusScale for hosts
   }
-  float dist=a_dist, mg=a_mag;
+  float dist=distM, mg=a_mag;
   ${glTail(true)}
 }`;
 var GL_VSU = `#version 300 es
@@ -5756,19 +5847,21 @@ function mkFloatVAO(gl, arr) {
 	gl.bindVertexArray(vao);
 	const A = progF.attr;
 	gl.enableVertexAttribArray(A.a_dir);
-	gl.vertexAttribPointer(A.a_dir, 3, gl.FLOAT, false, 40, 0);
+	gl.vertexAttribPointer(A.a_dir, 3, gl.FLOAT, false, 52, 0);
 	gl.enableVertexAttribArray(A.a_dist);
-	gl.vertexAttribPointer(A.a_dist, 1, gl.FLOAT, false, 40, 12);
+	gl.vertexAttribPointer(A.a_dist, 1, gl.FLOAT, false, 52, 12);
 	gl.enableVertexAttribArray(A.a_mag);
-	gl.vertexAttribPointer(A.a_mag, 1, gl.FLOAT, false, 40, 16);
+	gl.vertexAttribPointer(A.a_mag, 1, gl.FLOAT, false, 52, 16);
 	gl.enableVertexAttribArray(A.a_color);
-	gl.vertexAttribPointer(A.a_color, 3, gl.FLOAT, false, 40, 20);
+	gl.vertexAttribPointer(A.a_color, 3, gl.FLOAT, false, 52, 20);
 	gl.enableVertexAttribArray(A.a_pm);
-	gl.vertexAttribPointer(A.a_pm, 2, gl.FLOAT, false, 40, 32);
+	gl.vertexAttribPointer(A.a_pm, 2, gl.FLOAT, false, 52, 32);
+	gl.enableVertexAttribArray(A.a_vel);
+	gl.vertexAttribPointer(A.a_vel, 3, gl.FLOAT, false, 52, 40);
 	gl.bindVertexArray(null);
 	return {
 		vao,
-		n: arr.length / 10
+		n: arr.length / 13
 	};
 }
 function initGL() {
@@ -5821,9 +5914,13 @@ function initGL() {
 				gl.uniform1i(progT.loc.u_tex, 0);
 			}
 		}
-		const arr = new Float32Array(HYG.length * 10);
+		const arr = new Float32Array(HYG.length * 13);
 		for (let i = 0; i < HYG.length; i++) {
-			const st = HYG[i], o = i * 10;
+			const st = HYG[i], o = i * 13, v = st._v || [
+				0,
+				0,
+				0
+			];
 			arr[o] = st.dx;
 			arr[o + 1] = st.dy;
 			arr[o + 2] = st.dz;
@@ -5834,6 +5931,9 @@ function initGL() {
 			arr[o + 7] = st.c[2] / 255;
 			arr[o + 8] = st.pr || 0;
 			arr[o + 9] = st.pd || 0;
+			arr[o + 10] = v[0];
+			arr[o + 11] = v[1];
+			arr[o + 12] = v[2];
 		}
 		glBuf = mkFloatVAO(gl, arr);
 		const FACIDX = {
@@ -5846,9 +5946,16 @@ function initGL() {
 			ground: 6,
 			other: 7
 		};
-		const ha = new Float32Array(STARS.length * 10);
+		const ha = new Float32Array(STARS.length * 13);
 		for (let i = 0; i < STARS.length; i++) {
-			const st2 = STARS[i], o = i * 10;
+			const st2 = STARS[i], o = i * 13, v2 = st2._v || [
+				0,
+				0,
+				0
+			];
+			ha[o + 10] = v2[0];
+			ha[o + 11] = v2[1];
+			ha[o + 12] = v2[2];
 			const sr2 = st2._sr !== void 0 ? st2._sr : starRadius(st2);
 			ha[o] = st2._dx;
 			ha[o + 1] = st2._dy;
@@ -5863,9 +5970,9 @@ function initGL() {
 		}
 		glBufH = mkFloatVAO(gl, ha);
 		const mkPts = (list, mag, cFn) => {
-			const a2 = new Float32Array(list.length * 10);
+			const a2 = new Float32Array(list.length * 13);
 			for (let i = 0; i < list.length; i++) {
-				const q = list[i], o = i * 10, c = cFn(q);
+				const q = list[i], o = i * 13, c = cFn(q);
 				a2[o] = q._dir[0];
 				a2[o + 1] = q._dir[1];
 				a2[o + 2] = q._dir[2];
@@ -6246,7 +6353,8 @@ function glRender() {
 		const beltA = Math.max(.12, Math.min(1, (ringPx - 24) / 140));
 		drawCloud(CL.B, .03, 1.05, beltA, beltEpoch ? solarJD() - beltEpoch : 0);
 	}
-	if (CL.G && S.gaia) drawCloud(CL.G, .12, 1.2, hdrOK ? 1 : .85);
+	const gaiaFade = S.pm ? Math.max(.12, Math.min(1, 1 - (Math.abs(S.pmYears) - 1e5) / 4e5)) : 1;
+	if (CL.G && S.gaia) drawCloud(CL.G, .12, 1.2, (hdrOK ? 1 : .85) * gaiaFade);
 	if (V.solarA < .5 && V.sysA < .5) {
 		if (CL.O && S.ob) drawCloud(CL.O, .05, 1, .8);
 		if (CL.V && S.vars) drawCloud(CL.V, .05, 1);
@@ -6821,7 +6929,9 @@ function drawDSO() {
 	LBL.prio = 62;
 	dsoProj.length = 0;
 	if (!S.dso) return;
+	const deep = Math.abs(tNow()) > 3e5;
 	for (const o of DSO) {
+		if (deep && o.d < 100) continue;
 		const R = scale(o.d);
 		o._x = o._dir[0] * R;
 		o._y = o._dir[1] * R;
@@ -7389,25 +7499,22 @@ function drawVeilSphere() {
 //#endregion
 //#region src/engine/hyg.js
 var hygProj = [];
-var MAS2RAD = Math.PI / (180 * 3600 * 1e3);
+Math.PI / (180 * 3600 * 1e3);
 function projectHyg() {
 	hygProj.length = 0;
 	if (!S.hyg) return;
 	const pm = S.pm && S.pmYears !== 0, ty = S.pmYears;
 	for (const s of HYG) {
-		let dx = s.dx, dy = s.dy, dz = s.dz;
-		if (pm && s.pr !== void 0) {
-			const ox = dx, oy = dy, oz = dz, cd = Math.hypot(ox, oy) || 1e-6;
-			const tE = (s.pr || 0) * ty * MAS2RAD, tN = (s.pd || 0) * ty * MAS2RAD;
-			dx = ox + -oy / cd * tE + -oz * ox / cd * tN;
-			dy = oy + ox / cd * tE + -oz * oy / cd * tN;
-			dz = oz + cd * tN;
-			const L = Math.hypot(dx, dy, dz) || 1;
-			dx /= L;
-			dy /= L;
-			dz /= L;
+		let dx = s.dx, dy = s.dy, dz = s.dz, dNow = s.d;
+		if (pm) {
+			const q = hygPos(s, ty);
+			dNow = Math.hypot(q[0], q[1], q[2]) || 1e-9;
+			dx = q[0] / dNow;
+			dy = q[1] / dNow;
+			dz = q[2] / dNow;
 		}
-		const dr = compress(s.d);
+		s._dNow = dNow;
+		const dr = compress(dNow);
 		const p = projectInto(dx * dr, dy * dr, dz * dr, _pj);
 		if (p.depth <= V.NEAR) continue;
 		if (p.x < -90 || p.x > W + 90 || p.y < -90 || p.y > H + 90) continue;
@@ -7625,12 +7732,21 @@ function render() {
 	visPl = 0;
 	nearD = Infinity;
 	farD = 0;
+	const tMove = tNow();
 	for (let i = 0; i < STARS.length; i++) {
 		const s = STARS[i];
 		if (s.fy > S.year && s.fy !== 0) continue;
 		if (S.facHidden.has(s.fac)) continue;
-		const dr = compress(s._r);
-		const p = projectInto(s._dx * dr, s._dy * dr, s._dz * dr, _pj);
+		let ddx = s._dx, ddy = s._dy, ddz = s._dz, dNow = s._r;
+		if (tMove) {
+			const q = hostPos(s, tMove);
+			dNow = Math.hypot(q[0], q[1], q[2]) || 1e-9;
+			ddx = q[0] / dNow;
+			ddy = q[1] / dNow;
+			ddz = q[2] / dNow;
+		}
+		const dr = compress(dNow);
+		const p = projectInto(ddx * dr, ddy * dr, ddz * dr, _pj);
 		if (p.depth <= V.NEAR) continue;
 		if (p.x < -90 || p.x > W + 90 || p.y < -90 || p.y > H + 90) continue;
 		s._sx = p.x;
@@ -7759,7 +7875,10 @@ function render() {
 	lastSun.depth = sp.depth;
 	if (V.solarA > .01) P("solar", () => drawSolar(V.solarA));
 	if (V.sysA > .01) P("system", () => drawSystem(V.sysA));
-	else sysProj.length = 0;
+	else {
+		sysProj.length = 0;
+		clearTransits();
+	}
 	if (measureMode) drawMeasure();
 	if (V.ROUTE) drawRoute();
 	P("nav", drawNav);
@@ -9054,6 +9173,65 @@ bindToggle("t-pm", "pm", () => {
 });
 bindToggle("t-mw", "mw");
 //#endregion
+//#region src/engine/timeline.js
+var _v = 0;
+var _timer = null;
+var SPAN = 2e6;
+var yearsOf = (v) => Math.sign(v) * Math.pow(Math.abs(v) / 1e3, 3) * SPAN;
+var sliderOf = (t) => Math.sign(t) * 1e3 * Math.cbrt(Math.min(1, Math.abs(t) / SPAN));
+function label(v, t) {
+	if (v === 0) return "today";
+	const sg = t > 0 ? "+" : "−", a = Math.abs(t);
+	if (a < 200) return new Date(Date.now() + t * 315576e5).toISOString().slice(0, 10);
+	if (a >= 1e6) return sg + (a / 1e6).toFixed(2) + " Myr";
+	if (a >= 1e4) return sg + (a / 1e3).toFixed(0) + ",000 yr";
+	const yr = (/* @__PURE__ */ new Date()).getFullYear() + t;
+	return sg + Math.round(a).toLocaleString("en-US") + " yr (" + Math.round(yr) + ")";
+}
+function publish() {
+	const t = yearsOf(_v);
+	timeline.set({
+		v: _v,
+		label: label(_v, t),
+		playing: !!_timer
+	});
+}
+function setTime(v) {
+	_v = Math.max(-1e3, Math.min(1e3, +v || 0));
+	const t = yearsOf(_v);
+	S.pmYears = Math.round(t);
+	S.pm = _v !== 0;
+	S.tOffsetDays = Math.max(-36525, Math.min(36525, t * 365.25));
+	publish();
+	V.dirty = true;
+}
+function play() {
+	if (_timer) {
+		clearInterval(_timer);
+		_timer = null;
+		publish();
+		return;
+	}
+	_timer = setInterval(() => {
+		let v = _v + 2;
+		if (v > 1e3) v = -1e3;
+		setTime(v);
+	}, 120);
+	publish();
+}
+function now() {
+	if (_timer) {
+		clearInterval(_timer);
+		_timer = null;
+	}
+	setTime(0);
+}
+api.timeline = {
+	set: setTime,
+	play,
+	now
+};
+//#endregion
 //#region src/engine/actions.js
 var _lastMsg = "";
 function msg(t) {
@@ -9353,7 +9531,16 @@ function objWorld(o) {
 		o._y,
 		o._z
 	];
+	const t = tNow();
 	if (o.p && o._dx !== void 0) {
+		if (t) {
+			const q = hostPos(o, t), L = Math.hypot(q[0], q[1], q[2]) || 1e-9, d = compress(L) / L;
+			return [
+				q[0] * d,
+				q[1] * d,
+				q[2] * d
+			];
+		}
 		const d = compress(o._r);
 		return [
 			o._dx * d,
@@ -9362,6 +9549,14 @@ function objWorld(o) {
 		];
 	}
 	if (o.m !== void 0 && o.dx !== void 0) {
+		if (t) {
+			const q = hygPos(o, t), L = Math.hypot(q[0], q[1], q[2]) || 1e-9, d = compress(L) / L;
+			return [
+				q[0] * d,
+				q[1] * d,
+				q[2] * d
+			];
+		}
 		const d = compress(o.d);
 		return [
 			o.dx * d,
@@ -9410,7 +9605,24 @@ function focusOnHyg(s) {
 	const dr = compress(s.d);
 	aim(s.dx * dr, s.dy * dr, s.dz * dr, scale(s.d * .2));
 }
+function gotoEncounter(i) {
+	const e = ENCOUNTERS[i];
+	if (!e) return;
+	timeBar.set(true);
+	setTime(sliderOf(e.t));
+	if (!S.hyg) {
+		S.hyg = true;
+		syncToggle("t-hyg", true);
+	}
+	S.pinned = e.s;
+	S.focusStar = null;
+	V.focusSys = null;
+	V.FOLLOW = null;
+	const q = hygPos(e.s, e.t), L = Math.hypot(q[0], q[1], q[2]) || 1e-9, d = compress(L) / L;
+	aim(q[0] * d, q[1] * d, q[2] * d, scale(Math.max(L * .35, 3e-5)));
+}
 Object.assign(api, {
+	gotoEncounter,
 	lock: lockToggle,
 	setCourse,
 	clearCourse,
@@ -9670,59 +9882,6 @@ function share() {
 	return u;
 }
 api.share = share;
-//#endregion
-//#region src/engine/timeline.js
-var _v = 0;
-var _timer = null;
-function label(v, t) {
-	if (v === 0) return "today";
-	if (Math.abs(t) < 200) return new Date(Date.now() + t * 315576e5).toISOString().slice(0, 10);
-	const yr = (/* @__PURE__ */ new Date()).getFullYear() + t;
-	return (t > 0 ? "+" : "−") + Math.abs(Math.round(t)).toLocaleString("en-US") + " yr (" + Math.round(yr) + ")";
-}
-function publish() {
-	const t = Math.sign(_v) * Math.pow(Math.abs(_v) / 1e3, 3) * 5e4;
-	timeline.set({
-		v: _v,
-		label: label(_v, t),
-		playing: !!_timer
-	});
-}
-function setTime(v) {
-	_v = Math.max(-1e3, Math.min(1e3, +v || 0));
-	const t = Math.sign(_v) * Math.pow(Math.abs(_v) / 1e3, 3) * 5e4;
-	S.pmYears = Math.round(t);
-	S.pm = _v !== 0;
-	S.tOffsetDays = Math.max(-36525, Math.min(36525, t * 365.25));
-	publish();
-	V.dirty = true;
-}
-function play() {
-	if (_timer) {
-		clearInterval(_timer);
-		_timer = null;
-		publish();
-		return;
-	}
-	_timer = setInterval(() => {
-		let v = _v + 2;
-		if (v > 1e3) v = -1e3;
-		setTime(v);
-	}, 120);
-	publish();
-}
-function now() {
-	if (_timer) {
-		clearInterval(_timer);
-		_timer = null;
-	}
-	setTime(0);
-}
-api.timeline = {
-	set: setTime,
-	play,
-	now
-};
 //#endregion
 //#region src/engine/tour.js
 var TOUR = [

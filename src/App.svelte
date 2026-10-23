@@ -8,6 +8,8 @@
   import NavConsole from './components/NavConsole.svelte';
   import Timeline from './components/Timeline.svelte';
   import TourPanel from './components/TourPanel.svelte';
+  import TimePane from './components/TimePane.svelte';
+  import TransitCard from './components/TransitCard.svelte';
   import MobileNav from './components/MobileNav.svelte';
   import ScaleLadder from './components/ScaleLadder.svelte';
   import LivePanel from './components/LivePanel.svelte';
@@ -23,6 +25,7 @@
     { k: 'legend', icon: 'legend', label: 'Legend' },
     { k: 'map',    icon: 'galaxy', label: 'Map' },
     { k: 'live',   icon: 'live',   label: 'Live' },
+    { k: 'time',   icon: 'clock',  label: 'Time' },
   ];
   let panel = $state(null);
   // the quick-jump bar and the ladder yield when a panel is out, so nothing overlaps
@@ -43,6 +46,7 @@
   <ContextHeader />
   <SearchBox />
   <InfoCard />
+  <TransitCard />
 </div>
 
 <NavConsole />
@@ -54,6 +58,7 @@
     <div class="rp-pane" class:on={panel === 'legend'}><Legend /></div>
     <div class="rp-pane" class:on={panel === 'map'}>{#if $toggleState['t-mw'] !== false}<MwMap />{:else}<div class="panel"><div class="label">Milky Way</div><div class="hint">Switch the “Milky Way · Sgr A*” layer on to see the map.</div></div>{/if}</div>
     <div class="rp-pane" class:on={panel === 'live'}><LivePanel collapsible={false} /></div>
+    <div class="rp-pane" class:on={panel === 'time'}><TimePane /></div>
   </div>
 
   <nav id="rail" aria-label="Panels and tools" use:reserve={'rail'}>

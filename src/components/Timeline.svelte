@@ -14,5 +14,5 @@
   <span class="tl-val mono">{$timeline.label}</span>
   <input type="range" class="tl-range" min="-1000" max="1000" step="1" value={$timeline.v} aria-label="Time"
          oninput={(e) => api.timeline?.set(+e.target.value)}>
-  <span class="tl-cap">−50,000 yr · +50,000 yr</span>
+  <span class="tl-cap">−2 Myr · +2 Myr</span>
 </div>

@@ -4,6 +4,7 @@ import { ctx } from './canvas.js';
 import { blobSprite, pathBegin, pathPt, pathStroke } from './draw.js';
 import { glBufC, glBufP, glStars } from './gl.js';
 import { LBL, P_DEEP, P_GRID, P_SMALL } from './labels.js';
+import { tNow } from './motion.js';
 import { sgraScreen } from './mw.js';
 import { CLUSTERS, CLU_T, DSO, DSO_T, PULSARS, SGRA } from './sky-data.js';
 import { solarJD } from './solar-data.js';
@@ -16,7 +17,11 @@ export let cluProj=[];
 // a GW event is visible → frame loop keeps the ripples moving
 export function drawDSO(){ LBL.prio=P_DEEP;
   dsoProj.length=0; if(!S.dso) return;
+  // the curated brown and white dwarfs within 100 pc carry no velocities: in deep time
+  // they would stand still while the HYG stars fly past, so they step aside
+  const deep=Math.abs(tNow())>3e5;
   for(const o of DSO){
+    if(deep && o.d<100) continue;
     const R=scale(o.d); o._x=o._dir[0]*R; o._y=o._dir[1]*R; o._z=o._dir[2]*R;
     const p=project(o._x,o._y,o._z);
     if(p.depth<=V.NEAR) continue;

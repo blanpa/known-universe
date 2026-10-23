@@ -12,7 +12,7 @@ import os, shutil, subprocess, sys, urllib.parse, urllib.request
 
 EXO_Q = ("select pl_name,hostname,ra,dec,sy_dist,disc_year,discoverymethod,"
          "disc_facility,st_teff,st_spectype,st_mass,st_lum,st_rad,pl_rade,"
-         "pl_bmasse,pl_orbsmax,pl_orbper,pl_tranmid,sy_pnum "
+         "pl_bmasse,pl_orbsmax,pl_orbper,pl_tranmid,sy_pnum,sy_pmra,sy_pmdec,st_radv "
          "from pscomppars where sy_dist is not null and ra is not null and dec is not null")
 GAL_Q = 'SELECT * FROM "J/AJ/145/101/catalog" WHERE Dist IS NOT NULL AND Dist>0'
 SBDB = ("https://ssd-api.jpl.nasa.gov/sbdb_query.api"

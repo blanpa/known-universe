@@ -16,3 +16,5 @@ export const nav = writable(null);         // {name, dist, light, bearing} while
 export const tour = writable(null);        // {idx, total, title, text} while the tour runs
 export const timeline = writable({ v: 0, label: 'today', playing: false });   // v: −1000…1000 slider units
 export const measure = writable(false);    // measure tool armed
+export const encounters = writable([]);    // close stellar encounters within ±2 Myr (motion.js)
+export const transit = writable(null);     // the focused system's transits: {host, rstar, now, planets:[…]}

@@ -115,6 +115,14 @@ def build_stars():
                                "sp": row["st_spectype"], "p": []}
                 if lum:
                     stars[host]["lum"] = round(lum, 4)
+                # proper motion (mas/yr) and radial velocity (km/s): the host moves with
+                # the other stars in the ±2 Myr flyby simulation
+                for col, key, nd in (("sy_pmra", "pr", 1), ("sy_pmdec", "pd", 1), ("st_radv", "rv", 1)):
+                    try:
+                        v = float(row[col])
+                        if v == v: stars[host][key] = round(v, nd)
+                    except (ValueError, KeyError, TypeError):
+                        pass
             stars[host]["p"].append(pl)
     out = []
     for s in stars.values():
@@ -215,9 +223,19 @@ def build_hyg():
             except (ValueError, KeyError): pass
             try: rec["pd"] = round(float(r["pmdec"]), 1)
             except (ValueError, KeyError): pass
+            try:                                          # radial velocity (km/s): with the proper
+                rv = float(r["rv"])                       # motion this is the full 3D velocity, which
+                if rv != 0.0: rec["rv"] = round(rv, 1)    # the ±1 Myr flyby simulation needs
+            except (ValueError, KeyError): pass
             if r.get("proper"):
                 rec["n"] = r["proper"]
                 if r.get("con"): rec["con"] = r["con"]
+            elif d <= 25 and r.get("gl"):                 # a nearby star without a proper name keeps
+                g = r["gl"].strip()                       # its Gliese name (Gliese 710, …)
+                g = g.replace("Gl ", "Gliese ").replace("GJ ", "Gliese ").replace("NN ", "Gliese ").replace("Wo ", "Wolf ")
+                rec["n"] = g
+                if r.get("con"): rec["con"] = r["con"]
+            if r.get("hip"): rec["hip"] = int(float(r["hip"]))
             out.append(rec)
     out.sort(key=lambda s: s["m"])                    # hellste zuerst
     return out

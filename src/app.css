@@ -286,3 +286,23 @@ body.show-time .tourp { bottom: 72px; }
   .ms-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .ms-actions button { display: flex; align-items: center; justify-content: center; gap: 7px; padding: 12px 10px; border-radius: var(--r-ctl); border: 1px solid var(--line-strong); background: var(--bg-2); font-weight: 550; }
 }
+
+/* ---------- deep time: encounters pane, transit card ---------- */
+.tl-now { margin: 8px 0 2px; font-size: 13px; color: var(--sel); }
+.enc { list-style: none; margin: 6px 0 0; padding: 0; max-height: 46vh; overflow-y: auto; scrollbar-width: thin; }
+.enc li + li { border-top: 1px solid var(--line); }
+.enc button { width: 100%; display: grid; grid-template-columns: 1fr auto; gap: 1px 10px; padding: 7px 4px; border-radius: 8px; text-align: left; font-size: 12px; }
+.enc button:hover { background: var(--bg-2); }
+.enc-n { font-weight: 550; grid-column: 1; }
+.enc-t { grid-column: 2; grid-row: 1; color: var(--txt-2); text-align: right; }
+.enc-d { grid-column: 1; grid-row: 2; color: var(--sel); font-size: 11px; }
+.enc-v { grid-column: 2; grid-row: 2; color: var(--txt-3); font-size: 11px; text-align: right; }
+.enc-reset { display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; padding: 7px 10px; border-radius: var(--r-ctl); border: 1px solid var(--line-strong); background: var(--bg-2); font-size: 12px; }
+.tcard { padding: 10px 12px 10px; flex: 0 0 auto; }
+.tcard svg { display: block; margin-top: 6px; }
+.tc-curve { fill: none; stroke: var(--warn); stroke-width: 1.6; }
+.tc-base { stroke: var(--line-strong); stroke-width: 1; stroke-dasharray: 2 3; }
+.tc-now { stroke: var(--sel); stroke-width: 1; stroke-dasharray: 3 3; }
+.tc-pl { fill: var(--txt-2); font-size: 9px; font-family: var(--mono); text-anchor: middle; }
+.tc-ax { fill: var(--txt-3); font-size: 9px; font-family: var(--mono); }
+.tcard .hint { margin-top: 4px; font-size: 10.5px; }

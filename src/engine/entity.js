@@ -2,6 +2,7 @@
 import { objWorld } from './actions.js';
 import { PC2LY } from './data.js';
 import { fmt } from './hud.js';
+import { hostPos, hygPos, tNow } from './motion.js';
 import { CLU_T, DSO_T } from './sky-data.js';
 import { FAC, SOLAR_BODIES, SUN, dateStr, eclDir, eclToWorld } from './solar-data.js';
 import { S } from './state.js';
@@ -86,8 +87,8 @@ export function physPos(o){
     case 'gpick': case 'sgra': case 'dso': case 'pulsar': case 'cluster':
       return [o._dir[0]*o.d, o._dir[1]*o.d, o._dir[2]*o.d];
     case 'galaxy': { const d=o.mpc*1e6; return [o.dx*d, o.dy*d, o.dz*d]; }
-    case 'host': { const d=o._r; return [o._dx*d, o._dy*d, o._dz*d]; }
-    case 'star': { const d=o.d; return [o.dx*d, o.dy*d, o.dz*d]; }
+    case 'host': return hostPos(o, tNow());
+    case 'star': return hygPos(o, tNow());
     case 'moon': { const p=SOLAR_BODIES.find(b=>b.n===o.parent); return p&&p._e ? eclPos(p._e) : null; }
     case 'satellite': { const e=SOLAR_BODIES.find(b=>b.n==='Earth'); return e&&e._e ? eclPos(e._e) : null; }
     default: return o._e ? eclPos(o._e) : null;
@@ -239,6 +240,7 @@ export function card(o){
     case 'star': {
       const [ra,dec]=radec(o.dx,o.dy,o.dz); c.title=o.n||'Star';
       c.rows.push(['Distance',`${ly(o.d)} · ${o.d} pc`],['Apparent mag.',String(o.m)]);
+      if(tNow()){ const q=hygPos(o,tNow()), L=Math.hypot(q[0],q[1],q[2]); c.rows.push(['On the timeline',`${L<0.5?(L*206265).toFixed(0)+' AU':ly(L)} away`]); }
       if(o.con) c.rows.push(['Constellation',o.con]);
       c.rows.push(['RA / Dec',radecText(o.dx,o.dy,o.dz)]);
       c.links=[{t:'SIMBAD',u:o.n?simbadId(o.n):simbadCoo(ra,dec,2)},{t:'Aladin',u:aladin(ra,dec,0.5)}];
@@ -247,6 +249,7 @@ export function card(o){
       const pls=o.p.filter(p=>p.y<=S.year||p.y===0).sort((a,b)=>(a.y||9999)-(b.y||9999));
       const fc=FAC[o.fac]||FAC.other, [ra,dec]=radec(o.x/o.d,o.y/o.d,o.z/o.d);
       c.rows.push(['Distance',`${ly(o.d)} · ${fmt(o.d)} pc`],['Star',o.sp?o.sp:(o.t?fmt(o.t)+' K':'—')],['Discovered',String(o.fy||'—')],['Instrument',fc.l]);
+      if(tNow()){ const q=hostPos(o,tNow()), L=Math.hypot(q[0],q[1],q[2]); c.rows.push(['On the timeline',`${ly(L)} away`]); }
       c.instrumentColor=fc.c;
       c.planets=pls.slice(0,6).map(p=>({n:p.n, y:p.y||'', extra:p.r?`${p.r} R⊕`:(p.ma?`${p.ma} M⊕`:'')}));
       c.planetsTotal=pls.length;

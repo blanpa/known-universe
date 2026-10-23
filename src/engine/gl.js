@@ -79,19 +79,15 @@ function glTail(host){ return `
 `;}
 const GL_VSF=`#version 300 es
 precision highp float;
-in vec3 a_dir; in float a_dist; in float a_mag; in vec3 a_color; in vec2 a_pm;
+in vec3 a_dir; in float a_dist; in float a_mag; in vec3 a_color; in vec2 a_pm; in vec3 a_vel;
 ${GL_UNI}
 uniform float u_pmYears,u_hostMode,u_year,u_facColor,u_sizeOn,u_veil,u_bnd,u_glow;
 uniform float u_facVis[8]; uniform vec3 u_pal[8];
 void main(){
-  vec3 dir=a_dir;
-  if(u_pmYears!=0.0 && u_hostMode<0.5){
-    float cd=max(1e-6, length(a_dir.xy));
-    float mas=3.14159265/(180.0*3600.0*1000.0);
-    float tE=a_pm.x*u_pmYears*mas, tN=a_pm.y*u_pmYears*mas;
-    vec3 east=vec3(-a_dir.y/cd, a_dir.x/cd, 0.0);
-    vec3 north=vec3(-a_dir.z*a_dir.x/cd, -a_dir.z*a_dir.y/cd, cd);
-    dir=normalize(a_dir + east*tE + north*tN);
+  vec3 dir=a_dir; float distM=a_dist;
+  if(u_pmYears!=0.0){                                    // straight-line 3D motion, pc/yr
+    vec3 pos=a_dir*a_dist + a_vel*u_pmYears;
+    distM=max(1e-6, length(pos)); dir=pos/distM;
   }
   vec3 col=a_color; float rs=1.0;
   if(u_hostMode>0.5){
@@ -102,7 +98,7 @@ void main(){
     if(u_facColor>0.5) col=u_pal[ci];
     if(u_sizeOn>0.5) rs=a_mag;                           // a_mag carries radiusScale for hosts
   }
-  float dist=a_dist, mg=a_mag;
+  float dist=distM, mg=a_mag;
   ${glTail(true)}
 }`;
 const GL_VSU=`#version 300 es
@@ -182,17 +178,18 @@ function mkProg(gl,vsSrc,fsSrc){
   for(let i=0;i<na;i++){ const a=gl.getActiveAttrib(p,i); o.attr[a.name]=gl.getAttribLocation(p,a.name); }
   return o;
 }
-function mkFloatVAO(gl,arr){                             // 40-byte-stride float layout
+function mkFloatVAO(gl,arr){                             // 52-byte-stride float layout
   const buf=gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER,buf); gl.bufferData(gl.ARRAY_BUFFER,arr,gl.STATIC_DRAW);
   const vao=gl.createVertexArray(); gl.bindVertexArray(vao);
   const A=progF.attr;
-  gl.enableVertexAttribArray(A.a_dir);   gl.vertexAttribPointer(A.a_dir,3,gl.FLOAT,false,40,0);
-  gl.enableVertexAttribArray(A.a_dist);  gl.vertexAttribPointer(A.a_dist,1,gl.FLOAT,false,40,12);
-  gl.enableVertexAttribArray(A.a_mag);   gl.vertexAttribPointer(A.a_mag,1,gl.FLOAT,false,40,16);
-  gl.enableVertexAttribArray(A.a_color); gl.vertexAttribPointer(A.a_color,3,gl.FLOAT,false,40,20);
-  gl.enableVertexAttribArray(A.a_pm);    gl.vertexAttribPointer(A.a_pm,2,gl.FLOAT,false,40,32);
+  gl.enableVertexAttribArray(A.a_dir);   gl.vertexAttribPointer(A.a_dir,3,gl.FLOAT,false,52,0);
+  gl.enableVertexAttribArray(A.a_dist);  gl.vertexAttribPointer(A.a_dist,1,gl.FLOAT,false,52,12);
+  gl.enableVertexAttribArray(A.a_mag);   gl.vertexAttribPointer(A.a_mag,1,gl.FLOAT,false,52,16);
+  gl.enableVertexAttribArray(A.a_color); gl.vertexAttribPointer(A.a_color,3,gl.FLOAT,false,52,20);
+  gl.enableVertexAttribArray(A.a_pm);    gl.vertexAttribPointer(A.a_pm,2,gl.FLOAT,false,52,32);
+  gl.enableVertexAttribArray(A.a_vel);   gl.vertexAttribPointer(A.a_vel,3,gl.FLOAT,false,52,40);
   gl.bindVertexArray(null);
-  return {vao, n:arr.length/10};
+  return {vao, n:arr.length/13};
 }
 export function initGL(){
   try{
@@ -225,15 +222,17 @@ export function initGL(){
       if(progT.loc.u_tex){ gl.useProgram(progT.p); gl.uniform1i(progT.loc.u_tex,0); }
     }
     // HYG stars (float layout)
-    const arr=new Float32Array(HYG.length*10);
-    for(let i=0;i<HYG.length;i++){ const st=HYG[i],o=i*10;
+    const arr=new Float32Array(HYG.length*13);
+    for(let i=0;i<HYG.length;i++){ const st=HYG[i],o=i*13, v=st._v||[0,0,0];
       arr[o]=st.dx;arr[o+1]=st.dy;arr[o+2]=st.dz;arr[o+3]=st.d;arr[o+4]=st.m;
-      arr[o+5]=st.c[0]/255;arr[o+6]=st.c[1]/255;arr[o+7]=st.c[2]/255;arr[o+8]=st.pr||0;arr[o+9]=st.pd||0; }
+      arr[o+5]=st.c[0]/255;arr[o+6]=st.c[1]/255;arr[o+7]=st.c[2]/255;arr[o+8]=st.pr||0;arr[o+9]=st.pd||0;
+      arr[o+10]=v[0];arr[o+11]=v[1];arr[o+12]=v[2]; }
     glBuf=mkFloatVAO(gl,arr);
     // exoplanet hosts — year filter & facility colours run in the shader
     const FACIDX={kepler:0,tess:1,k2:2,rv:3,micro:4,imaging:5,ground:6,other:7};
-    const ha=new Float32Array(STARS.length*10);
-    for(let i=0;i<STARS.length;i++){ const st2=STARS[i],o=i*10;
+    const ha=new Float32Array(STARS.length*13);
+    for(let i=0;i<STARS.length;i++){ const st2=STARS[i],o=i*13, v2=st2._v||[0,0,0];
+      ha[o+10]=v2[0]; ha[o+11]=v2[1]; ha[o+12]=v2[2];
       const sr2=st2._sr!==undefined?st2._sr:starRadius(st2);
       ha[o]=st2._dx; ha[o+1]=st2._dy; ha[o+2]=st2._dz; ha[o+3]=st2._r;
       ha[o+4]=sr2?Math.max(0.30,Math.min(4.2,Math.pow(sr2,0.7))):1;   // same curve as radiusScale()
@@ -241,8 +240,8 @@ export function initGL(){
       ha[o+8]=FACIDX[st2.fac]!==undefined?FACIDX[st2.fac]:7; ha[o+9]=st2.fy||0; }
     glBufH=mkFloatVAO(gl,ha);
     // pulsars & open clusters as simple GPU point clouds
-    const mkPts=(list,mag,cFn)=>{ const a2=new Float32Array(list.length*10);
-      for(let i=0;i<list.length;i++){ const q=list[i],o=i*10,c=cFn(q);
+    const mkPts=(list,mag,cFn)=>{ const a2=new Float32Array(list.length*13);
+      for(let i=0;i<list.length;i++){ const q=list[i],o=i*13,c=cFn(q);
         a2[o]=q._dir[0]; a2[o+1]=q._dir[1]; a2[o+2]=q._dir[2]; a2[o+3]=q.d; a2[o+4]=mag;
         a2[o+5]=c[0]/255; a2[o+6]=c[1]/255; a2[o+7]=c[2]/255; a2[o+8]=0; a2[o+9]=0; }
       return mkFloatVAO(gl,a2); };
@@ -395,7 +394,10 @@ export function glRender(){
     const ringPx = S.realScale ? V.foc*(2.8*AU_PC)/S.camZ : 60;      // the belt's radius on screen
     const beltA = Math.max(0.12, Math.min(1, (ringPx-24)/140));       // unresolved ring → faint
     drawCloud(CL.B,0.03,1.05,beltA, beltEpoch?(solarJD()-beltEpoch):0); }
-  if(CL.G && S.gaia) drawCloud(CL.G,0.12,1.2, hdrOK?1:0.85);   // HDR tames the dense core itself
+  // the Gaia field carries no velocities: it fades out in deep time rather than standing
+  // still while the HYG stars fly past it
+  const gaiaFade = S.pm ? Math.max(0.12, Math.min(1, 1-(Math.abs(S.pmYears)-1e5)/4e5)) : 1;
+  if(CL.G && S.gaia) drawCloud(CL.G,0.12,1.2, (hdrOK?1:0.85)*gaiaFade);   // HDR tames the dense core itself
   if(V.solarA<0.5 && V.sysA<0.5){
     if(CL.O && S.ob) drawCloud(CL.O,0.05,1.0,0.8);
     if(CL.V && S.vars) drawCloud(CL.V,0.05,1.0);

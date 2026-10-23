@@ -158,9 +158,22 @@ as a fourth dimension.
 - **Constellations:** the 89 constellations as line figures on the celestial
   sphere (d3-celestial), with names — the night sky as you know it. Toggle
   **Constellations**.
-- **Proper motion:** the **Proper motion** toggle reveals a slider (±50,000
-  years) — the stars drift across deep time along their real proper motions
-  (HYG pmRA/pmDec); the Big Dipper falls apart, Barnard's Star races away.
+- **Deep time — the stars move in 3D:** the timeline reaches ±2 million years.
+  Every HYG star and every exoplanet host flies along its measured velocity
+  (proper motion × distance plus radial velocity, straight-line motion, which is
+  exact enough at this range); the Gaia field, which carries no velocities,
+  fades out instead of standing still. The Big Dipper falls apart, Barnard's
+  Star races past.
+- **Close encounters** (rail → **Time**): the stars whose paths bring them within
+  1.5 pc of the Sun, with the moment and the miss distance — Alpha Centauri in
+  28,000 years at 2.9 ly, Ross 248 in 36,000 years at 3.1 ly, Gliese 710 in
+  1.4 million years. Click one to set the clock and fly there. Computed from
+  the catalogue's proper motions and radial velocities, so the miss distances
+  are rough: a tenth of a milliarcsecond per year decides them.
+- **Transit light curve** (inside an exoplanet system): what a telescope sees —
+  the star's brightness over twenty days as its planets cross it. Depth from the
+  planet's and star's radii, duration from the orbit, timing from the transit
+  epochs that also place the planets on their orbits.
 - **Habitable zone:** a green band around the Sun and in every foreign system
   view, computed from the real stellar luminosity (`st_lum`, 4,415 systems).
   Verified: TRAPPIST-1 e/f fall inside it. Toggle **Habitable zone**.
@@ -330,7 +343,7 @@ stays up to date automatically — the NASA archive grows weekly.
 ```bash
 # Exoplanets (NASA Exoplanet Archive)
 curl -G "https://exoplanetarchive.ipac.caltech.edu/TAP/sync" \
-  --data-urlencode "query=select pl_name,hostname,ra,dec,sy_dist,disc_year,discoverymethod,disc_facility,st_teff,st_spectype,st_mass,st_lum,st_rad,pl_rade,pl_bmasse,pl_orbsmax,pl_orbper,sy_pnum from pscomppars where sy_dist is not null and ra is not null and dec is not null" \
+  --data-urlencode "query=select pl_name,hostname,ra,dec,sy_dist,disc_year,discoverymethod,disc_facility,st_teff,st_spectype,st_mass,st_lum,st_rad,pl_rade,pl_bmasse,pl_orbsmax,pl_orbper,pl_tranmid,sy_pnum,sy_pmra,sy_pmdec,st_radv from pscomppars where sy_dist is not null and ra is not null and dec is not null" \
   --data-urlencode "format=csv" -o pipeline/raw/data-raw.csv
 
 # Galaxies (Local Volume, VizieR TAP)
