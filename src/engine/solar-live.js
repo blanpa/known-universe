@@ -1,12 +1,14 @@
 // Live solar-system layers: CMEs, NEO flybys, sunspots, satellites, fireballs.
+import { api } from '../lib/api.js';
 import { LIVE, groundEcl, satEcl } from '../lib/live.js';
+import { aim, enterSolar } from './actions.js';
 import { ctx } from './canvas.js';
 import { offscr, pathBegin, pathPt, pathStroke } from './draw.js';
 import { LBL, P_SMALL } from './labels.js';
 import { D2R, PLANETS, eclToWorld, keplerSB, orbPoint, solarJD } from './solar-data.js';
 import { bodyPx, drawOrbitEllipse, solarProj } from './solar.js';
 import { S, V } from './state.js';
-import { camDir2, project } from './view.js';
+import { AU_PC, camDir2, project, scale } from './view.js';
 // ---- live layer: CME fronts (NASA DONKI) + upcoming NEO flybys (NASA NeoWs) ----
 // CME direction: DONKI lat/lon are Stonyhurst (Earth at lon 0, west positive).
 // Frame: x̂ = Sun→Earth (ecliptic), ŷ = ẑ×x̂ (solar west ≈ Earth's orbital motion), ẑ = ecliptic north.
@@ -233,3 +235,13 @@ export function drawFireballs(A){ LBL.prio=P_SMALL;
     solarProj.push({o:f._o,x,y,px:Math.max(6,rr+3)});
   }
 }
+
+// fly to a close-approach NEO from the live panel list
+api.liveNeoFocus=id=>{
+  const o=LIVE.neos.find(n=>n.id===id); if(!o) return;
+  if(o.kd){ o._el=keplerSB(o.kd,solarJD()); o._e=orbPoint(o._el,o._el.E);
+    const w=eclToWorld(o._e[0],o._e[1],o._e[2]);
+    S.pinned=o; aim(w[0],w[1],w[2], scale(2.2*AU_PC)); }
+  else { S.pinned=null; enterSolar(); }
+  V.dirty=true;
+};

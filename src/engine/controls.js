@@ -1,14 +1,12 @@
 // Layer toggles: the registry the UI drives.
-import { UI, api } from '../lib/api.js';
+import { api } from '../lib/api.js';
+import { toggleState } from '../lib/stores.js';
 import { objWorld } from './actions.js';
 import { zoomRange } from './interact.js';
 import { S, V } from './state.js';
 import { KDEC, LOG0, REALK, ctr, scale, tgtCtr } from './view.js';
 // ---- controls ----
-export function syncToggle(id,on){
-  if(UI.syncToggle){ UI.syncToggle(id,on); return; }
-  const el=document.getElementById(id); if(el&&el.classList) el.classList.toggle('on',on);
-}
+export function syncToggle(id,on){ toggleState.update(m => ({ ...m, [id]: on })); }
 export const TOGGLE_REG={}, TOGGLE_ACT={};
 export function bindToggle(id,key,fn){ TOGGLE_REG[key]=id; TOGGLE_ACT[id]={key,fn}; }
 export function clickToggle(id){ const t=TOGGLE_ACT[id]; if(!t) return;
@@ -76,14 +74,6 @@ bindToggle('t-neo','neo');
 bindToggle('t-sat','sat');
 bindToggle('t-sun','sunAR');
 bindToggle('t-met','met');
-// proper motion: reveal a deep-time slider when enabled
-const pmTime=document.getElementById('pmTime'), pmVal=document.getElementById('pmVal');
-function setPmVal(){ const y=S.pmYears;
-  pmVal.textContent = y===0?'today':(y>0?'+':'−')+Math.abs(y).toLocaleString('en-US')+' years';
-  pmTime.style.setProperty('--pct',((y+50000)/100000*100)+'%'); }
-bindToggle('t-pm','pm',()=>{
-  const el=document.getElementById('hud-pm'); if(el) el.style.display=S.pm?'block':'none';
-  if(!S.pm){ S.pmYears=0; pmTime.value=0; setPmVal(); }
-});
-pmTime.addEventListener('input',e=>{ S.pmYears=+e.target.value; setPmVal(); });
-setPmVal();
+// proper motion: driven by the unified timeline (S.pmYears); the flag just gates the layer
+bindToggle('t-pm','pm',()=>{ if(!S.pm) S.pmYears=0; });
+bindToggle('t-mw','mw');

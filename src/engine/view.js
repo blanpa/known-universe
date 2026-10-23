@@ -20,7 +20,6 @@ export function camDir2i(vx,vy,vz){
 // Everything — planets, moons, stars, exoplanets, galaxies — lives in this space,
 // so you fly continuously from the solar system (AU) out to galaxies (Mpc).
 export const AU_PC=4.84814e-6, LOG0=-6.0, KDEC=1.0;   // more radial room between shells
-const CAM_SOLAR=3.0, CAM_LOCAL=7.0, CAM_COSMOS=16, SOLAR_SHOW=5.0, SYS_SHOW=2.9;
 function rlog(pc){ return Math.max(0,(Math.log10(pc)-LOG0)*KDEC); }
 // scale(pc) → world radius. Two modes: logarithmic (overview) or real (proportional).
 export const REALK=1;                                     // real mode: 1 parsec = 1 world unit

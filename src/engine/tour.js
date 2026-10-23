@@ -1,4 +1,6 @@
 // Guided tour.
+import { api } from '../lib/api.js';
+import { tour as tourStore } from '../lib/stores.js';
 import { enterSolar, flyTo, focusOn, focusOnGalaxy, focusOnHyg } from './actions.js';
 import { clickToggle, syncToggle } from './controls.js';
 import { GAL, STARS } from './data.js';
@@ -31,17 +33,13 @@ let tourIdx=-1;
 function tourShow(i){
   tourIdx=Math.max(0,Math.min(TOUR.length-1,i));
   const st=TOUR[tourIdx]; st.go();
-  document.getElementById('tourTitle').textContent=st.t;
-  document.getElementById('tourText').textContent=st.d;
-  document.getElementById('tourStep').textContent=(tourIdx+1)+' / '+TOUR.length;
-  document.getElementById('tourPanel').style.display='block';
+  tourStore.set({idx:tourIdx, total:TOUR.length, title:st.t, text:st.d});
   V.dirty=true;
 }
-function tourEnd(){ tourIdx=-1; document.getElementById('tourPanel').style.display='none'; S.pinned=null; V.dirty=true; }
-document.getElementById('tourBtn').addEventListener('click',()=>{
-  if(S.realScale) clickToggle('t-real');   // tour runs in the compact (log) view
-  tourShow(0);
-});
-document.getElementById('tourNext').addEventListener('click',()=>{ if(tourIdx>=TOUR.length-1) tourEnd(); else tourShow(tourIdx+1); });
-document.getElementById('tourPrev').addEventListener('click',()=>tourShow(tourIdx-1));
-document.getElementById('tourEnd').addEventListener('click',tourEnd);
+function tourEnd(){ tourIdx=-1; tourStore.set(null); S.pinned=null; V.dirty=true; }
+api.tour={
+  start(){ if(S.realScale) clickToggle('t-real'); tourShow(0); },   // the tour runs in the compact view
+  next(){ if(tourIdx>=TOUR.length-1) tourEnd(); else tourShow(tourIdx+1); },
+  prev(){ tourShow(tourIdx-1); },
+  end: tourEnd,
+};

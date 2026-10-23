@@ -9,7 +9,7 @@ export const liveData = writable(null);            // → LivePanel.svelte
 export const LIVE = { cmes: [], neos: [], wx: null, sats: [], regions: [],
   extra: null, epic: null, launches: [], onUpdate: null };  // → engine (plain state)
 
-const LD_KM = 384400, AU_KM = 1.496e8;
+const AU_KM = 1.496e8;
 function nasaKey(){ try{ return localStorage.getItem('nasa_api_key') || 'DEMO_KEY'; }catch(e){ return 'DEMO_KEY'; } }
 function j(url){ return fetch(url).then(r => r.ok ? r.json() : null).catch(() => null); }
 function day(off){ return new Date(Date.now() + off * 86400000).toISOString().slice(0, 10); }

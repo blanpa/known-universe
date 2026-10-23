@@ -1,4 +1,5 @@
 // Pointer, wheel, touch and keyboard interaction.
+import { resetView } from './actions.js';
 import { aim, enterSolar, flyTo, objWorld } from './actions.js';
 import { cv } from './canvas.js';
 import { clickToggle, syncToggle } from './controls.js';
@@ -14,7 +15,6 @@ export let dragging=false,panning=false,lx=0,ly=0,moved=0;
 cv.addEventListener('contextmenu',e=>e.preventDefault());
 const ptrs=new Map(); let pinching=false, pinchD=0;
 cv.addEventListener('pointerdown',e=>{
-  if(document.body.classList){ document.body.classList.remove('mob-left','mob-right'); }
   ptrs.set(e.pointerId,[e.clientX,e.clientY]);
   if(ptrs.size===2){ pinching=true; dragging=false;
     const p2=[...ptrs.values()]; pinchD=Math.hypot(p2[0][0]-p2[1][0],p2[0][1]-p2[1][1]); return; }
@@ -110,7 +110,7 @@ addEventListener('keydown',e=>{
   const k=e.key.toLowerCase();
   if('wasdrf'.includes(k)||e.key.startsWith('Arrow')){ keys.add(k==='arrowup'?'w':k==='arrowdown'?'s':k==='arrowleft'?'a':k==='arrowright'?'d':k); e.preventDefault(); }
   else if(e.key==='.'){ frameSelection(); e.preventDefault(); }
-  else if(e.key==='Home'){ const b=document.getElementById('resetBtn'); if(b) b.click(); e.preventDefault(); }
+  else if(e.key==='Home'){ resetView(); e.preventDefault(); }
   else if(e.key==='Escape'){ S.pinned=null; S.hover=null; V.FOLLOW=null; V.lastInfo=undefined; V.dirty=true; }
 });
 addEventListener('keyup',e=>{ const k=e.key.toLowerCase();

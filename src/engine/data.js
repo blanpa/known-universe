@@ -8,7 +8,6 @@ export const PC2LY = 3.261564;
 // ---- precompute direction + radius, normalization ----
 const dists = STARS.map(s=>s.d).slice().sort((a,b)=>a-b);
 const R0 = dists[Math.floor(dists.length*0.90)] || META.maxDist;   // 90th pct -> radius 1
-const MAXD = META.maxDist;
 STARS.forEach(s=>{
   const r=s.d||1e-6;
   s._dx=s.x/r; s._dy=s.y/r; s._dz=s.z/r; s._r=r;

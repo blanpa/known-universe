@@ -7,53 +7,52 @@
   let { legend = true } = $props();   // legend=false -> no #hud-ctl id (mobile sheet copy)
   const groups = [
     { h: 'Solar system', icon: 'sun', items: [
-      { id: 't-moons', label: 'Moons (solar system)', on: true },
+      { id: 't-moons', label: 'Moons', on: true },
       { id: 't-ast', label: 'Asteroids &amp; comets', on: true },
       { id: 't-belt', label: 'Asteroid field', on: true },
-      { id: 't-tno', label: 'Trans-Neptunian &amp; Centaurs', on: true },
-      { id: 't-probes', label: 'Spacecraft (Voyager…)', on: true },
-      { id: 't-iso', label: 'Interstellar visitors (1I·2I·3I)', on: true },
+      { id: 't-tno', label: 'Trans-Neptunian objects', on: true },
+      { id: 't-probes', label: 'Spacecraft', on: true },
+      { id: 't-iso', label: 'Interstellar visitors', on: true },
       { id: 't-helio', label: 'Heliosphere', on: true },
-      { id: 't-lag', label: 'Lagrange points &amp; Hill spheres', on: true },
-      { id: 't-cme', label: 'CME storms (live)', on: true },
-      { id: 't-neo', label: 'NEO flybys (live)', on: true },
-      { id: 't-sat', label: 'Satellites (live)', on: true },
-      { id: 't-sun', label: 'Sunspots (live)', on: true },
-      { id: 't-size', label: 'Size = planet radius', on: true }] },
+      { id: 't-lag', label: 'Lagrange points · Hill spheres', on: true },
+      { id: 't-cme', label: 'Solar storms · live', on: true },
+      { id: 't-neo', label: 'Asteroid flybys · live', on: true },
+      { id: 't-sat', label: 'Satellites · live', on: true },
+      { id: 't-sun', label: 'Sunspots · live', on: true },
+      { id: 't-size', label: 'Star size by real radius', on: true }] },
     { h: 'Stars', icon: 'star', items: [
-      { id: 't-hyg', label: 'Stars (HYG)', on: true },
-      { id: 't-gpu', label: 'GPU stars', on: true },
-      { id: 't-gaia', label: 'Gaia stars (&lt;100 pc)', on: true },
-      { id: 't-ob', label: 'OB stars (arm tracers)', on: true },
+      { id: 't-hyg', label: 'Bright stars · HYG', on: true },
+      { id: 't-gaia', label: 'Gaia stars · 100 pc', on: true },
+      { id: 't-ob', label: 'OB stars · spiral-arm tracers', on: true },
       { id: 't-var', label: 'Variable stars', on: true },
-      { id: 't-radio', label: 'Radio bubble (our signals)', on: true }] },
+      { id: 't-radio', label: 'Our radio bubble', on: true }] },
     { h: 'Deep sky &amp; galaxy', icon: 'galaxy', items: [
-      { id: 't-dso', label: 'Nebulae &amp; clusters', on: true },
-      { id: 't-oclu', label: 'Clusters · globulars · FRBs', on: true },
-      { id: 't-psr', label: 'Pulsars (neutron stars)', on: true },
+      { id: 't-dso', label: 'Nebulae &amp; famous clusters', on: true },
+      { id: 't-oclu', label: 'Open clusters · globulars · FRBs', on: true },
+      { id: 't-psr', label: 'Pulsars', on: true },
       { id: 't-con', label: 'Constellations', on: true },
-      { id: 't-met', label: 'Meteor showers (active)', on: true },
-      { id: 't-bubble', label: 'Local Bubble (ISM)', on: true },
+      { id: 't-met', label: 'Meteor showers · active now', on: true },
+      { id: 't-bubble', label: 'Local Bubble', on: true },
       { id: 't-mw', label: 'Milky Way · Sgr A*', on: true },
-      { id: 't-mw3d', label: 'Milky Way structure (3D)', on: true },
+      { id: 't-mw3d', label: 'Milky Way structure', on: true },
       { id: 't-lens', label: 'Lensing at Sgr A*', on: true },
       { id: 't-hz', label: 'Habitable zone', on: true }] },
     { h: 'Cosmos', icon: 'scope', items: [
-      { id: 't-gal', label: 'Show galaxies', on: true },
-      { id: 't-web', label: 'Cosmic web (2MRS)', on: true },
+      { id: 't-gal', label: 'Galaxies · Local Volume', on: true },
+      { id: 't-web', label: 'Cosmic web · 2MRS', on: true },
       { id: 't-qso', label: 'Quasars', on: true },
-      { id: 't-edge', label: 'Observable universe (CMB)', on: true }] },
+      { id: 't-edge', label: 'Observable universe · CMB', on: true }] },
     { h: 'View', icon: 'sliders', items: [
-      { id: 't-real', label: 'Compact view (distances compressed)', on: false, inv: 1 },
-      { id: 't-rot', label: 'Auto-rotation', on: false },
+      { id: 't-real', label: 'Compact view · distances compressed', on: false, inv: 1 },
+      { id: 't-rot', label: 'Auto-rotate', on: false },
       { id: 't-freelook', label: 'Free-look flight', on: false },
-      { id: 't-veil', label: 'Red veil', on: true },
+      { id: 't-veil', label: 'Red veil beyond the charted stars', on: true },
       { id: 't-rings', label: 'Distance rings', on: true },
-      { id: 't-labels', label: 'Labels &amp; text', on: true },
-      { id: 't-grid', label: 'Celestial grid (RA·Dec)', on: false },
-      { id: 't-ggrid', label: 'Galactic grid (l·b)', on: false },
-      { id: 't-eht', label: 'Sgr A*: real EHT image (2022)', on: false },
-      { id: 't-timebar', label: 'Time bar', on: false, ui: 1 }] },
+      { id: 't-labels', label: 'Labels', on: true },
+      { id: 't-grid', label: 'Celestial grid', on: false },
+      { id: 't-ggrid', label: 'Galactic grid', on: false },
+      { id: 't-eht', label: 'Sgr A* as the EHT image', on: false },
+      { id: 't-timebar', label: 'Timeline', on: false, ui: 1 }] },
   ];
   let closed = $state({ 0: true, 1: true, 2: true, 3: true });   // only View open by default
   let filter = $state('');
@@ -139,6 +138,6 @@
     </div>
   </div>
   <div class="hint">
-    Drag orbit · right/middle-drag pan · Ctrl+drag dolly<br>Scroll zoom to cursor · dbl-click/tap focus · WASD fly<br>[.] frame selection · [Home] reset · [Esc] deselect
+    Drag to orbit · right-drag to pan · scroll to zoom · double-click to focus<br>WASD to fly · [.] frame selection · [Home] reset · [Esc] release
   </div>
 </div>

@@ -1,5 +1,6 @@
 // Shareable views (URL hash).
-import { searchMsg } from './actions.js';
+import { api } from '../lib/api.js';
+import { msg } from './actions.js';
 import { TOGGLE_REG, syncToggle } from './controls.js';
 import { S, V } from './state.js';
 import { ctr, tgtCtr } from './view.js';
@@ -9,13 +10,15 @@ import { ctr, tgtCtr } from './view.js';
 const HASH_KEYS=['ast','autorot','belt','con','dso','edge','freelook','gaia','galaxies',
   'gpu','helio','hyg','hz','moons','mw','mw3d','ob','oclu','probes','psr','qso','rings',
   'size','tno','vars','veil','web','lag','lens','iso','eht','radio','bubble','grid','ggrid'];
+// BigInt: 35 layer bits do not fit a 32-bit shift (`1<<33` is 2, so 'bubble' used to
+// land on the 'ast' bit). The low 31 bits are unchanged, so older links still decode.
 function viewHash(){
-  const keys=HASH_KEYS;
-  let m=0; keys.forEach((k,i)=>{ if(S[k]) m|=(1<<i); });
+  let m=0n; HASH_KEYS.forEach((k,i)=>{ if(S[k]) m|=(1n<<BigInt(i)); });
   return 'v1_'+[S.yaw.toFixed(4),S.pitch.toFixed(4),S.camZ.toExponential(4),
     ctr.x.toExponential(4),ctr.y.toExponential(4),ctr.z.toExponential(4),
-    S.realScale?1:0,Math.round(S.tOffsetDays),(m>>>0).toString(36)].join('_');
+    S.realScale?1:0,Math.round(S.tOffsetDays),m.toString(36)].join('_');
 }
+function parse36(s){ let m=0n; for(const ch of s){ const d=parseInt(ch,36); if(isNaN(d)) return 0n; m=m*36n+BigInt(d); } return m; }
 export function applyHash(){
   try{
     const h=(typeof location!=='undefined'&&location.hash||'').replace(/^#/,'');
@@ -25,10 +28,9 @@ export function applyHash(){
     ctr.x=tgtCtr.x=+p[4]; ctr.y=tgtCtr.y=+p[5]; ctr.z=tgtCtr.z=+p[6];
     S.realScale=p[7]==='1'; syncToggle('t-real',S.realScale);
     S.tOffsetDays=+p[8]||0;
-    const m=parseInt(p[9],36)||0;
+    const m=parse36(p[9]);
     HASH_KEYS.forEach((k,i)=>{ if(!TOGGLE_REG[k]) return;
-      const v=!!(m&(1<<i)); S[k]=v; syncToggle(TOGGLE_REG[k],v); });
-    document.getElementById('hud-mwmap').style.display=S.mw?'block':'none';
+      const v=!!(m&(1n<<BigInt(i))); S[k]=v; syncToggle(TOGGLE_REG[k],v); });
     V.dirty=true;
   }catch(e){}
 }
@@ -37,10 +39,11 @@ if(typeof history!=='undefined'&&history.replaceState){
   setInterval(()=>{ const h=viewHash();
     if(h!==lastHash){ lastHash=h; try{history.replaceState(null,'','#'+h);}catch(e){} } },2000);
 }
-document.getElementById('shareBtn').addEventListener('click',()=>{
+export function share(){
   const h=viewHash(); try{history.replaceState(null,'','#'+h);}catch(e){}
   const u=(typeof location!=='undefined')?location.href:h;
-  const done=()=>{searchMsg.textContent='view link copied ✓';};
-  if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(u).then(done,()=>{searchMsg.textContent=u;});
-  else searchMsg.textContent=u;
-});
+  if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(u).then(()=>msg('View link copied'),()=>msg(u));
+  else msg(u);
+  return u;
+}
+api.share=share;

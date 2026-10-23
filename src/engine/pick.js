@@ -99,18 +99,3 @@ export function gpuPick(mx,my){
   else { o.n=['Main-belt asteroid','Jupiter trojan','Near-Earth object','Trans-Neptunian object'][b7]||'Asteroid'; o.H=b6/10; o.rAU=best.dist/4.84814e-6; }
   return o;
 }
-// equatorial RA/Dec (deg) from a unit direction — for deep-links
-export function radec(dx,dy,dz){
-  let ra=Math.atan2(dy,dx)*57.29578; if(ra<0) ra+=360;
-  const dec=Math.asin(Math.max(-1,Math.min(1,dz)))*57.29578;
-  return [ra,dec];
-}
-export function radecRow(dx,dy,dz){                     // info-panel coordinate line
-  const [ra,dec]=radec(dx,dy,dz);
-  const hh=Math.floor(ra/15), mm=Math.round((ra/15-hh)*60);
-  return `<div class="r"><span class="rk">RA / Dec</span><span class="rv">${hh}h ${String(mm).padStart(2,'0')}m · ${dec>=0?'+':'−'}${Math.abs(dec).toFixed(1)}°</span></div>`;
-}
-export function links(items){
-  return '<div class="links">'+items.map(i=>
-    `<a href="${i.u}" target="_blank" rel="noopener">${i.t}</a>`).join('')+'</div>';
-}

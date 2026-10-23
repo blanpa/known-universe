@@ -20,7 +20,7 @@ const js = (fs.readFileSync('dist/index.html', 'utf8').match(/assets\/(index-[^"
 try {
   await import('../dist/assets/' + js);
   await new Promise(r => setTimeout(r, 300));
-  const ids = ['hud-tl','hud-search','hud-ctl','hud-time','tourPanel','mobbar','info','resetBtn'];
+  const ids = ['hud-head','hud-search','hud-ctl','mobbar','mobhead','rail','ladder'];
   const missing = ids.filter(id => !doc.getElementById(id));
   const toggles = doc.querySelectorAll('.toggle').length;
   // exercise the real mobile flow: tap Layers -> sheet must contain the toggle list

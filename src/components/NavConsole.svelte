@@ -1,11 +1,17 @@
-<div class="panel" id="hud-nav" style="display:none">
-    <div class="nav-head"><span class="label" style="margin:0">▸ Navigation · course</span>
-      <span id="navClose" title="Clear course">✕</span></div>
-    <div id="navName">–</div>
-    <div class="nav-cells">
-      <div class="nav-cell"><div id="navDist" class="mono nv">–</div><div class="nl">Distance</div></div>
-      <div class="nav-cell"><div id="navLight" class="mono nv">–</div><div class="nl">Light travel time</div></div>
-      <div class="nav-cell"><div id="navHead" class="mono nv">–</div><div class="nl">Bearing</div></div>
-    </div>
-    <button id="navGo">Engage course ▸</button>
+<script>
+  // Course readout: real distance, light-travel time, bearing. Engine → nav store.
+  import { api } from '../lib/api.js';
+  import { nav } from '../lib/stores.js';
+  import Icon from './Icon.svelte';
+</script>
+
+{#if $nav}
+  <div class="panel navc" id="hud-nav" role="status">
+    <span class="nv-name"><Icon name="scope" size={14} />{$nav.name}</span>
+    <span class="nv-cell"><b class="mono">{$nav.dist}</b><small>distance</small></span>
+    <span class="nv-cell"><b class="mono">{$nav.light}</b><small>at light speed</small></span>
+    <span class="nv-cell"><b class="mono">{$nav.bearing}</b><small>bearing</small></span>
+    <button type="button" class="nv-go" onclick={() => api.engage()}>Engage</button>
+    <button type="button" class="ib" aria-label="Clear course" onclick={() => api.clearCourse()}><Icon name="close" size={14} /></button>
   </div>
+{/if}

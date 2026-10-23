@@ -1,13 +1,11 @@
 // HUD: scale readout, course reticle, stats, nav panel.
-import { svgIcon } from '../lib/icons.js';
-import { syncSolarBtn } from './actions.js';
+import { camera, nav, selection, stats } from '../lib/stores.js';
 import { ctx } from './canvas.js';
 import { PC2LY } from './data.js';
-import { showInfo } from './info.js';
+import { abilities, card, nameOf } from './entity.js';
 import { LBL, P_HUD, P_STAR } from './labels.js';
-import { camXY, fmtLight, navDistPc, navPhys, navWorld } from './nav.js';
+import { camXY, fmtLight, navDistPc, navWorld } from './nav.js';
 import { farD, nearD, visPl, visSys } from './render.js';
-import { SUN } from './solar-data.js';
 import { S, V } from './state.js';
 import { AU_PC, H, KDEC, W, camDist, camFwd, camPos, invScale } from './view.js';
 // ---- scale readout ---------------------------------------------------------
@@ -15,7 +13,7 @@ import { AU_PC, H, KDEC, W, camDist, camFwd, camPos, invScale } from './view.js'
 // logarithmic and radial, so a fixed screen length is a fixed *ratio*, not a fixed
 // distance. So we draw the honest thing for each mode — a decade ladder in the
 // compact view, a real 1-2-5 bar when distances are proportional.
-function fmtDist(pc){
+export function fmtDist(pc){
   if(!isFinite(pc)||pc<=0) return '0';
   const au=pc/AU_PC;
   if(au<0.02) return (au*1.496e8).toFixed(0)+' km';
@@ -39,10 +37,6 @@ export function drawScaleBar(){
   const dim='rgba(154,163,184,0.85)', ink='rgba(232,235,244,0.95)';
   LBL.prio=P_HUD;
   ctx.textAlign='left'; ctx.textBaseline='alphabetic';
-  // how far out the camera itself sits — the "where am I" number
-  const here = camDist>1e-9 ? invScale(camDist) : 0;
-  ctx.font='10px ui-monospace,monospace'; ctx.fillStyle=dim;
-  ctx.fillText(here>0 ? 'eye · '+fmtDist(here)+' from the Sun' : 'eye · at the Sun', x0, y0-22);
 
   if(S.realScale){                        // proportional space → a true scale bar
     const pcPerPx=S.camZ/V.foc;
@@ -105,47 +99,41 @@ export function drawNav(){ LBL.prio=P_HUD;
   }
 }
 
-// ---- HUD ----
+// ---- HUD → stores -------------------------------------------------------------
+// Published once per change, not per frame: each store write re-renders a component.
 export function fmt(n){return Math.round(n).toLocaleString('en-US');}
-export let lastInfoNav=false, lastStat=['','','',''];
-function setStat(id,v,i){ if(lastStat[i]!==v){ lastStat[i]=v; document.getElementById(id).textContent=v; } }
-export function updateHUD(){
-  setStat('s-sys',fmt(visSys),0); setStat('s-pl',fmt(visPl),1);
-  setStat('s-near', isFinite(nearD)?fmt(nearD*PC2LY):'—',2);
-  setStat('s-far', farD?fmt(farD*PC2LY):'—',3);
-  const s=S.pinned||S.hover, info=document.getElementById('info'), isNav=(s===V.navTarget);
-  if(s!==V.lastInfo || isNav!==lastInfoNav){       // rebuild only on change (keeps the button clickable)
-    V.lastInfo=s; lastInfoNav=isNav;
-    if(s){ showInfo(s);
-      if(s===SUN||navWorld(s)) info.insertAdjacentHTML('beforeend',
-        `<button class="lockset">${V.FOLLOW===s?svgIcon('unlock')+'Unlock view':svgIcon('lock')+'Lock & zoom'}</button>`);
-      if(navPhys(s)) info.insertAdjacentHTML('beforeend',
-        `<button class="navset">${isNav?svgIcon('check')+'Target set':svgIcon('scope')+'Set course'}</button>`);
-      // interstellar route button on every cosmic target (solar bodies get Lambert instead)
-      if(navPhys(s) && s._e===undefined && s.rk===undefined && !s.lp && !s.iroute && !s.xfer)
-        info.insertAdjacentHTML('beforeend',
-          `<button class="transferset">${V.ROUTE&&V.ROUTE.o===s?svgIcon('close')+'Clear route':svgIcon('probe')+'Route from Earth · 1g ship'}</button>`);
-    } else info.classList.remove('show');
-  }
-  updateNavPanel();
-  syncSolarBtn();
+let _stat='', _selKey='', _cam='', _nav='';
+// which part of the map the camera is in, by its physical distance from the Sun
+export function bandOf(pc){
+  if(pc<0.02)   return 'Solar system';
+  if(pc<120)    return 'Stellar neighbourhood';
+  if(pc<4e4)    return 'Milky Way';
+  if(pc<3e6)    return 'Local Group';
+  if(pc<1.5e9)  return 'Cosmic web';
+  return 'Observable universe';
 }
-function updateNavPanel(){
-  const nav=document.getElementById('hud-nav');
-  if(!V.navTarget){ if(nav.style.display!=='none') showNav(false); return; }
-  document.getElementById('navName').textContent=V.navTarget.n||V.navTarget.h||'Target';
-  const dpc=navDistPc();
-  document.getElementById('navDist').textContent=fmtDist(dpc);
-  document.getElementById('navLight').textContent=fmtLight(dpc);
-  const w=navWorld(V.navTarget); let head='–';
+export function updateHUD(){
+  const st=visSys+'|'+visPl+'|'+nearD+'|'+farD;
+  if(st!==_stat){ _stat=st;
+    stats.set({sys:visSys, pl:visPl, nearLy:isFinite(nearD)?nearD*PC2LY:null, farLy:farD?farD*PC2LY:null}); }
+
+  const s=S.pinned||S.hover;
+  const key=s ? [s===V.navTarget, V.FOLLOW===s, !!(V.ROUTE&&V.ROUTE.o===s), !!(V.TRANSFER&&V.TRANSFER.to===s), s===S.pinned].join() : '';
+  if(s!==V.lastInfo || key!==_selKey){ V.lastInfo=s; _selKey=key;
+    selection.set(s ? { card:card(s), ...abilities(s), locked:V.FOLLOW===s, isNav:s===V.navTarget,
+      routeOn:!!(V.ROUTE&&V.ROUTE.o===s), transferOn:!!(V.TRANSFER&&V.TRANSFER.to===s), pinned:s===S.pinned } : null); }
+
+  const here = camDist>1e-9 ? invScale(camDist) : 0, inSolar=V.solarA>0.5;
+  const ck=here.toPrecision(3)+'|'+S.realScale+'|'+inSolar;
+  if(ck!==_cam){ _cam=ck;
+    camera.set({distPc:here, distText:here>0?fmtDist(here):'at the Sun', band:bandOf(here), real:S.realScale, inSolar, camZ:S.camZ}); }
+
+  if(!V.navTarget){ if(_nav){ _nav=''; nav.set(null); } return; }
+  const dpc=navDistPc(), w=navWorld(V.navTarget); let head='–';
   if(w){ const tv=[w[0]-camPos[0],w[1]-camPos[1],w[2]-camPos[2]], tl=Math.hypot(tv[0],tv[1],tv[2])||1;
     const dot=(tv[0]*camFwd[0]+tv[1]*camFwd[1]+tv[2]*camFwd[2])/tl;
     const ang=Math.acos(Math.max(-1,Math.min(1,dot)))*57.2958;
     head=ang<3?'on target':fmt(ang)+'° off'; }
-  document.getElementById('navHead').textContent=head;
-}
-export function showNav(on){
-  document.getElementById('hud-nav').style.display=on?'block':'none';
-  document.getElementById('hud-pm').style.top=on?'132px':'16px';
-  if(!on) V.navTarget=null;
+  const nk=nameOf(V.navTarget)+'|'+dpc.toPrecision(4)+'|'+head;
+  if(nk!==_nav){ _nav=nk; nav.set({name:nameOf(V.navTarget), dist:fmtDist(dpc), light:fmtLight(dpc), bearing:head}); }
 }

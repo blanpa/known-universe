@@ -17,7 +17,7 @@
     <div class="label lg-sub">Star colour = temperature</div>
     <div class="spectrum"></div>
     <div class="spectrum-ax"><span>hot · 30,000 K</span><span>cool · 3,000 K</span></div>
-    <div class="leg-row"><span style="display:flex;align-items:center;gap:5px;flex:0 0 auto"><span class="mk" style="width:4px;height:4px;background:var(--txt-2)"></span><span class="mk" style="width:11px;height:11px;background:var(--txt-2)"></span></span>Size = planet radius</div>
+    <div class="leg-row"><span style="display:flex;align-items:center;gap:5px;flex:0 0 auto"><span class="mk" style="width:4px;height:4px;background:var(--txt-2)"></span><span class="mk" style="width:11px;height:11px;background:var(--txt-2)"></span></span>Size = star radius</div>
     <div class="leg-row"><span class="mk" style="background:#eafffb;box-shadow:0 0 8px #fff"></span>Sun — you are here</div>
     <div class="leg-row"><span class="mk" style="background:var(--cyan)"></span>discovered in the selected year</div>
     <div class="leg-row"><span class="mk" style="background:#e6473c;box-shadow:0 0 8px #e6473c"></span>beyond the neighbourhood</div>

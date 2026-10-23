@@ -1,5 +1,5 @@
 // Trajectories: Lambert transfers between planets, 1g interstellar routes.
-import { UI } from '../lib/api.js';
+import { msg } from './actions.js';
 import { ctx } from './canvas.js';
 import { PC2LY } from './data.js';
 import { pathBegin, pathPt, pathStroke } from './draw.js';
@@ -83,12 +83,12 @@ function findWindow(bA,bB,jd0){
 export function computeTransfer(b){
   const earth=PLANETS.find(p=>p.n==='Earth');
   const w=findWindow(earth,b,solarJD());
-  if(!w){ if(UI.msg) UI.msg('no transfer window found'); return; }
+  if(!w){ msg('no transfer window found'); return; }
   const r1=bodyEclAt(earth,w.dep), pts=[], N=96;
   for(let i=0;i<=N;i++) pts.push(propagateUV(r1,w.v1,w.tof*i/N));
   V.TRANSFER={to:b,dep:w.dep,tof:w.tof,dv:w.dv,r1,v1:w.v1,pts};
   V.TRANSFER._o={xfer:true,n:'Earth → '+b.n+' transfer',T:V.TRANSFER};
-  if(UI.msg) UI.msg(`launch ${dateStr(w.dep)} · ${Math.round(w.tof)} d · Δv ${w.dv.toFixed(1)} km/s — ride the time slider`);
+  msg(`launch ${dateStr(w.dep)} · ${Math.round(w.tof)} d · Δv ${w.dv.toFixed(1)} km/s — ride the time slider`);
   V.lastInfo=undefined; V.dirty=true;
 }
 export function drawTransfer(A){ LBL.prio=P_PROBE;
@@ -150,7 +150,7 @@ export function computeRoute(o){
   V.ROUTE={o, n:o.n||o.h||'target', distPc, dir:[w[0]/wl,w[1]/wl,w[2]/wl], dep:solarJD()};
   V.ROUTE._o={iroute:true, n:'Route: Earth → '+V.ROUTE.n, R:V.ROUTE};
   const r=route1g(distPc*PC2LY);
-  if(UI.msg) UI.msg(`1g starship: ${fmtYears(r.T)} Earth time · ${fmtYears(r.TAU)} ship time — ride the time slider`);
+  msg(`1g starship: ${fmtYears(r.T)} Earth time · ${fmtYears(r.TAU)} ship time — ride the time slider`);
   V.lastInfo=undefined; V.dirty=true;
 }
 export function fmtYears(y){

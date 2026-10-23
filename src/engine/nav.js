@@ -1,18 +1,12 @@
 // Navigation geometry: object positions, camera-space coordinates, distances.
-import { objWorld } from './actions.js';
+import { physPos, worldPos } from './entity.js';
 import { fmt } from './hud.js';
-import { eclToWorld } from './solar-data.js';
 import { S, V } from './state.js';
-import { AU_PC, camPos, ctr, invScale } from './view.js';
+import { camPos, ctr, invScale } from './view.js';
 // ---- navigation ----
-export function navWorld(o){ const w=objWorld(o); if(w) return w;
-  if(o._e) return eclToWorld(o._e[0],o._e[1],o._e[2]); return null; }
-export function navPhys(o){                        // physical position in parsec
-  if(o.sgra||o.dso||o.psr||o.oclu||o.gpick) return [o._dir[0]*o.d,o._dir[1]*o.d,o._dir[2]*o.d];
-  if(o.mpc!==undefined){ const d=o.mpc*1e6; return [o.dx*d,o.dy*d,o.dz*d]; }
-  if(o.p&&o._dx!==undefined){ const d=o._r; return [o._dx*d,o._dy*d,o._dz*d]; }
-  if(o.m!==undefined&&o.dx!==undefined){ const d=o.d; return [o.dx*d,o.dy*d,o.dz*d]; }
-  if(o._e) return [o._e[0]*AU_PC,o._e[1]*AU_PC,o._e[2]*AU_PC]; return null; }
+// (entity.js owns the per-kind position logic; these names stay for the callers)
+export const navWorld = worldPos;
+export const navPhys = physPos;
 export function camXY(px,py,pz){                    // camera-space coords (valid even behind)
   px-=ctr.x;py-=ctr.y;pz-=ctr.z;
   const c=Math.cos(S.yaw),s=Math.sin(S.yaw), x1=px*c+pz*s, z1=-px*s+pz*c, y1=py;

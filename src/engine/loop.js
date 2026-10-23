@@ -1,11 +1,9 @@
 // The animation loop: easing, flight, idle skipping.
-import { playing, setYear, stopPlay } from './actions.js';
 import { dragging } from './interact.js';
 import { navWorld } from './nav.js';
 import { render } from './render.js';
 import { SUN } from './solar-data.js';
 import { S, V } from './state.js';
-import { setSolDate, solPlaying, solStop, solTime } from './timeline.js';
 import { camDist, camFwd, camRight, camUp, ctr, keys, tgtCtr } from './view.js';
 // ---- loop ----
 let last=0, lastGw=0;
@@ -16,17 +14,6 @@ export function frame(t){
     if(w){ tgtCtr.x=w[0]; tgtCtr.y=w[1]; tgtCtr.z=w[2]; } else V.FOLLOW=null;
   }
   if(S.autorot&&!dragging) V.tgtYaw+=dt*0.10;
-  if(playing){
-    V.playAcc+=dt;
-    if(V.playAcc>0.42){ V.playAcc=0;
-      if(S.year<2026) setYear(S.year+1); else stopPlay();
-    }
-  }
-  if(solPlaying){                       // run the planets along their orbits (~1 yr/sec)
-    S.tOffsetDays+=dt*365;
-    if(S.tOffsetDays>36525){ S.tOffsetDays=36525; solStop(); }
-    solTime.value=S.tOffsetDays; setSolDate();
-  }
   // free-flight thrust (WASD / arrows, R·F up·down) — step scales with zoom level
   if(keys.size){
     if(S.realScale) V.flySpeed=Math.min(V.flySpeed*1.06+0.06,150); else V.flySpeed=1;
@@ -44,7 +31,7 @@ export function frame(t){
   if(V.gwOnScreen && t-lastGw>70){ lastGw=t; V.dirty=true; }
   // render only when the view is changing or something is V.dirty (idle → ~0 CPU)
   const cs=Math.abs(ctr.x)+Math.abs(ctr.y)+Math.abs(ctr.z)+1;
-  const anim=(S.autorot&&!dragging)||dragging||playing||solPlaying||keys.size>0
+  const anim=(S.autorot&&!dragging)||dragging||keys.size>0
     ||Math.abs(V.tgtYaw-S.yaw)>1e-4||Math.abs(V.tgtPitch-S.pitch)>1e-4
     ||Math.abs(V.tgtCamZ-S.camZ)>S.camZ*2e-4+1e-12
     ||(Math.abs(tgtCtr.x-ctr.x)+Math.abs(tgtCtr.y-ctr.y)+Math.abs(tgtCtr.z-ctr.z))>cs*1e-5;

@@ -4,7 +4,8 @@
   import LivePanel from './LivePanel.svelte';
   import PoiBar from './PoiBar.svelte';
   import Icon from './Icon.svelte';
-  import { timeBar } from '../lib/stores.js';
+  import { api } from '../lib/api.js';
+  import { camera, timeBar } from '../lib/stores.js';
 
   // Bottom sheet with snap points. The old sheet was inset:0 and opaque, so flipping a
   // layer was a blind action — you could not see what it did. Now the scene stays
@@ -27,8 +28,7 @@
     mobPanel = w; snap = 'half'; dragPx = 0;
   }
   function toggleTime() { timeBar.update(v => !v); mobPanel = null; }
-  $effect(() => { document.body.classList.toggle('show-time', $timeBar); });
-  function press(id) { const b = document.getElementById(id); if (b) b.click(); mobPanel = null; }
+  function act(fn) { fn(); mobPanel = null; }
 
   function down(e) {
     vh = window.innerHeight;
@@ -69,8 +69,15 @@
           onclick={() => openSheet('layers')}><Icon name="layers" size={20} />Layers</button>
   <button type="button" class="mb" class:active={$timeBar} aria-pressed={$timeBar}
           onclick={toggleTime}><Icon name="clock" size={20} />Time</button>
-  <button type="button" class="mb" onclick={() => press('tourBtn')}><Icon name="compass" size={20} />Tour</button>
+  <button type="button" class="mb" onclick={() => act(() => api.tour?.start())}><Icon name="compass" size={20} />Tour</button>
 </nav>
+
+<!-- phone header: where am I, instead of counters that mean nothing in the solar system -->
+<div id="mobhead" class="panel">
+  <span class="mh-app"><span class="dot" aria-hidden="true"></span>Known Universe</span>
+  <span class="mh-band">{$camera.band}</span>
+  <span class="mh-where mono">{$camera.distText}</span>
+</div>
 
 {#if mobPanel}
 <div id="mobsheet" class:full={snap === 'full'} class:dragging
@@ -101,10 +108,10 @@
       <SearchBox mode="sheet" onpick={() => { mobPanel = null; }} />
       <PoiBar onpick={() => { mobPanel = null; }} />
       <div class="ms-actions">
-        <button type="button" onclick={() => press('solarBtn')}><Icon name="sun" size={15} />Solar system</button>
-        <button type="button" onclick={() => press('tourBtn')}><Icon name="compass" size={15} />Cosmic tour</button>
-        <button type="button" onclick={() => press('shareBtn')}><Icon name="link" size={15} />Share view</button>
-        <button type="button" onclick={() => press('resetBtn')}><Icon name="reset" size={15} />Reset view</button>
+        <button type="button" onclick={() => act(() => api.toggleSolar?.())}><Icon name="sun" size={15} />{$camera.inSolar ? 'Back out' : 'Solar system'}</button>
+        <button type="button" onclick={() => act(() => api.measure?.())}><Icon name="ruler" size={15} />Measure</button>
+        <button type="button" onclick={() => act(() => api.share?.())}><Icon name="link" size={15} />Share view</button>
+        <button type="button" onclick={() => act(() => api.reset?.())}><Icon name="reset" size={15} />Reset view</button>
       </div>
       <LivePanel onpick={() => { mobPanel = null; }} />
     {/if}

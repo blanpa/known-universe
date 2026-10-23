@@ -1,5 +1,5 @@
 // WebGL 2 point-cloud renderer with HDR accumulation.
-import { UI } from '../lib/api.js';
+import { labels } from '../lib/stores.js';
 import { BND, STARS, starRadius } from './data.js';
 import { lensPar } from './mw.js';
 import { CLUSTERS, CLU_T, PULSARS } from './sky-data.js';
@@ -289,8 +289,7 @@ function buildCloudBuf(bytes,key){   // raw bytes -> GPU verbatim (uvec4 attribu
   gl.bindVertexArray(null);
   V.dirty=true; return {vao,n,key};
 }
-function cloudLabel(id,txt){ if(UI.setLabel){ UI.setLabel(id,txt); return; }
-  const el=document.getElementById(id); if(el&&el.querySelector) el.querySelector('span').textContent=txt; }
+function cloudLabel(id,txt){ labels.update(m => ({ ...m, [id]: txt })); }
 function buildGaia(bytes){ const r=buildCloudBuf(bytes,'gaia'); if(!r) return;
   CL.G=r; gaiaRaw=bytes; gaiaRange=100;
   cloudLabel('t-gaia','Gaia stars ('+(r.n>=1000?((r.n/1000)|0)+'k':r.n)+' <100 pc)'); }
