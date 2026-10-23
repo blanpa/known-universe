@@ -29,7 +29,8 @@ UI.fac        = list => facList.set(list);
 // Layer state is restored AFTER the engine booted — setToggle runs each layer's real
 // side effect, so a restored session is the real state, not just repainted switches.
 function boot() { runEngine(); try { restore(); } catch (e) {} }
+const getJSON = u => fetch(u).then(r => { if (!r.ok) throw new Error(u + ' → HTTP ' + r.status); return r.json(); });
 if (window.__DATA__) boot();
-else fetch('data/data.json').then(r => r.json())
-  .then(d => { window.__DATA__ = d; boot(); })
+else Promise.all([getJSON('data/data.json'), getJSON('data/catalog.json')])
+  .then(([d, c]) => { window.__DATA__ = d; window.__CATALOG__ = c; boot(); })
   .catch(e => { document.body.innerHTML = '<p style="color:#e9edfa;font-family:monospace;padding:2em">Error loading data: ' + e + '</p>'; });

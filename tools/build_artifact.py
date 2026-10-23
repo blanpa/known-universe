@@ -6,9 +6,11 @@ import base64, os
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 html = open(os.path.join(HERE, "dist-artifact", "index.html")).read()
 data = open(os.path.join(HERE, "site", "data", "data.json")).read()
+catalog = open(os.path.join(HERE, "site", "data", "catalog.json")).read()
 def b64(fn):
     return base64.b64encode(open(os.path.join(HERE, "site", "data", fn), "rb").read()).decode()
 inject = ("<script>window.__DATA__=" + data + ";"
+          + "window.__CATALOG__=" + catalog + ";"
           + 'window.__GAIA_B64__="' + b64("gaia.bin") + '";'
           + 'window.__WEB_B64__="' + b64("cosmicweb.bin") + '";'
           + 'window.__QSO_B64__="' + b64("quasars.bin") + '";'

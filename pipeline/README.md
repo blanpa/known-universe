@@ -8,8 +8,9 @@ pipeline/
 ├── build_belt.py         sb_*.json      -> site/data/belt.bin     (small-body field)
 ├── build_gaia.py         gaia_100pc.csv -> site/data/gaia.bin     (star point cloud)
 ├── build_extragal.py     2MRS/Milliquas -> site/data/cosmicweb.bin, quasars.bin
-├── build_moons.py        JPL Horizons   -> prints `const MOON_EPH=…;`  (paste into engine.js)
-├── build_solar_extra.py  JPL Horizons   -> prints `const PROBES=…;`    (paste into engine.js)
+├── build_moons.py        JPL Horizons   -> site/data/catalog.json  (`moonEph`)
+├── build_solar_extra.py  JPL Horizons   -> site/data/catalog.json  (`probes`, `tnos`)
+├── catalog.py            helper: update one key of catalog.json, keep the rest
 ├── refresh_data.py       download + run build_data + build_belt in one go
 ├── fetch_live_extra.py   GraceDB + CNEOS -> live-extra.json (run by CI, not by hand)
 ├── inputs/               curated, hand-maintained, version-controlled
@@ -34,10 +35,13 @@ updater point them at a scratch directory.
 **Files** — `data.json` and the `*.bin` clouds are written straight into
 `site/data/` and shipped as-is.
 
-**Pasted constants** — `build_moons.py` and `build_solar_extra.py` print JS
-`const` declarations to stdout. They are baked into `src/lib/engine.js` by hand
-because they are effectively static (moon ephemerides, probe trajectories); re-run
-them only when you want a newer epoch.
+**`catalog.json`** — the small, effectively static catalogues the app loads next
+to `data.json`: `moonEph` (moon ephemerides), `probes`, `tnos`, `comets` (182
+numbered comets, JPL SBDB), `pulsars` (ATNF), `clusters` (Cantat-Gaudin 2020),
+`globs` (globular clusters), `frbs`. `build_moons.py` and `build_solar_extra.py`
+update their own keys through `catalog.py`; the other keys were produced by one-off
+VizieR/SBDB queries (see the repository README) and only change when re-queried.
+Nothing is pasted into source any more — `src/` holds code, `site/data/` holds data.
 
 ## Running the whole refresh
 

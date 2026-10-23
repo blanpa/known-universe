@@ -3,8 +3,9 @@
 parent planet (JPL Horizons), and bake a circular-orbit propagation model:
   unit position at epoch, orbit normal (from r x v), angular rate (rad/day).
 Gives the true orbital PHASE and PLANE for every moon (exact for near-circular
-orbits; Nereid e=0.75 is the one poor fit). Emits `const MOON_EPH={...};` JS.
+orbits; Nereid e=0.75 is the one poor fit). Writes the `moonEph` key of site/data/catalog.json.
 """
+import catalog
 import json, math, re, sys, urllib.request
 
 EPOCH = "2026-07-11"
@@ -79,7 +80,7 @@ def main():
                   % (name, rmag, per, *nvec), file=sys.stderr)
         except Exception as ex:
             print("// FAIL %s: %s" % (name, ex), file=sys.stderr)
-    print("const MOON_EPH=" + json.dumps(out, separators=(",", ":")) + ";")
+    catalog.update(moonEph=out)
 
 
 if __name__ == "__main__":

@@ -6,7 +6,10 @@ doc.body.innerHTML = '<div id="app"></div>';
 for (const k of ['document','window','navigator','location','history','customElements',
   'HTMLElement','Element','Node','Event','CustomEvent','MutationObserver','ResizeObserver',
   'requestAnimationFrame','cancelAnimationFrame','getComputedStyle','Text','Comment','DocumentFragment','Document','CharacterData','SVGElement','HTMLInputElement','HTMLButtonElement','HTMLCanvasElement','CSSStyleSheet','DOMParser','NodeFilter','Range','Selection','HTMLMediaElement','HTMLIFrameElement','HTMLAnchorElement','HTMLImageElement','PointerEvent','MouseEvent','KeyboardEvent','TouchEvent']) {
-  if (win[k] !== undefined) globalThis[k] = win[k];
+  if (win[k] === undefined) continue;
+  // Node >= 22 exposes some of these (navigator, …) as getter-only globals
+  try { globalThis[k] = win[k]; }
+  catch { Object.defineProperty(globalThis, k, { value: win[k], configurable: true, writable: true }); }
 }
 globalThis.window = win;
 win.fetch = () => new Promise(() => {});   // hold the engine boot — we test the MOUNT only

@@ -2,9 +2,10 @@
 """Fetch real positions for the 'complete solar system' layer:
   - human deep-space probes  (JPL Horizons state vectors, heliocentric ecliptic AU)
   - trans-Neptunian objects & Centaurs (JPL SBDB osculating elements)
-Emits ready-to-paste JS constants (PROBES, TNOS) on stdout.
-Horizons/SBDB are queried live; results are baked into the template as constants.
+Writes the `probes` and `tnos` keys of site/data/catalog.json.
+Horizons/SBDB are queried live; re-run for a newer epoch.
 """
+import catalog
 import json, re, sys, urllib.parse, urllib.request
 
 EPOCH = "2026-07-11"
@@ -95,10 +96,7 @@ def main():
         except Exception as ex:
             print("// tno FAIL %s: %s" % (des, ex), file=sys.stderr)
 
-    def js(o):
-        return json.dumps(o, separators=(",", ":"), ensure_ascii=False)
-    print("const PROBES=" + js(probes) + ";")
-    print("const TNOS=" + js(tnos) + ";")
+    catalog.update(probes=probes, tnos=tnos)
 
 
 if __name__ == "__main__":
