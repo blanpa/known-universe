@@ -5,9 +5,10 @@ import { lensPar } from './mw.js';
 import { CLUSTERS, CLU_T, PULSARS } from './sky-data.js';
 import { FAC, HYG, solarJD } from './solar-data.js';
 import { S, V } from './state.js';
-import { AU_PC, H, KDEC, LOG0, REALK, W, camDist, ctr, exactPx, invScale } from './view.js';
+import { SKY_R_PC, activeSurvey, bestTile, chooseOrder, surveyAlpha, tileGrid, uvOf, visibleTiles } from './survey.js';
+import { AU_PC, H, KDEC, LOG0, REALK, W, camDist, ctr, exactPx, invScale, scale } from './view.js';
 export let glOK=false, GL=null, glcv=null;
-let progF=null, progU=null, progT=null;        // float layout · raw-byte layout · tonemap
+let progF=null, progU=null, progT=null, progS=null;   // float layout · raw-byte layout · tonemap · sky tiles
 let hdrOK=false, hdrFB=null, hdrTex=null, glMaxPt=64;
 export let glBuf=null, glBufH=null, glBufP=null, glBufC=null;   // float-layout VAO handles {vao,n}
 const CL={G:null,B:null,W:null,Q:null,O:null,V:null};    // raw-byte cloud handles {vao,n,key}
@@ -18,7 +19,7 @@ export let gaiaRaw=null, gaiaRange=100, webRaw=null, qsoRaw=null, beltRaw=null, 
 //  · raw layout (8 B/vtx): the binary catalogues (Gaia, belt, 2MRS, quasars, …)
 //    upload their records byte-for-byte and are decoded in the vertex shader
 const GL_UNI=`
-uniform float u_yaw,u_pitch,u_camZ,u_foc,u_dpr,u_LOG0,u_KDEC,u_REALK,u_cull,u_minPx,u_alphaK,u_maxPt;
+uniform float u_yaw,u_pitch,u_camZ,u_foc,u_dpr,u_LOG0,u_KDEC,u_REALK,u_cull,u_minPx,u_alphaK,u_maxPt,u_fovK,u_roll,u_sky;
 uniform vec3 u_ctr; uniform vec2 u_res; uniform bool u_real;
 uniform vec4 u_lens; uniform float u_lensOn;   // xy: lens device px · z: Einstein radius px · w: lens depth
 out vec3 v_color; out float v_alpha;
@@ -35,6 +36,8 @@ function glTail(host){ return `
   float y2=y1*cp - z1*sp;
   float z2=y1*sp + z1*cp;
   float depth=u_camZ - z2;
+  float cr=cos(u_roll), sr=sin(u_roll);
+  float x3=x1*cr - y2*sr, y3=x1*sr + y2*cr;
   // Size and fade work on the depth RELATIVE to the framing distance (3.2 at the
   // centre of the view), as the 2D glyphs do. In real scale an absolute depth in
   // parsec made every far cloud sub-pixel: the cosmic web was culled wholesale.
@@ -44,14 +47,16 @@ function glTail(host){ return `
   float sizeCss;
   ${host?`if(u_hostMode>0.5) sizeCss=min(20.0, max(0.7, focCss*0.0075/dz*rs));
   else `:''}sizeCss=clamp((0.4+bright*0.34)*focCss*0.0032/dz, 0.0, 3.6);
+  // sky view: the camera sits at the Sun, so size follows apparent magnitude alone
+  if(u_sky>0.5) sizeCss=${host?'u_hostMode>0.5 ? 1.8 : ':''}clamp(0.5+bright*0.42, 0.0, 4.5)*(1.0+0.1*log2(u_fovK));
   float nearP=u_real?u_camZ*0.02:0.05; if(depth<=nearP || sizeCss<u_cull){ gl_Position=vec4(2.0,0.0,0.0,1.0); gl_PointSize=0.0; return; }
   float px=max(sizeCss, u_minPx);
   ${host?`if(u_glow>0.5){
     if(mg>2.6){ gl_Position=vec4(2.0,0.0,0.0,1.0); gl_PointSize=0.0; return; }
     px=min(sizeCss*6.0, 26.0);                           // soft halo for the brightest stars
   }`:''}
-  float dvx=u_res.x*0.5 + u_foc*x1/depth;
-  float dvy=u_res.y*0.5 - u_foc*y2/depth;
+  float dvx=u_res.x*0.5 + u_foc*u_fovK*x3/depth;
+  float dvy=u_res.y*0.5 - u_foc*u_fovK*y3/depth;
   if(u_lensOn>0.5 && depth>u_lens.w){            // gravitational lens: sources behind
     vec2 lv=vec2(dvx,dvy)-u_lens.xy;             // Sgr A* deflect outward (point-mass
     float lr=max(length(lv),1e-3);               // lens equation, exaggerated scale)
@@ -62,7 +67,7 @@ function glTail(host){ return `
   gl_PointSize=min(px*u_dpr, u_maxPt);
   v_color=col;
   ${host?`if(u_hostMode>0.5){
-    float av=clamp(1.9-dz*0.55, 0.12, 1.0);
+    float av=u_sky>0.5 ? 0.9 : clamp(1.9-dz*0.55, 0.12, 1.0);
     if(u_veil>0.5 && dist>u_bnd){                        // red veil beyond the charted edge
       float t=min(1.0,(dist-u_bnd)/(u_bnd*1.6));
       v_color=mix(v_color, vec3(0.9098,0.2275,0.1961), t*0.85); av*=(1.0-t*0.4);
@@ -70,7 +75,7 @@ function glTail(host){ return `
     if(a_pm.y>0.5 && abs(a_pm.y-u_year)<0.5){ v_color=vec3(0.3098,0.8392,0.7843); av=1.0; }
     v_alpha=av;
   } else {`:'{'}
-    float fade=clamp(1.9-dz*0.4, 0.22, 1.0);
+    float fade=u_sky>0.5 ? 1.0 : clamp(1.9-dz*0.4, 0.22, 1.0);
     v_alpha=clamp((0.28+bright*0.12)*fade, 0.0, 1.0);
     if(u_minPx>0.0) v_alpha=max(v_alpha, 0.17);          // Gaia: keep faint dwarfs visible
   }
@@ -203,6 +208,7 @@ export function initGL(){
       glcv.addEventListener('webglcontextrestored',()=>{ initGL(); glRestoreClouds(); V.dirty=true; });
     }
     progF=mkProg(gl,GL_VSF,GL_FSP); progU=mkProg(gl,GL_VSU,GL_FSP); progT=mkProg(gl,TM_VS,TM_FS);
+    progS=mkProg(gl,SK_VS,SK_FS); skyBuf=gl.createBuffer();
     if(!progF||!progU) return;
     glMaxPt=(gl.getParameter(gl.ALIASED_POINT_SIZE_RANGE)||[1,64])[1]||64;
     // HDR accumulation: star fields add up in half-float and get tonemapped, so
@@ -356,7 +362,8 @@ export function loadGaia(){
 function glShared(L){                // per-frame camera/scale uniforms, per program
   const gl=GL, foc=Math.min(W,H)*0.62;
   gl.uniform1f(L.u_yaw,S.yaw); gl.uniform1f(L.u_pitch,S.pitch); gl.uniform1f(L.u_camZ,S.camZ);
-  gl.uniform1f(L.u_foc,foc*V.GLDPR); gl.uniform1f(L.u_dpr,V.GLDPR);
+  gl.uniform1f(L.u_foc,foc*V.GLDPR); gl.uniform1f(L.u_dpr,V.GLDPR); gl.uniform1f(L.u_fovK,V.fovK);
+  gl.uniform1f(L.u_roll,V.roll); gl.uniform1f(L.u_sky,S.skyMode?1:0);
   gl.uniform1f(L.u_LOG0,LOG0); gl.uniform1f(L.u_KDEC,KDEC); gl.uniform1f(L.u_REALK,REALK);
   gl.uniform3f(L.u_ctr,ctr.x,ctr.y,ctr.z);
   gl.uniform2f(L.u_res,glcv.width,glcv.height);
@@ -379,10 +386,83 @@ function drawCloud(h,cull,minPx,alphaK,beltDt){
   gl.uniform1f(L.u_isBelt,d.belt?1:0); gl.uniform1f(L.u_beltDt,d.belt?(beltDt||0):0);
   gl.bindVertexArray(h.vao); gl.drawArrays(gl.POINTS,0,h.n);
 }
+
+// ---- sky-survey tiles: textured HEALPix cells on a far sphere --------------------
+const SK_VS=`#version 300 es
+precision highp float;
+in vec3 a_dir; in vec2 a_uv;
+uniform float u_yaw,u_pitch,u_camZ,u_foc,u_fovK,u_roll,u_R; uniform vec3 u_ctr; uniform vec2 u_res;
+out vec2 v_uv;
+void main(){
+  vec3 p=a_dir*u_R - u_ctr;
+  float c=cos(u_yaw), sy=sin(u_yaw);
+  float x1=p.x*c + p.z*sy, z1=-p.x*sy + p.z*c, y1=p.y;
+  float cp=cos(u_pitch), sp=sin(u_pitch);
+  float y2=y1*cp - z1*sp, z2=y1*sp + z1*cp;
+  float depth=max(1e-9, u_camZ - z2);
+  float cr=cos(u_roll), sr=sin(u_roll);
+  float x3=x1*cr - y2*sr, y3=x1*sr + y2*cr;
+  float dvx=u_res.x*0.5 + u_foc*u_fovK*x3/depth, dvy=u_res.y*0.5 - u_foc*u_fovK*y3/depth;
+  gl_Position=vec4(dvx/u_res.x*2.0-1.0, 1.0-dvy/u_res.y*2.0, 0.0, 1.0);
+  v_uv=a_uv;
+}`;
+const SK_FS=`#version 300 es
+precision highp float;
+in vec2 v_uv; uniform sampler2D u_tex; uniform float u_alpha, u_inv; out vec4 o;
+void main(){
+  vec3 c=texture(u_tex, v_uv).rgb*u_alpha;
+  // the HDR pass rolls values above 0.55 off; pre-invert so the image comes out as it is
+  if(u_inv>0.5){ vec3 t=clamp((c-0.55)/0.45, 0.0, 0.995); c=mix(c, 0.55-0.45*log(1.0-t), step(0.55, c)); }
+  o=vec4(c,1.0);
+}`;
+let skyBuf=null;
+const SKY_N=4;                                           // grid per tile → 32 triangles
+function tileTexture(gl,t){
+  if(t.tex) return t.tex;
+  const tex=gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D,tex);
+  gl.texImage2D(gl.TEXTURE_2D,0,gl.RGB,gl.RGB,gl.UNSIGNED_BYTE,t.img);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+  t.tex=tex; t.gl=gl; return tex;
+}
+function drawSurveyTiles(){
+  const sv=activeSurvey(), a=surveyAlpha(); if(!sv||a<=0.01||!progS) return;
+  const gl=GL, L=progS.loc, A=progS.attr;
+  const order=chooseOrder(sv), tiles=visibleTiles(order);
+  gl.useProgram(progS.p); gl.disable(gl.BLEND);
+  gl.uniform1f(L.u_yaw,S.yaw); gl.uniform1f(L.u_pitch,S.pitch); gl.uniform1f(L.u_camZ,S.camZ);
+  gl.uniform1f(L.u_foc,Math.min(W,H)*0.62*V.GLDPR); gl.uniform1f(L.u_fovK,V.fovK); gl.uniform1f(L.u_roll,V.roll);
+  gl.uniform1f(L.u_R,scale(SKY_R_PC)); gl.uniform3f(L.u_ctr,ctr.x,ctr.y,ctr.z); gl.uniform2f(L.u_res,glcv.width,glcv.height);
+  gl.uniform1f(L.u_alpha,a); gl.uniform1f(L.u_inv,hdrOK?1:0); gl.uniform1i(L.u_tex,0);
+  gl.bindBuffer(gl.ARRAY_BUFFER,skyBuf);
+  gl.enableVertexAttribArray(A.a_dir); gl.vertexAttribPointer(A.a_dir,3,gl.FLOAT,false,20,0);
+  gl.enableVertexAttribArray(A.a_uv);  gl.vertexAttribPointer(A.a_uv,2,gl.FLOAT,false,20,12);
+  const N=SKY_N, verts=new Float32Array((N+1)*(N+1)*5), idx=[];
+  for(let j=0;j<N;j++) for(let i=0;i<N;i++){ const k=j*(N+1)+i; idx.push(k,k+1,k+N+1, k+1,k+N+2,k+N+1); }
+  const ib=new Uint16Array(idx); const ibuf=gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,ibuf); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,ib,gl.STREAM_DRAW);
+  let drawn=0;
+  for(const pix of tiles){
+    const best=bestTile(sv,order,pix); if(!best) continue;
+    const dirs=tileGrid(order,pix,N);
+    for(let j=0;j<=N;j++) for(let i=0;i<=N;i++){ const k=j*(N+1)+i, d=dirs[k], o=k*5;
+      const uv=uvOf(best.u0+i/N*best.size, best.v0+j/N*best.size);   // cell → ancestor cell → image
+      verts[o]=d[0]; verts[o+1]=d[1]; verts[o+2]=d[2]; verts[o+3]=uv[0]; verts[o+4]=uv[1]; }
+    gl.bufferData(gl.ARRAY_BUFFER,verts,gl.STREAM_DRAW);
+    gl.bindTexture(gl.TEXTURE_2D,tileTexture(gl,best.t));
+    gl.drawElements(gl.TRIANGLES,ib.length,gl.UNSIGNED_SHORT,0); drawn++;
+  }
+  gl.deleteBuffer(ibuf);
+  gl.disableVertexAttribArray(A.a_dir); gl.disableVertexAttribArray(A.a_uv);
+  gl.bindBuffer(gl.ARRAY_BUFFER,null); gl.enable(gl.BLEND);
+  SKYSTAT.order=order; SKYSTAT.tiles=tiles.length; SKYSTAT.drawn=drawn;
+}
+export const SKYSTAT={order:0,tiles:0,drawn:0};
+
 export function glRender(){
   const gl=GL;
   if(hdrOK) gl.bindFramebuffer(gl.FRAMEBUFFER,hdrFB);
   gl.clear(gl.COLOR_BUFFER_BIT);
+  drawSurveyTiles();                                   // the sky images, under everything
   // raw-byte catalogue layers (decoded in the vertex shader)
   gl.useProgram(progU.p); glShared(progU.loc);
   if(V.solarA<0.5){

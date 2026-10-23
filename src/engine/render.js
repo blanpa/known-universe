@@ -8,7 +8,7 @@ import { drawGalaxies, galProj, projectGalaxies } from './galaxies.js';
 import { glBufH, glClearCanvas, glRender, glStars } from './gl.js';
 import { drawBubble, drawGalGrid, drawRadioSphere, drawRings, drawSkyGrid, drawVeilSphere } from './grids.js';
 import { drawNav, drawScaleBar, updateHUD } from './hud.js';
-import { drawHyg, projectHyg } from './hyg.js';
+import { drawHyg, drawHygLabels, projectHyg } from './hyg.js';
 import { LBL, P_SOLAR, P_STAR, lblFlush, lblReset } from './labels.js';
 import { drawMeasure, measureMode } from './measure.js';
 import { hostPos, tNow } from './motion.js';
@@ -79,7 +79,7 @@ export function render(){
   P('stars:sort',()=>order.sort((a,b)=>a._z2-b._z2));   // far first (painter)
 
   // background starfield (HYG) behind the exoplanet hosts
-  P('hyg:project',projectHyg); if(glStars()) P('gl:render',glRender); else { glClearCanvas(); P('hyg:draw',drawHyg); }
+  P('hyg:project',projectHyg); if(glStars()){ P('gl:render',glRender); if(S.skyMode) P('hyg:labels',drawHygLabels); } else { glClearCanvas(); P('hyg:draw',drawHyg); }
 
   // draw sun at origin
   const sp=project(0,0,0);

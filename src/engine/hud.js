@@ -3,10 +3,12 @@ import { camera, nav, selection, stats } from '../lib/stores.js';
 import { ctx } from './canvas.js';
 import { PC2LY } from './data.js';
 import { abilities, card, nameOf } from './entity.js';
+import { SKYSTAT } from './gl.js';
 import { LBL, P_HUD, P_STAR } from './labels.js';
 import { camXY, fmtLight, navDistPc, navWorld } from './nav.js';
 import { farD, nearD, visPl, visSys } from './render.js';
 import { S, V } from './state.js';
+import { fovDeg } from './survey.js';
 import { AU_PC, H, KDEC, W, camDist, camFwd, camPos, invScale } from './view.js';
 // ---- scale readout ---------------------------------------------------------
 // A linear scale bar would be a lie in the compact view: that projection is
@@ -29,7 +31,7 @@ function niceLen(v){                      // round down to the nearest 1 / 2 / 5
   return (m>=5?5:m>=2?2:1)*e;
 }
 export function drawScaleBar(){
-  if(!S.labels) return;
+  if(!S.labels||S.skyMode) return;
   const narrow = W<=720;
   // the docked timeline strip owns the bottom edge when it is on
   const strip = document.body.classList.contains('show-time') ? 48 : 0;
@@ -124,9 +126,12 @@ export function updateHUD(){
       routeOn:!!(V.ROUTE&&V.ROUTE.o===s), transferOn:!!(V.TRANSFER&&V.TRANSFER.to===s), pinned:s===S.pinned } : null); }
 
   const here = camDist>1e-9 ? invScale(camDist) : 0, inSolar=V.solarA>0.5;
-  const ck=here.toPrecision(3)+'|'+S.realScale+'|'+inSolar;
+  const fov=S.skyMode?fovDeg():0;
+  let ra=0, dec=0; if(S.skyMode){ ra=Math.atan2(camFwd[1],camFwd[0])*57.29578; if(ra<0) ra+=360; dec=Math.asin(Math.max(-1,Math.min(1,camFwd[2])))*57.29578; }
+  const ck=here.toPrecision(3)+'|'+S.realScale+'|'+inSolar+'|'+S.skyMode+'|'+fov.toPrecision(3)+'|'+ra.toFixed(2)+'|'+dec.toFixed(2);
   if(ck!==_cam){ _cam=ck;
-    camera.set({distPc:here, distText:here>0?fmtDist(here):'at the Sun', band:bandOf(here), real:S.realScale, inSolar, camZ:S.camZ}); }
+    camera.set({distPc:here, distText:here>0?fmtDist(here):'at the Sun', band:S.skyMode?'Sky view':bandOf(here), real:S.realScale, inSolar, camZ:S.camZ,
+      sky:S.skyMode, fov, ra, dec, order:SKYSTAT.order}); }
 
   if(!V.navTarget){ if(_nav){ _nav=''; nav.set(null); } return; }
   const dpc=navDistPc(), w=navWorld(V.navTarget); let head='–';

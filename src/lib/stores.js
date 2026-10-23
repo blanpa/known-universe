@@ -11,10 +11,11 @@ export const timeBar = writable(false);           // timeline strip shown (a UI 
 
 export const selection = writable(null);   // {card, lockable, navigable, routable, transferable, locked, isNav, routeOn, transferOn, pinned}
 export const stats = writable({ sys: 0, pl: 0, nearLy: null, farLy: null });   // exoplanet systems in view
-export const camera = writable({ distPc: 0, distText: '', band: '', real: true, inSolar: false, camZ: 0 });
+export const camera = writable({ distPc: 0, distText: '', band: '', real: true, inSolar: false, camZ: 0 , sky: false, fov: 0, ra: 0, dec: 0 });
 export const nav = writable(null);         // {name, dist, light, bearing} while a course is set
 export const tour = writable(null);        // {idx, total, title, text} while the tour runs
 export const timeline = writable({ v: 0, label: 'today', playing: false });   // v: −1000…1000 slider units
 export const measure = writable(false);    // measure tool armed
 export const encounters = writable([]);    // close stellar encounters within ±2 Myr (motion.js)
-export const transit = writable(null);     // the focused system's transits: {host, rstar, now, planets:[…]}
+export const transit = writable(null);
+export const survey = writable({ id: null, blink: false, blinkWith: 'ps1' });   // sky-survey backdrop state     // the focused system's transits: {host, rstar, now, planets:[…]}

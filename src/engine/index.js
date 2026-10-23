@@ -1,19 +1,21 @@
 // Engine entry: wires the modules together and boots.
-// This module runs at import time and expects the data to be there: main.js imports it
-// dynamically once data.json and catalog.json have arrived (or were embedded).
 import { api } from '../lib/api.js';
-import { facList as facListStore } from '../lib/stores.js';
 import { LIVE, startLive } from '../lib/live.js';
+import { facList as facListStore } from '../lib/stores.js';
 import { facList, objWorld } from './actions.js';
 import { clickToggle } from './controls.js';
 import { STARS } from './data.js';
-import { initGL, loadExtragal, loadGaia } from './gl.js';
+import { SKYSTAT, initGL, loadExtragal, loadGaia } from './gl.js';
 import { zoomFactorAt } from './interact.js';
 import { frame } from './loop.js';
 import { suggestList } from './search.js';
 import { applyHash } from './share.js';
+import { HYG } from './solar-data.js';
 import { S, V } from './state.js';
-import { H, W, project } from './view.js';
+import { SKY_R_PC, ST, cacheSize } from './survey.js';
+import { H, W, project, projectInto, scale } from './view.js';
+// This module runs at import time and expects the data to be there: main.js imports it
+// dynamically once data.json and catalog.json have arrived (or were embedded).
 import './timeline.js';
 import './tour.js';
 import './measure.js';
@@ -32,7 +34,7 @@ api.liveStats=()=>{ const y=new Date().getFullYear();
   return {exoY:n, year:y}; };
 LIVE.onUpdate=()=>{ V.dirty=true; };
 // headless-verify hook: lets the test harness inspect/inject live-layer state
-window.__ku={api, live:LIVE, redraw:()=>{V.dirty=true;}};
+window.__ku={api, live:LIVE, redraw:()=>{V.dirty=true;}, survey:{ST, SKYSTAT, cacheSize}, hyg:HYG, projDir:(x,y,z)=>{ const R=scale(SKY_R_PC), o={}; projectInto(x*R,y*R,z*R,o); return o; }};
 window.__kuapi=api;
 
 facListStore.set(facList);

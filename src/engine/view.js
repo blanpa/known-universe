@@ -7,13 +7,13 @@ export let W=0, H=0, DPR=1;
 export function camDir2(v){                               // world direction -> screen direction
   camTrig();
   const x1=v[0]*_cyw+v[2]*_syw, z1=-v[0]*_syw+v[2]*_cyw, y2=v[1]*_cp2 - z1*_sp2;
-  return [x1,-y2];
+  return [x1*_cr-y2*_sr, -(x1*_sr+y2*_cr)];
 }
 // allocation-free variant for the per-galaxy position-angle maths
 export let _d2x=0,_d2y=0;
 export function camDir2i(vx,vy,vz){
-  const x1=vx*_cyw+vz*_syw, z1=-vx*_syw+vz*_cyw;
-  _d2x=x1; _d2y=-(vy*_cp2 - z1*_sp2);
+  const x1=vx*_cyw+vz*_syw, z1=-vx*_syw+vz*_cyw, y2=vy*_cp2 - z1*_sp2;
+  _d2x=x1*_cr-y2*_sr; _d2y=-(x1*_sr+y2*_cr);
 }
 // ---- ONE unified logarithmic distance scale, anchored at the solar system ----
 // world radius = (log10(distance in parsec) - LOG0) * KDEC ; direction = real sky vector.
@@ -35,22 +35,31 @@ export function camCosmos(){ return scale(3e7); }          // frame out to the f
 export const ctr={x:0,y:0,z:0}, tgtCtr={x:0,y:0,z:0};
 export let camRight=[1,0,0], camUp=[0,1,0], camFwd=[0,0,1], camDist=0, camPos=[0,0,0];
 export const keys=new Set();
-let _cyw=1,_syw=0,_cp2=1,_sp2=0, _trigY=NaN, _trigP=NaN;   // camera trig, cached per frame
+let _cyw=1,_syw=0,_cp2=1,_sp2=0,_cr=1,_sr=0, _trigY=NaN, _trigP=NaN, _trigS=null;   // camera trig, cached per frame
+// sky view: roll the screen so celestial north (world +z) points up; the map never rolls
+function rollOf(c,s,sp){ return S.skyMode ? Math.atan2(s, -c*sp) : 0; }
 // project() also runs from event handlers (picking, fly-to), where the camera may have
 // moved since the last camBasis() — so the cache validates itself instead of trusting
 // the render loop to have refreshed it.
 function camTrig(){
-  if(_trigY===S.yaw && _trigP===S.pitch) return;
+  if(_trigY===S.yaw && _trigP===S.pitch && _trigS===S.skyMode) return;
+  _trigS=S.skyMode;
   _trigY=S.yaw; _trigP=S.pitch;
   _cyw=Math.cos(S.yaw); _syw=Math.sin(S.yaw);
   _cp2=Math.cos(S.pitch); _sp2=Math.sin(S.pitch);
+  V.roll=rollOf(_cyw,_syw,_sp2); _cr=Math.cos(V.roll); _sr=Math.sin(V.roll);
 }
 export function camBasis(){
   const c=Math.cos(S.yaw),s=Math.sin(S.yaw),cp=Math.cos(S.pitch),sp=Math.sin(S.pitch);
-  _cyw=c; _syw=s; _cp2=cp; _sp2=sp; _trigY=S.yaw; _trigP=S.pitch;
-  camRight=[c, sp*s, -cp*s];
-  camUp   =[0, cp, sp];
-  camFwd  =[s, -sp*c, cp*c];
+  _cyw=c; _syw=s; _cp2=cp; _sp2=sp; _trigY=S.yaw; _trigP=S.pitch; _trigS=S.skyMode;
+  V.roll=rollOf(c,s,sp); _cr=Math.cos(V.roll); _sr=Math.sin(V.roll);
+  // the screen axes in world coordinates: the ROWS of the view rotation that
+  // projectInto applies (yaw about world y, then pitch about the screen x axis),
+  // rolled when the sky view keeps north up. camFwd is where the camera looks.
+  const rx=c, ry=0, rz=s, ux=s*sp, uy=cp, uz=-c*sp;
+  camRight=[_cr*rx-_sr*ux, _cr*ry-_sr*uy, _cr*rz-_sr*uz];
+  camUp   =[_sr*rx+_cr*ux, _sr*ry+_cr*uy, _sr*rz+_cr*uz];
+  camFwd  =[s*cp, -sp, -c*cp];
   camPos=[ctr.x-camFwd[0]*S.camZ, ctr.y-camFwd[1]*S.camZ, ctr.z-camFwd[2]*S.camZ];
   camDist=Math.hypot(camPos[0],camPos[1],camPos[2]);   // distance to the Sun (origin)
 }
@@ -92,6 +101,11 @@ export function projectInto(px,py,pz,o){
   const x1=px*_cyw+pz*_syw, z1=-px*_syw+pz*_cyw, y1=py;
   const y2=y1*_cp2 - z1*_sp2, z2=y1*_sp2 + z1*_cp2;
   const depth=S.camZ - z2;                 // >0 in front
-  o.x=V.cx+V.foc*x1/depth; o.y=V.cy-V.foc*y2/depth; o.depth=depth; o.z2=z2;
+  const f=V.foc*V.fovK, x3=x1*_cr-y2*_sr, y3=x1*_sr+y2*_cr;
+  o.x=V.cx+f*x3/depth; o.y=V.cy-f*y3/depth; o.depth=depth; o.z2=z2;
   return o;
 }
+
+// yaw/pitch that point the view (from the Sun outward) along a world direction
+export function lookAlong(d){ const l=Math.hypot(d[0],d[1],d[2])||1, x=d[0]/l,y=d[1]/l,z=d[2]/l;
+  return { yaw:Math.atan2(x,-z), pitch:Math.asin(Math.max(-1,Math.min(1,-y))) }; }

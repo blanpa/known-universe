@@ -9,6 +9,7 @@
   import Timeline from './components/Timeline.svelte';
   import TourPanel from './components/TourPanel.svelte';
   import TimePane from './components/TimePane.svelte';
+  import SkyPane from './components/SkyPane.svelte';
   import TransitCard from './components/TransitCard.svelte';
   import MobileNav from './components/MobileNav.svelte';
   import ScaleLadder from './components/ScaleLadder.svelte';
@@ -17,7 +18,7 @@
   import Icon from './components/Icon.svelte';
   import { api } from './lib/api.js';
   import { reserve } from './lib/reserve.js';
-  import { measure, timeBar, toggleState } from './lib/stores.js';
+  import { camera, measure, timeBar, toggleState } from './lib/stores.js';
 
   // Desktop chrome is on-demand: a 56 px icon rail, one overlay panel at a time.
   const RAIL = [
@@ -26,11 +27,13 @@
     { k: 'map',    icon: 'galaxy', label: 'Map' },
     { k: 'live',   icon: 'live',   label: 'Live' },
     { k: 'time',   icon: 'clock',  label: 'Time' },
+    { k: 'sky',    icon: 'scope',  label: 'Sky' },
   ];
   let panel = $state(null);
   // the quick-jump bar and the ladder yield when a panel is out, so nothing overlaps
   $effect(() => { document.body.classList.toggle('rail-open', !!panel); });
   $effect(() => { document.body.classList.toggle('show-time', $timeBar); });
+  $effect(() => { document.body.classList.toggle('sky-on', !!$camera.sky); });
   function pick(k) { panel = panel === k ? null : k; }
   function esc(e) { if (e.key === 'Escape' && panel) panel = null; }
 </script>
@@ -59,6 +62,7 @@
     <div class="rp-pane" class:on={panel === 'map'}>{#if $toggleState['t-mw'] !== false}<MwMap />{:else}<div class="panel"><div class="label">Milky Way</div><div class="hint">Switch the “Milky Way · Sgr A*” layer on to see the map.</div></div>{/if}</div>
     <div class="rp-pane" class:on={panel === 'live'}><LivePanel collapsible={false} /></div>
     <div class="rp-pane" class:on={panel === 'time'}><TimePane /></div>
+    <div class="rp-pane" class:on={panel === 'sky'}><SkyPane /></div>
   </div>
 
   <nav id="rail" aria-label="Panels and tools" use:reserve={'rail'}>

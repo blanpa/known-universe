@@ -1,4 +1,4 @@
-import { S as api, _ as timeBar, a as startLive, b as tour, c as encounters, d as labels, f as measure, g as stats, h as selection, i as satEcl, l as facColor, m as searchMsg, n as activeShowers, o as RESERVED, p as nav, r as groundEcl, s as camera, t as LIVE, u as facList$1, v as timeline, x as transit, y as toggleState } from "./index-DfUKS0Tn.js";
+import { C as api, S as transit, _ as survey, a as startLive, b as toggleState, c as encounters, d as labels, f as measure, g as stats, h as selection, i as satEcl, l as facColor, m as searchMsg, n as activeShowers, o as RESERVED, p as nav, r as groundEcl, s as camera, t as LIVE, u as facList$1, v as timeBar, x as tour, y as timeline } from "./index-CeiH9o4H.js";
 //#region src/engine/canvas.js
 var cv = document.getElementById("sky");
 var ctx = cv.getContext("2d");
@@ -60,9 +60,12 @@ var S = {
 	hover: null,
 	pinned: null,
 	focusStar: null,
-	focusT: 0
+	focusT: 0,
+	skyMode: false
 };
 var V = {
+	fovK: 1,
+	roll: 0,
 	FOLLOW: null,
 	GLDPR: 1,
 	NEAR: .05,
@@ -1814,6 +1817,263 @@ api.prof = (on) => {
 	};
 };
 //#endregion
+//#region src/engine/healpix.js
+var JRLL = [
+	2,
+	2,
+	2,
+	2,
+	3,
+	3,
+	3,
+	3,
+	4,
+	4,
+	4,
+	4
+];
+var JPLL = [
+	1,
+	3,
+	5,
+	7,
+	0,
+	2,
+	4,
+	6,
+	1,
+	3,
+	5,
+	7
+];
+function compress$1(v) {
+	v &= 1431655765;
+	v = (v | v >> 1) & 858993459;
+	v = (v | v >> 2) & 252645135;
+	v = (v | v >> 4) & 16711935;
+	v = (v | v >> 8) & 65535;
+	return v;
+}
+function nest2xyf(order, pix) {
+	const nside = 1 << order, face = pix >>> 2 * order, p = pix & nside * nside - 1;
+	return {
+		face,
+		ix: compress$1(p),
+		iy: compress$1(p >>> 1),
+		nside
+	};
+}
+function xyf2dir(x, y, face) {
+	const jr = JRLL[face] - x - y;
+	let nr, z;
+	if (jr < 1) {
+		nr = jr;
+		z = 1 - nr * nr / 3;
+	} else if (jr > 3) {
+		nr = 4 - jr;
+		z = nr * nr / 3 - 1;
+	} else {
+		nr = 1;
+		z = (2 - jr) * 2 / 3;
+	}
+	let t = JPLL[face] * nr + x - y;
+	if (t < 0) t += 8;
+	if (t >= 8) t -= 8;
+	const phi = nr < 1e-15 ? 0 : t * Math.PI / 4 / nr;
+	const sth = Math.sqrt(Math.max(0, 1 - z * z));
+	return [
+		sth * Math.cos(phi),
+		sth * Math.sin(phi),
+		z
+	];
+}
+function tileDir(order, pix, u, v) {
+	const { face, ix, iy, nside } = nest2xyf(order, pix);
+	return xyf2dir((ix + u) / nside, (iy + v) / nside, face);
+}
+var tileCentre = (order, pix) => tileDir(order, pix, .5, .5);
+var tileRadiusDeg = (order) => 58.6 / (1 << order) * .75;
+//#endregion
+//#region src/engine/survey.js
+var SURVEYS = [
+	{
+		id: "dss",
+		n: "DSS2 colour",
+		epoch: "1983–1999",
+		base: "https://alasky.cds.unistra.fr/DSS/DSSColor",
+		ext: "jpg",
+		maxOrder: 9
+	},
+	{
+		id: "2mass",
+		n: "2MASS (near-IR)",
+		epoch: "1997–2001",
+		base: "https://alasky.cds.unistra.fr/2MASS/Color",
+		ext: "jpg",
+		maxOrder: 9
+	},
+	{
+		id: "wise",
+		n: "AllWISE (mid-IR)",
+		epoch: "2010",
+		base: "https://alasky.cds.unistra.fr/AllWISE/RGB-W4-W2-W1",
+		ext: "jpg",
+		maxOrder: 8
+	},
+	{
+		id: "ps1",
+		n: "Pan-STARRS DR1",
+		epoch: "2010–2014",
+		base: "https://alasky.cds.unistra.fr/Pan-STARRS/DR1/color-z-zg-g",
+		ext: "jpg",
+		maxOrder: 11
+	}
+];
+var SKY_R_PC = 1e4;
+var ST = {
+	id: "dss",
+	on: false,
+	blink: false,
+	blinkWith: "ps1"
+};
+var _blinkTimer = null;
+var _blinkPhase = 0;
+function setSurvey(id) {
+	ST.id = id;
+	ST.on = !!SURVEYS.find((s) => s.id === id);
+	publish$1();
+	V.dirty = true;
+}
+function setBlink(on, withId) {
+	ST.blink = !!on;
+	if (withId) ST.blinkWith = withId;
+	if (_blinkTimer) {
+		clearInterval(_blinkTimer);
+		_blinkTimer = null;
+	}
+	if (ST.blink) _blinkTimer = setInterval(() => {
+		_blinkPhase ^= 1;
+		V.dirty = true;
+	}, 700);
+	publish$1();
+	V.dirty = true;
+}
+function publish$1() {
+	survey.set({
+		id: ST.on ? ST.id : null,
+		blink: ST.blink,
+		blinkWith: ST.blinkWith
+	});
+}
+publish$1();
+function activeSurvey() {
+	if (!ST.on) return null;
+	const id = ST.blink && _blinkPhase ? ST.blinkWith : ST.id;
+	return SURVEYS.find((s) => s.id === id) || null;
+}
+function surveyAlpha() {
+	if (!ST.on) return 0;
+	const d = camDist > 1e-9 ? invScale(camDist) : 0;
+	return Math.max(0, Math.min(1, (60 - d) / 30));
+}
+var CACHE = /* @__PURE__ */ new Map();
+var _loads = 0;
+var cacheSize = () => CACHE.size;
+function tileKey(sv, order, pix) {
+	return sv.id + "/" + order + "/" + pix;
+}
+function tileURL(sv, order, pix) {
+	return `${sv.base}/Norder${order}/Dir${Math.floor(pix / 1e4) * 1e4}/Npix${pix}.${sv.ext}`;
+}
+function requestTile(sv, order, pix) {
+	const k = tileKey(sv, order, pix);
+	let t = CACHE.get(k);
+	if (t) return t;
+	if (_loads >= 12) return null;
+	t = {
+		img: new Image(),
+		tex: null,
+		ok: false,
+		failed: false,
+		at: performance.now()
+	};
+	CACHE.set(k, t);
+	_loads++;
+	t.img.crossOrigin = "anonymous";
+	t.img.onload = () => {
+		_loads--;
+		t.ok = true;
+		V.dirty = true;
+	};
+	t.img.onerror = () => {
+		_loads--;
+		t.failed = true;
+	};
+	t.img.src = tileURL(sv, order, pix);
+	if (CACHE.size > 600) {
+		const old = [...CACHE.entries()].filter((e) => e[1].ok || e[1].failed).sort((a, b) => a[1].at - b[1].at).slice(0, 150);
+		for (const [kk, tt] of old) {
+			if (tt.tex && tt.gl) tt.gl.deleteTexture(tt.tex);
+			CACHE.delete(kk);
+		}
+	}
+	return t;
+}
+function bestTile(sv, order, pix) {
+	let o = order, p = pix, u0 = 0, v0 = 0, size = 1;
+	while (o >= 3) {
+		const t = CACHE.get(tileKey(sv, o, p));
+		if (t && t.ok) return {
+			t,
+			u0,
+			v0,
+			size
+		};
+		if (!t && o === order) requestTile(sv, o, p);
+		if (o === 3) break;
+		const c = p & 3;
+		p >>>= 2;
+		o--;
+		size *= .5;
+		const cx = c & 1 ? 1 : 0, cy = c & 2 ? 1 : 0;
+		u0 = u0 * .5 + cx * .5;
+		v0 = v0 * .5 + cy * .5;
+	}
+	if (!CACHE.get(tileKey(sv, 3, p))) requestTile(sv, 3, p);
+	return null;
+}
+function fovDeg() {
+	return 2 * Math.atan(Math.max(W, H) / 2 / (V.foc * V.fovK)) * 57.29578;
+}
+function chooseOrder(sv) {
+	const fov = fovDeg(), pxPerDeg = Math.max(W, H) / fov;
+	let o = Math.round(Math.log2(58.6 * pxPerDeg / 512) + .3);
+	return Math.max(3, Math.min(sv.maxOrder, o));
+}
+function visibleTiles(order) {
+	const fw = camFwd, half = fovDeg() * .75 + 2, out = [];
+	function visit(o, pix) {
+		const c = tileCentre(o, pix), dot = c[0] * fw[0] + c[1] * fw[1] + c[2] * fw[2];
+		const r = tileRadiusDeg(o);
+		if (dot < Math.cos(Math.min(179, half + r) * .0174533)) return;
+		if (o === order) {
+			out.push(pix);
+			return;
+		}
+		for (let k = 0; k < 4; k++) visit(o + 1, pix << 2 | k);
+	}
+	for (let p = 0; p < 768; p++) visit(3, p);
+	return out;
+}
+function tileGrid(order, pix, N) {
+	const dirs = [];
+	for (let j = 0; j <= N; j++) for (let i = 0; i <= N; i++) dirs.push(tileDir(order, pix, i / N, j / N));
+	return dirs;
+}
+function uvOf(u, v) {
+	return [v, u];
+}
+//#endregion
 //#region src/engine/hud.js
 function fmtDist(pc) {
 	if (!isFinite(pc) || pc <= 0) return "0";
@@ -1831,7 +2091,7 @@ function niceLen(v) {
 	return (m >= 5 ? 5 : m >= 2 ? 2 : 1) * e;
 }
 function drawScaleBar() {
-	if (!S.labels) return;
+	if (!S.labels || S.skyMode) return;
 	const narrow = W <= 720;
 	const strip = document.body.classList.contains("show-time") ? 48 : 0;
 	const x0 = 16, y0 = H - (narrow ? 92 : 30) - strip;
@@ -2019,16 +2279,28 @@ function updateHUD() {
 		} : null);
 	}
 	const here = camDist > 1e-9 ? invScale(camDist) : 0, inSolar = V.solarA > .5;
-	const ck = here.toPrecision(3) + "|" + S.realScale + "|" + inSolar;
+	const fov = S.skyMode ? fovDeg() : 0;
+	let ra = 0, dec = 0;
+	if (S.skyMode) {
+		ra = Math.atan2(camFwd[1], camFwd[0]) * 57.29578;
+		if (ra < 0) ra += 360;
+		dec = Math.asin(Math.max(-1, Math.min(1, camFwd[2]))) * 57.29578;
+	}
+	const ck = here.toPrecision(3) + "|" + S.realScale + "|" + inSolar + "|" + S.skyMode + "|" + fov.toPrecision(3) + "|" + ra.toFixed(2) + "|" + dec.toFixed(2);
 	if (ck !== _cam) {
 		_cam = ck;
 		camera.set({
 			distPc: here,
 			distText: here > 0 ? fmtDist(here) : "at the Sun",
-			band: bandOf(here),
+			band: S.skyMode ? "Sky view" : bandOf(here),
 			real: S.realScale,
 			inSolar,
-			camZ: S.camZ
+			camZ: S.camZ,
+			sky: S.skyMode,
+			fov,
+			ra,
+			dec,
+			order: SKYSTAT.order
 		});
 	}
 	if (!V.navTarget) {
@@ -4071,7 +4343,7 @@ function drawSolar(alpha) {
 		x: sp.x,
 		y: sp.y
 	} : null;
-	if (sp.depth > V.NEAR) {
+	if (sp.depth > V.NEAR && !S.skyMode) {
 		const spx = bodyPx(SUN.rk, sp.depth);
 		drawHalo(haloSprite("sun", [
 			[0, "rgba(255,240,190,0.9)"],
@@ -5625,6 +5897,7 @@ var glcv = null;
 var progF = null;
 var progU = null;
 var progT = null;
+var progS = null;
 var hdrOK = false;
 var hdrFB = null;
 var hdrTex = null;
@@ -5650,7 +5923,7 @@ var obRaw = null;
 var varRaw = null;
 var beltEpoch = 0;
 var GL_UNI = `
-uniform float u_yaw,u_pitch,u_camZ,u_foc,u_dpr,u_LOG0,u_KDEC,u_REALK,u_cull,u_minPx,u_alphaK,u_maxPt;
+uniform float u_yaw,u_pitch,u_camZ,u_foc,u_dpr,u_LOG0,u_KDEC,u_REALK,u_cull,u_minPx,u_alphaK,u_maxPt,u_fovK,u_roll,u_sky;
 uniform vec3 u_ctr; uniform vec2 u_res; uniform bool u_real;
 uniform vec4 u_lens; uniform float u_lensOn;   // xy: lens device px · z: Einstein radius px · w: lens depth
 out vec3 v_color; out float v_alpha;
@@ -5668,6 +5941,8 @@ function glTail(host) {
   float y2=y1*cp - z1*sp;
   float z2=y1*sp + z1*cp;
   float depth=u_camZ - z2;
+  float cr=cos(u_roll), sr=sin(u_roll);
+  float x3=x1*cr - y2*sr, y3=x1*sr + y2*cr;
   // Size and fade work on the depth RELATIVE to the framing distance (3.2 at the
   // centre of the view), as the 2D glyphs do. In real scale an absolute depth in
   // parsec made every far cloud sub-pixel: the cosmic web was culled wholesale.
@@ -5677,14 +5952,16 @@ function glTail(host) {
   float sizeCss;
   ${host ? `if(u_hostMode>0.5) sizeCss=min(20.0, max(0.7, focCss*0.0075/dz*rs));
   else ` : ""}sizeCss=clamp((0.4+bright*0.34)*focCss*0.0032/dz, 0.0, 3.6);
+  // sky view: the camera sits at the Sun, so size follows apparent magnitude alone
+  if(u_sky>0.5) sizeCss=${host ? "u_hostMode>0.5 ? 1.8 : " : ""}clamp(0.5+bright*0.42, 0.0, 4.5)*(1.0+0.1*log2(u_fovK));
   float nearP=u_real?u_camZ*0.02:0.05; if(depth<=nearP || sizeCss<u_cull){ gl_Position=vec4(2.0,0.0,0.0,1.0); gl_PointSize=0.0; return; }
   float px=max(sizeCss, u_minPx);
   ${host ? `if(u_glow>0.5){
     if(mg>2.6){ gl_Position=vec4(2.0,0.0,0.0,1.0); gl_PointSize=0.0; return; }
     px=min(sizeCss*6.0, 26.0);                           // soft halo for the brightest stars
   }` : ""}
-  float dvx=u_res.x*0.5 + u_foc*x1/depth;
-  float dvy=u_res.y*0.5 - u_foc*y2/depth;
+  float dvx=u_res.x*0.5 + u_foc*u_fovK*x3/depth;
+  float dvy=u_res.y*0.5 - u_foc*u_fovK*y3/depth;
   if(u_lensOn>0.5 && depth>u_lens.w){            // gravitational lens: sources behind
     vec2 lv=vec2(dvx,dvy)-u_lens.xy;             // Sgr A* deflect outward (point-mass
     float lr=max(length(lv),1e-3);               // lens equation, exaggerated scale)
@@ -5695,7 +5972,7 @@ function glTail(host) {
   gl_PointSize=min(px*u_dpr, u_maxPt);
   v_color=col;
   ${host ? `if(u_hostMode>0.5){
-    float av=clamp(1.9-dz*0.55, 0.12, 1.0);
+    float av=u_sky>0.5 ? 0.9 : clamp(1.9-dz*0.55, 0.12, 1.0);
     if(u_veil>0.5 && dist>u_bnd){                        // red veil beyond the charted edge
       float t=min(1.0,(dist-u_bnd)/(u_bnd*1.6));
       v_color=mix(v_color, vec3(0.9098,0.2275,0.1961), t*0.85); av*=(1.0-t*0.4);
@@ -5703,7 +5980,7 @@ function glTail(host) {
     if(a_pm.y>0.5 && abs(a_pm.y-u_year)<0.5){ v_color=vec3(0.3098,0.8392,0.7843); av=1.0; }
     v_alpha=av;
   } else {` : "{"}
-    float fade=clamp(1.9-dz*0.4, 0.22, 1.0);
+    float fade=u_sky>0.5 ? 1.0 : clamp(1.9-dz*0.4, 0.22, 1.0);
     v_alpha=clamp((0.28+bright*0.12)*fade, 0.0, 1.0);
     if(u_minPx>0.0) v_alpha=max(v_alpha, 0.17);          // Gaia: keep faint dwarfs visible
   }
@@ -5893,6 +6170,8 @@ function initGL() {
 		progF = mkProg(gl, GL_VSF, GL_FSP);
 		progU = mkProg(gl, GL_VSU, GL_FSP);
 		progT = mkProg(gl, TM_VS, TM_FS);
+		progS = mkProg(gl, SK_VS, SK_FS);
+		skyBuf = gl.createBuffer();
 		if (!progF || !progU) return;
 		glMaxPt = (gl.getParameter(gl.ALIASED_POINT_SIZE_RANGE) || [1, 64])[1] || 64;
 		hdrOK = false;
@@ -6237,37 +6516,37 @@ function loadExtragal() {
 		if (typeof window.__WEB_B64__ === "string" && window.__WEB_B64__.length) {
 			buildWeb(b64ToBytes(window.__WEB_B64__));
 			window.__WEB_B64__ = null;
-		} else fetch("data/cosmicweb.bin?b=b18:59").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		} else fetch("data/cosmicweb.bin?b=b21:19").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildWeb(new Uint8Array(a));
 		}).catch(() => {});
 		if (typeof window.__QSO_B64__ === "string" && window.__QSO_B64__.length) {
 			buildQso(b64ToBytes(window.__QSO_B64__));
 			window.__QSO_B64__ = null;
-		} else fetch("data/quasars.bin?b=b18:59").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		} else fetch("data/quasars.bin?b=b21:19").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildQso(new Uint8Array(a));
 		}).catch(() => {});
-		fetch("data/quasarsbig.bin?b=b18:59").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		fetch("data/quasarsbig.bin?b=b21:19").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildQso(new Uint8Array(a));
 		}).catch(() => {});
 		if (typeof window.__BELT_B64__ === "string" && window.__BELT_B64__.length) {
 			buildBelt(b64ToBytes(window.__BELT_B64__));
 			window.__BELT_B64__ = null;
-		} else fetch("data/belt.bin?b=b18:59").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		} else fetch("data/belt.bin?b=b21:19").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildBelt(new Uint8Array(a));
 		}).catch(() => {});
-		fetch("data/gaiabig.bin?b=b18:59").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		fetch("data/gaiabig.bin?b=b21:19").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildGaiaBig(new Uint8Array(a));
 		}).catch(() => {});
 		if (typeof window.__OB_B64__ === "string" && window.__OB_B64__.length) {
 			buildOB(b64ToBytes(window.__OB_B64__));
 			window.__OB_B64__ = null;
-		} else fetch("data/obstars.bin?b=b18:59").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		} else fetch("data/obstars.bin?b=b21:19").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildOB(new Uint8Array(a));
 		}).catch(() => {});
 		if (typeof window.__VAR_B64__ === "string" && window.__VAR_B64__.length) {
 			buildVars(b64ToBytes(window.__VAR_B64__));
 			window.__VAR_B64__ = null;
-		} else fetch("data/variables.bin?b=b18:59").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		} else fetch("data/variables.bin?b=b21:19").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildVars(new Uint8Array(a));
 		}).catch(() => {});
 	} catch (e) {}
@@ -6285,7 +6564,7 @@ function loadGaia() {
 			window.__GAIA_B64__ = null;
 			return;
 		}
-		fetch("data/gaia.bin?b=b18:59").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		fetch("data/gaia.bin?b=b21:19").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildGaia(new Uint8Array(a));
 		}).catch(() => {});
 	} catch (e) {}
@@ -6297,6 +6576,9 @@ function glShared(L) {
 	gl.uniform1f(L.u_camZ, S.camZ);
 	gl.uniform1f(L.u_foc, foc * V.GLDPR);
 	gl.uniform1f(L.u_dpr, V.GLDPR);
+	gl.uniform1f(L.u_fovK, V.fovK);
+	gl.uniform1f(L.u_roll, V.roll);
+	gl.uniform1f(L.u_sky, S.skyMode ? 1 : 0);
 	gl.uniform1f(L.u_LOG0, -6);
 	gl.uniform1f(L.u_KDEC, 1);
 	gl.uniform1f(L.u_REALK, 1);
@@ -6337,10 +6619,119 @@ function drawCloud(h, cull, minPx, alphaK, beltDt) {
 	gl.bindVertexArray(h.vao);
 	gl.drawArrays(gl.POINTS, 0, h.n);
 }
+var SK_VS = `#version 300 es
+precision highp float;
+in vec3 a_dir; in vec2 a_uv;
+uniform float u_yaw,u_pitch,u_camZ,u_foc,u_fovK,u_roll,u_R; uniform vec3 u_ctr; uniform vec2 u_res;
+out vec2 v_uv;
+void main(){
+  vec3 p=a_dir*u_R - u_ctr;
+  float c=cos(u_yaw), sy=sin(u_yaw);
+  float x1=p.x*c + p.z*sy, z1=-p.x*sy + p.z*c, y1=p.y;
+  float cp=cos(u_pitch), sp=sin(u_pitch);
+  float y2=y1*cp - z1*sp, z2=y1*sp + z1*cp;
+  float depth=max(1e-9, u_camZ - z2);
+  float cr=cos(u_roll), sr=sin(u_roll);
+  float x3=x1*cr - y2*sr, y3=x1*sr + y2*cr;
+  float dvx=u_res.x*0.5 + u_foc*u_fovK*x3/depth, dvy=u_res.y*0.5 - u_foc*u_fovK*y3/depth;
+  gl_Position=vec4(dvx/u_res.x*2.0-1.0, 1.0-dvy/u_res.y*2.0, 0.0, 1.0);
+  v_uv=a_uv;
+}`;
+var SK_FS = `#version 300 es
+precision highp float;
+in vec2 v_uv; uniform sampler2D u_tex; uniform float u_alpha, u_inv; out vec4 o;
+void main(){
+  vec3 c=texture(u_tex, v_uv).rgb*u_alpha;
+  // the HDR pass rolls values above 0.55 off; pre-invert so the image comes out as it is
+  if(u_inv>0.5){ vec3 t=clamp((c-0.55)/0.45, 0.0, 0.995); c=mix(c, 0.55-0.45*log(1.0-t), step(0.55, c)); }
+  o=vec4(c,1.0);
+}`;
+var skyBuf = null;
+var SKY_N = 4;
+function tileTexture(gl, t) {
+	if (t.tex) return t.tex;
+	const tex = gl.createTexture();
+	gl.bindTexture(gl.TEXTURE_2D, tex);
+	gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, t.img);
+	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+	t.tex = tex;
+	t.gl = gl;
+	return tex;
+}
+function drawSurveyTiles() {
+	const sv = activeSurvey(), a = surveyAlpha();
+	if (!sv || a <= .01 || !progS) return;
+	const gl = GL, L = progS.loc, A = progS.attr;
+	const order = chooseOrder(sv), tiles = visibleTiles(order);
+	gl.useProgram(progS.p);
+	gl.disable(gl.BLEND);
+	gl.uniform1f(L.u_yaw, S.yaw);
+	gl.uniform1f(L.u_pitch, S.pitch);
+	gl.uniform1f(L.u_camZ, S.camZ);
+	gl.uniform1f(L.u_foc, Math.min(W, H) * .62 * V.GLDPR);
+	gl.uniform1f(L.u_fovK, V.fovK);
+	gl.uniform1f(L.u_roll, V.roll);
+	gl.uniform1f(L.u_R, scale(SKY_R_PC));
+	gl.uniform3f(L.u_ctr, ctr.x, ctr.y, ctr.z);
+	gl.uniform2f(L.u_res, glcv.width, glcv.height);
+	gl.uniform1f(L.u_alpha, a);
+	gl.uniform1f(L.u_inv, hdrOK ? 1 : 0);
+	gl.uniform1i(L.u_tex, 0);
+	gl.bindBuffer(gl.ARRAY_BUFFER, skyBuf);
+	gl.enableVertexAttribArray(A.a_dir);
+	gl.vertexAttribPointer(A.a_dir, 3, gl.FLOAT, false, 20, 0);
+	gl.enableVertexAttribArray(A.a_uv);
+	gl.vertexAttribPointer(A.a_uv, 2, gl.FLOAT, false, 20, 12);
+	const N = SKY_N, verts = /* @__PURE__ */ new Float32Array(125), idx = [];
+	for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+		const k = j * 5 + i;
+		idx.push(k, k + 1, k + N + 1, k + 1, k + N + 2, k + N + 1);
+	}
+	const ib = new Uint16Array(idx);
+	const ibuf = gl.createBuffer();
+	gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibuf);
+	gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, ib, gl.STREAM_DRAW);
+	let drawn = 0;
+	for (const pix of tiles) {
+		const best = bestTile(sv, order, pix);
+		if (!best) continue;
+		const dirs = tileGrid(order, pix, N);
+		for (let j = 0; j <= N; j++) for (let i = 0; i <= N; i++) {
+			const k = j * 5 + i, d = dirs[k], o = k * 5;
+			const uv = uvOf(best.u0 + i / N * best.size, best.v0 + j / N * best.size);
+			verts[o] = d[0];
+			verts[o + 1] = d[1];
+			verts[o + 2] = d[2];
+			verts[o + 3] = uv[0];
+			verts[o + 4] = uv[1];
+		}
+		gl.bufferData(gl.ARRAY_BUFFER, verts, gl.STREAM_DRAW);
+		gl.bindTexture(gl.TEXTURE_2D, tileTexture(gl, best.t));
+		gl.drawElements(gl.TRIANGLES, ib.length, gl.UNSIGNED_SHORT, 0);
+		drawn++;
+	}
+	gl.deleteBuffer(ibuf);
+	gl.disableVertexAttribArray(A.a_dir);
+	gl.disableVertexAttribArray(A.a_uv);
+	gl.bindBuffer(gl.ARRAY_BUFFER, null);
+	gl.enable(gl.BLEND);
+	SKYSTAT.order = order;
+	SKYSTAT.tiles = tiles.length;
+	SKYSTAT.drawn = drawn;
+}
+var SKYSTAT = {
+	order: 0,
+	tiles: 0,
+	drawn: 0
+};
 function glRender() {
 	const gl = GL;
 	if (hdrOK) gl.bindFramebuffer(gl.FRAMEBUFFER, hdrFB);
 	gl.clear(gl.COLOR_BUFFER_BIT);
+	drawSurveyTiles();
 	gl.useProgram(progU.p);
 	glShared(progU.loc);
 	if (V.solarA < .5) {
@@ -6428,15 +6819,15 @@ var H = 0;
 var DPR = 1;
 function camDir2(v) {
 	camTrig();
-	const x1 = v[0] * _cyw + v[2] * _syw, z1 = -v[0] * _syw + v[2] * _cyw;
-	return [x1, -(v[1] * _cp2 - z1 * _sp2)];
+	const x1 = v[0] * _cyw + v[2] * _syw, z1 = -v[0] * _syw + v[2] * _cyw, y2 = v[1] * _cp2 - z1 * _sp2;
+	return [x1 * _cr - y2 * _sr, -(x1 * _sr + y2 * _cr)];
 }
 var _d2x = 0;
 var _d2y = 0;
 function camDir2i(vx, vy, vz) {
-	const x1 = vx * _cyw + vz * _syw, z1 = -vx * _syw + vz * _cyw;
-	_d2x = x1;
-	_d2y = -(vy * _cp2 - z1 * _sp2);
+	const x1 = vx * _cyw + vz * _syw, z1 = -vx * _syw + vz * _cyw, y2 = vy * _cp2 - z1 * _sp2;
+	_d2x = x1 * _cr - y2 * _sr;
+	_d2y = -(x1 * _sr + y2 * _cr);
 }
 var AU_PC = 484814e-11;
 function rlog(pc) {
@@ -6491,16 +6882,26 @@ var _cyw = 1;
 var _syw = 0;
 var _cp2 = 1;
 var _sp2 = 0;
+var _cr = 1;
+var _sr = 0;
 var _trigY = NaN;
 var _trigP = NaN;
+var _trigS = null;
+function rollOf(c, s, sp) {
+	return S.skyMode ? Math.atan2(s, -c * sp) : 0;
+}
 function camTrig() {
-	if (_trigY === S.yaw && _trigP === S.pitch) return;
+	if (_trigY === S.yaw && _trigP === S.pitch && _trigS === S.skyMode) return;
+	_trigS = S.skyMode;
 	_trigY = S.yaw;
 	_trigP = S.pitch;
 	_cyw = Math.cos(S.yaw);
 	_syw = Math.sin(S.yaw);
 	_cp2 = Math.cos(S.pitch);
 	_sp2 = Math.sin(S.pitch);
+	V.roll = rollOf(_cyw, _syw, _sp2);
+	_cr = Math.cos(V.roll);
+	_sr = Math.sin(V.roll);
 }
 function camBasis() {
 	const c = Math.cos(S.yaw), s = Math.sin(S.yaw), cp = Math.cos(S.pitch), sp = Math.sin(S.pitch);
@@ -6510,20 +6911,25 @@ function camBasis() {
 	_sp2 = sp;
 	_trigY = S.yaw;
 	_trigP = S.pitch;
+	_trigS = S.skyMode;
+	V.roll = rollOf(c, s, sp);
+	_cr = Math.cos(V.roll);
+	_sr = Math.sin(V.roll);
+	const rx = c, ry = 0, rz = s, ux = s * sp, uy = cp, uz = -c * sp;
 	camRight = [
-		c,
-		sp * s,
-		-cp * s
+		_cr * rx - _sr * ux,
+		_cr * ry - _sr * uy,
+		_cr * rz - _sr * uz
 	];
 	camUp = [
-		0,
-		cp,
-		sp
+		_sr * rx + _cr * ux,
+		_sr * ry + _cr * uy,
+		_sr * rz + _cr * uz
 	];
 	camFwd = [
-		s,
-		-sp * c,
-		cp * c
+		s * cp,
+		-sp,
+		-c * cp
 	];
 	camPos = [
 		ctr.x - camFwd[0] * S.camZ,
@@ -6577,11 +6983,19 @@ function projectInto(px, py, pz, o) {
 	const x1 = px * _cyw + pz * _syw, z1 = -px * _syw + pz * _cyw, y1 = py;
 	const y2 = y1 * _cp2 - z1 * _sp2, z2 = y1 * _sp2 + z1 * _cp2;
 	const depth = S.camZ - z2;
-	o.x = V.cx + V.foc * x1 / depth;
-	o.y = V.cy - V.foc * y2 / depth;
+	const f = V.foc * V.fovK, x3 = x1 * _cr - y2 * _sr, y3 = x1 * _sr + y2 * _cr;
+	o.x = V.cx + f * x3 / depth;
+	o.y = V.cy - f * y3 / depth;
 	o.depth = depth;
 	o.z2 = z2;
 	return o;
+}
+function lookAlong(d) {
+	const l = Math.hypot(d[0], d[1], d[2]) || 1, x = d[0] / l, y = d[1] / l, z = d[2] / l;
+	return {
+		yaw: Math.atan2(x, -z),
+		pitch: Math.asin(Math.max(-1, Math.min(1, -y)))
+	};
 }
 //#endregion
 //#region src/engine/blackhole.js
@@ -7520,7 +7934,7 @@ function projectHyg() {
 		if (p.x < -90 || p.x > W + 90 || p.y < -90 || p.y > H + 90) continue;
 		let bright = 6.8 - s.m;
 		if (bright < 0) bright = 0;
-		const size = (.4 + bright * .34) * V.foc * .0032 / p.depth;
+		const size = S.skyMode ? Math.min(4.5, .5 + bright * .42) * (1 + .1 * Math.log2(V.fovK)) : (.4 + bright * .34) * V.foc * .0032 / p.depth;
 		if (size < .34 && s !== S.hover && s !== S.pinned) continue;
 		s._sx = p.x;
 		s._sy = p.y;
@@ -7536,7 +7950,7 @@ function drawHyg() {
 	LBL.prio = 52;
 	for (const s of hygProj) {
 		const bright = s._bright, size = Math.max(.35, Math.min(3.6, s._size));
-		const c = s.c, a = Math.max(.22, Math.min(1, (.28 + bright * .12) * Math.min(1, 1.9 - s._depth * .4)));
+		const c = s.c, a = Math.max(.22, Math.min(1, (.28 + bright * .12) * Math.min(1, 1.9 - (S.skyMode ? 0 : s._depth) * .4)));
 		const sel = s === S.hover || s === S.pinned;
 		ctx.beginPath();
 		ctx.arc(s._sx, s._sy, sel ? size + 1.4 : size, 0, 6.2832);
@@ -7555,13 +7969,38 @@ function drawHyg() {
 			ctx.lineWidth = 1.2;
 			ctx.stroke();
 		}
-		if (s.n && (sel || s.m < 1.7 && S.camZ < 3.2)) {
+		if (s.n && (sel || s.m < hygLabelLimit() && S.camZ < 3.2)) {
 			ctx.font = (sel ? "11px" : "9.5px") + " ui-monospace,monospace";
 			ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},${sel ? 1 : .6})`;
 			LBL.prio = sel ? 92 : 52;
 			ctx.fillText(s.n, s._sx + size + 4, s._sy + 3);
 			LBL.prio = 52;
 		}
+	}
+}
+function hygLabelLimit() {
+	return S.skyMode ? 2.9 + 2.5 * Math.log2(V.fovK) : 1.7;
+}
+function drawHygLabels() {
+	if (!S.skyMode) return;
+	const lim = hygLabelLimit();
+	for (const s of hygProj) {
+		if (!s.n) continue;
+		const sel = s === S.hover || s === S.pinned;
+		if (!(sel || s.m < lim)) continue;
+		const c = s.c, size = Math.max(.35, Math.min(4.5, s._size));
+		if (sel) {
+			ctx.beginPath();
+			ctx.arc(s._sx, s._sy, size + 7, 0, 6.2832);
+			ctx.strokeStyle = "rgba(79,214,200,.9)";
+			ctx.lineWidth = 1.2;
+			ctx.stroke();
+		}
+		ctx.font = (sel ? "11px" : "9.5px") + " ui-monospace,monospace";
+		ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},${sel ? 1 : .7})`;
+		LBL.prio = sel ? 92 : 52;
+		ctx.fillText(s.n, s._sx + size + 4, s._sy + 3);
+		LBL.prio = 52;
 	}
 }
 //#endregion
@@ -7761,8 +8200,10 @@ function render() {
 	}
 	P("stars:sort", () => order.sort((a, b) => a._z2 - b._z2));
 	P("hyg:project", projectHyg);
-	if (glStars()) P("gl:render", glRender);
-	else {
+	if (glStars()) {
+		P("gl:render", glRender);
+		if (S.skyMode) P("hyg:labels", drawHygLabels);
+	} else {
 		glClearCanvas();
 		P("hyg:draw", drawHyg);
 	}
@@ -8864,6 +9305,17 @@ cv.addEventListener("pointermove", (e) => {
 			tgtCtr.y = ctr.y = py + -sp * c * S.camZ;
 			tgtCtr.z = ctr.z = pz + cp * c * S.camZ;
 			S.focusStar = null;
+		} else if (S.skyMode) {
+			camBasis();
+			const k = 1 / (V.foc * V.fovK);
+			const yp = lookAlong([
+				camFwd[0] - (camRight[0] * dx - camUp[0] * dy) * k,
+				camFwd[1] - (camRight[1] * dx - camUp[1] * dy) * k,
+				camFwd[2] - (camRight[2] * dx - camUp[2] * dy) * k
+			]);
+			S.yaw = V.tgtYaw = yp.yaw;
+			S.pitch = V.tgtPitch = yp.pitch;
+			S.focusStar = null;
 		} else {
 			V.tgtYaw += dx * .005;
 			V.tgtPitch += dy * .005;
@@ -8984,6 +9436,11 @@ function zoomRange() {
 	return S.realScale ? [1e-12, 2e10] : [1e-4, 16];
 }
 function zoomFactorAt(mx, my, f) {
+	if (S.skyMode) {
+		V.fovK = Math.max(1, Math.min(6e3, V.fovK / f));
+		V.dirty = true;
+		return;
+	}
 	let [zmin, zmax] = zoomRange();
 	if (V.tgtCamZ * f < zmin && f < 1 && !S.realScale) {
 		clickToggle("t-real");
@@ -9569,6 +10026,10 @@ function objWorld(o) {
 function flyTo(o) {
 	const w = objWorld(o);
 	if (!w) return;
+	if (S.skyMode) {
+		turnTo(w);
+		return;
+	}
 	const physPc = invScale(Math.hypot(w[0], w[1], w[2])) || 1;
 	let m;
 	if (o.p) m = S.realScale ? scale(physPc * .12) : scale(3e-5);
@@ -9605,6 +10066,72 @@ function focusOnHyg(s) {
 	const dr = compress(s.d);
 	aim(s.dx * dr, s.dy * dr, s.dz * dr, scale(s.d * .2));
 }
+var _skySaved = null;
+function skyView(on) {
+	if (on === void 0) on = !S.skyMode;
+	if (on && !S.skyMode) {
+		_skySaved = {
+			camZ: S.camZ,
+			tgt: V.tgtCamZ,
+			ctr: [
+				tgtCtr.x,
+				tgtCtr.y,
+				tgtCtr.z
+			],
+			real: S.realScale,
+			follow: V.FOLLOW
+		};
+		if (!S.realScale) clickToggle("t-real");
+		V.FOLLOW = null;
+		S.pinned = null;
+		tgtCtr.x = tgtCtr.y = tgtCtr.z = 0;
+		S.camZ = V.tgtCamZ = scale(1e-7);
+		S.skyMode = true;
+		V.fovK = 1;
+		if (!ST.on) setSurvey("dss");
+	} else if (!on && S.skyMode) {
+		S.skyMode = false;
+		V.fovK = 1;
+		if (_skySaved) {
+			V.tgtCamZ = _skySaved.tgt;
+			S.camZ = _skySaved.camZ;
+			tgtCtr.x = _skySaved.ctr[0];
+			tgtCtr.y = _skySaved.ctr[1];
+			tgtCtr.z = _skySaved.ctr[2];
+		} else V.tgtCamZ = camSolar();
+	}
+	V.lastInfo = void 0;
+	V.dirty = true;
+}
+function turnTo(dir) {
+	const yp = lookAlong(dir);
+	let dy = yp.yaw - S.yaw;
+	dy = ((dy + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI;
+	V.tgtYaw = S.yaw + dy;
+	V.tgtPitch = yp.pitch;
+	V.dirty = true;
+}
+function lookAt(ra, dec) {
+	const r = ra * Math.PI / 180, d = dec * Math.PI / 180;
+	turnTo([
+		Math.cos(d) * Math.cos(r),
+		Math.cos(d) * Math.sin(r),
+		Math.sin(d)
+	]);
+}
+function lookAtSelection() {
+	const b = current();
+	if (!b) return;
+	const p = physPos(b);
+	if (!p) return;
+	if (!S.skyMode) skyView(true);
+	turnTo(p);
+}
+function setFov(deg) {
+	const f = Math.min(W, H) * .62;
+	V.fovK = Math.max(1, Math.min(6e3, Math.max(W, H) / 2 / Math.tan(deg / 2 * Math.PI / 180) / f));
+	V.dirty = true;
+}
 function gotoEncounter(i) {
 	const e = ENCOUNTERS[i];
 	if (!e) return;
@@ -9622,6 +10149,12 @@ function gotoEncounter(i) {
 	aim(q[0] * d, q[1] * d, q[2] * d, scale(Math.max(L * .35, 3e-5)));
 }
 Object.assign(api, {
+	skyView,
+	lookAt,
+	lookAtSelection,
+	setFov,
+	setSurvey,
+	setBlink,
 	gotoEncounter,
 	lock: lockToggle,
 	setCourse,
@@ -9815,7 +10348,7 @@ function viewHash() {
 	HASH_KEYS.forEach((k, i) => {
 		if (S[k]) m |= 1n << BigInt(i);
 	});
-	return "v1_" + [
+	const parts = [
 		S.yaw.toFixed(4),
 		S.pitch.toFixed(4),
 		S.camZ.toExponential(4),
@@ -9825,7 +10358,9 @@ function viewHash() {
 		S.realScale ? 1 : 0,
 		Math.round(S.tOffsetDays),
 		m.toString(36)
-	].join("_");
+	];
+	if (S.skyMode) parts.push("s" + V.fovK.toPrecision(4) + "-" + (ST.on ? ST.id : "0") + "-" + (ST.blink ? ST.blinkWith : "0"));
+	return "v1_" + parts.join("_");
 }
 function parse36(s) {
 	let m = 0n;
@@ -9858,6 +10393,13 @@ function applyHash() {
 			S[k] = v;
 			syncToggle(TOGGLE_REG[k], v);
 		});
+		if (p[10] && p[10][0] === "s") {
+			const q = p[10].slice(1).split("-");
+			S.skyMode = true;
+			V.fovK = Math.max(1, Math.min(6e3, +q[0] || 1));
+			setSurvey(q[1] && q[1] !== "0" ? q[1] : null);
+			if (q[2] && q[2] !== "0") setBlink(true, q[2]);
+		}
 		V.dirty = true;
 	} catch (e) {}
 }
@@ -10057,6 +10599,17 @@ window.__ku = {
 	live: LIVE,
 	redraw: () => {
 		V.dirty = true;
+	},
+	survey: {
+		ST,
+		SKYSTAT,
+		cacheSize
+	},
+	hyg: HYG,
+	projDir: (x, y, z) => {
+		const R = scale(SKY_R_PC), o = {};
+		projectInto(x * R, y * R, z * R, o);
+		return o;
 	}
 };
 window.__kuapi = api;

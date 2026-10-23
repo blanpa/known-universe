@@ -124,7 +124,7 @@ export function drawSolar(alpha){ LBL.prio=P_SOLAR;
   // Sun
   const sp=project(0,0,0);
   _ballSun = sp.depth>V.NEAR ? {x:sp.x,y:sp.y} : null;   // light source for lit-sphere shading
-  if(sp.depth>V.NEAR){
+  if(sp.depth>V.NEAR && !S.skyMode){                      // the telescope stands at the Sun: no glyph
     const spx=bodyPx(SUN.rk,sp.depth);
     drawHalo(haloSprite('sun',[[0,'rgba(255,240,190,0.9)'],[.4,'rgba(255,210,120,0.35)'],[1,'rgba(255,180,80,0)']],512),
              sp.x,sp.y,spx*3.2,A);

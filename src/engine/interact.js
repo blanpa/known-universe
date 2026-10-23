@@ -1,6 +1,5 @@
 // Pointer, wheel, touch and keyboard interaction.
-import { resetView } from './actions.js';
-import { aim, enterSolar, flyTo, objWorld } from './actions.js';
+import { aim, enterSolar, flyTo, objWorld, resetView } from './actions.js';
 import { cv } from './canvas.js';
 import { clickToggle, syncToggle } from './controls.js';
 import { SURF, surfPan } from './earth.js';
@@ -9,7 +8,7 @@ import { navWorld } from './nav.js';
 import { gpuPick, pick } from './pick.js';
 import { SUN, SUNHIT } from './solar-data.js';
 import { S, V } from './state.js';
-import { H, W, camBasis, camDist, camPos, camRight, camUp, ctr, keys, project, scale, tgtCtr } from './view.js';
+import { H, W, camBasis, camDist, camFwd, camPos, camRight, camUp, ctr, keys, lookAlong, project, scale, tgtCtr } from './view.js';
 // ---- interaction ----
 export let dragging=false,panning=false,lx=0,ly=0,moved=0;
 cv.addEventListener('contextmenu',e=>e.preventDefault());
@@ -59,6 +58,12 @@ cv.addEventListener('pointermove',e=>{
       S.pitch=V.tgtPitch=Math.max(-1.45,Math.min(1.45,V.tgtPitch+dy*0.005));
       const c=Math.cos(S.yaw),sn=Math.sin(S.yaw),cp=Math.cos(S.pitch),sp=Math.sin(S.pitch);
       tgtCtr.x=ctr.x=px+sn*S.camZ; tgtCtr.y=ctr.y=py+(-sp*c)*S.camZ; tgtCtr.z=ctr.z=pz+(cp*c)*S.camZ;
+      S.focusStar=null;
+    } else if(S.skyMode){                          // telescope: grab the sky and drag it
+      camBasis();
+      const k=1/(V.foc*V.fovK);
+      const d=[camFwd[0]-(camRight[0]*dx-camUp[0]*dy)*k, camFwd[1]-(camRight[1]*dx-camUp[1]*dy)*k, camFwd[2]-(camRight[2]*dx-camUp[2]*dy)*k];
+      const yp=lookAlong(d); S.yaw=V.tgtYaw=yp.yaw; S.pitch=V.tgtPitch=yp.pitch;
       S.focusStar=null;
     } else {                                       // orbit around the centre
       V.tgtYaw+=dx*0.005; V.tgtPitch+=dy*0.005;
@@ -136,6 +141,8 @@ function zoomAt(mx,my,delta,deltaMode){
 // better than ~1 kpc, and the near solar system is sub-pixel at those framings anyway.
 export function zoomRange(){ return S.realScale ? [1e-12, 2e10] : [1e-4, 16]; }
 export function zoomFactorAt(mx,my,f){
+  if(S.skyMode){                                         // telescope: the wheel changes the field of view
+    V.fovK=Math.max(1,Math.min(6000,V.fovK/f)); V.dirty=true; return; }
   let [zmin,zmax]=zoomRange();
   // Zooming out never changes the mode: real scale reaches past the CMB and simply
   // stops there. Zooming in below the compact view's floor hands over to real scale

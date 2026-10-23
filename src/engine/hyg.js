@@ -23,7 +23,8 @@ export function projectHyg(){
     if(p.depth<=V.NEAR) continue;
     if(p.x<-90||p.x>W+90||p.y<-90||p.y>H+90) continue;
     let bright=6.8-s.m; if(bright<0) bright=0;
-    const size=(0.4+bright*0.34)*V.foc*0.0032/p.depth;
+    // sky view: the camera is the Sun, so size follows apparent magnitude alone (as the GPU pass does)
+    const size=S.skyMode ? Math.min(4.5,0.5+bright*0.42)*(1+0.1*Math.log2(V.fovK)) : (0.4+bright*0.34)*V.foc*0.0032/p.depth;
     if(size<0.34 && s!==S.hover && s!==S.pinned) continue;   // cull sub-pixel stars
     s._sx=p.x; s._sy=p.y; s._depth=p.depth; s._z2=p.z2; s._bright=bright; s._size=size;
     hygProj.push(s);
@@ -33,7 +34,7 @@ export function projectHyg(){
 export function drawHyg(){ LBL.prio=P_STAR;
   for(const s of hygProj){
     const bright=s._bright, size=Math.max(0.35, Math.min(3.6, s._size));
-    const c=s.c, a=Math.max(.22,Math.min(1,(0.28+bright*0.12)*Math.min(1,1.9-s._depth*0.4)));
+    const c=s.c, a=Math.max(.22,Math.min(1,(0.28+bright*0.12)*Math.min(1,1.9-(S.skyMode?0:s._depth)*0.4)));
     const sel=(s===S.hover||s===S.pinned);
     ctx.beginPath(); ctx.arc(s._sx,s._sy, sel?size+1.4:size, 0, 6.2832);
     ctx.fillStyle=`rgba(${c[0]},${c[1]},${c[2]},${a})`; ctx.fill();
@@ -43,11 +44,31 @@ export function drawHyg(){ LBL.prio=P_STAR;
     }
     if(sel){ ctx.beginPath(); ctx.arc(s._sx,s._sy,size+7,0,6.2832);
       ctx.strokeStyle='rgba(79,214,200,.9)'; ctx.lineWidth=1.2; ctx.stroke(); }
-    if(s.n && (sel || (s.m<1.7 && S.camZ<3.2))){        // label very bright / selected
+    if(s.n && (sel || (s.m<hygLabelLimit() && S.camZ<3.2))){   // label very bright / selected
       ctx.font=(sel?'11px':'9.5px')+' ui-monospace,monospace';
       ctx.fillStyle=`rgba(${c[0]},${c[1]},${c[2]},${sel?1:.6})`;
       LBL.prio=sel?P_SEL:P_STAR;
       ctx.fillText(s.n, s._sx+size+4, s._sy+3); LBL.prio=P_STAR;
     }
+  }
+}
+
+// the brightest names: on the map the first-magnitude stars, in the telescope ever fainter
+// ones as the field narrows (2.5 mag per doubling of the zoom, about what a chart shows)
+export function hygLabelLimit(){ return S.skyMode ? 2.9+2.5*Math.log2(V.fovK) : 1.7; }
+// sky view with GPU stars: the points come from the GL pass, the names from here
+export function drawHygLabels(){
+  if(!S.skyMode) return;
+  const lim=hygLabelLimit();
+  for(const s of hygProj){
+    if(!s.n) continue;
+    const sel=(s===S.hover||s===S.pinned); if(!(sel||s.m<lim)) continue;
+    const c=s.c, size=Math.max(0.35, Math.min(4.5, s._size));
+    if(sel){ ctx.beginPath(); ctx.arc(s._sx,s._sy,size+7,0,6.2832);
+      ctx.strokeStyle='rgba(79,214,200,.9)'; ctx.lineWidth=1.2; ctx.stroke(); }
+    ctx.font=(sel?'11px':'9.5px')+' ui-monospace,monospace';
+    ctx.fillStyle=`rgba(${c[0]},${c[1]},${c[2]},${sel?1:.7})`;
+    LBL.prio=sel?P_SEL:P_STAR;
+    ctx.fillText(s.n, s._sx+size+4, s._sy+3); LBL.prio=P_STAR;
   }
 }

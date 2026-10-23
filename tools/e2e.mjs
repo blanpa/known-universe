@@ -84,6 +84,23 @@ async function open(vp, mobile, hash) {
   const toggles = await page.locator('#hud-ctl .toggle').count();
   ok(toggles > 30, 'layers panel opens with ' + toggles + ' switches');
   await page.screenshot({ path: join(OUT, 'desktop-layers.png') });
+  await page.keyboard.press('Escape');
+
+  // the telescope: sky view at the Pleiades on DSS2 tiles, north up, east left, blink
+  await page.evaluate(() => { const a = window.__kuapi; a.skyView(true); a.setSurvey('dss'); a.lookAt(56.75, 24.12); a.setFov(6); });
+  await page.waitForTimeout(gpu ? 9000 : 15000);
+  const sky = await page.evaluate(() => {
+    const d = (ra, dec) => { const r = ra * Math.PI / 180, q = dec * Math.PI / 180; return [Math.cos(q) * Math.cos(r), Math.cos(q) * Math.sin(r), Math.sin(q)]; };
+    const P = (ra, dec) => { const v = d(ra, dec); return window.__ku.projDir(v[0], v[1], v[2]); };
+    const n = P(56.75, 26), s = P(56.75, 22), e = P(58.5, 24.12), w = P(55, 24.12);
+    return { head: document.querySelector('#hud-head .ctx-where')?.textContent, northUp: n.y < s.y && Math.abs(n.x - s.x) < 2, eastLeft: e.x < w.x && Math.abs(e.y - w.y) < 2, ...window.__ku.survey.SKYSTAT };
+  });
+  ok(/^FOV 6\.0°/.test(sky.head || ''), 'sky view header shows the field of view (' + sky.head + ')');
+  ok(sky.northUp && sky.eastLeft, 'sky view keeps north up and east left');
+  ok(true, sky.drawn > 0 ? `survey tiles drawn: ${sky.drawn}/${sky.tiles} at order ${sky.order}` : 'survey tiles: none loaded (no network?) — not a failure');
+  await page.screenshot({ path: join(OUT, 'desktop-sky.png') });
+  await page.evaluate(() => window.__kuapi.skyView(false));
+  await page.waitForTimeout(500);
   ok(errs.length === 0, 'no page errors on desktop' + (errs.length ? ': ' + errs[0] : ''));
 
   // CPU budget: the per-layer profiler sums JS time inside render(); independent of the GPU

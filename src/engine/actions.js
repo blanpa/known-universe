@@ -11,9 +11,10 @@ import { CLUSTERS, DSO, PULSARS, SGRA } from './sky-data.js';
 import { FAC, HYG, PROBES, SMALL, SOLAR_BODIES, SUN, TNOS } from './solar-data.js';
 import { ISO } from './solar.js';
 import { S, V } from './state.js';
+import { ST, setBlink, setSurvey } from './survey.js';
 import { setTime, sliderOf } from './timeline.js';
 import { computeRoute, computeTransfer } from './transfer.js';
-import { camCosmos, camSolar, compress, invScale, scale, tgtCtr } from './view.js';
+import { H, W, camCosmos, camSolar, compress, invScale, lookAlong, scale, tgtCtr } from './view.js';
 // Each is a plain function; the ones the UI needs are published on `api` at the end.
 
 // ---- one-line feedback (search, measure, share) ----
@@ -174,6 +175,7 @@ export function objWorld(o){
 }
 export function flyTo(o){
   const w=objWorld(o); if(!w) return;
+  if(S.skyMode){ turnTo(w); return; }                  // the telescope turns instead of flying
   const physPc=invScale(Math.hypot(w[0],w[1],w[2]))||1;
   let m;
   if(o.p) m=S.realScale?scale(physPc*0.12):scale(3e-5);   // host: beside it (real) / into its system (log)
@@ -197,6 +199,35 @@ export function focusOnHyg(s){
   const dr=compress(s.d); aim(s.dx*dr,s.dy*dr,s.dz*dr, scale(s.d*0.2));
 }
 
+// ---- sky view: the telescope. Park at the Sun, zoom the field of view, look around. ----
+let _skySaved=null;
+export function skyView(on){
+  if(on===undefined) on=!S.skyMode;
+  if(on&&!S.skyMode){
+    _skySaved={camZ:S.camZ, tgt:V.tgtCamZ, ctr:[tgtCtr.x,tgtCtr.y,tgtCtr.z], real:S.realScale, follow:V.FOLLOW};
+    if(!S.realScale) clickToggle('t-real');
+    V.FOLLOW=null; S.pinned=null; tgtCtr.x=tgtCtr.y=tgtCtr.z=0;
+    S.camZ=V.tgtCamZ=scale(1e-7);                       // 0.02 AU: the Sun's own sky
+    S.skyMode=true; V.fovK=1;
+    if(!ST.on) setSurvey('dss');
+  } else if(!on&&S.skyMode){
+    S.skyMode=false; V.fovK=1;
+    if(_skySaved){ V.tgtCamZ=_skySaved.tgt; S.camZ=_skySaved.camZ; tgtCtr.x=_skySaved.ctr[0]; tgtCtr.y=_skySaved.ctr[1]; tgtCtr.z=_skySaved.ctr[2]; }
+    else { V.tgtCamZ=camSolar(); }                        // arrived by a shared link: back out to the solar system
+  }
+  V.lastInfo=undefined; V.dirty=true;
+}
+function turnTo(dir){                                  // ease to a direction, the short way round
+  const yp=lookAlong(dir); let dy=yp.yaw-S.yaw; dy=((dy+Math.PI)%(2*Math.PI)+2*Math.PI)%(2*Math.PI)-Math.PI;
+  V.tgtYaw=S.yaw+dy; V.tgtPitch=yp.pitch; V.dirty=true;
+}
+export function lookAt(ra,dec){                        // point the view at RA/Dec (deg)
+  const r=ra*Math.PI/180, d=dec*Math.PI/180;
+  turnTo([Math.cos(d)*Math.cos(r),Math.cos(d)*Math.sin(r),Math.sin(d)]);
+}
+export function lookAtSelection(){ const b=current(); if(!b) return; const p=physPos(b); if(!p) return;
+  if(!S.skyMode) skyView(true); turnTo(p); }
+export function setFov(deg){ const f=Math.min(W,H)*0.62; V.fovK=Math.max(1,Math.min(6000, Math.max(W,H)/2/Math.tan(deg/2*Math.PI/180)/f)); V.dirty=true; }
 // a close stellar encounter: set the clock to the moment of closest approach and fly to the star
 export function gotoEncounter(i){
   const e=ENCOUNTERS[i]; if(!e) return;
@@ -207,6 +238,6 @@ export function gotoEncounter(i){
   const q=hygPos(e.s,e.t), L=Math.hypot(q[0],q[1],q[2])||1e-9, d=compress(L)/L;
   aim(q[0]*d,q[1]*d,q[2]*d, scale(Math.max(L*0.35, 3e-5)));
 }
-Object.assign(api, { gotoEncounter, lock:lockToggle, setCourse, clearCourse, engage:engageCourse, route:routeToggle,
+Object.assign(api, { skyView, lookAt, lookAtSelection, setFov, setSurvey, setBlink, gotoEncounter, lock:lockToggle, setCourse, clearCourse, engage:engageCourse, route:routeToggle,
   transfer:transferToggle, deselect, reset:resetView, toggleSolar, enterSolar, flyToScale,
   doSearch, toggleFac, facColorToggle, facList:()=>facList, msgText });

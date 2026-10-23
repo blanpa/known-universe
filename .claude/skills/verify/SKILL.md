@@ -57,6 +57,14 @@ while desktop ANGLE silently accepted it).
     `timeline.set(v)/play/now`, `share()`, `measure()`, `reset()`, `toggleSolar()`, `getCam()`.
     `__kuapi.prof(true)` starts the per-layer profiler, `__kuapi.prof(false)` returns
     `{frames, ms:{layer: msPerFrame}}` — JS time inside render(), reliable in any environment.
+  - `__kuapi.skyView(on)` · `setSurvey(id|null)` · `lookAt(ra,dec)` · `setFov(deg)` · `setBlink(on, withId)`
+    drive the telescope. `window.__ku.survey` exposes `ST` (survey state), `SKYSTAT`
+    (`{order, tiles, drawn}` of the last frame) and `cacheSize()`; `__ku.projDir(x,y,z)` projects a
+    sky direction with the live camera (incl. FOV zoom and the north-up roll), `__ku.hyg` is the
+    catalogue. Tile orientation is checked by *measuring*: switch the star layers off, render,
+    sample screenshot brightness at the catalogue positions of the brightest stars in the field —
+    the right mapping scores ~650/765, a wrong one ~320 (scratch script `orient.mjs`). Tiles come
+    from alasky.cds.unistra.fr; without network `SKYSTAT.drawn` stays 0 (e2e treats that as a note).
   - `__kuapi.getCam()` — `{camZ, tgt, real}`. Assert on **tgt**, not camZ: camZ eases toward
     it, so a burst of zoom input leaves camZ orders of magnitude behind and a test that
     reads camZ concludes "zoom is stuck" when it is merely still travelling. Physical

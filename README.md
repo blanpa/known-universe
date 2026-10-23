@@ -108,6 +108,7 @@ as a fourth dimension.
 | Touch               | One finger rotate · two-finger pinch zoom · the ladder is a strip at the right edge |
 | Share a view        | Rail, bottom — copies a URL that restores this exact camera position, scale and layer set |
 | Into the solar system | Button in the header, or click the Sun |
+| 🔭 Sky view (telescope) | Rail: **Sky** → *Telescope view*. The camera stands at the Sun and looks out; the wheel zooms the **field of view** (78° … 1′), left-drag grabs the sky, north stays up. Search or the quick-jump chips point the telescope instead of flying. Choose a survey (DSS2 · 2MASS · AllWISE · Pan-STARRS) and **Blink** two epochs |
 | Layers on/off       | Rail: **Layers** — presets (Solar system · Neighbourhood · Deep sky · Cosmos · Everything), a filter, 40 switches |
 
 **Layers & tools**
@@ -193,6 +194,25 @@ as a fourth dimension.
   distances) is increasingly reddened and hazy.
 - **Deep links:** Click an object → info panel with links to **SIMBAD**,
   **Aladin** (sky atlas), **NASA Exoplanet Archive** or **NED**.
+
+**Sky surveys — the sky as photographed**
+
+The *Sky* pane puts real survey imagery under the catalogue: HiPS tiles from the
+CDS (DSS2 colour, 2MASS J·H·K, AllWISE W1·W2·W4, Pan-STARRS DR1 g·r·z), HEALPix
+cells textured onto a sphere far outside the stellar neighbourhood and drawn into
+the HDR pass before the stars. In the telescope view the camera sits at the Sun,
+so the view direction *is* the sky direction and every catalogue star lands on its
+own photograph — the tile orientation was settled empirically against the HYG
+positions at the Pleiades, Orion's belt and a polar field. The field of view goes
+from the map's 78° down to about an arcminute; tiles load on demand (order 3 … 11,
+ancestors fill in while a level loads) and nothing is stored. **Blink** alternates
+two surveys at 0.7 s: the photographic DSS plates (1983–1999) against Pan-STARRS or
+WISE (2010s), the way moving stars have been found since Tombaugh. With the
+timeline off *today* the catalogue stars drift away from the fixed photographs by
+their measured proper motion. The pane links the current field to Aladin Lite and
+the stars to Backyard Worlds and Planet Hunters TESS for real searches.
+Image credits: DSS2 © STScI/ROE/AAO/UKSTU · 2MASS/IPAC-Caltech · WISE/NASA-JPL ·
+Pan-STARRS/IfA, all via CDS/alasky.
 
 ## What's *not* (yet) included
 

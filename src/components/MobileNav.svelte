@@ -1,6 +1,7 @@
 <script>
   import SearchBox from './SearchBox.svelte';
   import Controls from './Controls.svelte';
+  import SkyPane from './SkyPane.svelte';
   import LivePanel from './LivePanel.svelte';
   import PoiBar from './PoiBar.svelte';
   import Icon from './Icon.svelte';
@@ -68,6 +69,8 @@
           onclick={() => openSheet('search')}><Icon name="search" size={20} />Search</button>
   <button type="button" class="mb" class:active={mobPanel === 'layers'} aria-pressed={mobPanel === 'layers'}
           onclick={() => openSheet('layers')}><Icon name="layers" size={20} />Layers</button>
+  <button type="button" class="mb" class:active={mobPanel === 'sky'} aria-pressed={mobPanel === 'sky'}
+          onclick={() => openSheet('sky')}><Icon name="scope" size={20} />Sky</button>
   <button type="button" class="mb" class:active={$timeBar} aria-pressed={$timeBar}
           onclick={toggleTime}><Icon name="clock" size={20} />Time</button>
   <button type="button" class="mb" onclick={() => act(() => api.tour?.start())}><Icon name="compass" size={20} />Tour</button>
@@ -83,15 +86,15 @@
 {#if mobPanel}
 <div id="mobsheet" class:full={snap === 'full'} class:dragging
      style="transform:translateY({shiftPx}px)"
-     role="dialog" aria-modal="false" aria-label={mobPanel === 'layers' ? 'Layers' : 'Search'}>
+     role="dialog" aria-modal="false" aria-label={mobPanel === 'layers' ? 'Layers' : mobPanel === 'sky' ? 'Sky' : 'Search'}>
   <div class="ms-head">
     <button type="button" class="ms-grab" aria-label="Sheet size — drag, or press to cycle"
             onpointerdown={down} onpointermove={move} onpointerup={up} onpointercancel={up}
             onclick={grabClick} onkeydown={grabKey}><span></span></button>
     <div class="ms-headrow">
       <span class="ms-title">
-        <Icon name={mobPanel === 'layers' ? 'layers' : 'search'} size={15} />
-        {mobPanel === 'layers' ? 'Layers' : 'Search'}
+        <Icon name={mobPanel === 'layers' ? 'layers' : mobPanel === 'sky' ? 'scope' : 'search'} size={15} />
+        {mobPanel === 'layers' ? 'Layers' : mobPanel === 'sky' ? 'Sky' : 'Search'}
         <small>· {__BUILD__}</small>
       </span>
       <span class="ms-btns">
@@ -105,6 +108,8 @@
   <div class="ms-body">
     {#if mobPanel === 'layers'}
       <Controls legend={false} />
+    {:else if mobPanel === 'sky'}
+      <SkyPane />
     {:else}
       <SearchBox mode="sheet" onpick={() => { mobPanel = null; }} />
       <PoiBar onpick={() => { mobPanel = null; }} />
