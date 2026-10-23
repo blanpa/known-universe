@@ -110,6 +110,7 @@ as a fourth dimension.
 | Into the solar system | Button in the header, or click the Sun |
 | 📄 Your data (CSV) | Drop a CSV/TSV anywhere on the map, or *Sky* → **Import a file…** — rows with RA/Dec become a layer of amber rings: click, search, point the telescope at them. Kept in this browser only |
 | 🌟 Sky from a star | Pin a star → *Sky* → **Stand at … and look around**: the telescope moves there, brightnesses follow, the Sun becomes a star |
+| 🗄 Data | Rail: **Data** — every outside source with its state: running, ok, partial, failed (with the HTTP status or reason), file dates and counts; a dot on the rail button while something runs or after something failed; a field for a personal NASA API key |
 | 🔭 Sky view (telescope) | Rail: **Sky** → *Telescope view*. The camera stands at the Sun and looks out; the wheel zooms the **field of view** (78° … 1′), left-drag grabs the sky, north stays up. Search or the quick-jump chips point the telescope instead of flying. Choose a survey (DSS2 · 2MASS · AllWISE · Pan-STARRS) and **Blink** two epochs |
 | Layers on/off       | Rail: **Layers** — presets (Solar system · Neighbourhood · Deep sky · Cosmos · Everything), a filter, 40 switches |
 
@@ -264,6 +265,24 @@ rows). An example file is at `site/data/sample-stars.csv`. Files and field queri
 are separate sets in the same layer; each can be removed on its own. HYG star directions are
 now stored with six decimals (0.2″) so catalogue and imported positions agree at
 telescope zoom; they used to be rounded to 4 (up to an arcminute off).
+
+## Data sources and their state
+
+The map pulls from about fifteen services at run time and from a pipeline at build
+time; the **Data** pane shows all of it live (`src/lib/sources.js`, `DataPane.svelte`):
+
+- **Catalogue files of this build** — `data.json`, `catalog.json`, the packed point
+  clouds — with size, record count and the file's date (the server's Last-Modified).
+- **Live services** — NOAA SWPC space weather (Kp, solar wind, X-rays, sunspot regions,
+  SUVI image), NASA DONKI (CMEs), NEO (flybys, orbit lookups), EPIC; CelesTrak
+  elements; Launch Library; the 6-hourly `live-extra.json` (GW events, fireballs).
+- **Earth imagery** — GIBS VIIRS tiles, GOES-19 full disk, the EPIC photo.
+- **Sky survey tiles** per survey, **catalogue queries** (SIMBAD, VizieR).
+
+Each row says *running*, *ok*, *partial*, *failed* with the HTTP status (429 is NASA's
+`DEMO_KEY` rate limit — a personal key, free at api.nasa.gov, can be stored in the pane
+and stays in the browser) or the reason (timeout, no CORS), or *not present* for
+optional files. *Refresh live data* re-runs every poller.
 
 ## Scientific conventions
 

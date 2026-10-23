@@ -72,6 +72,8 @@ while desktop ANGLE silently accepted it).
     times, SIMBAD answers in well under a second). The movers list is `#hud-sky .mov li`; it needs
     no network: HYG + `__ku.gaiaPm` (the Gaia proper-motion side file). The Gaia cloud's motion is
     checked by sampling screenshot brightness at the predicted shifted position (scratch `gaiapm.mjs`).
+  - The Data pane (`#rail .rb` "Data" → `#hud-data .src-row.{idle|busy|ok|warn|error|absent}`) is the
+    quickest way to see which outside call failed and why in a headless run; `.src-d` carries the reason.
   - `__kuapi.getCam()` — `{camZ, tgt, real}`. Assert on **tgt**, not camZ: camZ eases toward
     it, so a burst of zoom input leaves camZ orders of magnitude behind and a test that
     reads camZ concludes "zoom is stuck" when it is merely still travelling. Physical
