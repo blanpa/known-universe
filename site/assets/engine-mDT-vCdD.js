@@ -1,4 +1,4 @@
-import { A as declare, C as timeline, D as userLayer, E as transit, M as tfetch, N as timg, O as api, S as timeBar, T as tour, _ as searchMsg, a as satEcl, b as stats, c as camera, d as facList$1, f as fieldQuery, g as nav, h as movers, i as refreshLive, j as mark, k as count, l as encounters, m as measure, n as activeShowers, o as startLive, p as labels, r as groundEcl, s as RESERVED, t as LIVE, u as facColor, v as selection, w as toggleState, x as survey, y as skyCursor } from "./index-DD_m1yYD.js";
+import { A as declare, C as timeline, D as userLayer, E as transit, M as tfetch, N as timg, O as api, S as timeBar, T as tour, _ as searchMsg, a as satEcl, b as stats, c as camera, d as facList$1, f as fieldQuery, g as nav, h as movers, i as refreshLive, j as mark, k as count, l as encounters, m as measure, n as activeShowers, o as startLive, p as labels, r as groundEcl, s as RESERVED, t as LIVE, u as facColor, v as selection, w as toggleState, x as survey, y as skyCursor } from "./index-DEhck9dh.js";
 //#region src/engine/canvas.js
 var cv = document.getElementById("sky");
 var ctx = cv.getContext("2d");
@@ -7380,7 +7380,7 @@ function loadExtragal() {
 		} else tfetch("file-cosmicweb", {
 			name: "cosmicweb.bin",
 			group: "catalogue"
-		}, "data/cosmicweb.bin?b=b22:34").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/cosmicweb.bin?b=b22:38").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildWeb(new Uint8Array(a));
 		}).catch(() => {});
 		if (typeof window.__QSO_B64__ === "string" && window.__QSO_B64__.length) {
@@ -7389,14 +7389,14 @@ function loadExtragal() {
 		} else tfetch("file-quasars", {
 			name: "quasars.bin",
 			group: "catalogue"
-		}, "data/quasars.bin?b=b22:34").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/quasars.bin?b=b22:38").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildQso(new Uint8Array(a));
 		}).catch(() => {});
 		tfetch("file-quasarsbig", {
 			name: "quasarsbig.bin",
 			group: "catalogue",
 			optional: true
-		}, "data/quasarsbig.bin?b=b22:34").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/quasarsbig.bin?b=b22:38").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildQso(new Uint8Array(a));
 		}).catch(() => {});
 		if (typeof window.__BELT_B64__ === "string" && window.__BELT_B64__.length) {
@@ -7405,21 +7405,21 @@ function loadExtragal() {
 		} else tfetch("file-belt", {
 			name: "belt.bin",
 			group: "catalogue"
-		}, "data/belt.bin?b=b22:34").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/belt.bin?b=b22:38").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildBelt(new Uint8Array(a));
 		}).catch(() => {});
 		tfetch("file-gaiabig", {
 			name: "gaiabig.bin",
 			group: "catalogue",
 			optional: true
-		}, "data/gaiabig.bin?b=b22:34").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/gaiabig.bin?b=b22:38").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) {
 				buildGaiaBig(new Uint8Array(a));
 				tfetch("file-gaiabig_pm", {
 					name: "gaiabig_pm.bin",
 					group: "catalogue",
 					optional: true
-				}, "data/gaiabig_pm.bin?b=b22:34").then((r) => r.ok ? r.arrayBuffer() : null).then((p) => {
+				}, "data/gaiabig_pm.bin?b=b22:38").then((r) => r.ok ? r.arrayBuffer() : null).then((p) => {
 					if (p) {
 						gaiaPm = new Uint8Array(p);
 						if (CL.G) CL.G.pm = false;
@@ -7434,7 +7434,7 @@ function loadExtragal() {
 		} else tfetch("file-obstars", {
 			name: "obstars.bin",
 			group: "catalogue"
-		}, "data/obstars.bin?b=b22:34").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/obstars.bin?b=b22:38").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildOB(new Uint8Array(a));
 		}).catch(() => {});
 		if (typeof window.__VAR_B64__ === "string" && window.__VAR_B64__.length) {
@@ -7443,7 +7443,7 @@ function loadExtragal() {
 		} else tfetch("file-variables", {
 			name: "variables.bin",
 			group: "catalogue"
-		}, "data/variables.bin?b=b22:34").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/variables.bin?b=b22:38").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildVars(new Uint8Array(a));
 		}).catch(() => {});
 	} catch (e) {}
@@ -7464,14 +7464,14 @@ function loadGaia() {
 		tfetch("file-gaia", {
 			name: "gaia.bin",
 			group: "catalogue"
-		}, "data/gaia.bin?b=b22:34").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/gaia.bin?b=b22:38").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildGaia(new Uint8Array(a));
 		}).catch(() => {});
 		tfetch("file-gaia_pm", {
 			name: "gaia_pm.bin",
 			group: "catalogue",
 			optional: true
-		}, "data/gaia_pm.bin?b=b22:34").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/gaia_pm.bin?b=b22:38").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a && (!gaiaPm || gaiaRange === 100)) {
 				gaiaPm = new Uint8Array(a);
 				attachGaiaPm();

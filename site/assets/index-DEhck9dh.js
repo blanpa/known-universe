@@ -5140,7 +5140,9 @@ function publish$1() {
 	if (_t) return;
 	_t = setTimeout(() => {
 		_t = null;
-		sources.set({ ...REG });
+		const o = {};
+		for (const k in REG) o[k] = { ...REG[k] };
+		sources.set(o);
 	}, 60);
 }
 function declare(id, meta = {}) {
@@ -10601,7 +10603,7 @@ function MobileNav($$anchor, $$props) {
 		}
 		var text_2 = sibling(node_6);
 		var small = sibling(text_2);
-		small.textContent = `· b22:34`;
+		small.textContent = `· b22:38`;
 		reset(span_2);
 		var span_3 = sibling(span_2, 2);
 		var button_6 = child(span_3);
@@ -11196,7 +11198,7 @@ window.addEventListener("error", (e) => showErr("⚠ " + (e.message || e.type) +
 window.addEventListener("unhandledrejection", (e) => showErr("⚠ promise: " + (e.reason && e.reason.message || e.reason)));
 mount(App, { target: document.getElementById("app") });
 function boot() {
-	return __vitePreload(() => import("./engine-frxYl1QB.js").then(() => {
+	return __vitePreload(() => import("./engine-mDT-vCdD.js").then(() => {
 		try {
 			restore();
 		} catch (e) {}
@@ -11213,12 +11215,11 @@ var fail = (e) => {
 	document.body.innerHTML = "<p style=\"color:#e9edfa;font-family:monospace;padding:2em\">Error loading data: " + e + "</p>";
 };
 if (window.__DATA__) boot().catch(fail);
-else Promise.all([getJSON("data/data.json?b=b22:34", "data-json", "data.json · stars, exoplanets, galaxies"), getJSON("data/catalog.json?b=b22:34", "catalog-json", "catalog.json · solar system, deep sky, pulsars")]).then(([d, c]) => {
+else Promise.all([getJSON("data/data.json?b=b22:38", "data-json", "data.json · stars, exoplanets, galaxies"), getJSON("data/catalog.json?b=b22:38", "catalog-json", "catalog.json · solar system, deep sky, pulsars")]).then(([d, c]) => {
 	window.__DATA__ = d;
 	window.__CATALOG__ = c;
 	const m = d.meta || {};
 	count("data-json", (m.nHyg || 0) + (m.nStars || 0) + (m.nGal || 0));
-	count("catalog-json", Object.keys(c || {}).length);
 	return boot();
 }).catch(fail);
 //#endregion

@@ -27,5 +27,5 @@ const getJSON = (u, id, name) => tfetch(id, { name, group: 'catalogue' }, u).the
 const fail = e => { document.body.innerHTML = '<p style="color:#e9edfa;font-family:monospace;padding:2em">Error loading data: ' + e + '</p>'; };
 if (window.__DATA__) boot().catch(fail);
 else Promise.all([getJSON('data/data.json?b=' + __BUILD__, 'data-json', 'data.json · stars, exoplanets, galaxies'), getJSON('data/catalog.json?b=' + __BUILD__, 'catalog-json', 'catalog.json · solar system, deep sky, pulsars')])
-  .then(([d, c]) => { window.__DATA__ = d; window.__CATALOG__ = c; const m = d.meta || {}; count('data-json', (m.nHyg || 0) + (m.nStars || 0) + (m.nGal || 0)); count('catalog-json', Object.keys(c || {}).length); return boot(); })
+  .then(([d, c]) => { window.__DATA__ = d; window.__CATALOG__ = c; const m = d.meta || {}; count('data-json', (m.nHyg || 0) + (m.nStars || 0) + (m.nGal || 0)); return boot(); })
   .catch(fail);

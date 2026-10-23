@@ -7,7 +7,8 @@ import { writable } from 'svelte/store';
 export const sources = writable({});
 const REG = {};
 let _t = null;
-function publish(){ if (_t) return; _t = setTimeout(() => { _t = null; sources.set({ ...REG }); }, 60); }
+// fresh row objects each time: a keyed each-block skips items whose reference did not change
+function publish(){ if (_t) return; _t = setTimeout(() => { _t = null; const o = {}; for (const k in REG) o[k] = { ...REG[k] }; sources.set(o); }, 60); }
 export function declare(id, meta = {}){
   if (!REG[id]) REG[id] = { id, name: id, group: 'live', host: '', state: 'idle', at: 0, ms: 0, n: null, msg: '', size: null, modified: '', optional: false };
   for (const k of Object.keys(meta)) if (meta[k] !== undefined) REG[id][k] = meta[k];
