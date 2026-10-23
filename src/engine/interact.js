@@ -125,18 +125,23 @@ function zoomAt(mx,my,delta,deltaMode){
   zoomFactorAt(mx,my,Math.exp(k*d));
 }
 // Each scale mode covers only part of the range: compact spans 1e-4..16 world units
-// (log decades), real spans 1e-12..6e7 pc. The app boots in real mode and camCosmos() is
+// (log decades), real spans 1e-12..2e10 pc. The app boots in real mode and camCosmos() is
 // 3e7 there, so "Reset" left you one notch below the ceiling and the wheel simply stopped
 // — no way to reach the galaxies by zooming, only by finding the Compact view switch.
 // The two ranges overlap by orders of magnitude, so hand over at the limit instead:
 // clickToggle('t-real') already remaps camZ and ctr through physical distance, which
 // makes the switch invisible. Zoom is one continuous range from the CMB to a planet.
-export function zoomRange(){ return S.realScale ? [1e-12, 6e7] : [1e-4, 16]; }
+// Real scale reaches past the CMB shell (14.3 Gpc): zooming out never has to leave it.
+// JS projects in doubles; the GL clouds work in float32 but nothing out there needs
+// better than ~1 kpc, and the near solar system is sub-pixel at those framings anyway.
+export function zoomRange(){ return S.realScale ? [1e-12, 2e10] : [1e-4, 16]; }
 export function zoomFactorAt(mx,my,f){
   let [zmin,zmax]=zoomRange();
-  if((V.tgtCamZ*f>zmax && f>1 && S.realScale) ||        // out of real scale -> compact
-     (V.tgtCamZ*f<zmin && f<1 && !S.realScale)){        // deeper than compact -> real
-    clickToggle('t-real');                            // remaps the camera, framing preserved
+  // Zooming out never changes the mode: real scale reaches past the CMB and simply
+  // stops there. Zooming in below the compact view's floor hands over to real scale
+  // (that is where the detail is), remapping the camera so the framing is preserved.
+  if(V.tgtCamZ*f<zmin && f<1 && !S.realScale){
+    clickToggle('t-real');
     S.camZ=V.tgtCamZ;                                   // never lerp across the boundary:
     [zmin,zmax]=zoomRange();                          // the two modes' units are unrelated
   }

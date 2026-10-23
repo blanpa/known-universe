@@ -1,4 +1,4 @@
-import { _ as toggleState, a as startLive, c as facColor, d as measure, f as nav, g as timeline, h as stats, i as satEcl, l as facList$1, m as selection, n as activeShowers, o as RESERVED, p as searchMsg, r as groundEcl, s as camera, t as LIVE, u as labels, v as tour, y as api } from "./index-CnAlEPC6.js";
+import { _ as toggleState, a as startLive, c as facColor, d as measure, f as nav, g as timeline, h as stats, i as satEcl, l as facList$1, m as selection, n as activeShowers, o as RESERVED, p as searchMsg, r as groundEcl, s as camera, t as LIVE, u as labels, v as tour, y as api } from "./index-CMbr2e42.js";
 //#region src/engine/canvas.js
 var cv = document.getElementById("sky");
 var ctx = cv.getContext("2d");
@@ -5434,7 +5434,7 @@ function drawMW() {
 			x: sp.x,
 			y: sp.y
 		};
-		const rbh = Math.min(Math.min(W, H) * .28, V.foc * (S.realScale ? 60 : .35) / sp.depth);
+		const rbh = Math.min(Math.min(W, H) * .28, V.foc * (S.realScale ? 60 : .08) / sp.depth);
 		if (rbh >= 10) {
 			drawBlackHole(sp.x, sp.y, rbh, 1, S.eht);
 			ctx.font = "10px ui-monospace,monospace";
@@ -8808,11 +8808,11 @@ function zoomAt(mx, my, delta, deltaMode) {
 	zoomFactorAt(mx, my, Math.exp(k * d));
 }
 function zoomRange() {
-	return S.realScale ? [1e-12, 6e7] : [1e-4, 16];
+	return S.realScale ? [1e-12, 2e10] : [1e-4, 16];
 }
 function zoomFactorAt(mx, my, f) {
 	let [zmin, zmax] = zoomRange();
-	if (V.tgtCamZ * f > zmax && f > 1 && S.realScale || V.tgtCamZ * f < zmin && f < 1 && !S.realScale) {
+	if (V.tgtCamZ * f < zmin && f < 1 && !S.realScale) {
 		clickToggle("t-real");
 		S.camZ = V.tgtCamZ;
 		[zmin, zmax] = zoomRange();
@@ -9115,8 +9115,6 @@ function resetView() {
 }
 function flyToScale(pc) {
 	if (!(pc > 0)) return;
-	if (S.realScale && pc > 5e7) clickToggle("t-real");
-	else if (!S.realScale && pc < 1e7) clickToggle("t-real");
 	const zr = zoomRange();
 	V.FOLLOW = null;
 	V.tgtCamZ = Math.max(zr[0], Math.min(zr[1], scale(pc)));

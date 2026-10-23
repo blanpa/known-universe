@@ -47,8 +47,7 @@ export function transferToggle(){             // Lambert transfer Earth → a so
 }
 
 // ---- camera moves ----
-// the overview is only reachable in the compact view — real scale tops out at 6e7 pc,
-// a thousandth of the way to the CMB shell
+// the compact overview: everything in one view, distances compressed (the tour uses it)
 export function goCosmos(){ if(S.realScale) clickToggle('t-real'); V.tgtCamZ=camCosmos(); }
 export function enterSolar(){ S.pinned=null; S.hover=null; V.tgtCamZ=camSolar(); V.tgtPitch=-0.5;
   tgtCtr.x=tgtCtr.y=tgtCtr.z=0; }
@@ -70,12 +69,10 @@ export function resetView(){                   // the view you started with
   V.tgtCamZ=camSolar();                            // … framing Neptune's orbit
   S.autorot=false; syncToggle('t-rot',false); V.lastInfo=undefined; V.dirty=true;
 }
-// the scale ladder: frame `pc` parsec around the current centre, keeping the heading.
-// Beyond what real scale can hold, hand over to the compact view (and back below it).
+// the scale ladder: frame `pc` parsec around the current centre, keeping the heading
+// and the scale mode (real scale reaches the CMB, so no rung needs the compact view).
 export function flyToScale(pc){
   if(!(pc>0)) return;
-  if(S.realScale && pc>5e7) clickToggle('t-real');
-  else if(!S.realScale && pc<1e7) clickToggle('t-real');
   const zr=zoomRange(); V.FOLLOW=null;
   V.tgtCamZ=Math.max(zr[0],Math.min(zr[1],scale(pc))); V.dirty=true;
 }

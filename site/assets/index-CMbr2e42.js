@@ -9307,7 +9307,7 @@ function MobileNav($$anchor, $$props) {
 		}
 		var text_2 = sibling(node_5);
 		var small = sibling(text_2);
-		small.textContent = `· b17:53`;
+		small.textContent = `· b17:57`;
 		reset(span_2);
 		var span_3 = sibling(span_2, 2);
 		var button_5 = child(span_3);
@@ -9482,10 +9482,14 @@ function ScaleLadder($$anchor, $$props) {
 		{
 			pc: 1e10 * PC_LY,
 			l: "10 Gly"
+		},
+		{
+			pc: 143e8,
+			l: "CMB"
 		}
 	];
 	const LO = Math.log10(RUNGS[0].pc) - 1;
-	const HI = Math.log10(RUNGS[RUNGS.length - 1].pc) + .5;
+	const HI = Math.log10(RUNGS[RUNGS.length - 1].pc) + .3;
 	const pos = (pc) => 1 - (Math.log10(Math.max(1e-12, pc)) - LO) / (HI - LO);
 	let framing = /* @__PURE__ */ user_derived(() => $camera().real ? $camera().camZ : Math.pow(10, $camera().camZ - 6));
 	let y = /* @__PURE__ */ user_derived(() => Math.max(0, Math.min(1, pos(get(framing)))));
@@ -9825,7 +9829,7 @@ window.addEventListener("error", (e) => showErr("⚠ " + (e.message || e.type) +
 window.addEventListener("unhandledrejection", (e) => showErr("⚠ promise: " + (e.reason && e.reason.message || e.reason)));
 mount(App, { target: document.getElementById("app") });
 function boot() {
-	return __vitePreload(() => import("./engine-Op-wkrxp.js").then(() => {
+	return __vitePreload(() => import("./engine-D6--MGP1.js").then(() => {
 		try {
 			restore();
 		} catch (e) {}

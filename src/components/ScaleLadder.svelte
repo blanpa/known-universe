@@ -11,8 +11,9 @@
     { pc: 1 * PC_LY, l: '1 ly' }, { pc: 100 * PC_LY, l: '100 ly' },
     { pc: 1e4 * PC_LY, l: '10 kly' }, { pc: 1e6 * PC_LY, l: '1 Mly' },
     { pc: 1e8 * PC_LY, l: '100 Mly' }, { pc: 1e10 * PC_LY, l: '10 Gly' },
+    { pc: 1.43e10, l: 'CMB' },           // the observable edge, ~46 Gly
   ];
-  const LO = Math.log10(RUNGS[0].pc) - 1, HI = Math.log10(RUNGS[RUNGS.length - 1].pc) + 0.5;
+  const LO = Math.log10(RUNGS[0].pc) - 1, HI = Math.log10(RUNGS[RUNGS.length - 1].pc) + 0.3;
   const pos = pc => 1 - (Math.log10(Math.max(1e-12, pc)) - LO) / (HI - LO);   // 0 top … 1 bottom
   // the framing the camera shows, in parsec, comparable across both scale modes
   let framing = $derived($camera.real ? $camera.camZ : Math.pow(10, $camera.camZ - 6));
