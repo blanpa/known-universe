@@ -148,8 +148,9 @@ export function card(o){
   const pin = S.pinned ? 'Click empty space to release' : 'Click to pin';
   switch(k){
     case 'user': {
-      c.title=o.n||`Row ${o.i+1}`; c.kindLabel=`Your data · ${USER.name}`;
-      c.rows.push(['Type',`Imported · ${USER.name}`],['RA / Dec',radecText(o.dx,o.dy,o.dz)]);
+      const setName=(USER.sets[o.set]||{}).name||'your data';
+      c.title=o.n||`Row ${o.i+1}`; c.kindLabel=`Your data · ${setName}`;
+      c.rows.push(['Source',setName],['RA / Dec',radecText(o.dx,o.dy,o.dz)]);
       c.rows.push(['Distance', o.noDist ? 'not given — placed on the sky' : `${ly(o.d)} · ${o.d<100?o.d.toFixed(2):fmt(o.d)} pc`]);
       if(o.m!==undefined) c.rows.push(['Magnitude',o.m.toFixed(2)]);
       if(o.pr||o.pd) c.rows.push(['Proper motion',`${o.pr.toFixed(1)} · ${o.pd.toFixed(1)} mas/yr · ${Math.hypot(o.pr,o.pd).toFixed(0)} total`]);

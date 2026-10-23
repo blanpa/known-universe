@@ -3,7 +3,7 @@
   // of view with the wheel. Blink two epochs and whatever hops between them is a star that
   // moves — the way Pluto and most brown dwarfs were found.
   import { api } from '../lib/api.js';
-  import { camera, selection, survey, userLayer } from '../lib/stores.js';
+  import { camera, fieldQuery, movers, selection, survey, userLayer } from '../lib/stores.js';
   import Icon from './Icon.svelte';
   const SURVEYS = [
     { id: 'dss',   n: 'DSS2',       sub: 'photographic plates, 1983–1999', band: 'visible' },
@@ -30,6 +30,14 @@
   <button type="button" class="toggle" class:on={$camera.sky} role="switch" aria-checked={$camera.sky}
           onclick={() => api.skyView?.()}>
     <span class="tg-l">Telescope view</span><span class="sw" aria-hidden="true"></span></button>
+  {#if $camera.sky && $camera.skyFrom}
+    <p class="hint">Standing at <b>{$camera.skyFrom}</b>: every star's brightness follows its distance from there, the Sun
+      is one of them. The photographs, the jump list and the catalogue queries belong to the Sun's sky and stay off here.</p>
+    <button type="button" class="sky-aim" onclick={() => api.skyView?.(true)}><Icon name="sun" size={13} />Back to the Sun's sky</button>
+  {/if}
+  {#if $selection && ($selection.card?.kind === 'star' || $selection.card?.kind === 'host' || $selection.card?.kind === 'gpick' || $selection.card?.kind === 'user')}
+    <button type="button" class="sky-aim" onclick={() => api.skyView?.(true, 'selection')}><Icon name="scope" size={13} />Stand at {$selection.card?.title ?? 'selection'} and look around</button>
+  {/if}
   {#if $camera.sky}
     <div class="sky-ro mono">
       <span>FOV {fovText($camera.fov)}</span>
@@ -69,6 +77,26 @@
       <button type="button" class="chip" class:on={other === s.id} onclick={() => api.setBlink?.($survey.blink, s.id)}>{s.n}</button>
     {/each}
   </div>
+  {#if $camera.sky && $survey.id && !$camera.skyFrom}
+    <div class="label lg-sub">Expected jumps</div>
+    <p class="hint">Where a catalogued star must hop between {$movers.a} ({$movers.ea}) and {$movers.b} ({$movers.eb}): proper
+      motion × {Math.abs($movers.dt).toFixed(0)} years. Arrows on the sky run from the first epoch to the second. A hop that is
+      not in this list is the find.</p>
+    {#if $movers.list.length}
+      <ul class="enc mov">
+        {#each $movers.list as m (m.name + m.ra)}
+          <li><button type="button" onclick={() => api.lookAt?.(m.ra, m.dec)}>
+            <span class="enc-n" class:usr={m.usr}>{m.name}</span>
+            <span class="enc-t mono">{m.jump >= 60 ? (m.jump / 60).toFixed(1) + '′' : m.jump.toFixed(1) + '″'}</span>
+            <span class="enc-d mono">{m.px >= 1 ? m.px.toFixed(0) + ' px' : '< 1 px'}</span>
+            <span class="enc-v mono">{m.pm.toFixed(0)} mas/yr</span>
+          </button></li>
+        {/each}
+      </ul>
+    {:else}
+      <p class="hint">Nothing in this field moves by half an arcsecond or more — or zoom in: only stars on screen are listed.</p>
+    {/if}
+  {/if}
 
   {#if $camera.sky}
     <div class="label lg-sub">Go deeper</div>
@@ -85,18 +113,28 @@
     (degrees or 03:47:24 / +24 07 00), a distance (<span class="mono">dist</span> pc, <span class="mono">plx</span> mas or
     <span class="mono">ly</span>), <span class="mono">mag</span>, <span class="mono">name</span>, <span class="mono">pmra, pmdec</span>.
     Rows become amber rings you can click, search and point the telescope at; the file stays in this browser only.</p>
-  {#if $userLayer.n}
+  {#each $userLayer.sets as st, k (st.src + st.name)}
     <div class="usr-row">
-      <span class="usr-n">{$userLayer.name}</span>
-      <span class="usr-c mono">{$userLayer.n} rows{$userLayer.noDist ? ` · ${$userLayer.noDist} without distance` : ''}{$userLayer.saved ? '' : ' · not kept'}</span>
+      <span class="usr-n" title={st.name}>{st.name}</span>
+      <span class="usr-c mono">{st.n} rows{st.noDist ? ` · ${st.noDist} no dist` : ''}</span>
+      <button type="button" class="usr-x" aria-label="Remove {st.name}" onclick={() => api.removeSet?.(k)}><Icon name="close" size={12} /></button>
     </div>
-    {#if $userLayer.warn}<p class="hint warn">{$userLayer.warn}</p>{/if}
-  {/if}
+  {/each}
+  {#if $userLayer.n && !$userLayer.saved}<p class="hint warn">Not kept after a reload: too large for this browser's storage.</p>{/if}
+  {#if $userLayer.warn}<p class="hint warn">{$userLayer.warn}</p>{/if}
   <div class="sky-fov">
     <input type="file" accept=".csv,.tsv,.txt,text/csv,text/plain" bind:this={fileEl} onchange={pickFile} hidden />
     <button type="button" class="chip" onclick={() => fileEl?.click()}>Import a file…</button>
-    {#if $userLayer.n}<button type="button" class="chip" onclick={() => api.clearUser?.()}>Clear</button>{/if}
     <a class="chip" href="./data/sample-stars.csv" download>Example CSV</a>
   </div>
+  <div class="label lg-sub">Ask the catalogues</div>
+  <p class="hint">Fetch what Gaia DR3 or SIMBAD hold in the field the telescope shows, straight from the CDS into this
+    layer: positions, parallaxes, proper motions, magnitudes. Gaia returns the brightest 4,000 of the cone, SIMBAD 2,000.</p>
+  <div class="sky-fov">
+    <button type="button" class="chip" disabled={!$camera.sky || !!$camera.skyFrom || !!$fieldQuery.busy} onclick={() => api.queryField?.('gaia')}>Gaia DR3 in this field</button>
+    <button type="button" class="chip" disabled={!$camera.sky || !!$camera.skyFrom || !!$fieldQuery.busy} onclick={() => api.queryField?.('simbad')}>SIMBAD in this field</button>
+  </div>
+  {#if $fieldQuery.msg}<p class="hint" class:busy={$fieldQuery.busy}>{$fieldQuery.msg}</p>{/if}
+  {#if !$camera.sky}<p class="hint">Switch the telescope on to ask for a field.</p>{/if}
   <p class="hint src">Tiles: CDS/HiPS (DSS2 © STScI/ROE/AAO/UKSTU, 2MASS/IPAC-Caltech, WISE/NASA-JPL, Pan-STARRS/IfA). Loaded on demand; nothing is stored.</p>
 </div>

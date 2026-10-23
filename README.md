@@ -109,6 +109,7 @@ as a fourth dimension.
 | Share a view        | Rail, bottom — copies a URL that restores this exact camera position, scale and layer set |
 | Into the solar system | Button in the header, or click the Sun |
 | 📄 Your data (CSV) | Drop a CSV/TSV anywhere on the map, or *Sky* → **Import a file…** — rows with RA/Dec become a layer of amber rings: click, search, point the telescope at them. Kept in this browser only |
+| 🌟 Sky from a star | Pin a star → *Sky* → **Stand at … and look around**: the telescope moves there, brightnesses follow, the Sun becomes a star |
 | 🔭 Sky view (telescope) | Rail: **Sky** → *Telescope view*. The camera stands at the Sun and looks out; the wheel zooms the **field of view** (78° … 1′), left-drag grabs the sky, north stays up. Search or the quick-jump chips point the telescope instead of flying. Choose a survey (DSS2 · 2MASS · AllWISE · Pan-STARRS) and **Blink** two epochs |
 | Layers on/off       | Rail: **Layers** — presets (Solar system · Neighbourhood · Deep sky · Cosmos · Everything), a filter, 40 switches |
 
@@ -196,6 +197,39 @@ as a fourth dimension.
 - **Deep links:** Click an object → info panel with links to **SIMBAD**,
   **Aladin** (sky atlas), **NASA Exoplanet Archive** or **NED**.
 
+**Ask the catalogues — live field queries**
+
+In the telescope view the Sky pane fetches what the catalogues hold in the field on
+screen, straight from the CDS into the *Your data* layer (`src/engine/fieldquery.js`):
+**Gaia DR3** through VizieR's cone search (the brightest 4,000 of the cone with
+parallax, proper motion, G and BP−RP; VizieR can take a minute when busy — its TAP
+service sends the CORS header twice, which browsers reject, so the cone search it is)
+and **SIMBAD** through its TAP service (2,000 objects with identifiers, types and
+spectral types). No key, no backend; the browser asks the services directly.
+
+**Guided blinking — expected jumps**
+
+Blinking only finds what moves, and the catalogues already say what should: for every
+star on screen with a proper motion — the HYG stars, the **540 k Gaia stars within
+100 pc** (their DR3 proper motions ship in `site/data/gaia_pm.bin`, a 2 MB side file
+to `gaia.bin`, packed by `pipeline/build_gaia.py`) and your own rows — the pane lists
+the jump between the two blink epochs (μ × Δt; DSS 1992, 2MASS 1999, AllWISE 2010.5,
+Pan-STARRS 2012) in arcseconds and screen pixels, and arrows on the sky run from the
+first epoch's position to the second's. Barnard's star hops 3.5′ between DSS and
+Pan-STARRS. A hop with no entry in the list is the interesting case. The Gaia cloud
+also moves with the timeline now (great-circle motion in the shader), so the whole
+neighbourhood drifts, not only the bright stars.
+
+**The sky from another star**
+
+Pin a star and the Sky pane offers *Stand at … and look around*: the telescope moves
+to that star. Every star's brightness is recomputed for the new vantage (the distance
+modulus, in the shaders and the 2D pass alike), the Sun appears among the stars with
+its magnitude from there — from Alpha Centauri a 0.4-mag star in Cassiopeia, where
+Alpha Centauri would see it — and the constellation figures, the photographs, the jump
+list and the catalogue queries, all of which are the Sun's sky, stay off until *Back to
+the Sun's sky*.
+
 **Sky surveys — the sky as photographed**
 
 The *Sky* pane puts real survey imagery under the catalogue: HiPS tiles from the
@@ -226,7 +260,8 @@ read as *ra, dec, dist, mag, name*. Rows without a distance sit on the sky spher
 and are flagged as such. The rows are drawn as amber rings over everything, picked
 first, searchable, carried in the info card with their extra columns and SIMBAD /
 Aladin links at that position, and kept in `localStorage` (up to ~4 MB, 50,000
-rows). An example file is at `site/data/sample-stars.csv`. HYG star directions are
+rows). An example file is at `site/data/sample-stars.csv`. Files and field queries
+are separate sets in the same layer; each can be removed on its own. HYG star directions are
 now stored with six decimals (0.2″) so catalogue and imported positions agree at
 telescope zoom; they used to be rounded to 4 (up to an arcminute off).
 
@@ -239,7 +274,7 @@ missing or simplified, honestly:
 
 **Scale / coverage limits**
 
-- **Stars:** 540 k Gaia (browser Artifact) / 1.76 M (Docker, < 150 pc) out of
+- **Stars:** 540 k Gaia (browser Artifact) / 1.30 M (Docker, < 150 pc, parallax/error > 5) out of
   Gaia's **1.8 billion**. No individual stars beyond ~150 pc (they'd need
   photometric, not parallax, distances). HYG adds only the bright/near ~11.6 k.
 - **Galaxies:** 869 Local Volume (< 26 Mpc) + 43.5 k from 2MRS (cosmic web to
@@ -410,9 +445,15 @@ python3 pipeline/build_solar_extra.py   # -> site/data/catalog.json (probes, tno
 #   raw/twomrs_raw.csv (2MRS), raw/quasars_raw.csv (Milliquas)
 python3 pipeline/build_extragal.py      # -> site/data/cosmicweb.bin, site/data/quasars.bin
 
-# Optional millions-of-stars catalogue for the Docker deployment (< 150 pc, ~1.76 M).
-# Fetched at runtime as data/gaiabig.bin and shown in place of the 540 k set; the
-# browser Artifact keeps the embedded 540 k (it cannot embed a 14 MB binary).
+# Optional larger catalogue for the Docker deployment (< 150 pc, ~1.30 M, same cuts; with proper motions):
+# Fetched at runtime as data/gaiabig.bin (+ gaiabig_pm.bin) and shown in place of the
+# 540 k set; the browser Artifact keeps the embedded 540 k (it cannot embed a 10 MB binary).
+curl -G "https://gea.esac.esa.int/tap-server/tap/sync" \
+  --data-urlencode "REQUEST=doQuery" --data-urlencode "LANG=ADQL" \
+  --data-urlencode "FORMAT=csv" --data-urlencode "MAXREC=4000000" \
+  --data-urlencode "QUERY=SELECT ra,dec,parallax,phot_g_mean_mag,bp_rp,pmra,pmdec FROM gaiadr3.gaia_source WHERE parallax>6.6666667 AND parallax_over_error>5 AND phot_g_mean_mag IS NOT NULL" \
+  -o pipeline/raw/gaia_150pc_pm.csv
+python3 pipeline/build_gaia.py --big   # -> site/data/gaiabig.bin + gaiabig_pm.bin
 ```
 
 **Rendering layers (toggles in the Layers panel, via the icon rail on the right):** GPU stars, Gaia stars,

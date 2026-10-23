@@ -1,4 +1,4 @@
-import { C as userLayer, S as transit, _ as survey, a as startLive, b as toggleState, c as encounters, d as labels, f as measure, g as stats, h as selection, i as satEcl, l as facColor, m as searchMsg, n as activeShowers, o as RESERVED, p as nav, r as groundEcl, s as camera, t as LIVE, u as facList$1, v as timeBar, w as api, x as tour, y as timeline } from "./index-BTj6iiWo.js";
+import { C as tour, E as api, S as toggleState, T as userLayer, _ as selection, a as startLive, b as timeBar, c as encounters, d as fieldQuery, f as labels, g as searchMsg, h as nav, i as satEcl, l as facColor, m as movers, n as activeShowers, o as RESERVED, p as measure, r as groundEcl, s as camera, t as LIVE, u as facList$1, v as stats, w as transit, x as timeline, y as survey } from "./index-DKC_bFio.js";
 //#region src/engine/canvas.js
 var cv = document.getElementById("sky");
 var ctx = cv.getContext("2d");
@@ -67,6 +67,7 @@ var S = {
 var V = {
 	fovK: 1,
 	roll: 0,
+	skyFrom: null,
 	FOLLOW: null,
 	GLDPR: 1,
 	NEAR: .05,
@@ -1818,526 +1819,6 @@ api.prof = (on) => {
 	};
 };
 //#endregion
-//#region src/engine/healpix.js
-var JRLL = [
-	2,
-	2,
-	2,
-	2,
-	3,
-	3,
-	3,
-	3,
-	4,
-	4,
-	4,
-	4
-];
-var JPLL = [
-	1,
-	3,
-	5,
-	7,
-	0,
-	2,
-	4,
-	6,
-	1,
-	3,
-	5,
-	7
-];
-function compress$1(v) {
-	v &= 1431655765;
-	v = (v | v >> 1) & 858993459;
-	v = (v | v >> 2) & 252645135;
-	v = (v | v >> 4) & 16711935;
-	v = (v | v >> 8) & 65535;
-	return v;
-}
-function nest2xyf(order, pix) {
-	const nside = 1 << order, face = pix >>> 2 * order, p = pix & nside * nside - 1;
-	return {
-		face,
-		ix: compress$1(p),
-		iy: compress$1(p >>> 1),
-		nside
-	};
-}
-function xyf2dir(x, y, face) {
-	const jr = JRLL[face] - x - y;
-	let nr, z;
-	if (jr < 1) {
-		nr = jr;
-		z = 1 - nr * nr / 3;
-	} else if (jr > 3) {
-		nr = 4 - jr;
-		z = nr * nr / 3 - 1;
-	} else {
-		nr = 1;
-		z = (2 - jr) * 2 / 3;
-	}
-	let t = JPLL[face] * nr + x - y;
-	if (t < 0) t += 8;
-	if (t >= 8) t -= 8;
-	const phi = nr < 1e-15 ? 0 : t * Math.PI / 4 / nr;
-	const sth = Math.sqrt(Math.max(0, 1 - z * z));
-	return [
-		sth * Math.cos(phi),
-		sth * Math.sin(phi),
-		z
-	];
-}
-function tileDir(order, pix, u, v) {
-	const { face, ix, iy, nside } = nest2xyf(order, pix);
-	return xyf2dir((ix + u) / nside, (iy + v) / nside, face);
-}
-var tileCentre = (order, pix) => tileDir(order, pix, .5, .5);
-var tileRadiusDeg = (order) => 58.6 / (1 << order) * .75;
-//#endregion
-//#region src/engine/survey.js
-var SURVEYS = [
-	{
-		id: "dss",
-		n: "DSS2 colour",
-		epoch: "1983–1999",
-		base: "https://alasky.cds.unistra.fr/DSS/DSSColor",
-		ext: "jpg",
-		maxOrder: 9
-	},
-	{
-		id: "2mass",
-		n: "2MASS (near-IR)",
-		epoch: "1997–2001",
-		base: "https://alasky.cds.unistra.fr/2MASS/Color",
-		ext: "jpg",
-		maxOrder: 9
-	},
-	{
-		id: "wise",
-		n: "AllWISE (mid-IR)",
-		epoch: "2010",
-		base: "https://alasky.cds.unistra.fr/AllWISE/RGB-W4-W2-W1",
-		ext: "jpg",
-		maxOrder: 8
-	},
-	{
-		id: "ps1",
-		n: "Pan-STARRS DR1",
-		epoch: "2010–2014",
-		base: "https://alasky.cds.unistra.fr/Pan-STARRS/DR1/color-z-zg-g",
-		ext: "jpg",
-		maxOrder: 11
-	}
-];
-var SKY_R_PC = 1e4;
-var ST = {
-	id: "dss",
-	on: false,
-	blink: false,
-	blinkWith: "ps1"
-};
-var _blinkTimer = null;
-var _blinkPhase = 0;
-function setSurvey(id) {
-	ST.id = id;
-	ST.on = !!SURVEYS.find((s) => s.id === id);
-	publish$2();
-	V.dirty = true;
-}
-function setBlink(on, withId) {
-	ST.blink = !!on;
-	if (withId) ST.blinkWith = withId;
-	if (_blinkTimer) {
-		clearInterval(_blinkTimer);
-		_blinkTimer = null;
-	}
-	if (ST.blink) _blinkTimer = setInterval(() => {
-		_blinkPhase ^= 1;
-		V.dirty = true;
-	}, 700);
-	publish$2();
-	V.dirty = true;
-}
-function publish$2() {
-	survey.set({
-		id: ST.on ? ST.id : null,
-		blink: ST.blink,
-		blinkWith: ST.blinkWith
-	});
-}
-publish$2();
-function activeSurvey() {
-	if (!ST.on) return null;
-	const id = ST.blink && _blinkPhase ? ST.blinkWith : ST.id;
-	return SURVEYS.find((s) => s.id === id) || null;
-}
-function surveyAlpha() {
-	if (!ST.on) return 0;
-	const d = camDist > 1e-9 ? invScale(camDist) : 0;
-	return Math.max(0, Math.min(1, (60 - d) / 30));
-}
-var CACHE = /* @__PURE__ */ new Map();
-var _loads = 0;
-var cacheSize = () => CACHE.size;
-function tileKey(sv, order, pix) {
-	return sv.id + "/" + order + "/" + pix;
-}
-function tileURL(sv, order, pix) {
-	return `${sv.base}/Norder${order}/Dir${Math.floor(pix / 1e4) * 1e4}/Npix${pix}.${sv.ext}`;
-}
-function requestTile(sv, order, pix) {
-	const k = tileKey(sv, order, pix);
-	let t = CACHE.get(k);
-	if (t) return t;
-	if (_loads >= 12) return null;
-	t = {
-		img: new Image(),
-		tex: null,
-		ok: false,
-		failed: false,
-		at: performance.now()
-	};
-	CACHE.set(k, t);
-	_loads++;
-	t.img.crossOrigin = "anonymous";
-	t.img.onload = () => {
-		_loads--;
-		t.ok = true;
-		V.dirty = true;
-	};
-	t.img.onerror = () => {
-		_loads--;
-		t.failed = true;
-	};
-	t.img.src = tileURL(sv, order, pix);
-	if (CACHE.size > 600) {
-		const old = [...CACHE.entries()].filter((e) => e[1].ok || e[1].failed).sort((a, b) => a[1].at - b[1].at).slice(0, 150);
-		for (const [kk, tt] of old) {
-			if (tt.tex && tt.gl) tt.gl.deleteTexture(tt.tex);
-			CACHE.delete(kk);
-		}
-	}
-	return t;
-}
-function bestTile(sv, order, pix) {
-	let o = order, p = pix, u0 = 0, v0 = 0, size = 1;
-	while (o >= 3) {
-		const t = CACHE.get(tileKey(sv, o, p));
-		if (t && t.ok) return {
-			t,
-			u0,
-			v0,
-			size
-		};
-		if (!t && o === order) requestTile(sv, o, p);
-		if (o === 3) break;
-		const c = p & 3;
-		p >>>= 2;
-		o--;
-		size *= .5;
-		const cx = c & 1 ? 1 : 0, cy = c & 2 ? 1 : 0;
-		u0 = u0 * .5 + cx * .5;
-		v0 = v0 * .5 + cy * .5;
-	}
-	if (!CACHE.get(tileKey(sv, 3, p))) requestTile(sv, 3, p);
-	return null;
-}
-function fovDeg() {
-	return 2 * Math.atan(Math.max(W, H) / 2 / (V.foc * V.fovK)) * 57.29578;
-}
-function chooseOrder(sv) {
-	const fov = fovDeg(), pxPerDeg = Math.max(W, H) / fov;
-	let o = Math.round(Math.log2(58.6 * pxPerDeg / 512) + .3);
-	return Math.max(3, Math.min(sv.maxOrder, o));
-}
-function visibleTiles(order) {
-	const fw = camFwd, fov = fovDeg(), half = fov * Math.hypot(W, H) / Math.max(W, H) * .5, out = [];
-	const pxPerDeg = Math.max(W, H) / fov, R = scale(SKY_R_PC), o_ = {};
-	function visit(o, pix) {
-		const c = tileCentre(o, pix), dot = c[0] * fw[0] + c[1] * fw[1] + c[2] * fw[2];
-		const r = tileRadiusDeg(o);
-		if (dot < Math.cos(Math.min(179, half + r + .5) * .0174533)) return;
-		if (o === order) {
-			projectInto(c[0] * R, c[1] * R, c[2] * R, o_);
-			const m = r * pxPerDeg * 1.3 + 8;
-			if (o_.depth > 0 && o_.x > -m && o_.x < W + m && o_.y > -m && o_.y < H + m) out.push(pix);
-			return;
-		}
-		for (let k = 0; k < 4; k++) visit(o + 1, pix << 2 | k);
-	}
-	for (let p = 0; p < 768; p++) visit(3, p);
-	return out;
-}
-function tileGrid(order, pix, N) {
-	const dirs = [];
-	for (let j = 0; j <= N; j++) for (let i = 0; i <= N; i++) dirs.push(tileDir(order, pix, i / N, j / N));
-	return dirs;
-}
-function uvOf(u, v) {
-	return [v, u];
-}
-//#endregion
-//#region src/engine/hud.js
-function fmtDist(pc) {
-	if (!isFinite(pc) || pc <= 0) return "0";
-	const au = pc / AU_PC;
-	if (au < .02) return (au * 1496e5).toFixed(0) + " km";
-	if (au < 2e3) return (au < 10 ? au.toFixed(2) : fmt(au)) + " AU";
-	const ly = pc * PC2LY;
-	if (ly < 1e3) return (ly < 10 ? ly.toFixed(2) : fmt(ly)) + " ly";
-	if (ly < 1e6) return (ly / 1e3).toFixed(ly < 1e4 ? 2 : 1) + " kly";
-	if (ly < 1e9) return (ly / 1e6).toFixed(ly < 1e7 ? 2 : 1) + " Mly";
-	return (ly / 1e9).toFixed(2) + " Gly";
-}
-function niceLen(v) {
-	const e = Math.pow(10, Math.floor(Math.log10(v))), m = v / e;
-	return (m >= 5 ? 5 : m >= 2 ? 2 : 1) * e;
-}
-function drawScaleBar() {
-	if (!S.labels || S.skyMode) return;
-	const narrow = W <= 720;
-	const strip = document.body.classList.contains("show-time") ? 48 : 0;
-	const x0 = 16, y0 = H - (narrow ? 92 : 30) - strip;
-	const dim = "rgba(154,163,184,0.85)", ink = "rgba(232,235,244,0.95)";
-	LBL.prio = 100;
-	ctx.textAlign = "left";
-	ctx.textBaseline = "alphabetic";
-	if (S.realScale) {
-		const pcPerPx = S.camZ / V.foc;
-		let L = niceLen(pcPerPx * (narrow ? 90 : 150));
-		let px = L / pcPerPx;
-		if (px < 40) {
-			L = niceLen(pcPerPx * 220);
-			px = L / pcPerPx;
-		}
-		if (!isFinite(px) || px < 8) return;
-		px = Math.min(px, W * .4);
-		ctx.strokeStyle = dim;
-		ctx.lineWidth = 1.2;
-		ctx.beginPath();
-		ctx.moveTo(x0, y0 - 9);
-		ctx.lineTo(x0, y0 - 3);
-		ctx.lineTo(x0 + px, y0 - 3);
-		ctx.lineTo(x0 + px, y0 - 9);
-		ctx.stroke();
-		ctx.font = "11px ui-monospace,monospace";
-		ctx.fillStyle = ink;
-		ctx.fillText(fmtDist(L), x0, y0 + 9);
-	} else {
-		const dec = 1 * V.foc / S.camZ;
-		if (!isFinite(dec) || dec < 2) return;
-		let k = 1;
-		while (dec * k < 64 && k < 12) k++;
-		let px = dec * k;
-		if (px > W * .42) {
-			px = dec;
-			k = 1;
-		}
-		if (px < 18) return;
-		ctx.strokeStyle = dim;
-		ctx.lineWidth = 1.2;
-		ctx.beginPath();
-		ctx.moveTo(x0, y0 - 9);
-		ctx.lineTo(x0, y0 - 3);
-		ctx.lineTo(x0 + px, y0 - 3);
-		ctx.lineTo(x0 + px, y0 - 9);
-		ctx.stroke();
-		if (k === 1 && dec > 26) for (let i = 1; i < 10; i++) {
-			const tx = x0 + Math.log10(i + 1) * dec;
-			ctx.beginPath();
-			ctx.moveTo(tx, y0 - 3);
-			ctx.lineTo(tx, y0 - 6.5);
-			ctx.stroke();
-		}
-		ctx.font = "11px ui-monospace,monospace";
-		ctx.fillStyle = ink;
-		ctx.fillText("×" + (k === 1 ? "10" : "10^" + k) + " distance", x0, y0 + 9);
-	}
-	LBL.prio = 52;
-}
-function drawNav() {
-	LBL.prio = 100;
-	if (!V.navTarget) return;
-	const w = navWorld(V.navTarget);
-	if (!w) return;
-	const c = camXY(w[0], w[1], w[2]);
-	let onscreen = false, sx = 0, sy = 0;
-	if (c.depth > V.NEAR) {
-		sx = V.cx + V.foc * c.x1 / c.depth;
-		sy = V.cy - V.foc * c.y2 / c.depth;
-		onscreen = sx > 12 && sx < W - 12 && sy > 12 && sy < H - 12;
-	}
-	ctx.strokeStyle = "rgba(79,214,200,0.9)";
-	ctx.fillStyle = "rgba(79,214,200,0.9)";
-	ctx.lineWidth = 1.4;
-	if (onscreen) {
-		ctx.save();
-		ctx.setLineDash([6, 6]);
-		ctx.strokeStyle = "rgba(79,214,200,0.4)";
-		ctx.lineWidth = 1.2;
-		ctx.beginPath();
-		ctx.moveTo(V.cx, V.cy);
-		ctx.lineTo(sx, sy);
-		ctx.stroke();
-		ctx.restore();
-		ctx.strokeStyle = "rgba(79,214,200,0.9)";
-		const r = 13;
-		ctx.beginPath();
-		ctx.arc(sx, sy, r, 0, 6.2832);
-		ctx.globalAlpha = .5;
-		ctx.stroke();
-		ctx.globalAlpha = 1;
-		for (const [ex, ey] of [
-			[-1, -1],
-			[1, -1],
-			[1, 1],
-			[-1, 1]
-		]) {
-			ctx.beginPath();
-			ctx.moveTo(sx + ex * r, sy + ey * r * .4);
-			ctx.lineTo(sx + ex * r, sy + ey * r);
-			ctx.lineTo(sx + ex * r * .4, sy + ey * r);
-			ctx.stroke();
-		}
-	} else {
-		let dx = c.x1, dy = -c.y2;
-		if (c.depth <= V.NEAR) {
-			dx = -c.x1;
-			dy = c.y2;
-		}
-		const L = Math.hypot(dx, dy) || 1;
-		dx /= L;
-		dy /= L;
-		const rad = Math.min(W, H) * .4, ax = V.cx + dx * rad, ay = V.cy + dy * rad;
-		ctx.save();
-		ctx.setLineDash([6, 6]);
-		ctx.strokeStyle = "rgba(79,214,200,0.35)";
-		ctx.lineWidth = 1.2;
-		ctx.beginPath();
-		ctx.moveTo(V.cx, V.cy);
-		ctx.lineTo(ax, ay);
-		ctx.stroke();
-		ctx.restore();
-		ctx.save();
-		ctx.translate(ax, ay);
-		ctx.rotate(Math.atan2(dy, dx));
-		ctx.beginPath();
-		ctx.moveTo(11, 0);
-		ctx.lineTo(-6, 7);
-		ctx.lineTo(-6, -7);
-		ctx.closePath();
-		ctx.fill();
-		ctx.restore();
-		ctx.font = "10px ui-monospace,monospace";
-		ctx.textAlign = "center";
-		ctx.fillText(V.navTarget.n || V.navTarget.h || "Target", ax - dx * 18, ay - dy * 18 + 3);
-		ctx.textAlign = "left";
-	}
-}
-function fmt(n) {
-	return Math.round(n).toLocaleString("en-US");
-}
-var _stat = "";
-var _selKey = "";
-var _cam = "";
-var _nav = "";
-function bandOf(pc) {
-	if (pc < .02) return "Solar system";
-	if (pc < 300) return "Stellar neighbourhood";
-	if (pc < 4e4) return "Milky Way";
-	if (pc < 3e6) return "Local Group";
-	if (pc < 15e8) return "Cosmic web";
-	return "Observable universe";
-}
-function updateHUD() {
-	const st = visSys + "|" + visPl + "|" + nearD + "|" + farD;
-	if (st !== _stat) {
-		_stat = st;
-		stats.set({
-			sys: visSys,
-			pl: visPl,
-			nearLy: isFinite(nearD) ? nearD * PC2LY : null,
-			farLy: farD ? farD * PC2LY : null
-		});
-	}
-	const s = S.pinned || S.hover;
-	const key = s ? [
-		s === V.navTarget,
-		V.FOLLOW === s,
-		!!(V.ROUTE && V.ROUTE.o === s),
-		!!(V.TRANSFER && V.TRANSFER.to === s),
-		s === S.pinned
-	].join() : "";
-	if (s !== V.lastInfo || key !== _selKey) {
-		V.lastInfo = s;
-		_selKey = key;
-		selection.set(s ? {
-			card: card(s),
-			...abilities(s),
-			locked: V.FOLLOW === s,
-			isNav: s === V.navTarget,
-			routeOn: !!(V.ROUTE && V.ROUTE.o === s),
-			transferOn: !!(V.TRANSFER && V.TRANSFER.to === s),
-			pinned: s === S.pinned
-		} : null);
-	}
-	const here = camDist > 1e-9 ? invScale(camDist) : 0, inSolar = V.solarA > .5;
-	const fov = S.skyMode ? fovDeg() : 0;
-	let ra = 0, dec = 0;
-	if (S.skyMode) {
-		ra = Math.atan2(camFwd[1], camFwd[0]) * 57.29578;
-		if (ra < 0) ra += 360;
-		dec = Math.asin(Math.max(-1, Math.min(1, camFwd[2]))) * 57.29578;
-	}
-	const ck = here.toPrecision(3) + "|" + S.realScale + "|" + inSolar + "|" + S.skyMode + "|" + fov.toPrecision(3) + "|" + ra.toFixed(2) + "|" + dec.toFixed(2);
-	if (ck !== _cam) {
-		_cam = ck;
-		camera.set({
-			distPc: here,
-			distText: here > 0 ? fmtDist(here) : "at the Sun",
-			band: S.skyMode ? "Sky view" : bandOf(here),
-			real: S.realScale,
-			inSolar,
-			camZ: S.camZ,
-			sky: S.skyMode,
-			fov,
-			ra,
-			dec,
-			order: SKYSTAT.order
-		});
-	}
-	if (!V.navTarget) {
-		if (_nav) {
-			_nav = "";
-			nav.set(null);
-		}
-		return;
-	}
-	const dpc = navDistPc(), w = navWorld(V.navTarget);
-	let head = "–";
-	if (w) {
-		const tv = [
-			w[0] - camPos[0],
-			w[1] - camPos[1],
-			w[2] - camPos[2]
-		], tl = Math.hypot(tv[0], tv[1], tv[2]) || 1;
-		const dot = (tv[0] * camFwd[0] + tv[1] * camFwd[1] + tv[2] * camFwd[2]) / tl;
-		const ang = Math.acos(Math.max(-1, Math.min(1, dot))) * 57.2958;
-		head = ang < 3 ? "on target" : fmt(ang) + "° off";
-	}
-	const nk = nameOf(V.navTarget) + "|" + dpc.toPrecision(4) + "|" + head;
-	if (nk !== _nav) {
-		_nav = nk;
-		nav.set({
-			name: nameOf(V.navTarget),
-			dist: fmtDist(dpc),
-			light: fmtLight(dpc),
-			bearing: head
-		});
-	}
-}
-//#endregion
 //#region src/engine/solar-data.js
 var SUN = {
 	n: "Sun",
@@ -3448,6 +2929,1218 @@ encounters.set(ENCOUNTERS.map((e, i) => ({
 	v: e.v,
 	dNow: e.s.d
 })));
+//#endregion
+//#region src/engine/hyg.js
+var hygProj = [];
+Math.PI / (180 * 3600 * 1e3);
+function projectHyg() {
+	hygProj.length = 0;
+	if (!S.hyg) return;
+	const pm = S.pm && S.pmYears !== 0, ty = S.pmYears;
+	for (const s of HYG) {
+		let dx = s.dx, dy = s.dy, dz = s.dz, dNow = s.d;
+		if (pm) {
+			const q = hygPos(s, ty);
+			dNow = Math.hypot(q[0], q[1], q[2]) || 1e-9;
+			dx = q[0] / dNow;
+			dy = q[1] / dNow;
+			dz = q[2] / dNow;
+		}
+		s._dNow = dNow;
+		const dr = compress(dNow);
+		const p = projectInto(dx * dr, dy * dr, dz * dr, _pj);
+		if (p.depth <= V.NEAR) continue;
+		if (p.x < -90 || p.x > W + 90 || p.y < -90 || p.y > H + 90) continue;
+		s._mApp = s.m;
+		if (S.skyMode && camDist > 1e-4) {
+			const dc = Math.hypot(dx * dNow - camPos[0], dy * dNow - camPos[1], dz * dNow - camPos[2]);
+			s._mApp = s.m + 5 * Math.log10(Math.max(dc, 1e-9) / Math.max(dNow, 1e-9));
+		}
+		let bright = 6.8 - s._mApp;
+		if (bright < 0) bright = 0;
+		const size = S.skyMode ? Math.min(4.5, .5 + bright * .42) * (1 + .1 * Math.log2(V.fovK)) : (.4 + bright * .34) * V.foc * .0032 / p.depth;
+		if (size < .34 && s !== S.hover && s !== S.pinned) continue;
+		s._sx = p.x;
+		s._sy = p.y;
+		s._depth = p.depth;
+		s._z2 = p.z2;
+		s._bright = bright;
+		s._size = size;
+		hygProj.push(s);
+	}
+	hygProj.sort((a, b) => a._z2 - b._z2);
+}
+function drawHyg() {
+	LBL.prio = 52;
+	for (const s of hygProj) {
+		const bright = s._bright, size = Math.max(.35, Math.min(3.6, s._size));
+		const c = s.c, a = Math.max(.22, Math.min(1, (.28 + bright * .12) * Math.min(1, 1.9 - (S.skyMode ? 0 : s._depth) * .4)));
+		const sel = s === S.hover || s === S.pinned;
+		ctx.beginPath();
+		ctx.arc(s._sx, s._sy, sel ? size + 1.4 : size, 0, 6.2832);
+		ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},${a})`;
+		ctx.fill();
+		if (bright > 5.2 || sel) {
+			ctx.beginPath();
+			ctx.arc(s._sx, s._sy, size * 2.6, 0, 6.2832);
+			ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},${a * .12})`;
+			ctx.fill();
+		}
+		if (sel) {
+			ctx.beginPath();
+			ctx.arc(s._sx, s._sy, size + 7, 0, 6.2832);
+			ctx.strokeStyle = "rgba(79,214,200,.9)";
+			ctx.lineWidth = 1.2;
+			ctx.stroke();
+		}
+		if (s.n && (sel || s.m < hygLabelLimit() && S.camZ < 3.2)) {
+			ctx.font = (sel ? "11px" : "9.5px") + " ui-monospace,monospace";
+			ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},${sel ? 1 : .6})`;
+			LBL.prio = sel ? 92 : 52;
+			ctx.fillText(s.n, s._sx + size + 4, s._sy + 3);
+			LBL.prio = 52;
+		}
+	}
+}
+function hygLabelLimit() {
+	return S.skyMode ? 2.9 + 2.5 * Math.log2(V.fovK) : 1.7;
+}
+function drawHygLabels() {
+	if (!S.skyMode) return;
+	const lim = hygLabelLimit();
+	if (camDist > 1e-4) {
+		const sp = project(0, 0, 0);
+		if (sp.depth > V.NEAR) {
+			const m = 4.83 + 5 * Math.log10(camDist / 10), bright = Math.max(0, 6.8 - m), size = Math.min(4.5, .5 + bright * .42) * (1 + .1 * Math.log2(V.fovK));
+			ctx.beginPath();
+			ctx.arc(sp.x, sp.y, Math.max(.6, size), 0, 6.2832);
+			ctx.fillStyle = "rgba(255,240,190,0.95)";
+			ctx.fill();
+			ctx.beginPath();
+			ctx.arc(sp.x, sp.y, size * 2.6 + 1, 0, 6.2832);
+			ctx.fillStyle = "rgba(255,230,160,0.14)";
+			ctx.fill();
+			ctx.font = "10px ui-monospace,monospace";
+			ctx.fillStyle = "rgba(255,238,178,0.9)";
+			LBL.prio = 92;
+			ctx.fillText(`Sun · ${m.toFixed(1)} mag`, sp.x + size + 4, sp.y + 3);
+			LBL.prio = 52;
+		}
+	}
+	for (const s of hygProj) {
+		if (!s.n) continue;
+		const sel = s === S.hover || s === S.pinned;
+		if (!(sel || (s._mApp ?? s.m) < lim)) continue;
+		const c = s.c, size = Math.max(.35, Math.min(4.5, s._size));
+		if (sel) {
+			ctx.beginPath();
+			ctx.arc(s._sx, s._sy, size + 7, 0, 6.2832);
+			ctx.strokeStyle = "rgba(79,214,200,.9)";
+			ctx.lineWidth = 1.2;
+			ctx.stroke();
+		}
+		ctx.font = (sel ? "11px" : "9.5px") + " ui-monospace,monospace";
+		ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},${sel ? 1 : .7})`;
+		LBL.prio = sel ? 92 : 52;
+		ctx.fillText(s.n, s._sx + size + 4, s._sy + 3);
+		LBL.prio = 52;
+	}
+}
+//#endregion
+//#region src/engine/healpix.js
+var JRLL = [
+	2,
+	2,
+	2,
+	2,
+	3,
+	3,
+	3,
+	3,
+	4,
+	4,
+	4,
+	4
+];
+var JPLL = [
+	1,
+	3,
+	5,
+	7,
+	0,
+	2,
+	4,
+	6,
+	1,
+	3,
+	5,
+	7
+];
+function compress$1(v) {
+	v &= 1431655765;
+	v = (v | v >> 1) & 858993459;
+	v = (v | v >> 2) & 252645135;
+	v = (v | v >> 4) & 16711935;
+	v = (v | v >> 8) & 65535;
+	return v;
+}
+function nest2xyf(order, pix) {
+	const nside = 1 << order, face = pix >>> 2 * order, p = pix & nside * nside - 1;
+	return {
+		face,
+		ix: compress$1(p),
+		iy: compress$1(p >>> 1),
+		nside
+	};
+}
+function xyf2dir(x, y, face) {
+	const jr = JRLL[face] - x - y;
+	let nr, z;
+	if (jr < 1) {
+		nr = jr;
+		z = 1 - nr * nr / 3;
+	} else if (jr > 3) {
+		nr = 4 - jr;
+		z = nr * nr / 3 - 1;
+	} else {
+		nr = 1;
+		z = (2 - jr) * 2 / 3;
+	}
+	let t = JPLL[face] * nr + x - y;
+	if (t < 0) t += 8;
+	if (t >= 8) t -= 8;
+	const phi = nr < 1e-15 ? 0 : t * Math.PI / 4 / nr;
+	const sth = Math.sqrt(Math.max(0, 1 - z * z));
+	return [
+		sth * Math.cos(phi),
+		sth * Math.sin(phi),
+		z
+	];
+}
+function tileDir(order, pix, u, v) {
+	const { face, ix, iy, nside } = nest2xyf(order, pix);
+	return xyf2dir((ix + u) / nside, (iy + v) / nside, face);
+}
+var tileCentre = (order, pix) => tileDir(order, pix, .5, .5);
+var tileRadiusDeg = (order) => 58.6 / (1 << order) * .75;
+//#endregion
+//#region src/engine/survey.js
+var SURVEYS = [
+	{
+		id: "dss",
+		n: "DSS2",
+		epoch: "1983–1999",
+		ep: 1992,
+		base: "https://alasky.cds.unistra.fr/DSS/DSSColor",
+		ext: "jpg",
+		maxOrder: 9
+	},
+	{
+		id: "2mass",
+		n: "2MASS",
+		epoch: "1997–2001",
+		ep: 1999,
+		base: "https://alasky.cds.unistra.fr/2MASS/Color",
+		ext: "jpg",
+		maxOrder: 9
+	},
+	{
+		id: "wise",
+		n: "AllWISE",
+		epoch: "2010",
+		ep: 2010.5,
+		base: "https://alasky.cds.unistra.fr/AllWISE/RGB-W4-W2-W1",
+		ext: "jpg",
+		maxOrder: 8
+	},
+	{
+		id: "ps1",
+		n: "Pan-STARRS",
+		epoch: "2010–2014",
+		ep: 2012,
+		base: "https://alasky.cds.unistra.fr/Pan-STARRS/DR1/color-z-zg-g",
+		ext: "jpg",
+		maxOrder: 11
+	}
+];
+var SKY_R_PC = 1e4;
+var ST = {
+	id: "dss",
+	on: false,
+	blink: false,
+	blinkWith: "ps1"
+};
+var _blinkTimer = null;
+var _blinkPhase = 0;
+function setSurvey(id) {
+	ST.id = id;
+	ST.on = !!SURVEYS.find((s) => s.id === id);
+	publish$2();
+	V.dirty = true;
+}
+function setBlink(on, withId) {
+	ST.blink = !!on;
+	if (withId) ST.blinkWith = withId;
+	if (_blinkTimer) {
+		clearInterval(_blinkTimer);
+		_blinkTimer = null;
+	}
+	if (ST.blink) _blinkTimer = setInterval(() => {
+		_blinkPhase ^= 1;
+		V.dirty = true;
+	}, 700);
+	publish$2();
+	V.dirty = true;
+}
+function publish$2() {
+	survey.set({
+		id: ST.on ? ST.id : null,
+		blink: ST.blink,
+		blinkWith: ST.blinkWith
+	});
+}
+publish$2();
+function activeSurvey() {
+	if (!ST.on) return null;
+	const id = ST.blink && _blinkPhase ? ST.blinkWith : ST.id;
+	return SURVEYS.find((s) => s.id === id) || null;
+}
+function surveyAlpha() {
+	if (!ST.on) return 0;
+	if (S.skyMode && camDist > 1e-4) return 0;
+	const d = camDist > 1e-9 ? invScale(camDist) : 0;
+	return Math.max(0, Math.min(1, (60 - d) / 30));
+}
+var CACHE = /* @__PURE__ */ new Map();
+var _loads = 0;
+var cacheSize = () => CACHE.size;
+function tileKey(sv, order, pix) {
+	return sv.id + "/" + order + "/" + pix;
+}
+function tileURL(sv, order, pix) {
+	return `${sv.base}/Norder${order}/Dir${Math.floor(pix / 1e4) * 1e4}/Npix${pix}.${sv.ext}`;
+}
+function requestTile(sv, order, pix) {
+	const k = tileKey(sv, order, pix);
+	let t = CACHE.get(k);
+	if (t) return t;
+	if (_loads >= 12) return null;
+	t = {
+		img: new Image(),
+		tex: null,
+		ok: false,
+		failed: false,
+		at: performance.now()
+	};
+	CACHE.set(k, t);
+	_loads++;
+	t.img.crossOrigin = "anonymous";
+	t.img.onload = () => {
+		_loads--;
+		t.ok = true;
+		V.dirty = true;
+	};
+	t.img.onerror = () => {
+		_loads--;
+		t.failed = true;
+	};
+	t.img.src = tileURL(sv, order, pix);
+	if (CACHE.size > 600) {
+		const old = [...CACHE.entries()].filter((e) => e[1].ok || e[1].failed).sort((a, b) => a[1].at - b[1].at).slice(0, 150);
+		for (const [kk, tt] of old) {
+			if (tt.tex && tt.gl) tt.gl.deleteTexture(tt.tex);
+			CACHE.delete(kk);
+		}
+	}
+	return t;
+}
+function bestTile(sv, order, pix) {
+	let o = order, p = pix, u0 = 0, v0 = 0, size = 1;
+	while (o >= 3) {
+		const t = CACHE.get(tileKey(sv, o, p));
+		if (t && t.ok) return {
+			t,
+			u0,
+			v0,
+			size
+		};
+		if (!t && o === order) requestTile(sv, o, p);
+		if (o === 3) break;
+		const c = p & 3;
+		p >>>= 2;
+		o--;
+		size *= .5;
+		const cx = c & 1 ? 1 : 0, cy = c & 2 ? 1 : 0;
+		u0 = u0 * .5 + cx * .5;
+		v0 = v0 * .5 + cy * .5;
+	}
+	if (!CACHE.get(tileKey(sv, 3, p))) requestTile(sv, 3, p);
+	return null;
+}
+function fovDeg() {
+	return 2 * Math.atan(Math.max(W, H) / 2 / (V.foc * V.fovK)) * 57.29578;
+}
+function chooseOrder(sv) {
+	const fov = fovDeg(), pxPerDeg = Math.max(W, H) / fov;
+	let o = Math.round(Math.log2(58.6 * pxPerDeg / 512) + .3);
+	return Math.max(3, Math.min(sv.maxOrder, o));
+}
+function visibleTiles(order) {
+	const fw = camFwd, fov = fovDeg(), half = fov * Math.hypot(W, H) / Math.max(W, H) * .5, out = [];
+	const pxPerDeg = Math.max(W, H) / fov, R = scale(SKY_R_PC), o_ = {};
+	function visit(o, pix) {
+		const c = tileCentre(o, pix), dot = c[0] * fw[0] + c[1] * fw[1] + c[2] * fw[2];
+		const r = tileRadiusDeg(o);
+		if (dot < Math.cos(Math.min(179, half + r + .5) * .0174533)) return;
+		if (o === order) {
+			projectInto(c[0] * R, c[1] * R, c[2] * R, o_);
+			const m = r * pxPerDeg * 1.3 + 8;
+			if (o_.depth > 0 && o_.x > -m && o_.x < W + m && o_.y > -m && o_.y < H + m) out.push(pix);
+			return;
+		}
+		for (let k = 0; k < 4; k++) visit(o + 1, pix << 2 | k);
+	}
+	for (let p = 0; p < 768; p++) visit(3, p);
+	return out;
+}
+function tileGrid(order, pix, N) {
+	const dirs = [];
+	for (let j = 0; j <= N; j++) for (let i = 0; i <= N; i++) dirs.push(tileDir(order, pix, i / N, j / N));
+	return dirs;
+}
+function uvOf(u, v) {
+	return [v, u];
+}
+//#endregion
+//#region src/engine/userdata.js
+var USER = {
+	sets: [],
+	rows: [],
+	warn: ""
+};
+var userProj = [];
+var NO_DIST_PC = 1e4;
+var KEY = "ku_user_v2";
+var MAX_ROWS = 5e4;
+var MAX_SETS = 4;
+var COLS = {
+	ra: [
+		"ra",
+		"ra_deg",
+		"radeg",
+		"raj2000",
+		"_raj2000",
+		"ra_icrs",
+		"rightascension",
+		"ra(deg)",
+		"rajd",
+		"alpha"
+	],
+	dec: [
+		"dec",
+		"de",
+		"dec_deg",
+		"dedeg",
+		"decdeg",
+		"dej2000",
+		"_dej2000",
+		"de_icrs",
+		"dec_icrs",
+		"declination",
+		"dec(deg)",
+		"dejd",
+		"delta"
+	],
+	dist: [
+		"dist",
+		"distance",
+		"d",
+		"d_pc",
+		"dist_pc",
+		"distance_pc",
+		"r_est",
+		"rgeo",
+		"r_med_geo",
+		"pc"
+	],
+	ly: [
+		"ly",
+		"dist_ly",
+		"distance_ly",
+		"lightyears",
+		"light_years"
+	],
+	plx: [
+		"plx",
+		"parallax",
+		"parallax_mas",
+		"par",
+		"pi",
+		"plx_value"
+	],
+	mag: [
+		"mag",
+		"vmag",
+		"gmag",
+		"phot_g_mean_mag",
+		"v",
+		"g",
+		"magnitude",
+		"rmag",
+		"jmag",
+		"kmag",
+		"imag",
+		"mag_v",
+		"mag_g"
+	],
+	name: [
+		"name",
+		"id",
+		"designation",
+		"source_id",
+		"main_id",
+		"object",
+		"star",
+		"identifier",
+		"label",
+		"source",
+		"target",
+		"ident"
+	],
+	pmra: [
+		"pmra",
+		"pm_ra",
+		"pmra_cosdec",
+		"pm_ra_cosdec",
+		"pmracosdec"
+	],
+	pmdec: [
+		"pmdec",
+		"pm_dec",
+		"pmde",
+		"pm_de"
+	]
+};
+var norm = (h) => h.trim().toLowerCase().replace(/^"|"$/g, "").replace(/[\s]+/g, "").replace(/\[.*?\]$/, "");
+function splitLine(line, sep) {
+	const out = [];
+	let cur = "", q = false;
+	for (let i = 0; i < line.length; i++) {
+		const ch = line[i];
+		if (q) if (ch === "\"") if (line[i + 1] === "\"") {
+			cur += "\"";
+			i++;
+		} else q = false;
+		else cur += ch;
+		else if (ch === "\"") q = true;
+		else if (ch === sep) {
+			out.push(cur);
+			cur = "";
+		} else cur += ch;
+	}
+	out.push(cur);
+	return out.map((s) => s.trim());
+}
+function angle(s, hours) {
+	if (s === void 0 || s === null) return NaN;
+	s = String(s).trim();
+	if (!s) return NaN;
+	if (/^[-+]?\d*\.?\d+(e[-+]?\d+)?$/i.test(s)) return +s * (hours && /h$/i.test(s) ? 15 : 1);
+	const t = s.replace(/[hdms°′″'":]/gi, " ").trim().split(/\s+/).map(Number);
+	if (t.some(isNaN) || !t.length) return NaN;
+	const neg = /^-/.test(s);
+	let v = Math.abs(t[0]) + (t[1] || 0) / 60 + (t[2] || 0) / 3600;
+	if (neg) v = -v;
+	return hours ? v * 15 : v;
+}
+function parseUserText(text) {
+	const lines = text.split(/\r?\n/).filter((l) => l.trim() && !/^\s*#/.test(l));
+	if (!lines.length) return {
+		rows: [],
+		cols: [],
+		warn: "empty file"
+	};
+	const head = lines[0];
+	const sep = [
+		["	", (head.match(/\t/g) || []).length],
+		[";", (head.match(/;/g) || []).length],
+		[",", (head.match(/,/g) || []).length],
+		["|", (head.match(/\|/g) || []).length]
+	].sort((a, b) => b[1] - a[1])[0][1] > 0 ? [
+		["	", (head.match(/\t/g) || []).length],
+		[";", (head.match(/;/g) || []).length],
+		[",", (head.match(/,/g) || []).length],
+		["|", (head.match(/\|/g) || []).length]
+	].sort((a, b) => b[1] - a[1])[0][0] : /\s{2,}/.test(head) ? "  " : " ";
+	const cells = (l) => sep === "  " ? l.trim().split(/\s{2,}|\t/) : sep === " " ? l.trim().split(/\s+/) : splitLine(l, sep);
+	const first = cells(head).map(norm);
+	const known = new Set(Object.values(COLS).flat());
+	const hasHeader = first.some((h) => known.has(h)) || first.filter((h) => h && isNaN(+h)).length >= 2;
+	const cols = hasHeader ? first : [
+		"ra",
+		"dec",
+		"dist",
+		"mag",
+		"name"
+	].slice(0, first.length);
+	const col = (k) => {
+		for (const name of COLS[k]) {
+			const i = cols.indexOf(name);
+			if (i >= 0) return i;
+		}
+		return -1;
+	};
+	const ira = col("ra"), idec = col("dec"), idist = col("dist"), ily = col("ly"), iplx = col("plx"), imag = col("mag"), iname = col("name"), ipra = col("pmra"), ipde = col("pmdec");
+	if (ira < 0 || idec < 0) return {
+		rows: [],
+		cols,
+		warn: "no RA/Dec columns found (looked for ra, dec, raj2000, dej2000, …)"
+	};
+	const known2 = /* @__PURE__ */ new Set([
+		ira,
+		idec,
+		idist,
+		ily,
+		iplx,
+		imag,
+		iname,
+		ipra,
+		ipde
+	]);
+	const extra = cols.map((c, i) => [c, i]).filter(([c, i]) => !known2.has(i) && c).slice(0, 10);
+	const rows = [];
+	let bad = 0;
+	for (let li = hasHeader ? 1 : 0; li < lines.length && rows.length < MAX_ROWS; li++) {
+		const f = cells(lines[li]);
+		const ra = angle(f[ira], /[:hms ]/.test(f[ira] || "") && !/°/.test(f[ira] || "")), dec = angle(f[idec], false);
+		if (!isFinite(ra) || !isFinite(dec) || Math.abs(dec) > 90) {
+			bad++;
+			continue;
+		}
+		let d = NaN;
+		if (idist >= 0) d = +f[idist];
+		if (!(d > 0) && ily >= 0) d = +f[ily] / 3.261564;
+		if (!(d > 0) && iplx >= 0) {
+			const p = +f[iplx];
+			if (p > 0) d = 1e3 / p;
+		}
+		const noDist = !(d > 0);
+		if (noDist) d = NO_DIST_PC;
+		const r = ra * Math.PI / 180, q = dec * Math.PI / 180, cq = Math.cos(q);
+		const row = {
+			usr: true,
+			i: rows.length,
+			n: iname >= 0 ? String(f[iname] || "").replace(/^"|"$/g, "").replace(/\s+/g, " ") : "",
+			ra,
+			dec,
+			d,
+			noDist,
+			m: imag >= 0 && isFinite(+f[imag]) ? +f[imag] : void 0,
+			pr: ipra >= 0 ? +f[ipra] || 0 : 0,
+			pd: ipde >= 0 ? +f[ipde] || 0 : 0,
+			dx: cq * Math.cos(r),
+			dy: cq * Math.sin(r),
+			dz: Math.sin(q),
+			x: {}
+		};
+		for (const [c, i] of extra) if (f[i] !== void 0 && f[i] !== "") row.x[c] = f[i];
+		rows.push(row);
+	}
+	let warn = "";
+	if (bad) warn += `${bad} rows skipped (no usable RA/Dec)`;
+	if (lines.length - 1 > MAX_ROWS) warn += (warn ? " · " : "") + `only the first ${MAX_ROWS} rows kept`;
+	return {
+		rows,
+		cols,
+		warn
+	};
+}
+function rebuild() {
+	USER.rows = [];
+	let i = 0;
+	for (let k = 0; k < USER.sets.length; k++) {
+		const st = USER.sets[k];
+		for (const r of st.rows) {
+			r.i = i++;
+			r.set = k;
+			r.ep = st.epoch || 2e3;
+			r.src = st.src;
+			USER.rows.push(r);
+		}
+	}
+	USER.warn = USER.sets.map((st) => st.warn).filter(Boolean).join(" · ");
+}
+function publish$1(saved) {
+	userLayer.set({
+		sets: USER.sets.map((st) => ({
+			name: st.name,
+			src: st.src,
+			n: st.rows.length,
+			noDist: st.rows.filter((r) => r.noDist).length,
+			warn: st.warn
+		})),
+		n: USER.rows.length,
+		warn: USER.warn,
+		saved: !!saved
+	});
+}
+function persist() {
+	try {
+		const s = JSON.stringify({ sets: USER.sets.map((st) => ({
+			name: st.name,
+			src: st.src,
+			epoch: st.epoch,
+			prefix: st.prefix,
+			text: st.text
+		})) });
+		if (s.length < 4e6) {
+			localStorage.setItem(KEY, s);
+			return true;
+		}
+		localStorage.removeItem(KEY);
+		USER.warn += (USER.warn ? " · " : "") + "too large to keep after a reload";
+	} catch (e) {}
+	return false;
+}
+function parseSet(st) {
+	const r = parseUserText(st.text || "");
+	if (st.prefix) {
+		for (const row of r.rows) if (row.n && !row.n.startsWith(st.prefix)) row.n = st.prefix + row.n;
+	}
+	st.rows = r.rows;
+	st.warn = r.warn;
+	st.n = r.rows.length;
+}
+function importUser(text, name, opts = {}) {
+	const src = opts.src || "file";
+	const st = {
+		name: name || "your data",
+		src,
+		epoch: opts.epoch || 2e3,
+		prefix: opts.prefix || "",
+		text: text || ""
+	};
+	parseSet(st);
+	USER.sets = USER.sets.filter((x) => x.src !== src);
+	USER.sets.push(st);
+	while (USER.sets.length > MAX_SETS) USER.sets.shift();
+	rebuild();
+	const saved = persist();
+	if (S.pinned && S.pinned.usr) S.pinned = null;
+	if (S.hover && S.hover.usr) S.hover = null;
+	publish$1(saved);
+	V.dirty = true;
+	return st.rows.length;
+}
+function removeSet(k) {
+	USER.sets.splice(k, 1);
+	rebuild();
+	const saved = persist();
+	if (S.pinned && S.pinned.usr) S.pinned = null;
+	if (S.hover && S.hover.usr) S.hover = null;
+	publish$1(saved);
+	V.dirty = true;
+}
+function clearUser() {
+	USER.sets = [];
+	rebuild();
+	try {
+		localStorage.removeItem(KEY);
+	} catch (e) {}
+	if (S.pinned && S.pinned.usr) S.pinned = null;
+	if (S.hover && S.hover.usr) S.hover = null;
+	publish$1(false);
+	V.dirty = true;
+}
+function restoreUser() {
+	try {
+		const s = localStorage.getItem(KEY);
+		if (!s) return;
+		const o = JSON.parse(s);
+		if (!o || !Array.isArray(o.sets)) return;
+		USER.sets = o.sets.filter((st) => st && st.text).map((st) => ({
+			name: st.name || "your data",
+			src: st.src || "file",
+			epoch: st.epoch || 2e3,
+			prefix: st.prefix || "",
+			text: st.text
+		}));
+		for (const st of USER.sets) parseSet(st);
+		rebuild();
+		publish$1(true);
+	} catch (e) {}
+}
+var MAS$1 = 4.84813681e-9;
+function projectUser() {
+	userProj.length = 0;
+	if (!S.user || !USER.rows.length) return;
+	const t = tNow();
+	for (const o of USER.rows) {
+		let dx = o.dx, dy = o.dy, dz = o.dz;
+		if (t && (o.pr || o.pd)) {
+			const cq = Math.hypot(dx, dy) || 1e-9, ex = -dy / cq, ey = dx / cq;
+			const nx = -dz * dx / cq, ny = -dz * dy / cq, nz = cq;
+			const a = o.pr * t * MAS$1, b = o.pd * t * MAS$1;
+			dx += ex * a + nx * b;
+			dy += ey * a + ny * b;
+			dz += nz * b;
+			const L = Math.hypot(dx, dy, dz) || 1;
+			dx /= L;
+			dy /= L;
+			dz /= L;
+		}
+		const R = compress(o.d);
+		const p = projectInto(dx * R, dy * R, dz * R, _pj);
+		if (p.depth <= V.NEAR) continue;
+		if (p.x < -40 || p.x > W + 40 || p.y < -40 || p.y > H + 40) continue;
+		o._sx = p.x;
+		o._sy = p.y;
+		o._depth = p.depth;
+		o._z2 = p.z2;
+		userProj.push(o);
+	}
+}
+function drawUser() {
+	if (!userProj.length) return;
+	const many = userProj.length > 400, label = S.labels && userProj.length <= 60;
+	ctx.lineWidth = 1.4;
+	for (const o of userProj) {
+		const sel = o === S.hover || o === S.pinned;
+		const r = sel ? 8 : many ? 3.5 : 5.5;
+		ctx.beginPath();
+		ctx.arc(o._sx, o._sy, r, 0, 6.2832);
+		ctx.strokeStyle = sel ? "rgba(79,214,200,0.95)" : "rgba(255,176,96,0.85)";
+		ctx.stroke();
+		if (!many || sel) {
+			ctx.beginPath();
+			ctx.arc(o._sx, o._sy, 1.3, 0, 6.2832);
+			ctx.fillStyle = sel ? "rgba(79,214,200,1)" : "rgba(255,176,96,0.9)";
+			ctx.fill();
+		}
+		if (o.n && (sel || label)) {
+			ctx.font = (sel ? "11px" : "9.5px") + " ui-monospace,monospace";
+			ctx.fillStyle = sel ? "rgba(79,214,200,1)" : "rgba(255,196,130,0.8)";
+			LBL.prio = sel ? 92 : 52;
+			ctx.fillText(o.n, o._sx + r + 4, o._sy + 3);
+			LBL.prio = 52;
+		}
+	}
+}
+//#endregion
+//#region src/engine/movers.js
+var MAS = 4.84813681e-9;
+var MOVERS = [];
+var _key = "";
+function epochOf(id) {
+	const s = SURVEYS.find((x) => x.id === id);
+	return s ? s.ep : 2e3;
+}
+function shifted(o, epoch) {
+	const t = epoch - (o.ep || 2e3), a = (o.pr || 0) * t * MAS, b = (o.pd || 0) * t * MAS;
+	let dx = o.dx, dy = o.dy, dz = o.dz;
+	const cq = Math.hypot(dx, dy) || 1e-9, ex = -dy / cq, ey = dx / cq, nx = -dz * dx / cq, ny = -dz * dy / cq, nz = cq;
+	dx += ex * a + nx * b;
+	dy += ey * a + ny * b;
+	dz += nz * b;
+	const L = Math.hypot(dx, dy, dz) || 1;
+	return [
+		dx / L,
+		dy / L,
+		dz / L
+	];
+}
+function updateMovers() {
+	if (!S.skyMode || !ST.on || camDist > 1e-4) {
+		if (MOVERS.length) {
+			MOVERS = [];
+			movers.set({
+				list: [],
+				a: "",
+				b: "",
+				dt: 0
+			});
+			_key = "";
+		}
+		return;
+	}
+	const ia = ST.id, ib = ST.blinkWith === ST.id ? ST.id === "dss" ? "ps1" : "dss" : ST.blinkWith;
+	const key = [
+		S.yaw.toFixed(3),
+		S.pitch.toFixed(3),
+		V.fovK.toFixed(2),
+		ia,
+		ib,
+		userProj.length,
+		hygProj.length,
+		gaiaPm ? gaiaPm.length : 0,
+		gaiaRange
+	].join();
+	if (key === _key) return;
+	_key = key;
+	const ea = epochOf(ia), eb = epochOf(ib), dt = eb - ea, pxPerDeg = Math.max(W, H) / fovDeg();
+	const out = [], seen = /* @__PURE__ */ new Set();
+	const add = (o, name) => {
+		const pm = Math.hypot(o.pr || 0, o.pd || 0);
+		if (!pm) return;
+		if (o.x && o.x.otype === "Pl") return;
+		const jump = pm * Math.abs(dt) / 1e3, px = jump / 3600 * pxPerDeg;
+		if (jump < .5) return;
+		const k = o.dx.toFixed(5) + "," + o.dy.toFixed(5) + "," + o.dz.toFixed(5);
+		if (seen.has(k)) return;
+		seen.add(k);
+		out.push({
+			o,
+			name: name.replace(/^NAME /, ""),
+			pm,
+			jump,
+			px,
+			usr: !!o.usr
+		});
+	};
+	for (const o of userProj) add(o, o.n || `Row ${o.i + 1}`);
+	if (S.hyg) for (const s of hygProj) add(s, s.n || (s.hip ? "HIP " + s.hip : "star"));
+	const fov = fovDeg();
+	if (S.gaia && gaiaRaw && gaiaPm && fov <= 30 && (gaiaRaw.length / 8 | 0) === (gaiaPm.length / 4 | 0)) {
+		const dv = new DataView(gaiaRaw.buffer, gaiaRaw.byteOffset, gaiaRaw.byteLength), pv = new DataView(gaiaPm.buffer, gaiaPm.byteOffset, gaiaPm.byteLength);
+		const n = gaiaRaw.length / 8 | 0, cosLim = Math.cos(Math.min(89, fov * .75) * .0174533), D2R = Math.PI / 180;
+		const fx = camFwd[0], fy = camFwd[1], fz = camFwd[2], minPm = .5 * 1e3 / Math.max(1, Math.abs(dt));
+		for (let i = 0; i < n; i++) {
+			const pr = pv.getInt16(i * 4, true), pd = pv.getInt16(i * 4 + 2, true);
+			if (pr * pr + pd * pd < minPm * minPm) continue;
+			const b = i * 8, dr = (dv.getUint16(b + 2, true) * (180 / 65535) - 90) * D2R, dz = Math.sin(dr);
+			if (dz * fz + Math.sqrt(1 - dz * dz) < cosLim) continue;
+			const rr = dv.getUint16(b, true) * (360 / 65535) * D2R, cd = Math.cos(dr), dx = cd * Math.cos(rr), dy = cd * Math.sin(rr);
+			if (dx * fx + dy * fy + dz * fz < cosLim) continue;
+			const mag = dv.getUint8(b + 6) / 255 * 28 - 2;
+			add({
+				dx,
+				dy,
+				dz,
+				d: dv.getUint16(b + 4, true) / 65535 * gaiaRange,
+				pr,
+				pd,
+				ep: 2016,
+				m: mag,
+				gpick: "gaia"
+			}, `Gaia star · G ${mag.toFixed(1)}`);
+		}
+	}
+	out.sort((a, b) => b.jump - a.jump);
+	MOVERS = out.slice(0, 60);
+	const sa = SURVEYS.find((x) => x.id === ia), sb = SURVEYS.find((x) => x.id === ib);
+	movers.set({
+		list: MOVERS.slice(0, 14).map((m) => ({
+			name: m.name,
+			pm: m.pm,
+			jump: m.jump,
+			px: m.px,
+			usr: m.usr,
+			ra: Math.atan2(m.o.dy, m.o.dx) * 57.29578,
+			dec: Math.asin(m.o.dz) * 57.29578
+		})),
+		a: sa ? sa.n : "",
+		b: sb ? sb.n : "",
+		ea,
+		eb,
+		dt
+	});
+}
+function drawMovers() {
+	if (!S.skyMode || !ST.on || !MOVERS.length) return;
+	const ea = epochOf(ST.id), eb = epochOf(ST.blinkWith === ST.id ? ST.id === "dss" ? "ps1" : "dss" : ST.blinkWith);
+	compress(1e4);
+	ctx.lineWidth = 1.3;
+	ctx.strokeStyle = "rgba(255,176,96,0.9)";
+	ctx.fillStyle = "rgba(255,176,96,0.9)";
+	for (const m of MOVERS) {
+		if (m.px < 3) continue;
+		const o = m.o, Rr = compress(o.d || 1e4);
+		const A = shifted(o, ea), B = shifted(o, eb);
+		const pa = projectInto(A[0] * Rr, A[1] * Rr, A[2] * Rr, _pj);
+		const ax = pa.x, ay = pa.y, da = pa.depth;
+		const pb = projectInto(B[0] * Rr, B[1] * Rr, B[2] * Rr, _pj);
+		const bx = pb.x, by = pb.y;
+		if (da <= 0 || pb.depth <= 0) continue;
+		const L = Math.hypot(bx - ax, by - ay);
+		if (L < 2) continue;
+		const ux = (bx - ax) / L, uy = (by - ay) / L;
+		ctx.beginPath();
+		ctx.moveTo(ax, ay);
+		ctx.lineTo(bx, by);
+		ctx.stroke();
+		ctx.beginPath();
+		ctx.moveTo(bx, by);
+		ctx.lineTo(bx - ux * 6 - uy * 3, by - uy * 6 + ux * 3);
+		ctx.lineTo(bx - ux * 6 + uy * 3, by - uy * 6 - ux * 3);
+		ctx.closePath();
+		ctx.fill();
+		ctx.beginPath();
+		ctx.arc(ax, ay, 2.2, 0, 6.2832);
+		ctx.stroke();
+	}
+}
+//#endregion
+//#region src/engine/hud.js
+function fmtDist(pc) {
+	if (!isFinite(pc) || pc <= 0) return "0";
+	const au = pc / AU_PC;
+	if (au < .02) return (au * 1496e5).toFixed(0) + " km";
+	if (au < 2e3) return (au < 10 ? au.toFixed(2) : fmt(au)) + " AU";
+	const ly = pc * PC2LY;
+	if (ly < 1e3) return (ly < 10 ? ly.toFixed(2) : fmt(ly)) + " ly";
+	if (ly < 1e6) return (ly / 1e3).toFixed(ly < 1e4 ? 2 : 1) + " kly";
+	if (ly < 1e9) return (ly / 1e6).toFixed(ly < 1e7 ? 2 : 1) + " Mly";
+	return (ly / 1e9).toFixed(2) + " Gly";
+}
+function niceLen(v) {
+	const e = Math.pow(10, Math.floor(Math.log10(v))), m = v / e;
+	return (m >= 5 ? 5 : m >= 2 ? 2 : 1) * e;
+}
+function drawScaleBar() {
+	if (!S.labels || S.skyMode) return;
+	const narrow = W <= 720;
+	const strip = document.body.classList.contains("show-time") ? 48 : 0;
+	const x0 = 16, y0 = H - (narrow ? 92 : 30) - strip;
+	const dim = "rgba(154,163,184,0.85)", ink = "rgba(232,235,244,0.95)";
+	LBL.prio = 100;
+	ctx.textAlign = "left";
+	ctx.textBaseline = "alphabetic";
+	if (S.realScale) {
+		const pcPerPx = S.camZ / V.foc;
+		let L = niceLen(pcPerPx * (narrow ? 90 : 150));
+		let px = L / pcPerPx;
+		if (px < 40) {
+			L = niceLen(pcPerPx * 220);
+			px = L / pcPerPx;
+		}
+		if (!isFinite(px) || px < 8) return;
+		px = Math.min(px, W * .4);
+		ctx.strokeStyle = dim;
+		ctx.lineWidth = 1.2;
+		ctx.beginPath();
+		ctx.moveTo(x0, y0 - 9);
+		ctx.lineTo(x0, y0 - 3);
+		ctx.lineTo(x0 + px, y0 - 3);
+		ctx.lineTo(x0 + px, y0 - 9);
+		ctx.stroke();
+		ctx.font = "11px ui-monospace,monospace";
+		ctx.fillStyle = ink;
+		ctx.fillText(fmtDist(L), x0, y0 + 9);
+	} else {
+		const dec = 1 * V.foc / S.camZ;
+		if (!isFinite(dec) || dec < 2) return;
+		let k = 1;
+		while (dec * k < 64 && k < 12) k++;
+		let px = dec * k;
+		if (px > W * .42) {
+			px = dec;
+			k = 1;
+		}
+		if (px < 18) return;
+		ctx.strokeStyle = dim;
+		ctx.lineWidth = 1.2;
+		ctx.beginPath();
+		ctx.moveTo(x0, y0 - 9);
+		ctx.lineTo(x0, y0 - 3);
+		ctx.lineTo(x0 + px, y0 - 3);
+		ctx.lineTo(x0 + px, y0 - 9);
+		ctx.stroke();
+		if (k === 1 && dec > 26) for (let i = 1; i < 10; i++) {
+			const tx = x0 + Math.log10(i + 1) * dec;
+			ctx.beginPath();
+			ctx.moveTo(tx, y0 - 3);
+			ctx.lineTo(tx, y0 - 6.5);
+			ctx.stroke();
+		}
+		ctx.font = "11px ui-monospace,monospace";
+		ctx.fillStyle = ink;
+		ctx.fillText("×" + (k === 1 ? "10" : "10^" + k) + " distance", x0, y0 + 9);
+	}
+	LBL.prio = 52;
+}
+function drawNav() {
+	LBL.prio = 100;
+	if (!V.navTarget) return;
+	const w = navWorld(V.navTarget);
+	if (!w) return;
+	const c = camXY(w[0], w[1], w[2]);
+	let onscreen = false, sx = 0, sy = 0;
+	if (c.depth > V.NEAR) {
+		sx = V.cx + V.foc * c.x1 / c.depth;
+		sy = V.cy - V.foc * c.y2 / c.depth;
+		onscreen = sx > 12 && sx < W - 12 && sy > 12 && sy < H - 12;
+	}
+	ctx.strokeStyle = "rgba(79,214,200,0.9)";
+	ctx.fillStyle = "rgba(79,214,200,0.9)";
+	ctx.lineWidth = 1.4;
+	if (onscreen) {
+		ctx.save();
+		ctx.setLineDash([6, 6]);
+		ctx.strokeStyle = "rgba(79,214,200,0.4)";
+		ctx.lineWidth = 1.2;
+		ctx.beginPath();
+		ctx.moveTo(V.cx, V.cy);
+		ctx.lineTo(sx, sy);
+		ctx.stroke();
+		ctx.restore();
+		ctx.strokeStyle = "rgba(79,214,200,0.9)";
+		const r = 13;
+		ctx.beginPath();
+		ctx.arc(sx, sy, r, 0, 6.2832);
+		ctx.globalAlpha = .5;
+		ctx.stroke();
+		ctx.globalAlpha = 1;
+		for (const [ex, ey] of [
+			[-1, -1],
+			[1, -1],
+			[1, 1],
+			[-1, 1]
+		]) {
+			ctx.beginPath();
+			ctx.moveTo(sx + ex * r, sy + ey * r * .4);
+			ctx.lineTo(sx + ex * r, sy + ey * r);
+			ctx.lineTo(sx + ex * r * .4, sy + ey * r);
+			ctx.stroke();
+		}
+	} else {
+		let dx = c.x1, dy = -c.y2;
+		if (c.depth <= V.NEAR) {
+			dx = -c.x1;
+			dy = c.y2;
+		}
+		const L = Math.hypot(dx, dy) || 1;
+		dx /= L;
+		dy /= L;
+		const rad = Math.min(W, H) * .4, ax = V.cx + dx * rad, ay = V.cy + dy * rad;
+		ctx.save();
+		ctx.setLineDash([6, 6]);
+		ctx.strokeStyle = "rgba(79,214,200,0.35)";
+		ctx.lineWidth = 1.2;
+		ctx.beginPath();
+		ctx.moveTo(V.cx, V.cy);
+		ctx.lineTo(ax, ay);
+		ctx.stroke();
+		ctx.restore();
+		ctx.save();
+		ctx.translate(ax, ay);
+		ctx.rotate(Math.atan2(dy, dx));
+		ctx.beginPath();
+		ctx.moveTo(11, 0);
+		ctx.lineTo(-6, 7);
+		ctx.lineTo(-6, -7);
+		ctx.closePath();
+		ctx.fill();
+		ctx.restore();
+		ctx.font = "10px ui-monospace,monospace";
+		ctx.textAlign = "center";
+		ctx.fillText(V.navTarget.n || V.navTarget.h || "Target", ax - dx * 18, ay - dy * 18 + 3);
+		ctx.textAlign = "left";
+	}
+}
+function fmt(n) {
+	return Math.round(n).toLocaleString("en-US");
+}
+var _stat = "";
+var _selKey = "";
+var _cam = "";
+var _nav = "";
+function bandOf(pc) {
+	if (pc < .02) return "Solar system";
+	if (pc < 300) return "Stellar neighbourhood";
+	if (pc < 4e4) return "Milky Way";
+	if (pc < 3e6) return "Local Group";
+	if (pc < 15e8) return "Cosmic web";
+	return "Observable universe";
+}
+function updateHUD() {
+	const st = visSys + "|" + visPl + "|" + nearD + "|" + farD;
+	if (st !== _stat) {
+		_stat = st;
+		stats.set({
+			sys: visSys,
+			pl: visPl,
+			nearLy: isFinite(nearD) ? nearD * PC2LY : null,
+			farLy: farD ? farD * PC2LY : null
+		});
+	}
+	const s = S.pinned || S.hover;
+	const key = s ? [
+		s === V.navTarget,
+		V.FOLLOW === s,
+		!!(V.ROUTE && V.ROUTE.o === s),
+		!!(V.TRANSFER && V.TRANSFER.to === s),
+		s === S.pinned
+	].join() : "";
+	if (s !== V.lastInfo || key !== _selKey) {
+		V.lastInfo = s;
+		_selKey = key;
+		selection.set(s ? {
+			card: card(s),
+			...abilities(s),
+			locked: V.FOLLOW === s,
+			isNav: s === V.navTarget,
+			routeOn: !!(V.ROUTE && V.ROUTE.o === s),
+			transferOn: !!(V.TRANSFER && V.TRANSFER.to === s),
+			pinned: s === S.pinned
+		} : null);
+	}
+	updateMovers();
+	const here = camDist > 1e-9 ? invScale(camDist) : 0, inSolar = V.solarA > .5;
+	const fov = S.skyMode ? fovDeg() : 0;
+	let ra = 0, dec = 0;
+	if (S.skyMode) {
+		ra = Math.atan2(camFwd[1], camFwd[0]) * 57.29578;
+		if (ra < 0) ra += 360;
+		dec = Math.asin(Math.max(-1, Math.min(1, camFwd[2]))) * 57.29578;
+	}
+	const ck = here.toPrecision(3) + "|" + S.realScale + "|" + inSolar + "|" + S.skyMode + "|" + fov.toPrecision(3) + "|" + ra.toFixed(2) + "|" + dec.toFixed(2) + "|" + (V.skyFrom || "");
+	if (ck !== _cam) {
+		_cam = ck;
+		camera.set({
+			distPc: here,
+			distText: here > 0 ? fmtDist(here) : "at the Sun",
+			band: S.skyMode ? V.skyFrom ? "Sky from " + V.skyFrom : "Sky view" : bandOf(here),
+			real: S.realScale,
+			inSolar,
+			camZ: S.camZ,
+			sky: S.skyMode,
+			skyFrom: V.skyFrom || null,
+			fov,
+			ra,
+			dec,
+			order: SKYSTAT.order
+		});
+	}
+	if (!V.navTarget) {
+		if (_nav) {
+			_nav = "";
+			nav.set(null);
+		}
+		return;
+	}
+	const dpc = navDistPc(), w = navWorld(V.navTarget);
+	let head = "–";
+	if (w) {
+		const tv = [
+			w[0] - camPos[0],
+			w[1] - camPos[1],
+			w[2] - camPos[2]
+		], tl = Math.hypot(tv[0], tv[1], tv[2]) || 1;
+		const dot = (tv[0] * camFwd[0] + tv[1] * camFwd[1] + tv[2] * camFwd[2]) / tl;
+		const ang = Math.acos(Math.max(-1, Math.min(1, dot))) * 57.2958;
+		head = ang < 3 ? "on target" : fmt(ang) + "° off";
+	}
+	const nk = nameOf(V.navTarget) + "|" + dpc.toPrecision(4) + "|" + head;
+	if (nk !== _nav) {
+		_nav = nk;
+		nav.set({
+			name: nameOf(V.navTarget),
+			dist: fmtDist(dpc),
+			light: fmtLight(dpc),
+			bearing: head
+		});
+	}
+}
 //#endregion
 //#region src/engine/system.js
 var sysProj = [];
@@ -5149,365 +5842,6 @@ function drawRoute() {
 	} else R._sx = void 0;
 }
 //#endregion
-//#region src/engine/userdata.js
-var USER = {
-	name: "",
-	rows: [],
-	cols: [],
-	warn: ""
-};
-var userProj = [];
-var NO_DIST_PC = 1e4;
-var KEY = "ku_user_v1";
-var MAX_ROWS = 5e4;
-var COLS = {
-	ra: [
-		"ra",
-		"ra_deg",
-		"radeg",
-		"raj2000",
-		"_raj2000",
-		"ra_icrs",
-		"rightascension",
-		"ra(deg)",
-		"rajd",
-		"alpha"
-	],
-	dec: [
-		"dec",
-		"de",
-		"dec_deg",
-		"dedeg",
-		"decdeg",
-		"dej2000",
-		"_dej2000",
-		"de_icrs",
-		"dec_icrs",
-		"declination",
-		"dec(deg)",
-		"dejd",
-		"delta"
-	],
-	dist: [
-		"dist",
-		"distance",
-		"d",
-		"d_pc",
-		"dist_pc",
-		"distance_pc",
-		"r_est",
-		"rgeo",
-		"r_med_geo",
-		"pc"
-	],
-	ly: [
-		"ly",
-		"dist_ly",
-		"distance_ly",
-		"lightyears",
-		"light_years"
-	],
-	plx: [
-		"plx",
-		"parallax",
-		"parallax_mas",
-		"par",
-		"pi"
-	],
-	mag: [
-		"mag",
-		"vmag",
-		"gmag",
-		"phot_g_mean_mag",
-		"v",
-		"g",
-		"magnitude",
-		"rmag",
-		"jmag",
-		"kmag",
-		"imag",
-		"mag_v",
-		"mag_g"
-	],
-	name: [
-		"name",
-		"id",
-		"designation",
-		"source_id",
-		"main_id",
-		"object",
-		"star",
-		"identifier",
-		"label",
-		"source",
-		"target",
-		"ident"
-	],
-	pmra: [
-		"pmra",
-		"pm_ra",
-		"pmra_cosdec",
-		"pm_ra_cosdec",
-		"pmracosdec"
-	],
-	pmdec: [
-		"pmdec",
-		"pm_dec",
-		"pmde",
-		"pm_de"
-	]
-};
-var norm = (h) => h.trim().toLowerCase().replace(/^"|"$/g, "").replace(/[\s]+/g, "").replace(/\[.*?\]$/, "");
-function splitLine(line, sep) {
-	const out = [];
-	let cur = "", q = false;
-	for (let i = 0; i < line.length; i++) {
-		const ch = line[i];
-		if (q) if (ch === "\"") if (line[i + 1] === "\"") {
-			cur += "\"";
-			i++;
-		} else q = false;
-		else cur += ch;
-		else if (ch === "\"") q = true;
-		else if (ch === sep) {
-			out.push(cur);
-			cur = "";
-		} else cur += ch;
-	}
-	out.push(cur);
-	return out.map((s) => s.trim());
-}
-function angle(s, hours) {
-	if (s === void 0 || s === null) return NaN;
-	s = String(s).trim();
-	if (!s) return NaN;
-	if (/^[-+]?\d*\.?\d+(e[-+]?\d+)?$/i.test(s)) return +s * (hours && /h$/i.test(s) ? 15 : 1);
-	const t = s.replace(/[hdms°′″'":]/gi, " ").trim().split(/\s+/).map(Number);
-	if (t.some(isNaN) || !t.length) return NaN;
-	const neg = /^-/.test(s);
-	let v = Math.abs(t[0]) + (t[1] || 0) / 60 + (t[2] || 0) / 3600;
-	if (neg) v = -v;
-	return hours ? v * 15 : v;
-}
-function parseUserText(text) {
-	const lines = text.split(/\r?\n/).filter((l) => l.trim() && !/^\s*#/.test(l));
-	if (!lines.length) return {
-		rows: [],
-		cols: [],
-		warn: "empty file"
-	};
-	const head = lines[0];
-	const sep = [
-		["	", (head.match(/\t/g) || []).length],
-		[";", (head.match(/;/g) || []).length],
-		[",", (head.match(/,/g) || []).length],
-		["|", (head.match(/\|/g) || []).length]
-	].sort((a, b) => b[1] - a[1])[0][1] > 0 ? [
-		["	", (head.match(/\t/g) || []).length],
-		[";", (head.match(/;/g) || []).length],
-		[",", (head.match(/,/g) || []).length],
-		["|", (head.match(/\|/g) || []).length]
-	].sort((a, b) => b[1] - a[1])[0][0] : /\s{2,}/.test(head) ? "  " : " ";
-	const cells = (l) => sep === "  " ? l.trim().split(/\s{2,}|\t/) : sep === " " ? l.trim().split(/\s+/) : splitLine(l, sep);
-	const first = cells(head).map(norm);
-	const known = new Set(Object.values(COLS).flat());
-	const hasHeader = first.some((h) => known.has(h)) || first.filter((h) => h && isNaN(+h)).length >= 2;
-	const cols = hasHeader ? first : [
-		"ra",
-		"dec",
-		"dist",
-		"mag",
-		"name"
-	].slice(0, first.length);
-	const col = (k) => {
-		for (const name of COLS[k]) {
-			const i = cols.indexOf(name);
-			if (i >= 0) return i;
-		}
-		return -1;
-	};
-	const ira = col("ra"), idec = col("dec"), idist = col("dist"), ily = col("ly"), iplx = col("plx"), imag = col("mag"), iname = col("name"), ipra = col("pmra"), ipde = col("pmdec");
-	if (ira < 0 || idec < 0) return {
-		rows: [],
-		cols,
-		warn: "no RA/Dec columns found (looked for ra, dec, raj2000, dej2000, …)"
-	};
-	const known2 = /* @__PURE__ */ new Set([
-		ira,
-		idec,
-		idist,
-		ily,
-		iplx,
-		imag,
-		iname,
-		ipra,
-		ipde
-	]);
-	const extra = cols.map((c, i) => [c, i]).filter(([c, i]) => !known2.has(i) && c).slice(0, 10);
-	const rows = [];
-	let bad = 0;
-	for (let li = hasHeader ? 1 : 0; li < lines.length && rows.length < MAX_ROWS; li++) {
-		const f = cells(lines[li]);
-		const ra = angle(f[ira], /[:hms ]/.test(f[ira] || "") && !/°/.test(f[ira] || "")), dec = angle(f[idec], false);
-		if (!isFinite(ra) || !isFinite(dec) || Math.abs(dec) > 90) {
-			bad++;
-			continue;
-		}
-		let d = NaN;
-		if (idist >= 0) d = +f[idist];
-		if (!(d > 0) && ily >= 0) d = +f[ily] / 3.261564;
-		if (!(d > 0) && iplx >= 0) {
-			const p = +f[iplx];
-			if (p > 0) d = 1e3 / p;
-		}
-		const noDist = !(d > 0);
-		if (noDist) d = NO_DIST_PC;
-		const r = ra * Math.PI / 180, q = dec * Math.PI / 180, cq = Math.cos(q);
-		const row = {
-			usr: true,
-			i: rows.length,
-			n: iname >= 0 ? String(f[iname] || "").replace(/^"|"$/g, "") : "",
-			ra,
-			dec,
-			d,
-			noDist,
-			m: imag >= 0 && isFinite(+f[imag]) ? +f[imag] : void 0,
-			pr: ipra >= 0 ? +f[ipra] || 0 : 0,
-			pd: ipde >= 0 ? +f[ipde] || 0 : 0,
-			dx: cq * Math.cos(r),
-			dy: cq * Math.sin(r),
-			dz: Math.sin(q),
-			x: {}
-		};
-		for (const [c, i] of extra) if (f[i] !== void 0 && f[i] !== "") row.x[c] = f[i];
-		rows.push(row);
-	}
-	let warn = "";
-	if (bad) warn += `${bad} rows skipped (no usable RA/Dec)`;
-	if (lines.length - 1 > MAX_ROWS) warn += (warn ? " · " : "") + `only the first ${MAX_ROWS} rows kept`;
-	return {
-		rows,
-		cols,
-		warn
-	};
-}
-function publish$1(saved) {
-	userLayer.set({
-		name: USER.name,
-		n: USER.rows.length,
-		cols: USER.cols,
-		warn: USER.warn,
-		saved: !!saved,
-		noDist: USER.rows.filter((r) => r.noDist).length
-	});
-}
-function importUser(text, name) {
-	const r = parseUserText(text || "");
-	USER.name = name || "your data";
-	USER.rows = r.rows;
-	USER.cols = r.cols;
-	USER.warn = r.warn;
-	let saved = false;
-	try {
-		const s = JSON.stringify({
-			name: USER.name,
-			text
-		});
-		if (s.length < 4e6) {
-			localStorage.setItem(KEY, s);
-			saved = true;
-		} else USER.warn += (USER.warn ? " · " : "") + "too large to keep after reload";
-	} catch (e) {}
-	if (S.pinned && S.pinned.usr) S.pinned = null;
-	publish$1(saved);
-	V.dirty = true;
-	return r.rows.length;
-}
-function clearUser() {
-	USER.name = "";
-	USER.rows = [];
-	USER.cols = [];
-	USER.warn = "";
-	try {
-		localStorage.removeItem(KEY);
-	} catch (e) {}
-	if (S.pinned && S.pinned.usr) S.pinned = null;
-	if (S.hover && S.hover.usr) S.hover = null;
-	publish$1(false);
-	V.dirty = true;
-}
-function restoreUser() {
-	try {
-		const s = localStorage.getItem(KEY);
-		if (!s) return;
-		const o = JSON.parse(s);
-		if (o && o.text) {
-			const r = parseUserText(o.text);
-			USER.name = o.name || "your data";
-			USER.rows = r.rows;
-			USER.cols = r.cols;
-			USER.warn = r.warn;
-			publish$1(true);
-		}
-	} catch (e) {}
-}
-var MAS = 4.84813681e-9;
-function projectUser() {
-	userProj.length = 0;
-	if (!S.user || !USER.rows.length) return;
-	const t = tNow();
-	for (const o of USER.rows) {
-		let dx = o.dx, dy = o.dy, dz = o.dz;
-		if (t && (o.pr || o.pd)) {
-			const cq = Math.hypot(dx, dy) || 1e-9, ex = -dy / cq, ey = dx / cq;
-			const nx = -dz * dx / cq, ny = -dz * dy / cq, nz = cq;
-			const a = o.pr * t * MAS, b = o.pd * t * MAS;
-			dx += ex * a + nx * b;
-			dy += ey * a + ny * b;
-			dz += nz * b;
-			const L = Math.hypot(dx, dy, dz) || 1;
-			dx /= L;
-			dy /= L;
-			dz /= L;
-		}
-		const R = compress(o.d);
-		const p = projectInto(dx * R, dy * R, dz * R, _pj);
-		if (p.depth <= V.NEAR) continue;
-		if (p.x < -40 || p.x > W + 40 || p.y < -40 || p.y > H + 40) continue;
-		o._sx = p.x;
-		o._sy = p.y;
-		o._depth = p.depth;
-		o._z2 = p.z2;
-		userProj.push(o);
-	}
-}
-function drawUser() {
-	if (!userProj.length) return;
-	const many = userProj.length > 400, label = S.labels && (userProj.length <= 200 || S.skyMode);
-	ctx.lineWidth = 1.4;
-	for (const o of userProj) {
-		const sel = o === S.hover || o === S.pinned;
-		const r = sel ? 8 : many ? 3.5 : 5.5;
-		ctx.beginPath();
-		ctx.arc(o._sx, o._sy, r, 0, 6.2832);
-		ctx.strokeStyle = sel ? "rgba(79,214,200,0.95)" : "rgba(255,176,96,0.85)";
-		ctx.stroke();
-		if (!many || sel) {
-			ctx.beginPath();
-			ctx.arc(o._sx, o._sy, 1.3, 0, 6.2832);
-			ctx.fillStyle = sel ? "rgba(79,214,200,1)" : "rgba(255,176,96,0.9)";
-			ctx.fill();
-		}
-		if (o.n && (sel || label)) {
-			ctx.font = (sel ? "11px" : "9.5px") + " ui-monospace,monospace";
-			ctx.fillStyle = sel ? "rgba(79,214,200,1)" : "rgba(255,196,130,0.8)";
-			LBL.prio = sel ? 92 : 52;
-			ctx.fillText(o.n, o._sx + r + 4, o._sy + 3);
-			LBL.prio = 52;
-		}
-	}
-}
-//#endregion
 //#region src/engine/entity.js
 var GTYPE = {
 	Sp: "Spiral galaxy",
@@ -5751,10 +6085,11 @@ function card(o) {
 	};
 	const pin = S.pinned ? "Click empty space to release" : "Click to pin";
 	switch (k) {
-		case "user":
+		case "user": {
+			const setName = (USER.sets[o.set] || {}).name || "your data";
 			c.title = o.n || `Row ${o.i + 1}`;
-			c.kindLabel = `Your data · ${USER.name}`;
-			c.rows.push(["Type", `Imported · ${USER.name}`], ["RA / Dec", radecText(o.dx, o.dy, o.dz)]);
+			c.kindLabel = `Your data · ${setName}`;
+			c.rows.push(["Source", setName], ["RA / Dec", radecText(o.dx, o.dy, o.dz)]);
 			c.rows.push(["Distance", o.noDist ? "not given — placed on the sky" : `${ly$1(o.d)} · ${o.d < 100 ? o.d.toFixed(2) : fmt(o.d)} pc`]);
 			if (o.m !== void 0) c.rows.push(["Magnitude", o.m.toFixed(2)]);
 			if (o.pr || o.pd) c.rows.push(["Proper motion", `${o.pr.toFixed(1)} · ${o.pd.toFixed(1)} mas/yr · ${Math.hypot(o.pr, o.pd).toFixed(0)} total`]);
@@ -5768,6 +6103,7 @@ function card(o) {
 			}];
 			c.hint = "from your file · the links query the catalogues at this position";
 			break;
+		}
 		case "gpick": {
 			const [ra, dec] = radec(o._dir[0], o._dir[1], o._dir[2]);
 			if (o.gpick === "gaia") c.rows.push(["Type", "Star · Gaia DR3"], ["Mag G", o.mag.toFixed(1)], ["Colour bp−rp", o.bprp.toFixed(2)], ["Distance", `${ly$1(o.d)} · ${o.d.toFixed(1)} pc`]);
@@ -6306,6 +6642,7 @@ var CL = {
 	V: null
 };
 var gaiaRaw = null;
+var gaiaPm = null;
 var gaiaRange = 100;
 var webRaw = null;
 var qsoRaw = null;
@@ -6339,7 +6676,10 @@ function glTail(host) {
   // parsec made every far cloud sub-pixel: the cosmic web was culled wholesale.
   float dz = u_real ? depth/u_camZ*3.2 : depth;
   float focCss=u_foc/u_dpr;
-  float bright=max(0.0, 6.8 - mg);
+  // sky view: brightness as seen from the vantage — the Sun's sky is the catalogue's,
+  // from another star the distance modulus shifts every magnitude
+  float mgV = u_sky>0.5 ? mg + 5.0*log(max(length(p),1e-9)/max(R,1e-9))/2.302585 : mg;
+  float bright=max(0.0, 6.8 - mgV);
   float sizeCss;
   ${host ? `if(u_hostMode>0.5) sizeCss=min(20.0, max(0.7, focCss*0.0075/dz*rs));
   else ` : ""}sizeCss=clamp((0.4+bright*0.34)*focCss*0.0032/dz, 0.0, 3.6);
@@ -6406,8 +6746,9 @@ void main(){
 var GL_VSU = `#version 300 es
 precision highp float;
 in uvec4 a_rec;                                          // one raw 8-byte catalogue record
+in ivec2 a_pm;                                           // Gaia only: pmRA*, pmDec in mas/yr (0 elsewhere)
 ${GL_UNI}
-uniform float u_decDist,u_colMode,u_isBelt,u_beltDt;
+uniform float u_decDist,u_colMode,u_isBelt,u_beltDt,u_hasPm,u_pmYearsU;
 uniform vec2 u_decMag; uniform vec3 u_colFix; uniform vec3 u_decPal[4];
 vec3 gaiaCol(float bprp){                                // bp_rp -> Teff (Ballesteros) -> colour
   float t=4600.0*(1.0/(0.92*bprp+1.7)+1.0/(0.92*bprp+0.62));
@@ -6427,6 +6768,12 @@ void main(){
   float b6=float(a_rec.w & 255u), b7=float(a_rec.w >> 8);
   float cd=cos(dr);
   vec3 dir=vec3(cd*cos(rr), cd*sin(rr), sin(dr));
+  if(u_hasPm>0.5 && u_pmYearsU!=0.0){                     // proper motion along a great circle
+    float k=u_pmYearsU*4.84813681e-9;                    // mas → rad, times years
+    vec3 e=vec3(-sin(rr), cos(rr), 0.0), nn=vec3(-sin(dr)*cos(rr), -sin(dr)*sin(rr), cd);
+    vec3 m=e*(float(a_pm.x)*k) + nn*(float(a_pm.y)*k);
+    float th=length(m); if(th>1e-12) dir=normalize(dir*cos(th) + (m/th)*sin(th));
+  }
   float dist=u*u_decDist;
   float mg=(b6/255.0)*u_decMag.x + u_decMag.y;
   vec3 col = u_colMode<0.5 ? u_colFix
@@ -6825,7 +7172,24 @@ function buildGaia(bytes) {
 	CL.G = r;
 	gaiaRaw = bytes;
 	gaiaRange = 100;
+	attachGaiaPm();
 	cloudLabel("t-gaia", "Gaia stars (" + (r.n >= 1e3 ? (r.n / 1e3 | 0) + "k" : r.n) + " <100 pc)");
+}
+function attachGaiaPm() {
+	if (!glOK || !CL.G || !gaiaPm || CL.G.pm) return;
+	const gl = GL, a = progU.attr.a_pm;
+	if (a === void 0 || a < 0) return;
+	if ((gaiaPm.length / 4 | 0) !== CL.G.n) return;
+	gl.bindVertexArray(CL.G.vao);
+	const buf = gl.createBuffer();
+	gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+	gl.bufferData(gl.ARRAY_BUFFER, gaiaPm, gl.STATIC_DRAW);
+	gl.enableVertexAttribArray(a);
+	gl.vertexAttribIPointer(a, 2, gl.SHORT, 4, 0);
+	gl.bindVertexArray(null);
+	gl.bindBuffer(gl.ARRAY_BUFFER, null);
+	CL.G.pm = true;
+	V.dirty = true;
 }
 function buildGaiaBig(bytes) {
 	const r = buildCloudBuf(bytes, "gaiabig");
@@ -6878,7 +7242,10 @@ function glRestoreClouds() {
 	if (!glOK) return;
 	if (gaiaRaw) {
 		const r = buildCloudBuf(gaiaRaw, gaiaRange > 100 ? "gaiabig" : "gaia");
-		if (r) CL.G = r;
+		if (r) {
+			CL.G = r;
+			attachGaiaPm();
+		}
 	}
 	if (beltRaw) {
 		const r = buildCloudBuf(beltRaw, "belt");
@@ -6907,37 +7274,46 @@ function loadExtragal() {
 		if (typeof window.__WEB_B64__ === "string" && window.__WEB_B64__.length) {
 			buildWeb(b64ToBytes(window.__WEB_B64__));
 			window.__WEB_B64__ = null;
-		} else fetch("data/cosmicweb.bin?b=b21:28").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		} else fetch("data/cosmicweb.bin?b=b22:05").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildWeb(new Uint8Array(a));
 		}).catch(() => {});
 		if (typeof window.__QSO_B64__ === "string" && window.__QSO_B64__.length) {
 			buildQso(b64ToBytes(window.__QSO_B64__));
 			window.__QSO_B64__ = null;
-		} else fetch("data/quasars.bin?b=b21:28").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		} else fetch("data/quasars.bin?b=b22:05").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildQso(new Uint8Array(a));
 		}).catch(() => {});
-		fetch("data/quasarsbig.bin?b=b21:28").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		fetch("data/quasarsbig.bin?b=b22:05").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildQso(new Uint8Array(a));
 		}).catch(() => {});
 		if (typeof window.__BELT_B64__ === "string" && window.__BELT_B64__.length) {
 			buildBelt(b64ToBytes(window.__BELT_B64__));
 			window.__BELT_B64__ = null;
-		} else fetch("data/belt.bin?b=b21:28").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		} else fetch("data/belt.bin?b=b22:05").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildBelt(new Uint8Array(a));
 		}).catch(() => {});
-		fetch("data/gaiabig.bin?b=b21:28").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
-			if (a) buildGaiaBig(new Uint8Array(a));
+		fetch("data/gaiabig.bin?b=b22:05").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+			if (a) {
+				buildGaiaBig(new Uint8Array(a));
+				fetch("data/gaiabig_pm.bin?b=b22:05").then((r) => r.ok ? r.arrayBuffer() : null).then((p) => {
+					if (p) {
+						gaiaPm = new Uint8Array(p);
+						if (CL.G) CL.G.pm = false;
+						attachGaiaPm();
+					}
+				}).catch(() => {});
+			}
 		}).catch(() => {});
 		if (typeof window.__OB_B64__ === "string" && window.__OB_B64__.length) {
 			buildOB(b64ToBytes(window.__OB_B64__));
 			window.__OB_B64__ = null;
-		} else fetch("data/obstars.bin?b=b21:28").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		} else fetch("data/obstars.bin?b=b22:05").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildOB(new Uint8Array(a));
 		}).catch(() => {});
 		if (typeof window.__VAR_B64__ === "string" && window.__VAR_B64__.length) {
 			buildVars(b64ToBytes(window.__VAR_B64__));
 			window.__VAR_B64__ = null;
-		} else fetch("data/variables.bin?b=b21:28").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		} else fetch("data/variables.bin?b=b22:05").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildVars(new Uint8Array(a));
 		}).catch(() => {});
 	} catch (e) {}
@@ -6955,8 +7331,14 @@ function loadGaia() {
 			window.__GAIA_B64__ = null;
 			return;
 		}
-		fetch("data/gaia.bin?b=b21:28").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		fetch("data/gaia.bin?b=b22:05").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildGaia(new Uint8Array(a));
+		}).catch(() => {});
+		fetch("data/gaia_pm.bin?b=b22:05").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+			if (a && (!gaiaPm || gaiaRange === 100)) {
+				gaiaPm = new Uint8Array(a);
+				attachGaiaPm();
+			}
 		}).catch(() => {});
 	} catch (e) {}
 }
@@ -7007,6 +7389,7 @@ function drawCloud(h, cull, minPx, alphaK, beltDt) {
 	}
 	gl.uniform1f(L.u_isBelt, d.belt ? 1 : 0);
 	gl.uniform1f(L.u_beltDt, d.belt ? beltDt || 0 : 0);
+	gl.uniform1f(L.u_hasPm, h.pm ? 1 : 0);
 	gl.bindVertexArray(h.vao);
 	gl.drawArrays(gl.POINTS, 0, h.n);
 }
@@ -7125,6 +7508,7 @@ function glRender() {
 	drawSurveyTiles();
 	gl.useProgram(progU.p);
 	glShared(progU.loc);
+	gl.uniform1f(progU.loc.u_pmYearsU, S.pm ? S.pmYears : 0);
 	if (V.solarA < .5) {
 		const far = camDist > 1e-9 && invScale(camDist) > 3e6;
 		if (CL.W && S.web) drawCloud(CL.W, .05, far ? 1.6 : 1.1, far ? 2.4 : 1);
@@ -8302,99 +8686,6 @@ function drawVeilSphere() {
 	ctx.restore();
 }
 //#endregion
-//#region src/engine/hyg.js
-var hygProj = [];
-Math.PI / (180 * 3600 * 1e3);
-function projectHyg() {
-	hygProj.length = 0;
-	if (!S.hyg) return;
-	const pm = S.pm && S.pmYears !== 0, ty = S.pmYears;
-	for (const s of HYG) {
-		let dx = s.dx, dy = s.dy, dz = s.dz, dNow = s.d;
-		if (pm) {
-			const q = hygPos(s, ty);
-			dNow = Math.hypot(q[0], q[1], q[2]) || 1e-9;
-			dx = q[0] / dNow;
-			dy = q[1] / dNow;
-			dz = q[2] / dNow;
-		}
-		s._dNow = dNow;
-		const dr = compress(dNow);
-		const p = projectInto(dx * dr, dy * dr, dz * dr, _pj);
-		if (p.depth <= V.NEAR) continue;
-		if (p.x < -90 || p.x > W + 90 || p.y < -90 || p.y > H + 90) continue;
-		let bright = 6.8 - s.m;
-		if (bright < 0) bright = 0;
-		const size = S.skyMode ? Math.min(4.5, .5 + bright * .42) * (1 + .1 * Math.log2(V.fovK)) : (.4 + bright * .34) * V.foc * .0032 / p.depth;
-		if (size < .34 && s !== S.hover && s !== S.pinned) continue;
-		s._sx = p.x;
-		s._sy = p.y;
-		s._depth = p.depth;
-		s._z2 = p.z2;
-		s._bright = bright;
-		s._size = size;
-		hygProj.push(s);
-	}
-	hygProj.sort((a, b) => a._z2 - b._z2);
-}
-function drawHyg() {
-	LBL.prio = 52;
-	for (const s of hygProj) {
-		const bright = s._bright, size = Math.max(.35, Math.min(3.6, s._size));
-		const c = s.c, a = Math.max(.22, Math.min(1, (.28 + bright * .12) * Math.min(1, 1.9 - (S.skyMode ? 0 : s._depth) * .4)));
-		const sel = s === S.hover || s === S.pinned;
-		ctx.beginPath();
-		ctx.arc(s._sx, s._sy, sel ? size + 1.4 : size, 0, 6.2832);
-		ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},${a})`;
-		ctx.fill();
-		if (bright > 5.2 || sel) {
-			ctx.beginPath();
-			ctx.arc(s._sx, s._sy, size * 2.6, 0, 6.2832);
-			ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},${a * .12})`;
-			ctx.fill();
-		}
-		if (sel) {
-			ctx.beginPath();
-			ctx.arc(s._sx, s._sy, size + 7, 0, 6.2832);
-			ctx.strokeStyle = "rgba(79,214,200,.9)";
-			ctx.lineWidth = 1.2;
-			ctx.stroke();
-		}
-		if (s.n && (sel || s.m < hygLabelLimit() && S.camZ < 3.2)) {
-			ctx.font = (sel ? "11px" : "9.5px") + " ui-monospace,monospace";
-			ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},${sel ? 1 : .6})`;
-			LBL.prio = sel ? 92 : 52;
-			ctx.fillText(s.n, s._sx + size + 4, s._sy + 3);
-			LBL.prio = 52;
-		}
-	}
-}
-function hygLabelLimit() {
-	return S.skyMode ? 2.9 + 2.5 * Math.log2(V.fovK) : 1.7;
-}
-function drawHygLabels() {
-	if (!S.skyMode) return;
-	const lim = hygLabelLimit();
-	for (const s of hygProj) {
-		if (!s.n) continue;
-		const sel = s === S.hover || s === S.pinned;
-		if (!(sel || s.m < lim)) continue;
-		const c = s.c, size = Math.max(.35, Math.min(4.5, s._size));
-		if (sel) {
-			ctx.beginPath();
-			ctx.arc(s._sx, s._sy, size + 7, 0, 6.2832);
-			ctx.strokeStyle = "rgba(79,214,200,.9)";
-			ctx.lineWidth = 1.2;
-			ctx.stroke();
-		}
-		ctx.font = (sel ? "11px" : "9.5px") + " ui-monospace,monospace";
-		ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},${sel ? 1 : .7})`;
-		LBL.prio = sel ? 92 : 52;
-		ctx.fillText(s.n, s._sx + size + 4, s._sy + 3);
-		LBL.prio = 52;
-	}
-}
-//#endregion
 //#region src/engine/measure.js
 var measureMode = false;
 var measA = null;
@@ -8470,6 +8761,7 @@ api.measure = measureToggle;
 //#endregion
 //#region src/engine/sky.js
 function skyAlpha() {
+	if (S.skyMode && camDist > 1e-4) return 0;
 	const d = camDist > 1e-9 ? invScale(camDist) : 0;
 	return Math.max(0, Math.min(1, (80 - d) / 60));
 }
@@ -8602,6 +8894,7 @@ function render() {
 		projectUser();
 		drawUser();
 	});
+	if (S.skyMode) P("movers", drawMovers);
 	const sp = project(0, 0, 0);
 	const gpuH = glStars() && glBufH;
 	for (const s of order) {
@@ -10033,6 +10326,114 @@ bindToggle("t-pm", "pm", () => {
 });
 bindToggle("t-mw", "mw");
 //#endregion
+//#region src/engine/fieldquery.js
+var ASU = "https://vizier.cds.unistra.fr/viz-bin/asu-tsv";
+var SIM = "https://simbad.cds.unistra.fr/simbad/sim-tap/sync";
+var SOURCES = {
+	gaia: {
+		n: "Gaia DR3",
+		epoch: 2016,
+		limit: 4e3,
+		prefix: "Gaia DR3 "
+	},
+	simbad: {
+		n: "SIMBAD",
+		epoch: 2e3,
+		limit: 2e3,
+		prefix: ""
+	}
+};
+function fieldCentre() {
+	let ra = Math.atan2(camFwd[1], camFwd[0]) * 57.29578;
+	if (ra < 0) ra += 360;
+	return [ra, Math.asin(Math.max(-1, Math.min(1, camFwd[2]))) * 57.29578];
+}
+function fieldRadiusDeg() {
+	return Math.min(2.5, Math.max(.02, fovDeg() * .55));
+}
+var hms = (ra) => {
+	const h = ra / 15, hh = Math.floor(h), m = (h - hh) * 60;
+	return `${String(hh).padStart(2, "0")}h${String(Math.floor(m)).padStart(2, "0")}m`;
+};
+var dms = (d) => {
+	const s = d < 0 ? "−" : "+", a = Math.abs(d);
+	return `${s}${String(Math.floor(a)).padStart(2, "0")}°${String(Math.floor((a - Math.floor(a)) * 60)).padStart(2, "0")}′`;
+};
+async function tap(url, adql) {
+	const body = new URLSearchParams({
+		REQUEST: "doQuery",
+		LANG: "ADQL",
+		FORMAT: "csv",
+		QUERY: adql
+	});
+	const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 45e3);
+	try {
+		const r = await fetch(url, {
+			method: "POST",
+			body,
+			signal: ctl.signal
+		});
+		if (!r.ok) throw new Error("HTTP " + r.status);
+		return await r.text();
+	} finally {
+		clearTimeout(t);
+	}
+}
+function adql(src, ra, dec, r) {
+	const c = `CIRCLE('ICRS', ${ra.toFixed(5)}, ${dec.toFixed(5)}, ${r.toFixed(4)})`;
+	return `SELECT TOP ${SOURCES.simbad.limit} main_id, ra, dec, plx_value, pmra, pmdec, otype, sp_type FROM basic WHERE 1=CONTAINS(POINT('ICRS', ra, dec), ${c}) AND ra IS NOT NULL`;
+}
+async function asuGaia(ra, dec, r) {
+	const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 12e4);
+	try {
+		const u = `${ASU}?-source=I/355/gaiadr3&-c=${encodeURIComponent(ra.toFixed(5) + " " + (dec >= 0 ? "+" : "") + dec.toFixed(5))}&-c.rd=${r.toFixed(4)}&-out=Source,RA_ICRS,DE_ICRS,Plx,pmRA,pmDE,Gmag,BP-RP&-out.max=${SOURCES.gaia.limit}&-sort=Gmag`;
+		const res = await fetch(u, { signal: ctl.signal });
+		if (!res.ok) throw new Error("HTTP " + res.status);
+		const lines = (await res.text()).split(/\r?\n/).filter((l) => l && !l.startsWith("#"));
+		const i = lines.findIndex((l) => /^-+(\t-+)*\t?$/.test(l.trim()));
+		if (i >= 2) lines.splice(1, i);
+		return lines.join("\n");
+	} finally {
+		clearTimeout(t);
+	}
+}
+var _busy = null;
+async function queryField(src) {
+	const S_ = SOURCES[src];
+	if (!S_ || _busy) return 0;
+	const [ra, dec] = fieldCentre(), r = fieldRadiusDeg();
+	const field = `${hms(ra)} ${dms(dec)} · r ${r >= 1 ? r.toFixed(1) + "°" : (r * 60).toFixed(0) + "′"}`;
+	_busy = src;
+	fieldQuery.set({
+		busy: src,
+		msg: `asking ${S_.n} for ${field}…`
+	});
+	try {
+		if (src === "gaia") fieldQuery.set({
+			busy: src,
+			msg: `asking VizieR for Gaia DR3 in ${field}… (can take a minute when the server is busy)`
+		});
+		const n = importUser(src === "gaia" ? await asuGaia(ra, dec, r) : await tap(SIM, adql(src, ra, dec, r)), `${S_.n} · ${field}`, {
+			src,
+			epoch: S_.epoch,
+			prefix: S_.prefix
+		});
+		fieldQuery.set({
+			busy: null,
+			msg: n ? `${n} rows from ${S_.n}${n >= S_.limit ? " (the brightest; the cone holds more)" : ""}` : `${S_.n}: nothing in this field`
+		});
+		return n;
+	} catch (e) {
+		fieldQuery.set({
+			busy: null,
+			msg: `${S_.n} query failed: ${e.name === "AbortError" ? "timeout" : e.message}`
+		});
+		return 0;
+	} finally {
+		_busy = null;
+	}
+}
+//#endregion
 //#region src/engine/timeline.js
 var _v = 0;
 var _timer = null;
@@ -10452,7 +10853,11 @@ function flyTo(o) {
 	if (!w) return;
 	if (S.skyMode || o.usr && o.noDist) {
 		if (!S.skyMode) skyView(true);
-		turnTo(w);
+		turnTo([
+			w[0] - ctr.x,
+			w[1] - ctr.y,
+			w[2] - ctr.z
+		]);
 		return;
 	}
 	const physPc = invScale(Math.hypot(w[0], w[1], w[2])) || 1;
@@ -10463,6 +10868,11 @@ function flyTo(o) {
 	aim(w[0], w[1], w[2], m);
 }
 function focusOn(s) {
+	if (S.skyMode) {
+		S.pinned = s;
+		flyTo(s);
+		return;
+	}
 	S.pinned = s;
 	S.focusStar = s;
 	V.focusSys = s;
@@ -10477,6 +10887,10 @@ function focusOnGalaxy(g) {
 	S.pinned = g;
 	S.focusStar = null;
 	V.focusSys = null;
+	if (S.skyMode) {
+		flyTo(g);
+		return;
+	}
 	const R = scale(g.mpc * 1e6);
 	aim(g.dx * R, g.dy * R, g.dz * R, scale(g.mpc * 1e6 * .25));
 }
@@ -10488,12 +10902,25 @@ function focusOnHyg(s) {
 	S.pinned = s;
 	S.focusStar = null;
 	V.focusSys = null;
+	if (S.skyMode) {
+		flyTo(s);
+		return;
+	}
 	const dr = compress(s.d);
 	aim(s.dx * dr, s.dy * dr, s.dz * dr, scale(s.d * .2));
 }
 var _skySaved = null;
-function skyView(on) {
+function skyView(on, from) {
 	if (on === void 0) on = !S.skyMode;
+	let at = null, atName = null;
+	if (on && from) {
+		const b = from === "selection" ? current() : from;
+		const p = b && physPos(b);
+		if (p && Math.hypot(p[0], p[1], p[2]) > 1e-4) {
+			at = p;
+			atName = nameOf(b);
+		}
+	}
 	if (on && !S.skyMode) {
 		_skySaved = {
 			camZ: S.camZ,
@@ -10509,14 +10936,30 @@ function skyView(on) {
 		if (!S.realScale) clickToggle("t-real");
 		V.FOLLOW = null;
 		S.pinned = null;
-		tgtCtr.x = tgtCtr.y = tgtCtr.z = 0;
 		S.camZ = V.tgtCamZ = scale(1e-7);
 		S.skyMode = true;
 		V.fovK = 1;
-		if (!ST.on) setSurvey("dss");
-	} else if (!on && S.skyMode) {
+		if (!ST.on && !at) setSurvey("dss");
+	}
+	if (on && S.skyMode) {
+		const c = at || [
+			0,
+			0,
+			0
+		];
+		tgtCtr.x = ctr.x = c[0];
+		tgtCtr.y = ctr.y = c[1];
+		tgtCtr.z = ctr.z = c[2];
+		S.camZ = V.tgtCamZ = scale(1e-7);
+		V.FOLLOW = null;
+		V.skyFrom = atName;
+		S.pinned = null;
+		if (at) V.fovK = 1;
+	}
+	if (!on && S.skyMode) {
 		S.skyMode = false;
 		V.fovK = 1;
+		V.skyFrom = null;
 		if (_skySaved) {
 			V.tgtCamZ = _skySaved.tgt;
 			S.camZ = _skySaved.camZ;
@@ -10550,7 +10993,11 @@ function lookAtSelection() {
 	const p = physPos(b);
 	if (!p) return;
 	if (!S.skyMode) skyView(true);
-	turnTo(p);
+	turnTo([
+		p[0] - ctr.x,
+		p[1] - ctr.y,
+		p[2] - ctr.z
+	]);
 }
 function setFov(deg) {
 	const f = Math.min(W, H) * .62;
@@ -10576,6 +11023,8 @@ function gotoEncounter(i) {
 Object.assign(api, {
 	importUser,
 	clearUser,
+	removeSet,
+	queryField,
 	skyView,
 	lookAt,
 	lookAtSelection,
@@ -11039,6 +11488,17 @@ window.__ku = {
 	projDir: (x, y, z) => {
 		const R = scale(SKY_R_PC), o = {};
 		projectInto(x * R, y * R, z * R, o);
+		return o;
+	},
+	get gaiaPm() {
+		return gaiaPm;
+	},
+	get gaiaRange() {
+		return gaiaRange;
+	},
+	sunScreen: () => {
+		const o = {};
+		projectInto(0, 0, 0, o);
 		return o;
 	}
 };

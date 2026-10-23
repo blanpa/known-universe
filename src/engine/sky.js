@@ -10,7 +10,8 @@ import { camDist, invScale, project, scale } from './view.js';
 // ---- constellation lines (sky sphere at fixed radius) ----
 // The figures live on a sphere 30 pc out. From much farther away that sphere is a
 // knot of 89 names around the Sun, so the layer fades out between 20 and 80 pc.
-export function skyAlpha(){ const d=camDist>1e-9?invScale(camDist):0; return Math.max(0,Math.min(1,(80-d)/60)); }
+export function skyAlpha(){ if(S.skyMode&&camDist>1e-4) return 0;   // the figures are the Sun's sky
+  const d=camDist>1e-9?invScale(camDist):0; return Math.max(0,Math.min(1,(80-d)/60)); }
 export function drawConstellations(){ LBL.prio=P_GRID;
   if(!S.con) return;
   const A=skyAlpha(); if(A<=0.02) return;

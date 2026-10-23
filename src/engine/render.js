@@ -12,6 +12,7 @@ import { drawHyg, drawHygLabels, projectHyg } from './hyg.js';
 import { LBL, P_SOLAR, P_STAR, lblFlush, lblReset } from './labels.js';
 import { drawMeasure, measureMode } from './measure.js';
 import { hostPos, tNow } from './motion.js';
+import { drawMovers } from './movers.js';
 import { LENS_EXAG, calcLens, drawGalaxyModel, drawMW, lensPar } from './mw.js';
 import { drawConstellations, drawShowers } from './sky.js';
 import { FAC } from './solar-data.js';
@@ -82,6 +83,7 @@ export function render(){
   // background starfield (HYG) behind the exoplanet hosts
   P('hyg:project',projectHyg); if(glStars()){ P('gl:render',glRender); if(S.skyMode) P('hyg:labels',drawHygLabels); } else { glClearCanvas(); P('hyg:draw',drawHyg); }
   if(S.user) P('user',()=>{ projectUser(); drawUser(); });   // your imported rows, over the catalogue
+  if(S.skyMode) P('movers',drawMovers);                        // predicted jumps between the blink epochs
 
   // draw sun at origin
   const sp=project(0,0,0);

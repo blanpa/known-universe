@@ -13,16 +13,16 @@ import { tNow } from './motion.js';
 import { S, V } from './state.js';
 import { H, W, _pj, compress, projectInto } from './view.js';
 
-export const USER={ name:'', rows:[], cols:[], warn:'' };
+export const USER={ sets:[], rows:[], warn:'' };     // sets: {name, src, epoch, prefix, text, n, noDist, warn}
 export let userProj=[];
 export const NO_DIST_PC=1e4;                             // rows without a distance sit on the sky sphere
-const KEY='ku_user_v1', MAX_ROWS=50000;
+const KEY='ku_user_v2', MAX_ROWS=50000, MAX_SETS=4;
 const COLS={
   ra:   ['ra','ra_deg','radeg','raj2000','_raj2000','ra_icrs','rightascension','ra(deg)','rajd','alpha'],
   dec:  ['dec','de','dec_deg','dedeg','decdeg','dej2000','_dej2000','de_icrs','dec_icrs','declination','dec(deg)','dejd','delta'],
   dist: ['dist','distance','d','d_pc','dist_pc','distance_pc','r_est','rgeo','r_med_geo','pc'],
   ly:   ['ly','dist_ly','distance_ly','lightyears','light_years'],
-  plx:  ['plx','parallax','parallax_mas','par','pi'],
+  plx:  ['plx','parallax','parallax_mas','par','pi','plx_value'],
   mag:  ['mag','vmag','gmag','phot_g_mean_mag','v','g','magnitude','rmag','jmag','kmag','imag','mag_v','mag_g'],
   name: ['name','id','designation','source_id','main_id','object','star','identifier','label','source','target','ident'],
   pmra: ['pmra','pm_ra','pmra_cosdec','pm_ra_cosdec','pmracosdec'],
@@ -75,7 +75,7 @@ export function parseUserText(text){
     if(!(d>0)&&iplx>=0){ const p=+f[iplx]; if(p>0) d=1000/p; }
     const noDist=!(d>0); if(noDist) d=NO_DIST_PC;
     const r=ra*Math.PI/180, q=dec*Math.PI/180, cq=Math.cos(q);
-    const row={ usr:true, i:rows.length, n:iname>=0?String(f[iname]||'').replace(/^"|"$/g,''):'', ra, dec, d, noDist,
+    const row={ usr:true, i:rows.length, n:iname>=0?String(f[iname]||'').replace(/^"|"$/g,'').replace(/\s+/g,' '):'', ra, dec, d, noDist,
       m:imag>=0&&isFinite(+f[imag])?+f[imag]:undefined, pr:ipra>=0?+f[ipra]||0:0, pd:ipde>=0?+f[ipde]||0:0,
       dx:cq*Math.cos(r), dy:cq*Math.sin(r), dz:Math.sin(q), x:{} };
     for(const [c,i] of extra) if(f[i]!==undefined&&f[i]!=='') row.x[c]=f[i];
@@ -84,20 +84,48 @@ export function parseUserText(text){
   let warn=''; if(bad) warn+=`${bad} rows skipped (no usable RA/Dec)`; if(lines.length-1>MAX_ROWS) warn+=(warn?' · ':'')+`only the first ${MAX_ROWS} rows kept`;
   return { rows, cols, warn };
 }
-function publish(saved){ userLayer.set({ name:USER.name, n:USER.rows.length, cols:USER.cols, warn:USER.warn, saved:!!saved,
-  noDist:USER.rows.filter(r=>r.noDist).length }); }
-export function importUser(text,name){
-  const r=parseUserText(text||'');
-  USER.name=name||'your data'; USER.rows=r.rows; USER.cols=r.cols; USER.warn=r.warn;
-  let saved=false;
-  try{ const s=JSON.stringify({name:USER.name, text}); if(s.length<4e6){ localStorage.setItem(KEY,s); saved=true; } else USER.warn+=(USER.warn?' · ':'')+'too large to keep after reload'; }catch(e){}
-  if(S.pinned&&S.pinned.usr) S.pinned=null;
-  publish(saved); V.dirty=true; return r.rows.length;
+function rebuild(){
+  USER.rows=[]; let i=0;
+  for(let k=0;k<USER.sets.length;k++){ const st=USER.sets[k];
+    for(const r of st.rows){ r.i=i++; r.set=k; r.ep=st.epoch||2000; r.src=st.src; USER.rows.push(r); } }
+  USER.warn=USER.sets.map(st=>st.warn).filter(Boolean).join(' · ');
 }
-export function clearUser(){ USER.name=''; USER.rows=[]; USER.cols=[]; USER.warn=''; try{ localStorage.removeItem(KEY); }catch(e){}
+function publish(saved){ userLayer.set({ sets:USER.sets.map(st=>({ name:st.name, src:st.src, n:st.rows.length, noDist:st.rows.filter(r=>r.noDist).length, warn:st.warn })),
+  n:USER.rows.length, warn:USER.warn, saved:!!saved }); }
+function persist(){
+  try{ const s=JSON.stringify({ sets:USER.sets.map(st=>({ name:st.name, src:st.src, epoch:st.epoch, prefix:st.prefix, text:st.text })) });
+    if(s.length<4e6){ localStorage.setItem(KEY,s); return true; }
+    localStorage.removeItem(KEY); USER.warn+=(USER.warn?' · ':'')+'too large to keep after a reload'; }catch(e){}
+  return false;
+}
+function parseSet(st){
+  const r=parseUserText(st.text||'');
+  if(st.prefix) for(const row of r.rows) if(row.n&&!row.n.startsWith(st.prefix)) row.n=st.prefix+row.n;
+  st.rows=r.rows; st.warn=r.warn; st.n=r.rows.length;
+}
+// a file replaces the previous file, a query replaces the previous query from that source
+export function importUser(text,name,opts={}){
+  const src=opts.src||'file';
+  const st={ name:name||'your data', src, epoch:opts.epoch||2000, prefix:opts.prefix||'', text:text||'' };
+  parseSet(st);
+  USER.sets=USER.sets.filter(x=>x.src!==src); USER.sets.push(st);
+  while(USER.sets.length>MAX_SETS) USER.sets.shift();
+  rebuild(); const saved=persist();
+  if(S.pinned&&S.pinned.usr) S.pinned=null; if(S.hover&&S.hover.usr) S.hover=null;
+  publish(saved); V.dirty=true; return st.rows.length;
+}
+export function removeSet(k){
+  USER.sets.splice(k,1); rebuild(); const saved=persist();
+  if(S.pinned&&S.pinned.usr) S.pinned=null; if(S.hover&&S.hover.usr) S.hover=null;
+  publish(saved); V.dirty=true;
+}
+export function clearUser(){ USER.sets=[]; rebuild(); try{ localStorage.removeItem(KEY); }catch(e){}
   if(S.pinned&&S.pinned.usr) S.pinned=null; if(S.hover&&S.hover.usr) S.hover=null; publish(false); V.dirty=true; }
 export function restoreUser(){
-  try{ const s=localStorage.getItem(KEY); if(!s) return; const o=JSON.parse(s); if(o&&o.text){ const r=parseUserText(o.text); USER.name=o.name||'your data'; USER.rows=r.rows; USER.cols=r.cols; USER.warn=r.warn; publish(true); } }catch(e){}
+  try{ const s=localStorage.getItem(KEY); if(!s) return; const o=JSON.parse(s); if(!o||!Array.isArray(o.sets)) return;
+    USER.sets=o.sets.filter(st=>st&&st.text).map(st=>({ name:st.name||'your data', src:st.src||'file', epoch:st.epoch||2000, prefix:st.prefix||'', text:st.text }));
+    for(const st of USER.sets) parseSet(st);
+    rebuild(); publish(true); }catch(e){}
 }
 // ---- drawing ----
 const MAS=4.84813681e-9;                                 // mas → rad
@@ -123,7 +151,7 @@ export function projectUser(){
 }
 export function drawUser(){
   if(!userProj.length) return;
-  const many=userProj.length>400, label=S.labels&&(userProj.length<=200||S.skyMode);
+  const many=userProj.length>400, label=S.labels&&userProj.length<=60;   // names for a few; crowds stay rings
   ctx.lineWidth=1.4;
   for(const o of userProj){
     const sel=(o===S.hover||o===S.pinned);

@@ -310,6 +310,12 @@ body.show-time .tourp { bottom: 72px; }
 .usr-row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin: 6px 0 2px; font-size: 12px; }
 .usr-n { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .usr-c { color: var(--txt-2); font-size: 11px; white-space: nowrap; }
+.usr-x { flex: none; display: inline-flex; padding: 3px; border-radius: 6px; color: var(--txt-3); }
+.usr-x:hover { background: var(--bg-2); color: var(--txt); }
+.enc.mov { max-height: 32vh; }
+.enc-n.usr { color: #ffc482; }
+.hint.busy { color: var(--sel); }
+.chip:disabled { opacity: .45; cursor: default; }
 a.chip { text-decoration: none; }
 .enc { list-style: none; margin: 6px 0 0; padding: 0; max-height: 46vh; overflow-y: auto; scrollbar-width: thin; }
 .enc li + li { border-top: 1px solid var(--line); }

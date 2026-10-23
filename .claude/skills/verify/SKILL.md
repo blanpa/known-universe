@@ -68,6 +68,10 @@ while desktop ANGLE silently accepted it).
   - `__kuapi.importUser(text, name)` / `clearUser()` drive the CSV layer; `__ku.user.rows` are the
     parsed rows (`dx,dy,dz,d,noDist,m,pr,pd,x`), `__ku.userProj` the ones on screen. Position
     checks: project an imported row and the matching HYG star with `__ku.projDir` and compare px.
+  - `__kuapi.queryField('gaia'|'simbad')` runs a live cone query (needs network; VizieR is slow at
+    times, SIMBAD answers in well under a second). The movers list is `#hud-sky .mov li`; it needs
+    no network: HYG + `__ku.gaiaPm` (the Gaia proper-motion side file). The Gaia cloud's motion is
+    checked by sampling screenshot brightness at the predicted shifted position (scratch `gaiapm.mjs`).
   - `__kuapi.getCam()` — `{camZ, tgt, real}`. Assert on **tgt**, not camZ: camZ eases toward
     it, so a burst of zoom input leaves camZ orders of magnitude behind and a test that
     reads camZ concludes "zoom is stuck" when it is merely still travelling. Physical

@@ -1,7 +1,7 @@
 // Sky surveys as a backdrop: real images of the sky (DSS2, 2MASS, AllWISE, Pan-STARRS)
 import { survey as surveyStore } from '../lib/stores.js';
 import { nest2xyf, tileCentre, tileDir, tileRadiusDeg } from './healpix.js';
-import { V } from './state.js';
+import { S, V } from './state.js';
 import { H, W, camDist, camFwd, invScale, projectInto, scale } from './view.js';
 // served as HiPS tiles by the CDS, projected on a sphere far outside the stellar
 // neighbourhood. From the Sun's position the view direction is the sky direction, so
@@ -10,10 +10,10 @@ import { H, W, camDist, camFwd, invScale, projectInto, scale } from './view.js';
 // are the ones nobody has catalogued yet, or has.
 
 export const SURVEYS=[
-  { id:'dss',   n:'DSS2 colour',        epoch:'1983–1999', base:'https://alasky.cds.unistra.fr/DSS/DSSColor',               ext:'jpg', maxOrder:9 },
-  { id:'2mass', n:'2MASS (near-IR)',    epoch:'1997–2001', base:'https://alasky.cds.unistra.fr/2MASS/Color',                ext:'jpg', maxOrder:9 },
-  { id:'wise',  n:'AllWISE (mid-IR)',   epoch:'2010',      base:'https://alasky.cds.unistra.fr/AllWISE/RGB-W4-W2-W1',       ext:'jpg', maxOrder:8 },
-  { id:'ps1',   n:'Pan-STARRS DR1',     epoch:'2010–2014', base:'https://alasky.cds.unistra.fr/Pan-STARRS/DR1/color-z-zg-g', ext:'jpg', maxOrder:11 },
+  { id:'dss',   n:'DSS2',       epoch:'1983–1999', ep:1992,   base:'https://alasky.cds.unistra.fr/DSS/DSSColor',               ext:'jpg', maxOrder:9 },
+  { id:'2mass', n:'2MASS',      epoch:'1997–2001', ep:1999,   base:'https://alasky.cds.unistra.fr/2MASS/Color',                ext:'jpg', maxOrder:9 },
+  { id:'wise',  n:'AllWISE',    epoch:'2010',      ep:2010.5, base:'https://alasky.cds.unistra.fr/AllWISE/RGB-W4-W2-W1',       ext:'jpg', maxOrder:8 },
+  { id:'ps1',   n:'Pan-STARRS', epoch:'2010–2014', ep:2012,   base:'https://alasky.cds.unistra.fr/Pan-STARRS/DR1/color-z-zg-g', ext:'jpg', maxOrder:11 },
 ];
 export const SKY_R_PC=1e4;                                  // the backdrop sphere, far beyond the local stars
 export const ST={ id:'dss', on:false, blink:false, blinkWith:'ps1' };
@@ -36,6 +36,7 @@ export function activeSurvey(){
 // the backdrop only makes sense from (near) the Sun: fade out within 30–60 pc
 export function surveyAlpha(){
   if(!ST.on) return 0;
+  if(S.skyMode&&camDist>1e-4) return 0;                   // the photographs are the Sun's sky
   const d=camDist>1e-9?invScale(camDist):0;
   return Math.max(0,Math.min(1,(60-d)/30));
 }

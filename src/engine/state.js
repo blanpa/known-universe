@@ -14,7 +14,8 @@ export const S={ yaw:0.5, pitch:-0.5, camZ:2.47, year:2026, tOffsetDays:0,
 // cross-module write is an explicit V.x = … rather than a hidden shared binding.
 export const V = {
   fovK: 1,
-  roll: 0,          // screen roll (sky view keeps celestial north up); 0 on the map          // telescope zoom: the projection's focal length × this (1 = the 78° view)
+  roll: 0,
+  skyFrom: null,    // sky view: the star the telescope stands at (null = the Sun)          // screen roll (sky view keeps celestial north up); 0 on the map          // telescope zoom: the projection's focal length × this (1 = the 78° view)
   FOLLOW: null,   // state
   GLDPR: 1,   // view
   NEAR: 0.05,   // state

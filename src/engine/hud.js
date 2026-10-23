@@ -5,6 +5,7 @@ import { PC2LY } from './data.js';
 import { abilities, card, nameOf } from './entity.js';
 import { SKYSTAT } from './gl.js';
 import { LBL, P_HUD, P_STAR } from './labels.js';
+import { updateMovers } from './movers.js';
 import { camXY, fmtLight, navDistPc, navWorld } from './nav.js';
 import { farD, nearD, visPl, visSys } from './render.js';
 import { S, V } from './state.js';
@@ -125,13 +126,14 @@ export function updateHUD(){
     selection.set(s ? { card:card(s), ...abilities(s), locked:V.FOLLOW===s, isNav:s===V.navTarget,
       routeOn:!!(V.ROUTE&&V.ROUTE.o===s), transferOn:!!(V.TRANSFER&&V.TRANSFER.to===s), pinned:s===S.pinned } : null); }
 
+  updateMovers();
   const here = camDist>1e-9 ? invScale(camDist) : 0, inSolar=V.solarA>0.5;
   const fov=S.skyMode?fovDeg():0;
   let ra=0, dec=0; if(S.skyMode){ ra=Math.atan2(camFwd[1],camFwd[0])*57.29578; if(ra<0) ra+=360; dec=Math.asin(Math.max(-1,Math.min(1,camFwd[2])))*57.29578; }
-  const ck=here.toPrecision(3)+'|'+S.realScale+'|'+inSolar+'|'+S.skyMode+'|'+fov.toPrecision(3)+'|'+ra.toFixed(2)+'|'+dec.toFixed(2);
+  const ck=here.toPrecision(3)+'|'+S.realScale+'|'+inSolar+'|'+S.skyMode+'|'+fov.toPrecision(3)+'|'+ra.toFixed(2)+'|'+dec.toFixed(2)+'|'+(V.skyFrom||'');
   if(ck!==_cam){ _cam=ck;
-    camera.set({distPc:here, distText:here>0?fmtDist(here):'at the Sun', band:S.skyMode?'Sky view':bandOf(here), real:S.realScale, inSolar, camZ:S.camZ,
-      sky:S.skyMode, fov, ra, dec, order:SKYSTAT.order}); }
+    camera.set({distPc:here, distText:here>0?fmtDist(here):'at the Sun', band:S.skyMode?(V.skyFrom?'Sky from '+V.skyFrom:'Sky view'):bandOf(here), real:S.realScale, inSolar, camZ:S.camZ,
+      sky:S.skyMode, skyFrom:V.skyFrom||null, fov, ra, dec, order:SKYSTAT.order}); }
 
   if(!V.navTarget){ if(_nav){ _nav=''; nav.set(null); } return; }
   const dpc=navDistPc(), w=navWorld(V.navTarget); let head='–';

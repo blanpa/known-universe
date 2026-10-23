@@ -99,16 +99,40 @@ async function open(vp, mobile, hash) {
   ok(sky.northUp && sky.eastLeft, 'sky view keeps north up and east left');
   ok(true, sky.drawn > 0 ? `survey tiles drawn: ${sky.drawn}/${sky.tiles} at order ${sky.order}` : 'survey tiles: none loaded (no network?) — not a failure');
   await page.screenshot({ path: join(OUT, 'desktop-sky.png') });
+  // guided blink: at Barnard's star the jump list must lead with it (10,393 mas/yr × 20 yr DSS→PS1 = 3.5′), from HYG and the Gaia cloud
+  await page.evaluate(() => { const a = window.__kuapi; a.timeline.now(); a.setBlink(true, 'ps1'); a.lookAt(269.45, 4.69); a.setFov(1); });
+  await page.waitForTimeout(3000);
+  const mv = await page.evaluate(() => { const l = [...document.querySelectorAll('#hud-sky .mov li')].map(li => li.textContent.replace(/\s+/g, ' ').trim()); return { n: l.length, first: l[0] || '', top: l.slice(0, 3).join(' | '), gaia: l.filter(t => /Gaia star/.test(t)).length, pm: !!window.__ku.gaiaPm, head: document.querySelector('#hud-head .ctx-where')?.textContent, range: window.__ku.gaiaRange }; });
+  ok(/Barnard|G 8\.2/.test(mv.first) && /3\.[345]′/.test(mv.first), 'expected-jump list leads with Barnard\'s star at 3.5′ (got "' + mv.top + '" at ' + mv.head + ', gaia set ' + mv.range + ' pc)');
+  ok(mv.gaia > 0 && mv.pm, `Gaia cloud contributes movers (${mv.gaia} of ${mv.n}; proper motions loaded: ${mv.pm})`);
+  await page.evaluate(() => window.__kuapi.setBlink(false));
+
+  // from another star: stand at Alpha Centauri, look toward RA 39.9° Dec +60.8° — the Sun must be there, first magnitude
+  await page.evaluate(() => { window.__kuapi.doSearch('Rigil Kentaurus'); });
+  await page.waitForTimeout(600);
+  await page.evaluate(() => { window.__kuapi.skyView(true, 'selection'); window.__kuapi.lookAt(39.9, 60.8); window.__kuapi.setFov(10); });
+  await page.waitForTimeout(1200);
+  const vantage = await page.evaluate(() => { const p = window.__ku.projDir(-0.0000001, 0, 0); const sun = window.__ku.sunScreen ? window.__ku.sunScreen() : null;
+    return { band: document.querySelector('#hud-head .ctx-band')?.textContent, sun, cx: innerWidth / 2, cy: innerHeight / 2 }; });
+  ok(/^Sky from/.test(vantage.band || ''), 'telescope stands at another star (' + vantage.band + ')');
+  ok(vantage.sun && Math.hypot(vantage.sun.x - vantage.cx, vantage.sun.y - vantage.cy) < 40, `from Alpha Centauri the Sun sits at RA 39.9° Dec +60.8° (${vantage.sun ? Math.round(vantage.sun.x - vantage.cx) + ',' + Math.round(vantage.sun.y - vantage.cy) + ' px off centre' : 'not projected'})`);
+  await page.screenshot({ path: join(OUT, 'desktop-skyfrom.png') });
+  await page.evaluate(() => window.__kuapi.skyView(true));   // back to the Sun's sky for the import checks
+
   // your data: a CSV with degrees, sexagesimal and a row without distance — rows land where the catalogue has them
   const usr = await page.evaluate(() => {
     const n = window.__kuapi.importUser('name;ra;dec;plx;mag\nMy Sirius;101.2872;-16.7161;379.21;-1.46\nMy Vega;18:36:56.3;+38 47 01;130.23;0.03\nGhost;03:48:10;+24:12:00;;18\n', 'e2e.csv');
     const rows = window.__ku.user.rows, hyg = window.__ku.hyg, P = window.__ku.projDir;
-    const off = (r, h) => { const a = P(r.dx, r.dy, r.dz), b = P(h.dx, h.dy, h.dz); return Math.hypot(a.x - b.x, a.y - b.y); };
+    // angular separation in arcseconds via the chord (acos of a dot product near 1 loses ~100″ to rounding;
+    // a pixel test would need both stars in front of the camera)
+    const off = (r, h) => { const n = v => { const l = Math.hypot(v.dx, v.dy, v.dz); return [v.dx / l, v.dy / l, v.dz / l]; }; const a = n(r), b = n(h);
+      return Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]) * 206265; };
     const sir = hyg.find(s => s.n === 'Sirius'), veg = hyg.find(s => s.n === 'Vega');
-    return { n, dSir: off(rows[0], sir), dVeg: off(rows[1], veg), ghost: rows[2].noDist, saved: !!localStorage.getItem('ku_user_v1') };
+    void P;
+    return { n, dSir: off(rows[0], sir), dVeg: off(rows[1], veg), ghost: rows[2].noDist, saved: !!localStorage.getItem('ku_user_v2') };
   });
   ok(usr.n === 3 && usr.ghost && usr.saved, `CSV import keeps ${usr.n} rows, flags the one without distance, persists`);
-  ok(usr.dSir < 1.5 && usr.dVeg < 1.5, `imported degrees and sexagesimal positions match the catalogue (${usr.dSir.toFixed(2)} / ${usr.dVeg.toFixed(2)} px)`);
+  ok(usr.dSir < 2 && usr.dVeg < 2, `imported degrees and sexagesimal positions match the catalogue (${usr.dSir.toFixed(2)}″ / ${usr.dVeg.toFixed(2)}″)`);
   await page.evaluate(() => window.__kuapi.doSearch('my vega'));
   await page.waitForTimeout(800);
   const uname = await page.evaluate(() => document.querySelector('#info .in-name')?.textContent);

@@ -4,7 +4,7 @@ import { LBL, P_SEL, P_STAR } from './labels.js';
 import { hygPos } from './motion.js';
 import { HYG } from './solar-data.js';
 import { S, V } from './state.js';
-import { H, W, _pj, compress, projectInto } from './view.js';
+import { H, W, _pj, camDist, camPos, compress, project, projectInto } from './view.js';
 // ---- HYG background starfield ----
 export let hygProj=[];
 const _unusedMAS2RAD=Math.PI/(180*3600*1000);
@@ -22,8 +22,12 @@ export function projectHyg(){
     const p=projectInto(dx*dr,dy*dr,dz*dr,_pj);
     if(p.depth<=V.NEAR) continue;
     if(p.x<-90||p.x>W+90||p.y<-90||p.y>H+90) continue;
-    let bright=6.8-s.m; if(bright<0) bright=0;
-    // sky view: the camera is the Sun, so size follows apparent magnitude alone (as the GPU pass does)
+    s._mApp=s.m;
+    if(S.skyMode&&camDist>1e-4){                     // from another star: the distance modulus shifts
+      const dc=Math.hypot(dx*dNow-camPos[0],dy*dNow-camPos[1],dz*dNow-camPos[2]);
+      s._mApp=s.m+5*Math.log10(Math.max(dc,1e-9)/Math.max(dNow,1e-9)); }
+    let bright=6.8-s._mApp; if(bright<0) bright=0;
+    // sky view: the camera is a point, so size follows apparent magnitude alone (as the GPU pass does)
     const size=S.skyMode ? Math.min(4.5,0.5+bright*0.42)*(1+0.1*Math.log2(V.fovK)) : (0.4+bright*0.34)*V.foc*0.0032/p.depth;
     if(size<0.34 && s!==S.hover && s!==S.pinned) continue;   // cull sub-pixel stars
     s._sx=p.x; s._sy=p.y; s._depth=p.depth; s._z2=p.z2; s._bright=bright; s._size=size;
@@ -60,9 +64,19 @@ export function hygLabelLimit(){ return S.skyMode ? 2.9+2.5*Math.log2(V.fovK) : 
 export function drawHygLabels(){
   if(!S.skyMode) return;
   const lim=hygLabelLimit();
+  if(camDist>1e-4){                                  // standing at another star: the Sun is one of the stars
+    const sp=project(0,0,0);
+    if(sp.depth>V.NEAR){
+      const m=4.83+5*Math.log10(camDist/10), bright=Math.max(0,6.8-m), size=Math.min(4.5,0.5+bright*0.42)*(1+0.1*Math.log2(V.fovK));
+      ctx.beginPath(); ctx.arc(sp.x,sp.y,Math.max(0.6,size),0,6.2832); ctx.fillStyle='rgba(255,240,190,0.95)'; ctx.fill();
+      ctx.beginPath(); ctx.arc(sp.x,sp.y,size*2.6+1,0,6.2832); ctx.fillStyle='rgba(255,230,160,0.14)'; ctx.fill();
+      ctx.font='10px ui-monospace,monospace'; ctx.fillStyle='rgba(255,238,178,0.9)'; LBL.prio=P_SEL;
+      ctx.fillText(`Sun · ${m.toFixed(1)} mag`, sp.x+size+4, sp.y+3); LBL.prio=P_STAR;
+    }
+  }
   for(const s of hygProj){
     if(!s.n) continue;
-    const sel=(s===S.hover||s===S.pinned); if(!(sel||s.m<lim)) continue;
+    const sel=(s===S.hover||s===S.pinned); if(!(sel||(s._mApp??s.m)<lim)) continue;
     const c=s.c, size=Math.max(0.35, Math.min(4.5, s._size));
     if(sel){ ctx.beginPath(); ctx.arc(s._sx,s._sy,size+7,0,6.2832);
       ctx.strokeStyle='rgba(79,214,200,.9)'; ctx.lineWidth=1.2; ctx.stroke(); }
