@@ -1,4 +1,5 @@
 // Pointer, wheel, touch and keyboard interaction.
+import { skyCursor } from '../lib/stores.js';
 import { aim, enterSolar, flyTo, objWorld, resetView } from './actions.js';
 import { cv } from './canvas.js';
 import { clickToggle, syncToggle } from './controls.js';

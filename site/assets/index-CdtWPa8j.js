@@ -10100,7 +10100,7 @@ function MobileNav($$anchor, $$props) {
 		}
 		var text_2 = sibling(node_6);
 		var small = sibling(text_2);
-		small.textContent = `· b22:18`;
+		small.textContent = `· b22:20`;
 		reset(span_2);
 		var span_3 = sibling(span_2, 2);
 		var button_6 = child(span_3);
@@ -10669,7 +10669,7 @@ window.addEventListener("error", (e) => showErr("⚠ " + (e.message || e.type) +
 window.addEventListener("unhandledrejection", (e) => showErr("⚠ promise: " + (e.reason && e.reason.message || e.reason)));
 mount(App, { target: document.getElementById("app") });
 function boot() {
-	return __vitePreload(() => import("./engine-1UKE1IwO.js").then(() => {
+	return __vitePreload(() => import("./engine-DnwcCGDe.js").then(() => {
 		try {
 			restore();
 		} catch (e) {}
@@ -10683,10 +10683,10 @@ var fail = (e) => {
 	document.body.innerHTML = "<p style=\"color:#e9edfa;font-family:monospace;padding:2em\">Error loading data: " + e + "</p>";
 };
 if (window.__DATA__) boot().catch(fail);
-else Promise.all([getJSON("data/data.json?b=b22:18"), getJSON("data/catalog.json?b=b22:18")]).then(([d, c]) => {
+else Promise.all([getJSON("data/data.json?b=b22:20"), getJSON("data/catalog.json?b=b22:20")]).then(([d, c]) => {
 	window.__DATA__ = d;
 	window.__CATALOG__ = c;
 	return boot();
 }).catch(fail);
 //#endregion
-export { tour as C, api as E, toggleState as S, userLayer as T, selection as _, startLive as a, timeBar as b, encounters as c, fieldQuery as d, labels as f, searchMsg as g, nav as h, satEcl as i, facColor as l, movers as m, activeShowers as n, RESERVED as o, measure as p, groundEcl as r, camera as s, LIVE as t, facList as u, stats as v, transit as w, timeline as x, survey as y };
+export { toggleState as C, api as D, userLayer as E, timeline as S, transit as T, selection as _, startLive as a, survey as b, encounters as c, fieldQuery as d, labels as f, searchMsg as g, nav as h, satEcl as i, facColor as l, movers as m, activeShowers as n, RESERVED as o, measure as p, groundEcl as r, camera as s, LIVE as t, facList as u, skyCursor as v, tour as w, timeBar as x, stats as y };

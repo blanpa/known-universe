@@ -1,4 +1,4 @@
-import { C as tour, E as api, S as toggleState, T as userLayer, _ as selection, a as startLive, b as timeBar, c as encounters, d as fieldQuery, f as labels, g as searchMsg, h as nav, i as satEcl, l as facColor, m as movers, n as activeShowers, o as RESERVED, p as measure, r as groundEcl, s as camera, t as LIVE, u as facList$1, v as stats, w as transit, x as timeline, y as survey } from "./index-BmTq9Jw8.js";
+import { C as toggleState, D as api, E as userLayer, S as timeline, T as transit, _ as selection, a as startLive, b as survey, c as encounters, d as fieldQuery, f as labels, g as searchMsg, h as nav, i as satEcl, l as facColor, m as movers, n as activeShowers, o as RESERVED, p as measure, r as groundEcl, s as camera, t as LIVE, u as facList$1, v as skyCursor, w as tour, x as timeBar, y as stats } from "./index-CdtWPa8j.js";
 //#region src/engine/canvas.js
 var cv = document.getElementById("sky");
 var ctx = cv.getContext("2d");
@@ -7341,28 +7341,28 @@ function loadExtragal() {
 		if (typeof window.__WEB_B64__ === "string" && window.__WEB_B64__.length) {
 			buildWeb(b64ToBytes(window.__WEB_B64__));
 			window.__WEB_B64__ = null;
-		} else fetch("data/cosmicweb.bin?b=b22:18").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		} else fetch("data/cosmicweb.bin?b=b22:20").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildWeb(new Uint8Array(a));
 		}).catch(() => {});
 		if (typeof window.__QSO_B64__ === "string" && window.__QSO_B64__.length) {
 			buildQso(b64ToBytes(window.__QSO_B64__));
 			window.__QSO_B64__ = null;
-		} else fetch("data/quasars.bin?b=b22:18").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		} else fetch("data/quasars.bin?b=b22:20").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildQso(new Uint8Array(a));
 		}).catch(() => {});
-		fetch("data/quasarsbig.bin?b=b22:18").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		fetch("data/quasarsbig.bin?b=b22:20").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildQso(new Uint8Array(a));
 		}).catch(() => {});
 		if (typeof window.__BELT_B64__ === "string" && window.__BELT_B64__.length) {
 			buildBelt(b64ToBytes(window.__BELT_B64__));
 			window.__BELT_B64__ = null;
-		} else fetch("data/belt.bin?b=b22:18").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		} else fetch("data/belt.bin?b=b22:20").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildBelt(new Uint8Array(a));
 		}).catch(() => {});
-		fetch("data/gaiabig.bin?b=b22:18").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		fetch("data/gaiabig.bin?b=b22:20").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) {
 				buildGaiaBig(new Uint8Array(a));
-				fetch("data/gaiabig_pm.bin?b=b22:18").then((r) => r.ok ? r.arrayBuffer() : null).then((p) => {
+				fetch("data/gaiabig_pm.bin?b=b22:20").then((r) => r.ok ? r.arrayBuffer() : null).then((p) => {
 					if (p) {
 						gaiaPm = new Uint8Array(p);
 						if (CL.G) CL.G.pm = false;
@@ -7374,13 +7374,13 @@ function loadExtragal() {
 		if (typeof window.__OB_B64__ === "string" && window.__OB_B64__.length) {
 			buildOB(b64ToBytes(window.__OB_B64__));
 			window.__OB_B64__ = null;
-		} else fetch("data/obstars.bin?b=b22:18").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		} else fetch("data/obstars.bin?b=b22:20").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildOB(new Uint8Array(a));
 		}).catch(() => {});
 		if (typeof window.__VAR_B64__ === "string" && window.__VAR_B64__.length) {
 			buildVars(b64ToBytes(window.__VAR_B64__));
 			window.__VAR_B64__ = null;
-		} else fetch("data/variables.bin?b=b22:18").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		} else fetch("data/variables.bin?b=b22:20").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildVars(new Uint8Array(a));
 		}).catch(() => {});
 	} catch (e) {}
@@ -7398,10 +7398,10 @@ function loadGaia() {
 			window.__GAIA_B64__ = null;
 			return;
 		}
-		fetch("data/gaia.bin?b=b22:18").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		fetch("data/gaia.bin?b=b22:20").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildGaia(new Uint8Array(a));
 		}).catch(() => {});
-		fetch("data/gaia_pm.bin?b=b22:18").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		fetch("data/gaia_pm.bin?b=b22:20").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a && (!gaiaPm || gaiaRange === 100)) {
 				gaiaPm = new Uint8Array(a);
 				attachGaiaPm();
