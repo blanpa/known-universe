@@ -7,6 +7,6 @@ export default [
     files: ['src/**/*.js', 'tools/**/*.mjs'],
     languageOptions: { ecmaVersion: 2024, sourceType: 'module',
       globals: { ...globals.browser, ...globals.node, __BUILD__: 'readonly' } },
-    rules: { 'no-undef': 'error', 'no-unused-vars': ['warn', { args: 'none', caughtErrors: 'none' }] },
+    rules: { 'no-undef': 'error', 'no-import-assign': 'error', 'no-unused-vars': ['warn', { args: 'none', caughtErrors: 'none' }] },
   },
 ];

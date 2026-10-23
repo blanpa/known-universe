@@ -68,8 +68,8 @@ as a fourth dimension.
   between the solar system and the nearest star stays visible as a true gap.
   *(Physical object sizes are necessarily symbolic across 13 decades — glyphs
   scale by real* relative *radius, so e.g. Jupiter > Earth stays recognisable.)*
-- **Tech:** Svelte 5 + Vite for the UI chrome; the renderer is a
-  framework-free module (`src/lib/engine.js`) that Svelte binds to via a thin
+- **Tech:** Svelte 5 + Vite for the UI chrome; the renderer is a set of
+  framework-free ES modules (`src/engine/`) that Svelte binds to via a thin
   store bridge. Build: `npm install && npm run build` → static `site/`
   (committed — Pages needs no CI build); `npm run build:artifact` emits the
   self-contained single-file HTML. Stars render on the **GPU via WebGL 2**: the binary catalogues
@@ -245,7 +245,11 @@ missing or simplified, honestly:
 
 ```
 src/            the app — Svelte components + the framework-free engine
-  lib/engine.js   renderer, camera, picking, every layer  (the bulk of it)
+  engine/         the renderer, one module per concern (index.js boots it):
+                  view (camera · scale · projection), render (the frame),
+                  one file per layer (solar, earth, galaxies, deep, mw, …),
+                  pick, interact, controls, gl (WebGL point clouds), loop
+  lib/api.js      the UI ↔ engine contract (api, UI) — components import this
   lib/icons.js    the inline SVG icon set, shared with the engine
   components/     panels, rail, sheet — the DOM; the engine binds by id
 site/           exactly what gets served (GitHub Pages + nginx)
