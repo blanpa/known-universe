@@ -10054,6 +10054,86 @@ function __run() {
 	function offscr(p) {
 		return p.depth <= NEAR || Math.abs(p.x - cx) > PLIM || Math.abs(p.y - cy) > PLIM;
 	}
+	const PATH = {
+		n: 0,
+		x: /* @__PURE__ */ new Float64Array(2048),
+		y: /* @__PURE__ */ new Float64Array(2048),
+		brk: /* @__PURE__ */ new Uint8Array(2048)
+	};
+	function pathBegin() {
+		PATH.n = 0;
+	}
+	function pathPt(p) {
+		if (offscr(p)) {
+			if (PATH.n) PATH.brk[PATH.n - 1] = 1;
+			return;
+		}
+		const i = PATH.n;
+		if (i >= PATH.x.length) return;
+		PATH.x[i] = p.x;
+		PATH.y[i] = p.y;
+		PATH.brk[i] = 0;
+		PATH.n = i + 1;
+	}
+	function pathBreak() {
+		if (PATH.n) PATH.brk[PATH.n - 1] = 1;
+	}
+	function pathStroke(style, lw, dash) {
+		const n = PATH.n;
+		if (n < 2) return;
+		const M = 40, X0 = -40, Y0 = -40, X1 = W + M, Y1 = H + M;
+		ctx.beginPath();
+		let any = false, open = false;
+		for (let i = 1; i < n; i++) {
+			if (PATH.brk[i - 1]) {
+				open = false;
+				continue;
+			}
+			const ax = PATH.x[i - 1], ay = PATH.y[i - 1], dx = PATH.x[i] - ax, dy = PATH.y[i] - ay;
+			let t0 = 0, t1 = 1, ok = true;
+			for (let e = 0; e < 4; e++) {
+				const q = e === 0 ? -dx : e === 1 ? dx : e === 2 ? -dy : dy;
+				const r = e === 0 ? ax - X0 : e === 1 ? X1 - ax : e === 2 ? ay - Y0 : Y1 - ay;
+				if (q === 0) {
+					if (r < 0) {
+						ok = false;
+						break;
+					}
+					continue;
+				}
+				const t = r / q;
+				if (q < 0) {
+					if (t > t1) {
+						ok = false;
+						break;
+					}
+					if (t > t0) t0 = t;
+				} else {
+					if (t < t0) {
+						ok = false;
+						break;
+					}
+					if (t < t1) t1 = t;
+				}
+			}
+			if (!ok) {
+				open = false;
+				continue;
+			}
+			if (!open || t0 > 0) ctx.moveTo(ax + dx * t0, ay + dy * t0);
+			ctx.lineTo(ax + dx * t1, ay + dy * t1);
+			any = true;
+			open = t1 >= 1;
+		}
+		if (!any) return;
+		ctx.strokeStyle = style;
+		ctx.lineWidth = lw;
+		if (dash) {
+			ctx.setLineDash(dash);
+			ctx.stroke();
+			ctx.setLineDash([]);
+		} else ctx.stroke();
+	}
 	const PROF = {
 		on: false,
 		t: Object.create(null),
@@ -10372,24 +10452,13 @@ function __run() {
 		ctx.save();
 		for (const R of RINGS) {
 			const dr = scale(R.pc);
-			ctx.beginPath();
-			let first = true, drew = false;
+			pathBegin();
 			for (let a = 0; a <= 72; a++) {
 				const th = a / 72 * 6.2832;
-				const p = project(Math.cos(th) * dr, 0, Math.sin(th) * dr);
-				if (offscr(p)) {
-					first = true;
-					continue;
-				}
-				if (first) {
-					ctx.moveTo(p.x, p.y);
-					first = false;
-				} else ctx.lineTo(p.x, p.y);
-				drew = true;
+				pathPt(project(Math.cos(th) * dr, 0, Math.sin(th) * dr));
 			}
-			ctx.strokeStyle = "rgba(120,140,190,.11)";
-			ctx.lineWidth = 1;
-			ctx.stroke();
+			const drew = PATH.n > 1;
+			pathStroke("rgba(120,140,190,.11)", 1);
 			const lp = project(dr, 0, 0);
 			if (lp.depth > NEAR && drew) {
 				ctx.font = "9px ui-monospace,monospace";
@@ -10403,7 +10472,6 @@ function __run() {
 		LBL.prio = P_GRID;
 		const R = scale(BND * 3);
 		ctx.save();
-		ctx.setLineDash([1, 4]);
 		for (const dec of [
 			-60,
 			-30,
@@ -10411,44 +10479,21 @@ function __run() {
 			30,
 			60
 		]) {
-			ctx.beginPath();
-			let first = true;
+			pathBegin();
 			for (let k = 0; k <= 96; k++) {
 				const d = dirOf(k / 96 * 360, dec);
-				const p = project(d[0] * R, d[1] * R, d[2] * R);
-				if (offscr(p)) {
-					first = true;
-					continue;
-				}
-				if (first) {
-					ctx.moveTo(p.x, p.y);
-					first = false;
-				} else ctx.lineTo(p.x, p.y);
+				pathPt(project(d[0] * R, d[1] * R, d[2] * R));
 			}
-			ctx.strokeStyle = dec === 0 ? "rgba(150,175,215,.34)" : "rgba(130,150,190,.15)";
-			ctx.lineWidth = dec === 0 ? 1.2 : 1;
-			ctx.stroke();
+			pathStroke(dec === 0 ? "rgba(150,175,215,.34)" : "rgba(130,150,190,.15)", dec === 0 ? 1.2 : 1, [1, 4]);
 		}
 		for (let h = 0; h < 12; h++) {
-			ctx.beginPath();
-			let first = true;
+			pathBegin();
 			for (let k = 0; k <= 48; k++) {
 				const d = dirOf(h * 30, -90 + k / 48 * 180);
-				const p = project(d[0] * R, d[1] * R, d[2] * R);
-				if (offscr(p)) {
-					first = true;
-					continue;
-				}
-				if (first) {
-					ctx.moveTo(p.x, p.y);
-					first = false;
-				} else ctx.lineTo(p.x, p.y);
+				pathPt(project(d[0] * R, d[1] * R, d[2] * R));
 			}
-			ctx.strokeStyle = "rgba(130,150,190,.13)";
-			ctx.lineWidth = 1;
-			ctx.stroke();
+			pathStroke("rgba(130,150,190,.13)", 1, [1, 4]);
 		}
-		ctx.setLineDash([]);
 		ctx.font = "9px ui-monospace,monospace";
 		ctx.fillStyle = "rgba(150,175,215,.6)";
 		for (let h = 0; h < 24; h += 6) {
@@ -10476,7 +10521,6 @@ function __run() {
 			];
 		};
 		ctx.save();
-		ctx.setLineDash([1, 4]);
 		for (const b of [
 			-60,
 			-30,
@@ -10484,44 +10528,21 @@ function __run() {
 			30,
 			60
 		]) {
-			ctx.beginPath();
-			let first = true;
+			pathBegin();
 			for (let k = 0; k <= 96; k++) {
 				const d = dir(k / 96 * 6.2832, b * D2R);
-				const p = project(d[0] * R, d[1] * R, d[2] * R);
-				if (offscr(p)) {
-					first = true;
-					continue;
-				}
-				if (first) {
-					ctx.moveTo(p.x, p.y);
-					first = false;
-				} else ctx.lineTo(p.x, p.y);
+				pathPt(project(d[0] * R, d[1] * R, d[2] * R));
 			}
-			ctx.strokeStyle = b === 0 ? "rgba(235,200,150,.32)" : "rgba(215,180,135,.14)";
-			ctx.lineWidth = b === 0 ? 1.2 : 1;
-			ctx.stroke();
+			pathStroke(b === 0 ? "rgba(235,200,150,.32)" : "rgba(215,180,135,.14)", b === 0 ? 1.2 : 1, [1, 4]);
 		}
 		for (let i = 0; i < 12; i++) {
-			ctx.beginPath();
-			let first = true;
+			pathBegin();
 			for (let k = 0; k <= 48; k++) {
 				const d = dir(i / 12 * 6.2832, (-90 + k / 48 * 180) * D2R);
-				const p = project(d[0] * R, d[1] * R, d[2] * R);
-				if (offscr(p)) {
-					first = true;
-					continue;
-				}
-				if (first) {
-					ctx.moveTo(p.x, p.y);
-					first = false;
-				} else ctx.lineTo(p.x, p.y);
+				pathPt(project(d[0] * R, d[1] * R, d[2] * R));
 			}
-			ctx.strokeStyle = "rgba(215,180,135,.12)";
-			ctx.lineWidth = 1;
-			ctx.stroke();
+			pathStroke("rgba(215,180,135,.12)", 1, [1, 4]);
 		}
-		ctx.setLineDash([]);
 		ctx.font = "9px ui-monospace,monospace";
 		ctx.fillStyle = "rgba(235,200,150,.6)";
 		for (const l of [
@@ -10548,8 +10569,7 @@ function __run() {
 			[0, 2],
 			[1, 2]
 		]) {
-			ctx.beginPath();
-			let first = true;
+			pathBegin();
 			for (let a = 0; a <= 72; a++) {
 				const th = a / 72 * 6.2832, v = [
 					0,
@@ -10558,22 +10578,10 @@ function __run() {
 				];
 				v[ax] = Math.cos(th) * R;
 				v[ay] = Math.sin(th) * R;
-				const p = project(v[0], v[1], v[2]);
-				if (offscr(p)) {
-					first = true;
-					continue;
-				}
-				if (first) {
-					ctx.moveTo(p.x, p.y);
-					first = false;
-				} else ctx.lineTo(p.x, p.y);
+				pathPt(project(v[0], v[1], v[2]));
 			}
-			ctx.setLineDash([2, 5]);
-			ctx.strokeStyle = "rgba(120,225,235,.22)";
-			ctx.lineWidth = 1;
-			ctx.stroke();
+			pathStroke("rgba(120,225,235,.22)", 1, [2, 5]);
 		}
-		ctx.setLineDash([]);
 		const lp = project(R * .71, R * .71, 0);
 		if (lp.depth > NEAR && !offscr(lp)) {
 			ctx.font = "9px ui-monospace,monospace";
@@ -10585,7 +10593,6 @@ function __run() {
 	function drawBubble() {
 		LBL.prio = P_GRID;
 		ctx.save();
-		ctx.setLineDash([3, 6]);
 		for (const [e1, e2, a, b] of [
 			[
 				GPu,
@@ -10606,8 +10613,7 @@ function __run() {
 				150
 			]
 		]) {
-			ctx.beginPath();
-			let first = true;
+			pathBegin();
 			for (let k = 0; k <= 72; k++) {
 				const th = k / 72 * 6.2832, ca = Math.cos(th) * a, sb = Math.sin(th) * b;
 				const v = [
@@ -10616,21 +10622,10 @@ function __run() {
 					e1[2] * ca + e2[2] * sb
 				];
 				const len = Math.hypot(v[0], v[1], v[2]) || 1, R = scale(len);
-				const p = project(v[0] / len * R, v[1] / len * R, v[2] / len * R);
-				if (offscr(p)) {
-					first = true;
-					continue;
-				}
-				if (first) {
-					ctx.moveTo(p.x, p.y);
-					first = false;
-				} else ctx.lineTo(p.x, p.y);
+				pathPt(project(v[0] / len * R, v[1] / len * R, v[2] / len * R));
 			}
-			ctx.strokeStyle = "rgba(150,190,255,.17)";
-			ctx.lineWidth = 1;
-			ctx.stroke();
+			pathStroke("rgba(150,190,255,.17)", 1, [3, 6]);
 		}
-		ctx.setLineDash([]);
 		const lt = scale(150), lp = project(NGP[0] * lt, NGP[1] * lt, NGP[2] * lt);
 		if (lp.depth > NEAR && !offscr(lp)) {
 			ctx.font = "9px ui-monospace,monospace";
@@ -10649,8 +10644,7 @@ function __run() {
 		];
 		ctx.save();
 		for (const [ax, ay] of planes) {
-			ctx.beginPath();
-			let first = true;
+			pathBegin();
 			for (let a = 0; a <= 72; a++) {
 				const th = a / 72 * 6.2832, co = Math.cos(th) * dr, si = Math.sin(th) * dr;
 				const v = [
@@ -10660,19 +10654,9 @@ function __run() {
 				];
 				v[ax] = co;
 				v[ay] = si;
-				const p = project(v[0], v[1], v[2]);
-				if (offscr(p)) {
-					first = true;
-					continue;
-				}
-				if (first) {
-					ctx.moveTo(p.x, p.y);
-					first = false;
-				} else ctx.lineTo(p.x, p.y);
+				pathPt(project(v[0], v[1], v[2]));
 			}
-			ctx.strokeStyle = "rgba(230,71,60,.20)";
-			ctx.lineWidth = 1;
-			ctx.stroke();
+			pathStroke("rgba(230,71,60,.20)", 1);
 		}
 		const lp = project(0, dr, 0);
 		if (lp.depth > NEAR) {
@@ -10816,44 +10800,20 @@ function __run() {
 		ctx.fill();
 	}
 	function orbitRing(r, style, dash) {
-		ctx.beginPath();
-		let first = true;
+		pathBegin();
 		for (let k = 0; k <= 96; k++) {
 			const th = k / 96 * 6.2832;
-			const p = project(Math.cos(th) * r, 0, Math.sin(th) * r);
-			if (offscr(p)) {
-				first = true;
-				continue;
-			}
-			if (first) {
-				ctx.moveTo(p.x, p.y);
-				first = false;
-			} else ctx.lineTo(p.x, p.y);
+			pathPt(project(Math.cos(th) * r, 0, Math.sin(th) * r));
 		}
-		ctx.strokeStyle = style;
-		ctx.lineWidth = 1;
-		if (dash) ctx.setLineDash(dash);
-		ctx.stroke();
-		ctx.setLineDash([]);
+		pathStroke(style, 1, dash);
 	}
 	function drawOrbitEllipse(el, style) {
-		ctx.beginPath();
-		let first = true;
+		pathBegin();
 		for (let j = 0; j <= 120; j++) {
 			const q = orbPoint(el, j / 120 * 6.2832), w = eclToWorld(q[0], q[1], q[2]);
-			const p = project(w[0], w[1], w[2]);
-			if (offscr(p)) {
-				first = true;
-				continue;
-			}
-			if (first) {
-				ctx.moveTo(p.x, p.y);
-				first = false;
-			} else ctx.lineTo(p.x, p.y);
+			pathPt(project(w[0], w[1], w[2]));
 		}
-		ctx.strokeStyle = style;
-		ctx.lineWidth = 1;
-		ctx.stroke();
+		pathStroke(style, 1);
 	}
 	let _suvi = {
 		im: null,
@@ -11173,16 +11133,10 @@ function __run() {
 		}).filter((d) => d.pr.depth > NEAR).sort((a, b) => a.pr.z2 - b.pr.z2);
 		for (const { p, pr } of drawn) {
 			const c = p.c, sel = p === S.hover || p === S.pinned;
-			if (!offscr(sun) && !offscr(pr)) {
-				ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${A * .16})`;
-				ctx.lineWidth = .7;
-				ctx.setLineDash([2, 4]);
-				ctx.beginPath();
-				ctx.moveTo(sun.x, sun.y);
-				ctx.lineTo(pr.x, pr.y);
-				ctx.stroke();
-				ctx.setLineDash([]);
-			}
+			pathBegin();
+			pathPt(sun);
+			pathPt(pr);
+			pathStroke(`rgba(${c[0]},${c[1]},${c[2]},${A * .16})`, .7, [2, 4]);
 			const sz = 4.5;
 			ctx.beginPath();
 			ctx.moveTo(pr.x, pr.y - sz);
@@ -11284,28 +11238,16 @@ function __run() {
 					o._path.push(Math.hypot(e2[0], e2[1], e2[2]) <= 35 ? e2 : null);
 				}
 			}
-			ctx.setLineDash([4, 4]);
-			ctx.beginPath();
-			let first = true;
+			pathBegin();
 			for (const e2 of o._path) {
 				if (!e2) {
-					first = true;
+					pathBreak();
 					continue;
 				}
-				const w = eclToWorld(e2[0], e2[1], e2[2]), p = project(w[0], w[1], w[2]);
-				if (p.depth <= NEAR || offscr(p)) {
-					first = true;
-					continue;
-				}
-				if (first) {
-					ctx.moveTo(p.x, p.y);
-					first = false;
-				} else ctx.lineTo(p.x, p.y);
+				const w = eclToWorld(e2[0], e2[1], e2[2]);
+				pathPt(project(w[0], w[1], w[2]));
 			}
-			ctx.strokeStyle = `rgba(110,255,180,${A * .42})`;
-			ctx.lineWidth = 1;
-			ctx.stroke();
-			ctx.setLineDash([]);
+			pathStroke(`rgba(110,255,180,${A * .42})`, 1, [4, 4]);
 			const w = eclToWorld(o._e[0], o._e[1], o._e[2]), p = project(w[0], w[1], w[2]);
 			if (p.depth <= NEAR || offscr(p)) continue;
 			const sel = o === S.hover || o === S.pinned, sz = sel ? 6 : 5;
@@ -11572,15 +11514,11 @@ function __run() {
 			const w = eclToWorld(o._e[0], o._e[1], o._e[2]), p = project(w[0], w[1], w[2]);
 			if (p.depth <= NEAR) continue;
 			const dtd = (o.t - nowMs) / 864e5;
-			if (ep && Math.abs(dtd) < 5 && !offscr(ep) && !offscr(p)) {
-				ctx.setLineDash([3, 4]);
-				ctx.strokeStyle = `rgba(255,168,88,${A * .3})`;
-				ctx.lineWidth = .8;
-				ctx.beginPath();
-				ctx.moveTo(ep.x, ep.y);
-				ctx.lineTo(p.x, p.y);
-				ctx.stroke();
-				ctx.setLineDash([]);
+			if (ep && Math.abs(dtd) < 5) {
+				pathBegin();
+				pathPt(ep);
+				pathPt(p);
+				pathStroke(`rgba(255,168,88,${A * .3})`, .8, [3, 4]);
 			}
 			const px = sel ? 6 : 4.5;
 			ctx.beginPath();
@@ -12551,24 +12489,12 @@ function __run() {
 		LBL.prio = P_PROBE;
 		const T = TRANSFER;
 		if (!T) return;
-		ctx.setLineDash([5, 4]);
-		ctx.beginPath();
-		let first = true;
+		pathBegin();
 		for (const q of T.pts) {
-			const w = eclToWorld(q[0], q[1], q[2]), p = project(w[0], w[1], w[2]);
-			if (offscr(p)) {
-				first = true;
-				continue;
-			}
-			if (first) {
-				ctx.moveTo(p.x, p.y);
-				first = false;
-			} else ctx.lineTo(p.x, p.y);
+			const w = eclToWorld(q[0], q[1], q[2]);
+			pathPt(project(w[0], w[1], w[2]));
 		}
-		ctx.strokeStyle = `rgba(79,214,200,${A * .8})`;
-		ctx.lineWidth = 1.5;
-		ctx.stroke();
-		ctx.setLineDash([]);
+		pathStroke(`rgba(79,214,200,${A * .8})`, 1.5, [5, 4]);
 		const ends = [[T.pts[0], `launch ${dateStr(T.dep)} · Δv ${T.dv.toFixed(1)} km/s`], [T.pts[T.pts.length - 1], `${T.to.n} at arrival · ${dateStr(T.dep + T.tof)}`]];
 		ctx.font = "9px ui-monospace,monospace";
 		for (const [q, txt] of ends) {
@@ -12684,25 +12610,12 @@ function __run() {
 		const R = ROUTE, w = navWorld(R.o);
 		if (!w) return;
 		const wr = Math.hypot(w[0], w[1], w[2]);
-		ctx.setLineDash([6, 5]);
-		ctx.beginPath();
-		let first = true;
+		pathBegin();
 		for (let i = 0; i <= 40; i++) {
 			const r = wr * i / 40;
-			const p = project(R.dir[0] * r, R.dir[1] * r, R.dir[2] * r);
-			if (offscr(p)) {
-				first = true;
-				continue;
-			}
-			if (first) {
-				ctx.moveTo(p.x, p.y);
-				first = false;
-			} else ctx.lineTo(p.x, p.y);
+			pathPt(project(R.dir[0] * r, R.dir[1] * r, R.dir[2] * r));
 		}
-		ctx.strokeStyle = "rgba(120,255,235,0.55)";
-		ctx.lineWidth = 1.3;
-		ctx.stroke();
-		ctx.setLineDash([]);
+		pathStroke("rgba(120,255,235,0.55)", 1.3, [6, 5]);
 		const tp = project(w[0], w[1], w[2]);
 		if (tp.depth > NEAR) {
 			ctx.font = "9px ui-monospace,monospace";
@@ -12787,26 +12700,13 @@ function __run() {
 			const edge = project.apply(null, eclToWorld(b._e[0] + rH, b._e[1], b._e[2]));
 			const rp = Math.hypot(edge.x - pc.x, edge.y - pc.y);
 			if (rp < 6 || rp > Math.min(W, H) * 6) continue;
-			ctx.beginPath();
-			let first = true;
+			pathBegin();
 			for (let k = 0; k <= 48; k++) {
 				const th = k / 48 * 6.2832;
 				const w = eclToWorld(b._e[0] + Math.cos(th) * rH, b._e[1] + Math.sin(th) * rH, b._e[2]);
-				const p = project(w[0], w[1], w[2]);
-				if (offscr(p)) {
-					first = true;
-					continue;
-				}
-				if (first) {
-					ctx.moveTo(p.x, p.y);
-					first = false;
-				} else ctx.lineTo(p.x, p.y);
+				pathPt(project(w[0], w[1], w[2]));
 			}
-			ctx.strokeStyle = `rgba(150,205,255,${A * .4})`;
-			ctx.lineWidth = 1;
-			ctx.setLineDash([3, 5]);
-			ctx.stroke();
-			ctx.setLineDash([]);
+			pathStroke(`rgba(150,205,255,${A * .4})`, 1, [3, 5]);
 			if (rp > 30) {
 				ctx.font = "9px ui-monospace,monospace";
 				ctx.fillStyle = `rgba(150,205,255,${A * .7})`;
@@ -13004,24 +12904,11 @@ function __run() {
 		LBL.prio = P_GRID;
 		if (!S.con) return;
 		const R = scale(30);
-		ctx.strokeStyle = "rgba(128,150,215,0.15)";
-		ctx.lineWidth = 1;
 		for (const k of CONS) {
 			for (const pl of k._L) {
-				ctx.beginPath();
-				let first = true;
-				for (const d of pl) {
-					const p = project(d[0] * R, d[1] * R, d[2] * R);
-					if (offscr(p)) {
-						first = true;
-						continue;
-					}
-					if (first) {
-						ctx.moveTo(p.x, p.y);
-						first = false;
-					} else ctx.lineTo(p.x, p.y);
-				}
-				ctx.stroke();
+				pathBegin();
+				for (const d of pl) pathPt(project(d[0] * R, d[1] * R, d[2] * R));
+				pathStroke("rgba(128,150,215,0.15)", 1);
 			}
 			const cp = project(k.c[0] * R, k.c[1] * R, k.c[2] * R);
 			if (cp.depth > NEAR) {
@@ -13272,11 +13159,8 @@ function __run() {
 	function drawEdge() {
 		LBL.prio = P_GRID;
 		const R = scale(143e8);
-		ctx.strokeStyle = "rgba(120,150,255,0.11)";
-		ctx.lineWidth = 1;
 		for (let pl = 0; pl < 3; pl++) {
-			ctx.beginPath();
-			let first = true;
+			pathBegin();
 			for (let a = 0; a <= 6.2833; a += .13) {
 				const ca = Math.cos(a) * R, sa = Math.sin(a) * R;
 				const w = pl === 0 ? [
@@ -13292,17 +13176,9 @@ function __run() {
 					ca,
 					sa
 				];
-				const p = project(w[0], w[1], w[2]);
-				if (p.depth <= NEAR) {
-					first = true;
-					continue;
-				}
-				if (first) {
-					ctx.moveTo(p.x, p.y);
-					first = false;
-				} else ctx.lineTo(p.x, p.y);
+				pathPt(project(w[0], w[1], w[2]));
 			}
-			ctx.stroke();
+			pathStroke("rgba(120,150,255,0.11)", 1);
 		}
 		const lp = project(R, 0, 0);
 		if (lp.depth > NEAR) {
@@ -13440,24 +13316,12 @@ function __run() {
 				ctx.fillText("Sun · Orion Spur", p.x + 5, p.y + 3);
 			}
 		}
-		ctx.strokeStyle = "rgba(150,175,235,0.14)";
-		ctx.lineWidth = 1;
-		ctx.beginPath();
-		{
-			let first = true;
-			for (let a = 0; a <= 6.2833; a += .1) {
-				const w = mwWorld(16e3, a), p = project(w[0], w[1], w[2]);
-				if (offscr(p)) {
-					first = true;
-					continue;
-				}
-				if (first) {
-					ctx.moveTo(p.x, p.y);
-					first = false;
-				} else ctx.lineTo(p.x, p.y);
-			}
+		pathBegin();
+		for (let a = 0; a <= 6.2833; a += .1) {
+			const w = mwWorld(16e3, a);
+			pathPt(project(w[0], w[1], w[2]));
 		}
-		ctx.stroke();
+		pathStroke("rgba(150,175,235,0.14)", 1);
 	}
 	let _bhgl = null, _bhFails = 0, _bhNextTry = 0;
 	function bhInit() {
@@ -13808,23 +13672,12 @@ function __run() {
 			5e3
 		].forEach((pc, idx) => {
 			const R = scale(pc), mid = idx === 1;
-			ctx.beginPath();
-			let first = true;
+			pathBegin();
 			for (let t = 0; t <= 100; t++) {
 				const th = t / 100 * 6.2832, c = Math.cos(th), s = Math.sin(th);
-				const p = project((GPu[0] * c + GPv[0] * s) * R, (GPu[1] * c + GPv[1] * s) * R, (GPu[2] * c + GPv[2] * s) * R);
-				if (offscr(p)) {
-					first = true;
-					continue;
-				}
-				if (first) {
-					ctx.moveTo(p.x, p.y);
-					first = false;
-				} else ctx.lineTo(p.x, p.y);
+				pathPt(project((GPu[0] * c + GPv[0] * s) * R, (GPu[1] * c + GPv[1] * s) * R, (GPu[2] * c + GPv[2] * s) * R));
 			}
-			ctx.strokeStyle = `rgba(140,165,235,${mid ? .16 : .08})`;
-			ctx.lineWidth = mid ? 2 : 1;
-			ctx.stroke();
+			pathStroke(`rgba(140,165,235,${mid ? .16 : .08})`, mid ? 2 : 1);
 		});
 		const sp = project(SGRA._x, SGRA._y, SGRA._z);
 		if (sp.depth > NEAR) {
@@ -16572,13 +16425,10 @@ void main(){                                             // soft shoulder above 
 		ctx.beginPath();
 		ctx.arc(pB.x, pB.y, 6, 0, 6.2832);
 		ctx.stroke();
-		ctx.beginPath();
-		ctx.moveTo(pA.x, pA.y);
-		ctx.lineTo(pB.x, pB.y);
-		ctx.setLineDash([5, 4]);
-		ctx.strokeStyle = "rgba(255,207,107,.7)";
-		ctx.stroke();
-		ctx.setLineDash([]);
+		pathBegin();
+		pathPt(pA);
+		pathPt(pB);
+		pathStroke("rgba(255,207,107,.7)", 1.4, [5, 4]);
 		const dpc = Math.hypot(measA.P[0] - measB.P[0], measA.P[1] - measB.P[1], measA.P[2] - measB.P[2]);
 		const txt = dpc < .001 ? (dpc / AU_PC).toFixed(2) + " AU" : fmt(dpc * PC2LY) + " ly · light needs " + fmt(dpc * PC2LY) + " yr";
 		ctx.font = "11px ui-monospace,monospace";
@@ -18563,7 +18413,7 @@ function MobileNav($$anchor, $$props) {
 		}
 		var text = sibling(node_5);
 		var small = sibling(text);
-		small.textContent = `· b16:43`;
+		small.textContent = `· b16:54`;
 		reset(span);
 		var span_1 = sibling(span, 2);
 		var button_5 = child(span_1);

@@ -592,6 +592,45 @@ function drawHalo(sp,x,y,r,alpha){                       // alpha multiplies the
 // above Earth ≈ 1e9 px). Break paths at this limit like at the near plane.
 const PLIM=32768;
 function offscr(p){ return p.depth<=NEAR || Math.abs(p.x-cx)>PLIM || Math.abs(p.y-cy)>PLIM; }
+// ---- clipped polylines ----------------------------------------------------------
+// Rings, grids, orbits and sky circles are paths that mostly lie off-screen: the 1-ly
+// ring seen from 200 AU is hundreds of viewports wide, and the rasteriser still walks
+// every pixel of it (every dash of it, if dashed) before clipping. So no such path
+// reaches the canvas directly: points go through pathPt(), each segment is clipped to
+// the viewport (Liang–Barsky, 40-px margin), and only the visible pieces are stroked.
+const PATH={n:0, x:new Float64Array(2048), y:new Float64Array(2048), brk:new Uint8Array(2048)};
+function pathBegin(){ PATH.n=0; }
+function pathPt(p){                                      // projected point; behind/far → break
+  if(offscr(p)){ if(PATH.n) PATH.brk[PATH.n-1]=1; return; }
+  const i=PATH.n; if(i>=PATH.x.length) return;
+  PATH.x[i]=p.x; PATH.y[i]=p.y; PATH.brk[i]=0; PATH.n=i+1;
+}
+function pathBreak(){ if(PATH.n) PATH.brk[PATH.n-1]=1; }
+function pathStroke(style,lw,dash){
+  const n=PATH.n; if(n<2) return;
+  const M=40, X0=-M, Y0=-M, X1=W+M, Y1=H+M;
+  ctx.beginPath(); let any=false, open=false;
+  for(let i=1;i<n;i++){
+    if(PATH.brk[i-1]){ open=false; continue; }
+    const ax=PATH.x[i-1], ay=PATH.y[i-1], dx=PATH.x[i]-ax, dy=PATH.y[i]-ay;
+    let t0=0, t1=1, ok=true;
+    for(let e=0;e<4;e++){
+      const q = e===0?-dx : e===1?dx : e===2?-dy : dy;
+      const r = e===0?ax-X0 : e===1?X1-ax : e===2?ay-Y0 : Y1-ay;
+      if(q===0){ if(r<0){ ok=false; break; } continue; }
+      const t=r/q;
+      if(q<0){ if(t>t1){ ok=false; break; } if(t>t0) t0=t; }
+      else   { if(t<t0){ ok=false; break; } if(t<t1) t1=t; }
+    }
+    if(!ok){ open=false; continue; }
+    if(!open || t0>0) ctx.moveTo(ax+dx*t0, ay+dy*t0);
+    ctx.lineTo(ax+dx*t1, ay+dy*t1); any=true;
+    open = t1>=1;
+  }
+  if(!any) return;
+  ctx.strokeStyle=style; ctx.lineWidth=lw;
+  if(dash){ ctx.setLineDash(dash); ctx.stroke(); ctx.setLineDash([]); } else ctx.stroke();
+}
 // ---- per-layer profiler (off unless api.prof(true)) ------------------------
 // Frame cost is invisible from the outside: everything happens inside one render().
 // P() accumulates wall time per layer so "it feels slow" becomes a number per layer.
@@ -824,16 +863,13 @@ function drawRings(){ LBL.prio=P_GRID;
   ctx.save();
   for(const R of RINGS){
     const dr=scale(R.pc);
-    ctx.beginPath();
-    let first=true, drew=false;
+    pathBegin();
     for(let a=0;a<=72;a++){
       const th=a/72*6.2832;
-      const p=project(Math.cos(th)*dr,0,Math.sin(th)*dr);
-      if(offscr(p)){first=true;continue;}
-      if(first){ctx.moveTo(p.x,p.y);first=false;}else ctx.lineTo(p.x,p.y);
-      drew=true;
+      pathPt(project(Math.cos(th)*dr,0,Math.sin(th)*dr));
     }
-    ctx.strokeStyle='rgba(120,140,190,.11)'; ctx.lineWidth=1; ctx.stroke();
+    const drew=PATH.n>1;
+    pathStroke('rgba(120,140,190,.11)',1);
     const lp=project(dr,0,0);
     if(lp.depth>NEAR&&drew){
       ctx.font='9px ui-monospace,monospace'; ctx.fillStyle='rgba(120,140,190,.42)';
@@ -846,25 +882,17 @@ function drawRings(){ LBL.prio=P_GRID;
 // ---- coordinate grids on a sun-centred sky sphere ----
 function drawSkyGrid(){ LBL.prio=P_GRID;                          // equatorial RA/Dec
   const R=scale(BND*3);
-  ctx.save(); ctx.setLineDash([1,4]);
+  ctx.save();
   for(const dec of [-60,-30,0,30,60]){
-    ctx.beginPath(); let first=true;
-    for(let k=0;k<=96;k++){ const d=dirOf(k/96*360,dec);
-      const p=project(d[0]*R,d[1]*R,d[2]*R);
-      if(offscr(p)){first=true;continue;}
-      if(first){ctx.moveTo(p.x,p.y);first=false;}else ctx.lineTo(p.x,p.y); }
-    ctx.strokeStyle=dec===0?'rgba(150,175,215,.34)':'rgba(130,150,190,.15)';
-    ctx.lineWidth=dec===0?1.2:1; ctx.stroke();
+    pathBegin();
+    for(let k=0;k<=96;k++){ const d=dirOf(k/96*360,dec); pathPt(project(d[0]*R,d[1]*R,d[2]*R)); }
+    pathStroke(dec===0?'rgba(150,175,215,.34)':'rgba(130,150,190,.15)', dec===0?1.2:1, [1,4]);
   }
   for(let h=0;h<12;h++){
-    ctx.beginPath(); let first=true;
-    for(let k=0;k<=48;k++){ const d=dirOf(h*30,-90+k/48*180);
-      const p=project(d[0]*R,d[1]*R,d[2]*R);
-      if(offscr(p)){first=true;continue;}
-      if(first){ctx.moveTo(p.x,p.y);first=false;}else ctx.lineTo(p.x,p.y); }
-    ctx.strokeStyle='rgba(130,150,190,.13)'; ctx.lineWidth=1; ctx.stroke();
+    pathBegin();
+    for(let k=0;k<=48;k++){ const d=dirOf(h*30,-90+k/48*180); pathPt(project(d[0]*R,d[1]*R,d[2]*R)); }
+    pathStroke('rgba(130,150,190,.13)',1,[1,4]);
   }
-  ctx.setLineDash([]);
   ctx.font='9px ui-monospace,monospace'; ctx.fillStyle='rgba(150,175,215,.6)';
   for(let h=0;h<24;h+=6){ const d=dirOf(h*15,2), p=project(d[0]*R,d[1]*R,d[2]*R);
     if(p.depth>NEAR&&!offscr(p)) ctx.fillText(h+'h', p.x+3, p.y-4); }
@@ -879,25 +907,17 @@ function drawGalGrid(){ LBL.prio=P_GRID;                          // galactic l/
   const dir=(l,b)=>{ const cl=Math.cos(l),sl=Math.sin(l),cb=Math.cos(b),sb=Math.sin(b);
     return [gx[0]*cb*cl+gy[0]*cb*sl+gz[0]*sb, gx[1]*cb*cl+gy[1]*cb*sl+gz[1]*sb,
             gx[2]*cb*cl+gy[2]*cb*sl+gz[2]*sb]; };
-  ctx.save(); ctx.setLineDash([1,4]);
+  ctx.save();
   for(const b of [-60,-30,0,30,60]){
-    ctx.beginPath(); let first=true;
-    for(let k=0;k<=96;k++){ const d=dir(k/96*6.2832,b*D2R);
-      const p=project(d[0]*R,d[1]*R,d[2]*R);
-      if(offscr(p)){first=true;continue;}
-      if(first){ctx.moveTo(p.x,p.y);first=false;}else ctx.lineTo(p.x,p.y); }
-    ctx.strokeStyle=b===0?'rgba(235,200,150,.32)':'rgba(215,180,135,.14)';
-    ctx.lineWidth=b===0?1.2:1; ctx.stroke();
+    pathBegin();
+    for(let k=0;k<=96;k++){ const d=dir(k/96*6.2832,b*D2R); pathPt(project(d[0]*R,d[1]*R,d[2]*R)); }
+    pathStroke(b===0?'rgba(235,200,150,.32)':'rgba(215,180,135,.14)', b===0?1.2:1, [1,4]);
   }
   for(let i=0;i<12;i++){
-    ctx.beginPath(); let first=true;
-    for(let k=0;k<=48;k++){ const d=dir(i/12*6.2832,(-90+k/48*180)*D2R);
-      const p=project(d[0]*R,d[1]*R,d[2]*R);
-      if(offscr(p)){first=true;continue;}
-      if(first){ctx.moveTo(p.x,p.y);first=false;}else ctx.lineTo(p.x,p.y); }
-    ctx.strokeStyle='rgba(215,180,135,.12)'; ctx.lineWidth=1; ctx.stroke();
+    pathBegin();
+    for(let k=0;k<=48;k++){ const d=dir(i/12*6.2832,(-90+k/48*180)*D2R); pathPt(project(d[0]*R,d[1]*R,d[2]*R)); }
+    pathStroke('rgba(215,180,135,.12)',1,[1,4]);
   }
-  ctx.setLineDash([]);
   ctx.font='9px ui-monospace,monospace'; ctx.fillStyle='rgba(235,200,150,.6)';
   for(const l of [0,90,180,270]){ const d=dir(l*D2R,0.03), p=project(d[0]*R,d[1]*R,d[2]*R);
     if(p.depth>NEAR&&!offscr(p)) ctx.fillText('l='+l+'°', p.x+3, p.y-4); }
@@ -913,16 +933,13 @@ function drawRadioSphere(){ LBL.prio=P_GRID;
   const R=scale(lyr*0.306601);
   ctx.save();
   for(const [ax,ay] of [[0,1],[0,2],[1,2]]){
-    ctx.beginPath(); let first=true;
+    pathBegin();
     for(let a=0;a<=72;a++){ const th=a/72*6.2832, v=[0,0,0];
       v[ax]=Math.cos(th)*R; v[ay]=Math.sin(th)*R;
-      const p=project(v[0],v[1],v[2]);
-      if(offscr(p)){first=true;continue;}
-      if(first){ctx.moveTo(p.x,p.y);first=false;}else ctx.lineTo(p.x,p.y);
+      pathPt(project(v[0],v[1],v[2]));
     }
-    ctx.setLineDash([2,5]); ctx.strokeStyle='rgba(120,225,235,.22)'; ctx.lineWidth=1; ctx.stroke();
+    pathStroke('rgba(120,225,235,.22)',1,[2,5]);
   }
-  ctx.setLineDash([]);
   const lp=project(R*0.71,R*0.71,0);
   if(lp.depth>NEAR&&!offscr(lp)){ ctx.font='9px ui-monospace,monospace'; ctx.fillStyle='rgba(130,225,235,.6)';
     ctx.fillText('our radio signals · '+Math.round(lyr)+' ly out', lp.x+4, lp.y-3); }
@@ -931,19 +948,16 @@ function drawRadioSphere(){ LBL.prio=P_GRID;
 // the Local Bubble: the supernova-blown cavity we live in (≈Zucker+ 2022 extents,
 // drawn as a schematic ellipsoid in galactic coordinates)
 function drawBubble(){ LBL.prio=P_GRID;
-  ctx.save(); ctx.setLineDash([3,6]);
+  ctx.save();
   for(const [e1,e2,a,b] of [[GPu,GPv,95,95],[GPu,NGP,95,150],[GPv,NGP,95,150]]){
-    ctx.beginPath(); let first=true;
+    pathBegin();
     for(let k=0;k<=72;k++){ const th=k/72*6.2832, ca=Math.cos(th)*a, sb=Math.sin(th)*b;
       const v=[e1[0]*ca+e2[0]*sb, e1[1]*ca+e2[1]*sb, e1[2]*ca+e2[2]*sb];
       const len=Math.hypot(v[0],v[1],v[2])||1, R=scale(len);
-      const p=project(v[0]/len*R, v[1]/len*R, v[2]/len*R);
-      if(offscr(p)){first=true;continue;}
-      if(first){ctx.moveTo(p.x,p.y);first=false;}else ctx.lineTo(p.x,p.y);
+      pathPt(project(v[0]/len*R, v[1]/len*R, v[2]/len*R));
     }
-    ctx.strokeStyle='rgba(150,190,255,.17)'; ctx.lineWidth=1; ctx.stroke();
+    pathStroke('rgba(150,190,255,.17)',1,[3,6]);
   }
-  ctx.setLineDash([]);
   const lt=scale(150), lp=project(NGP[0]*lt,NGP[1]*lt,NGP[2]*lt);
   if(lp.depth>NEAR&&!offscr(lp)){ ctx.font='9px ui-monospace,monospace'; ctx.fillStyle='rgba(160,195,255,.55)';
     ctx.fillText('Local Bubble · blown clear by ~15 supernovae', lp.x+4, lp.y-3); }
@@ -955,15 +969,13 @@ function drawVeilSphere(){ LBL.prio=P_GRID;
   const planes=[[0,1],[0,2],[1,2]]; // xy, xz, yz
   ctx.save();
   for(const [ax,ay] of planes){
-    ctx.beginPath(); let first=true;
+    pathBegin();
     for(let a=0;a<=72;a++){
       const th=a/72*6.2832, co=Math.cos(th)*dr, si=Math.sin(th)*dr;
       const v=[0,0,0]; v[ax]=co; v[ay]=si;
-      const p=project(v[0],v[1],v[2]);
-      if(offscr(p)){first=true;continue;}
-      if(first){ctx.moveTo(p.x,p.y);first=false;}else ctx.lineTo(p.x,p.y);
+      pathPt(project(v[0],v[1],v[2]));
     }
-    ctx.strokeStyle='rgba(230,71,60,.20)'; ctx.lineWidth=1; ctx.stroke();
+    pathStroke('rgba(230,71,60,.20)',1);
   }
   const lp=project(0,dr,0);
   if(lp.depth>NEAR){
@@ -1082,23 +1094,15 @@ function ballFill(x,y,r,c,A){
   ctx.fillStyle=g; ctx.fill();
 }
 function orbitRing(r,style,dash){
-  ctx.beginPath(); let first=true;
-  for(let k=0;k<=96;k++){ const th=k/96*6.2832;
-    const p=project(Math.cos(th)*r,0,Math.sin(th)*r);
-    if(offscr(p)){first=true;continue;}
-    if(first){ctx.moveTo(p.x,p.y);first=false;}else ctx.lineTo(p.x,p.y);
-  }
-  ctx.strokeStyle=style; ctx.lineWidth=1; if(dash)ctx.setLineDash(dash);
-  ctx.stroke(); ctx.setLineDash([]);
+  pathBegin();
+  for(let k=0;k<=96;k++){ const th=k/96*6.2832; pathPt(project(Math.cos(th)*r,0,Math.sin(th)*r)); }
+  pathStroke(style,1,dash);
 }
 function drawOrbitEllipse(el,style){        // true (eccentric, inclined) orbit on the unified scale
-  ctx.beginPath(); let first=true;
+  pathBegin();
   for(let j=0;j<=120;j++){ const q=orbPoint(el,j/120*6.2832), w=eclToWorld(q[0],q[1],q[2]);
-    const p=project(w[0],w[1],w[2]);
-    if(offscr(p)){first=true;continue;}
-    if(first){ctx.moveTo(p.x,p.y);first=false;}else ctx.lineTo(p.x,p.y);
-  }
-  ctx.strokeStyle=style; ctx.lineWidth=1; ctx.stroke();
+    pathPt(project(w[0],w[1],w[2])); }
+  pathStroke(style,1);
 }
 // live Sun: GOES SUVI 304 Å (chromosphere, prominences) — SWPC serves it with CORS
 let _suvi={im:null,ok:false,t:0,loading:false};
@@ -1312,8 +1316,7 @@ function drawProbes(A){ LBL.prio=P_PROBE;
     .filter(d=>d.pr.depth>NEAR).sort((a,b)=>a.pr.z2-b.pr.z2);
   for(const {p,pr} of drawn){
     const c=p.c, sel=(p===S.hover||p===S.pinned);
-    if(!offscr(sun)&&!offscr(pr)){ ctx.strokeStyle=`rgba(${c[0]},${c[1]},${c[2]},${A*0.16})`; ctx.lineWidth=0.7; ctx.setLineDash([2,4]);
-      ctx.beginPath(); ctx.moveTo(sun.x,sun.y); ctx.lineTo(pr.x,pr.y); ctx.stroke(); ctx.setLineDash([]); }
+    pathBegin(); pathPt(sun); pathPt(pr); pathStroke(`rgba(${c[0]},${c[1]},${c[2]},${A*0.16})`,0.7,[2,4]);
     const sz=4.5;
     ctx.beginPath(); ctx.moveTo(pr.x,pr.y-sz); ctx.lineTo(pr.x+sz,pr.y); ctx.lineTo(pr.x,pr.y+sz); ctx.lineTo(pr.x-sz,pr.y); ctx.closePath();
     ctx.fillStyle=`rgba(${c[0]},${c[1]},${c[2]},${A})`; ctx.fill();
@@ -1355,14 +1358,12 @@ function drawISO(A){ LBL.prio=P_PROBE;
     if(!o._path){ o._path=[];                    // the hyperbola is fixed in space — sample once
       for(let k=0;k<=120;k++){ const e2=isoEcl(o, o.tp-1460+k/120*2920);
         o._path.push(Math.hypot(e2[0],e2[1],e2[2])<=35?e2:null); } }
-    ctx.setLineDash([4,4]); ctx.beginPath(); let first=true;
+    pathBegin();
     for(const e2 of o._path){
-      if(!e2){first=true;continue;}
-      const w=eclToWorld(e2[0],e2[1],e2[2]), p=project(w[0],w[1],w[2]);
-      if(p.depth<=NEAR||offscr(p)){first=true;continue;}
-      if(first){ctx.moveTo(p.x,p.y);first=false;}else ctx.lineTo(p.x,p.y);
+      if(!e2){ pathBreak(); continue; }
+      const w=eclToWorld(e2[0],e2[1],e2[2]); pathPt(project(w[0],w[1],w[2]));
     }
-    ctx.strokeStyle=`rgba(110,255,180,${A*0.42})`; ctx.lineWidth=1; ctx.stroke(); ctx.setLineDash([]);
+    pathStroke(`rgba(110,255,180,${A*0.42})`,1,[4,4]);
     const w=eclToWorld(o._e[0],o._e[1],o._e[2]), p=project(w[0],w[1],w[2]);
     if(p.depth<=NEAR||offscr(p)) continue;
     const sel=(o===S.hover||o===S.pinned), sz=sel?6:5;
@@ -1498,9 +1499,8 @@ function drawLiveNeo(A){ LBL.prio=P_SMALL;
     const w=eclToWorld(o._e[0],o._e[1],o._e[2]), p=project(w[0],w[1],w[2]);
     if(p.depth<=NEAR) continue;
     const dtd=(o.t-nowMs)/86400000;                        // days until closest approach (sim time)
-    if(ep && Math.abs(dtd)<5 && !offscr(ep) && !offscr(p)){ // approach window: tie to Earth
-      ctx.setLineDash([3,4]); ctx.strokeStyle=`rgba(255,168,88,${A*0.30})`; ctx.lineWidth=0.8;
-      ctx.beginPath(); ctx.moveTo(ep.x,ep.y); ctx.lineTo(p.x,p.y); ctx.stroke(); ctx.setLineDash([]);
+    if(ep && Math.abs(dtd)<5){                             // approach window: tie to Earth
+      pathBegin(); pathPt(ep); pathPt(p); pathStroke(`rgba(255,168,88,${A*0.30})`,0.8,[3,4]);
     }
     const px=sel?6:4.5;                                    // diamond marker
     ctx.beginPath(); ctx.moveTo(p.x,p.y-px); ctx.lineTo(p.x+px,p.y); ctx.lineTo(p.x,p.y+px); ctx.lineTo(p.x-px,p.y); ctx.closePath();
@@ -2042,12 +2042,9 @@ function computeTransfer(b){
 }
 function drawTransfer(A){ LBL.prio=P_PROBE;
   const T=TRANSFER; if(!T) return;
-  ctx.setLineDash([5,4]); ctx.beginPath(); let first=true;
-  for(const q of T.pts){ const w=eclToWorld(q[0],q[1],q[2]), p=project(w[0],w[1],w[2]);
-    if(offscr(p)){first=true;continue;}
-    if(first){ctx.moveTo(p.x,p.y);first=false;}else ctx.lineTo(p.x,p.y);
-  }
-  ctx.strokeStyle=`rgba(79,214,200,${A*0.8})`; ctx.lineWidth=1.5; ctx.stroke(); ctx.setLineDash([]);
+  pathBegin();
+  for(const q of T.pts){ const w=eclToWorld(q[0],q[1],q[2]); pathPt(project(w[0],w[1],w[2])); }
+  pathStroke(`rgba(79,214,200,${A*0.8})`,1.5,[5,4]);
   const ends=[[T.pts[0],`launch ${dateStr(T.dep)} · Δv ${T.dv.toFixed(1)} km/s`],
               [T.pts[T.pts.length-1],`${T.to.n} at arrival · ${dateStr(T.dep+T.tof)}`]];
   ctx.font='9px ui-monospace,monospace';
@@ -2117,13 +2114,10 @@ function drawRoute(){ LBL.prio=P_SEL;
   const R=ROUTE, w=navWorld(R.o);
   if(!w){ return; }
   const wr=Math.hypot(w[0],w[1],w[2]);
-  ctx.setLineDash([6,5]); ctx.beginPath(); let first=true;
+  pathBegin();
   for(let i=0;i<=40;i++){ const r=wr*i/40;             // radial chord: Sun → target
-    const p=project(R.dir[0]*r,R.dir[1]*r,R.dir[2]*r);
-    if(offscr(p)){first=true;continue;}
-    if(first){ctx.moveTo(p.x,p.y);first=false;}else ctx.lineTo(p.x,p.y);
-  }
-  ctx.strokeStyle='rgba(120,255,235,0.55)'; ctx.lineWidth=1.3; ctx.stroke(); ctx.setLineDash([]);
+    pathPt(project(R.dir[0]*r,R.dir[1]*r,R.dir[2]*r)); }
+  pathStroke('rgba(120,255,235,0.55)',1.3,[6,5]);
   const tp=project(w[0],w[1],w[2]);
   if(tp.depth>NEAR){ ctx.font='9px ui-monospace,monospace'; ctx.fillStyle='rgba(140,255,240,0.8)';
     const D=R.distPc*PC2LY, r=route1g(D);
@@ -2176,15 +2170,12 @@ function drawLagrange(A){ LBL.prio=P_SMALL;
     const rp=Math.hypot(edge.x-pc.x,edge.y-pc.y);
     if(rp<6 || rp>Math.min(W,H)*6) continue;     // invisible at this zoom / camera deep inside
                                                  // (dashing a 30k-px circle stalls the rasterizer)
-    ctx.beginPath(); let first=true;
+    pathBegin();
     for(let k=0;k<=48;k++){ const th=k/48*6.2832;
       const w=eclToWorld(b._e[0]+Math.cos(th)*rH, b._e[1]+Math.sin(th)*rH, b._e[2]);
-      const p=project(w[0],w[1],w[2]);
-      if(offscr(p)){first=true;continue;}
-      if(first){ctx.moveTo(p.x,p.y);first=false;}else ctx.lineTo(p.x,p.y);
+      pathPt(project(w[0],w[1],w[2]));
     }
-    ctx.strokeStyle=`rgba(150,205,255,${A*0.4})`; ctx.lineWidth=1;
-    ctx.setLineDash([3,5]); ctx.stroke(); ctx.setLineDash([]);
+    pathStroke(`rgba(150,205,255,${A*0.4})`,1,[3,5]);
     if(rp>30){ ctx.font='9px ui-monospace,monospace'; ctx.fillStyle=`rgba(150,205,255,${A*0.7})`;
       const km=rH*149.6;                         // AU → million km
       ctx.fillText('Hill sphere · '+(km<1?Math.round(km*1000).toLocaleString('en-US')+',000 km':km.toFixed(1)+' M km'),
@@ -2288,15 +2279,11 @@ function drawSystem(alpha){ LBL.prio=P_SOLAR;
 function drawConstellations(){ LBL.prio=P_GRID;
   if(!S.con) return;
   const R=scale(30);                        // sky-sphere radius among the local stars
-  ctx.strokeStyle='rgba(128,150,215,0.15)'; ctx.lineWidth=1;
   for(const k of CONS){
     for(const pl of k._L){
-      ctx.beginPath(); let first=true;
-      for(const d of pl){ const p=project(d[0]*R,d[1]*R,d[2]*R);
-        if(offscr(p)){first=true;continue;}
-        if(first){ctx.moveTo(p.x,p.y);first=false;}else ctx.lineTo(p.x,p.y);
-      }
-      ctx.stroke();
+      pathBegin();
+      for(const d of pl) pathPt(project(d[0]*R,d[1]*R,d[2]*R));
+      pathStroke('rgba(128,150,215,0.15)',1);
     }
     const cp=project(k.c[0]*R,k.c[1]*R,k.c[2]*R);
     if(cp.depth>NEAR){ ctx.font='8.5px ui-monospace,monospace'; ctx.fillStyle='rgba(150,170,225,0.38)';
@@ -2448,17 +2435,14 @@ function drawS2(){ LBL.prio=P_DEEP;
 // ---- observable-universe boundary (CMB shell, ~46 Gly) ----
 function drawEdge(){ LBL.prio=P_GRID;
   const R=scale(14300e6);
-  ctx.strokeStyle='rgba(120,150,255,0.11)'; ctx.lineWidth=1;
   for(let pl=0;pl<3;pl++){
-    ctx.beginPath(); let first=true;
+    pathBegin();
     for(let a=0;a<=6.2833;a+=0.13){
       const ca=Math.cos(a)*R, sa=Math.sin(a)*R;
       const w = pl===0?[ca,sa,0] : pl===1?[ca,0,sa] : [0,ca,sa];
-      const p=project(w[0],w[1],w[2]);
-      if(p.depth<=NEAR){ first=true; continue; }
-      if(first){ ctx.moveTo(p.x,p.y); first=false; } else ctx.lineTo(p.x,p.y);
+      pathPt(project(w[0],w[1],w[2]));
     }
-    ctx.stroke();
+    pathStroke('rgba(120,150,255,0.11)',1);
   }
   const lp=project(R,0,0);
   if(lp.depth>NEAR){ ctx.font='9px ui-monospace,monospace'; ctx.fillStyle='rgba(140,165,255,0.5)';
@@ -2529,10 +2513,9 @@ function drawGalaxyModel(){ LBL.prio=P_GAL;
       ctx.beginPath(); ctx.arc(p.x,p.y,2.4,0,6.2832); ctx.fill();
       ctx.font='9px ui-monospace,monospace'; ctx.fillStyle='rgba(150,235,255,0.8)';
       ctx.fillText('Sun · Orion Spur', p.x+5, p.y+3); } }
-  ctx.strokeStyle='rgba(150,175,235,0.14)'; ctx.lineWidth=1; ctx.beginPath();
-  { let first=true; for(let a=0;a<=6.2833;a+=0.1){ const w=mwWorld(16000,a), p=project(w[0],w[1],w[2]);
-      if(offscr(p)){first=true;continue;} if(first){ctx.moveTo(p.x,p.y);first=false;}else ctx.lineTo(p.x,p.y);} }
-  ctx.stroke();
+  pathBegin();
+  for(let a=0;a<=6.2833;a+=0.1){ const w=mwWorld(16000,a); pathPt(project(w[0],w[1],w[2])); }
+  pathStroke('rgba(150,175,235,0.14)',1);
 }
 // ---- black holes, ray-traced: per-pixel null geodesics (Schwarzschild) ----
 // shadow, photon ring and the folded disk all EMERGE from the light bending;
@@ -2764,13 +2747,10 @@ function drawMW(){ LBL.prio=P_DEEP;
   { const R=scale(SGRA.d); SGRA._x=SGRA._dir[0]*R; SGRA._y=SGRA._dir[1]*R; SGRA._z=SGRA._dir[2]*R; }
   // the galactic plane, drawn as great circles in that plane (the "Milky Way band")
   [500,1500,5000].forEach((pc,idx)=>{ const R=scale(pc), mid=idx===1;
-    ctx.beginPath(); let first=true;
+    pathBegin();
     for(let t=0;t<=100;t++){ const th=t/100*6.2832, c=Math.cos(th), s=Math.sin(th);
-      const p=project((GPu[0]*c+GPv[0]*s)*R,(GPu[1]*c+GPv[1]*s)*R,(GPu[2]*c+GPv[2]*s)*R);
-      if(offscr(p)){first=true;continue;}
-      if(first){ctx.moveTo(p.x,p.y);first=false;}else ctx.lineTo(p.x,p.y);
-    }
-    ctx.strokeStyle=`rgba(140,165,235,${mid?0.16:0.08})`; ctx.lineWidth=mid?2:1; ctx.stroke();
+      pathPt(project((GPu[0]*c+GPv[0]*s)*R,(GPu[1]*c+GPv[1]*s)*R,(GPu[2]*c+GPv[2]*s)*R)); }
+    pathStroke(`rgba(140,165,235,${mid?0.16:0.08})`, mid?2:1);
   });
   // Sagittarius A* — the galactic centre
   const sp=project(SGRA._x,SGRA._y,SGRA._z);
@@ -4367,8 +4347,7 @@ function drawMeasure(){ LBL.prio=P_HUD;
   const wB=measWorld(measB.P), pB=project(wB[0],wB[1],wB[2]);
   if(pA.depth<=NEAR||pB.depth<=NEAR) return;
   ctx.beginPath(); ctx.arc(pB.x,pB.y,6,0,6.2832); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(pA.x,pA.y); ctx.lineTo(pB.x,pB.y);
-  ctx.setLineDash([5,4]); ctx.strokeStyle='rgba(255,207,107,.7)'; ctx.stroke(); ctx.setLineDash([]);
+  pathBegin(); pathPt(pA); pathPt(pB); pathStroke('rgba(255,207,107,.7)',1.4,[5,4]);
   const dpc=Math.hypot(measA.P[0]-measB.P[0],measA.P[1]-measB.P[1],measA.P[2]-measB.P[2]);
   const txt = dpc<0.001 ? (dpc/AU_PC).toFixed(2)+' AU' : fmt(dpc*PC2LY)+' ly · light needs '+fmt(dpc*PC2LY)+' yr';
   ctx.font='11px ui-monospace,monospace'; ctx.fillStyle='rgba(255,220,140,.95)';
