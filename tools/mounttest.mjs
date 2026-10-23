@@ -15,7 +15,8 @@ globalThis.window = win;
 win.fetch = () => new Promise(() => {});   // hold the engine boot — we test the MOUNT only
 globalThis.fetch = win.fetch;
 win.matchMedia = globalThis.matchMedia = () => ({ matches:false, addEventListener(){}, removeEventListener(){} });
-const js = fs.readdirSync('dist/assets').find(f => f.endsWith('.js'));
+// the entry chunk, not the engine chunk (the engine is a dynamic import now)
+const js = (fs.readFileSync('dist/index.html', 'utf8').match(/assets\/(index-[^"]+\.js)/) || [])[1];
 try {
   await import('../dist/assets/' + js);
   await new Promise(r => setTimeout(r, 300));

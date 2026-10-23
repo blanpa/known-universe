@@ -1,5 +1,5 @@
 <script>
-  import { api } from '../lib/engine.js';
+  import { api } from '../lib/api.js';
   import { searchMsg } from '../lib/stores.js';
   import Icon from './Icon.svelte';
   let { mode = 'desktop', onpick = () => {} } = $props();

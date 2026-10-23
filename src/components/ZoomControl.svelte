@@ -1,5 +1,5 @@
 <script>
-  import { api } from '../lib/engine.js';
+  import { api } from '../lib/api.js';
   import Icon from './Icon.svelte';
   // variant 'rail' sits inside the desktop rail (so it can never overlap a panel);
   // 'float' is the phone's free-standing control.

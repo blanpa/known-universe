@@ -6,6 +6,7 @@ import { viteSingleFile } from 'vite-plugin-singlefile';
 export default defineConfig({
   plugins: [svelte(), viteSingleFile()],
   publicDir: false,
-  build: { outDir: 'dist-artifact', emptyOutDir: true, minify: false },
+  build: { outDir: 'dist-artifact', emptyOutDir: true, minify: false,
+           rollupOptions: { output: { inlineDynamicImports: true } } },   // one file: the engine chunk too
   define: { __BUILD__: JSON.stringify('b' + new Date().toTimeString().slice(0, 5)) },
 });

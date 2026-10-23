@@ -2,11 +2,11 @@
 // Svelte owns the DOM structure; this module binds to it by element id.
 import { LIVE, startLive, satEcl, groundEcl, activeShowers } from './live.js';
 import { svgIcon } from './icons.js';
-export const UI={};
-export const api={};
+import { UI, api } from './api.js';
+export { UI, api };
 
-function __run(){
-"use strict";
+// This module runs at import time and expects the data to be there: main.js imports it
+// dynamically once data.json and catalog.json have arrived (or were embedded).
 const DATA = window.__DATA__, META = DATA.meta, STARS = DATA.stars;
 // the baked catalogues (pulsars, clusters, comets, moon ephemerides, …) now ship as
 // site/data/catalog.json — loaded by main.js next to data.json, embedded in the artifact
@@ -2794,10 +2794,6 @@ function camPhysPos(){ const cd=Math.hypot(camPos[0],camPos[1],camPos[2]);
   if(cd<1e-15) return [0,0,0]; const p=invScale(cd)/cd; return [camPos[0]*p,camPos[1]*p,camPos[2]*p]; }
 function navDistPc(){ if(!navTarget) return 0; const t=navPhys(navTarget); if(!t) return 0;
   const c=camPhysPos(); return Math.hypot(t[0]-c[0],t[1]-c[1],t[2]-c[2]); }
-function fmtDist(pc){ const au=pc*206265, ly=pc*3.261564;
-  if(pc<4.8e-4) return (au<10?au.toFixed(2):fmt(au))+' AU';
-  if(ly<9e5) return fmt(ly)+' ly';
-  return (ly/1e6).toFixed(2)+' Mly'; }
 function fmtLight(pc){ const ly=pc*3.261564;
   if(ly<1){ const min=ly*365.25*24*60;
     if(min<90) return Math.max(1,Math.round(min))+' light-minutes';
@@ -4554,6 +4550,4 @@ initGL();
 loadGaia();
 loadExtragal();
 requestAnimationFrame(frame);
-}
-
-export function runEngine(){ __run(); window.__kuapi=api; }
+window.__kuapi=api;

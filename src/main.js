@@ -1,7 +1,7 @@
 import { mount } from 'svelte';
 import './app.css';
 import App from './App.svelte';
-import { UI, runEngine } from './lib/engine.js';
+import { UI } from './lib/api.js';
 import { toggleState, labels, searchMsg, facList } from './lib/stores.js';
 import { restore } from './lib/prefs.js';
 
@@ -28,9 +28,11 @@ UI.fac        = list => facList.set(list);
 // boot: embedded data (artifact) or fetch (Pages/Docker).
 // Layer state is restored AFTER the engine booted — setToggle runs each layer's real
 // side effect, so a restored session is the real state, not just repainted switches.
-function boot() { runEngine(); try { restore(); } catch (e) {} }
+// the engine module runs at import time, so it is imported only once the data is there
+function boot() { return import('./lib/engine.js').then(() => { try { restore(); } catch (e) {} }); }
 const getJSON = u => fetch(u).then(r => { if (!r.ok) throw new Error(u + ' → HTTP ' + r.status); return r.json(); });
-if (window.__DATA__) boot();
+const fail = e => { document.body.innerHTML = '<p style="color:#e9edfa;font-family:monospace;padding:2em">Error loading data: ' + e + '</p>'; };
+if (window.__DATA__) boot().catch(fail);
 else Promise.all([getJSON('data/data.json'), getJSON('data/catalog.json')])
-  .then(([d, c]) => { window.__DATA__ = d; window.__CATALOG__ = c; boot(); })
-  .catch(e => { document.body.innerHTML = '<p style="color:#e9edfa;font-family:monospace;padding:2em">Error loading data: ' + e + '</p>'; });
+  .then(([d, c]) => { window.__DATA__ = d; window.__CATALOG__ = c; return boot(); })
+  .catch(fail);

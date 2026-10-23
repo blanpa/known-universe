@@ -1,7 +1,7 @@
 // Layer presets + session persistence.
 // 39 switches, all on, no memory was a lot to ask of a first-time visitor. Presets set a
 // whole scene in one tap; whatever you end up with is remembered for the next visit.
-import { api } from './engine.js';
+import { api } from './api.js';
 import { toggleState } from './stores.js';
 
 const KEY = 'ku_layers_v2';

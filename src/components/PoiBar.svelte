@@ -1,5 +1,5 @@
 <script>
-  import { api } from '../lib/engine.js';
+  import { api } from '../lib/api.js';
   import Icon from './Icon.svelte';
   let { variant = '', onpick = () => {} } = $props();
   // every entry resolves through the regular search — same fly-to as typing it
