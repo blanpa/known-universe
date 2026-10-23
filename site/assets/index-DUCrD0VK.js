@@ -5245,6 +5245,21 @@ async function tracked(id, meta, fn) {
 		throw e;
 	}
 }
+var TALLY = {};
+function tally(id, meta, ok) {
+	const c = TALLY[id] || (TALLY[id] = {
+		ok: 0,
+		failed: 0
+	});
+	if (ok) c.ok++;
+	else c.failed++;
+	mark(id, {
+		...meta,
+		n: c.ok,
+		state: c.failed === 0 ? "ok" : c.failed > c.ok ? "error" : "warn",
+		msg: c.failed ? `${c.failed} failed` : ""
+	});
+}
 function timg(id, meta, im) {
 	declare(id, meta);
 	const ol = im.onload, oe = im.onerror;
@@ -10603,7 +10618,7 @@ function MobileNav($$anchor, $$props) {
 		}
 		var text_2 = sibling(node_6);
 		var small = sibling(text_2);
-		small.textContent = `· b22:38`;
+		small.textContent = `· b22:48`;
 		reset(span_2);
 		var span_3 = sibling(span_2, 2);
 		var button_6 = child(span_3);
@@ -11198,7 +11213,7 @@ window.addEventListener("error", (e) => showErr("⚠ " + (e.message || e.type) +
 window.addEventListener("unhandledrejection", (e) => showErr("⚠ promise: " + (e.reason && e.reason.message || e.reason)));
 mount(App, { target: document.getElementById("app") });
 function boot() {
-	return __vitePreload(() => import("./engine-mDT-vCdD.js").then(() => {
+	return __vitePreload(() => import("./engine-B3SKkk_A.js").then(() => {
 		try {
 			restore();
 		} catch (e) {}
@@ -11215,7 +11230,7 @@ var fail = (e) => {
 	document.body.innerHTML = "<p style=\"color:#e9edfa;font-family:monospace;padding:2em\">Error loading data: " + e + "</p>";
 };
 if (window.__DATA__) boot().catch(fail);
-else Promise.all([getJSON("data/data.json?b=b22:38", "data-json", "data.json · stars, exoplanets, galaxies"), getJSON("data/catalog.json?b=b22:38", "catalog-json", "catalog.json · solar system, deep sky, pulsars")]).then(([d, c]) => {
+else Promise.all([getJSON("data/data.json?b=b22:48", "data-json", "data.json · stars, exoplanets, galaxies"), getJSON("data/catalog.json?b=b22:48", "catalog-json", "catalog.json · solar system, deep sky, pulsars")]).then(([d, c]) => {
 	window.__DATA__ = d;
 	window.__CATALOG__ = c;
 	const m = d.meta || {};
@@ -11223,4 +11238,4 @@ else Promise.all([getJSON("data/data.json?b=b22:38", "data-json", "data.json · 
 	return boot();
 }).catch(fail);
 //#endregion
-export { declare as A, timeline as C, userLayer as D, transit as E, tfetch as M, timg as N, api as O, timeBar as S, tour as T, searchMsg as _, satEcl as a, stats as b, camera as c, facList as d, fieldQuery as f, nav as g, movers as h, refreshLive as i, mark as j, count as k, encounters as l, measure as m, activeShowers as n, startLive as o, labels as p, groundEcl as r, RESERVED as s, LIVE as t, facColor as u, selection as v, toggleState as w, survey as x, skyCursor as y };
+export { declare as A, timeline as C, userLayer as D, transit as E, tally as M, tfetch as N, api as O, timg as P, timeBar as S, tour as T, searchMsg as _, satEcl as a, stats as b, camera as c, facList as d, fieldQuery as f, nav as g, movers as h, refreshLive as i, mark as j, count as k, encounters as l, measure as m, activeShowers as n, startLive as o, labels as p, groundEcl as r, RESERVED as s, LIVE as t, facColor as u, selection as v, toggleState as w, survey as x, skyCursor as y };

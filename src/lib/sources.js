@@ -43,6 +43,13 @@ export async function tracked(id, meta, fn){
     mark(id, { state: st.state || 'ok', ms: Math.round(performance.now() - t0), ...st }); return r; }
   catch (e) { mark(id, { state: 'error', ms: Math.round(performance.now() - t0), msg: String(e && e.message || e) }); throw e; }
 }
+// many small loads under one row (tiles): ok/failed tallies decide the state
+const TALLY = {};
+export function tally(id, meta, ok){
+  const c = TALLY[id] || (TALLY[id] = { ok: 0, failed: 0 });
+  if (ok) c.ok++; else c.failed++;
+  mark(id, { ...meta, n: c.ok, state: c.failed === 0 ? 'ok' : c.failed > c.ok ? 'error' : 'warn', msg: c.failed ? `${c.failed} failed` : '' });
+}
 // an <img> load: wrap its handlers, keep theirs
 export function timg(id, meta, im){
   declare(id, meta); const ol = im.onload, oe = im.onerror; const t0 = performance.now();

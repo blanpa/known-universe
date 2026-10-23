@@ -1,5 +1,5 @@
 // The Earth up close: EPIC/GOES imagery, the 3D globe, the surface tile map.
-import { declare, mark, timg } from '../lib/sources.js';
+import { declare, mark, tally, timg } from '../lib/sources.js';
 import { LIVE } from '../lib/live.js';
 import { ctx } from './canvas.js';
 import { LBL, P_HUD } from './labels.js';
@@ -9,6 +9,9 @@ import { H, W } from './view.js';
 // ---- EPIC: today's photo of Earth as the glyph texture (lazy, CORS image) ----
 let _epicImg=null,_epicState=0;
 declare('gibs', {name:'NASA GIBS · VIIRS true-colour surface tiles', host:'gibs.earthdata.nasa.gov', group:'earth'});
+const SURF_META={name:'NASA GIBS · surface map tiles (street-level descent)', host:'gibs.earthdata.nasa.gov', group:'earth'};
+declare('gibs-surface', SURF_META);
+declare('planet-tex', {name:'Planet textures · data/tex (optional, Docker build)', host:'', group:'catalogue', optional:true});
 declare('goes', {name:'NOAA GOES-19 · full-disk Earth image', host:'cdn.star.nesdis.noaa.gov', group:'earth'});
 declare('nasa-epic-img', {name:'NASA EPIC · Earth photo', host:'api.nasa.gov', group:'earth'});
 function epicImage(){
@@ -225,6 +228,7 @@ export function bodyGlobe(b,px,jd){
   let t=g.pt[cfg[0]];
   if(!t){ t=g.pt[cfg[0]]={tex:null,ready:false};
     const im=new Image();
+    im.addEventListener('load',()=>tally('planet-tex',{},true)); im.addEventListener('error',()=>mark('planet-tex',{state:'absent',msg:'no textures in this build'}));
     im.onload=()=>{ try{ const gl=g.gl, tx=gl.createTexture();
       gl.bindTexture(gl.TEXTURE_2D,tx);
       gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,im);
@@ -296,9 +300,10 @@ function surfTile(z,x,y){
   if(!t){
     t={im:new Image(),ok:false};
     t.im.crossOrigin='anonymous';
-    t.im.onload=()=>{ t.ok=true; V.dirty=true; };
+    t.im.onload=()=>{ t.ok=true; V.dirty=true; tally('gibs-surface', SURF_META, true); };
     const day=SURF.dayOff;
     t.im.onerror=()=>{                                // mosaic for that day not ingested yet
+      tally('gibs-surface', SURF_META, false);
       if(day===SURF.dayOff && SURF.dayOff<4){
         SURF.dayOff++; SURF.cache.clear(); SURF.order.length=0; V.dirty=true; }
     };
