@@ -1,4 +1,4 @@
-import { C as tour, E as api, S as toggleState, T as userLayer, _ as selection, a as startLive, b as timeBar, c as encounters, d as fieldQuery, f as labels, g as searchMsg, h as nav, i as satEcl, l as facColor, m as movers, n as activeShowers, o as RESERVED, p as measure, r as groundEcl, s as camera, t as LIVE, u as facList$1, v as stats, w as transit, x as timeline, y as survey } from "./index-DKC_bFio.js";
+import { C as tour, E as api, S as toggleState, T as userLayer, _ as selection, a as startLive, b as timeBar, c as encounters, d as fieldQuery, f as labels, g as searchMsg, h as nav, i as satEcl, l as facColor, m as movers, n as activeShowers, o as RESERVED, p as measure, r as groundEcl, s as camera, t as LIVE, u as facList$1, v as stats, w as transit, x as timeline, y as survey } from "./index-BmTq9Jw8.js";
 //#region src/engine/canvas.js
 var cv = document.getElementById("sky");
 var ctx = cv.getContext("2d");
@@ -1666,159 +1666,6 @@ var CON_NAME = {
 	Cvn: "Canes Venatici"
 };
 //#endregion
-//#region src/engine/draw.js
-var _sprites = {};
-function blobSprite(r, g, b, a0, a1) {
-	const k = r + "," + g + "," + b + "," + a0 + "," + a1;
-	let sp = _sprites[k];
-	if (!sp) {
-		sp = document.createElement("canvas");
-		sp.width = sp.height = 64;
-		const c2 = sp.getContext("2d");
-		const gr = c2.createRadialGradient(32, 32, 0, 32, 32, 32);
-		gr.addColorStop(0, `rgba(${r},${g},${b},${a0})`);
-		gr.addColorStop(.5, `rgba(${r},${g},${b},${a1})`);
-		gr.addColorStop(1, `rgba(${r},${g},${b},0)`);
-		c2.fillStyle = gr;
-		c2.fillRect(0, 0, 64, 64);
-		_sprites[k] = sp;
-	}
-	return sp;
-}
-var _halos = {};
-function haloSprite(key, stops, size) {
-	let sp = _halos[key];
-	if (sp) return sp;
-	sp = document.createElement("canvas");
-	sp.width = sp.height = size || 256;
-	const h = sp.width / 2, c2 = sp.getContext("2d"), gr = c2.createRadialGradient(h, h, 0, h, h, h);
-	for (const [t, col] of stops) gr.addColorStop(t, col);
-	c2.fillStyle = gr;
-	c2.beginPath();
-	c2.arc(h, h, h, 0, 6.2832);
-	c2.fill();
-	_halos[key] = sp;
-	return sp;
-}
-function drawHalo(sp, x, y, r, alpha) {
-	if (!(r > .5)) return;
-	if (r > 4 * Math.max(W, H)) return;
-	const ga = ctx.globalAlpha;
-	ctx.globalAlpha = ga * alpha;
-	ctx.drawImage(sp, x - r, y - r, r * 2, r * 2);
-	ctx.globalAlpha = ga;
-}
-var PLIM = 32768;
-function offscr(p) {
-	return p.depth <= V.NEAR || Math.abs(p.x - V.cx) > PLIM || Math.abs(p.y - V.cy) > PLIM;
-}
-var PATH = {
-	n: 0,
-	x: /* @__PURE__ */ new Float64Array(2048),
-	y: /* @__PURE__ */ new Float64Array(2048),
-	brk: /* @__PURE__ */ new Uint8Array(2048)
-};
-function pathBegin() {
-	PATH.n = 0;
-}
-function pathPt(p) {
-	if (offscr(p)) {
-		if (PATH.n) PATH.brk[PATH.n - 1] = 1;
-		return;
-	}
-	const i = PATH.n;
-	if (i >= PATH.x.length) return;
-	PATH.x[i] = p.x;
-	PATH.y[i] = p.y;
-	PATH.brk[i] = 0;
-	PATH.n = i + 1;
-}
-function pathBreak() {
-	if (PATH.n) PATH.brk[PATH.n - 1] = 1;
-}
-function pathStroke(style, lw, dash) {
-	const n = PATH.n;
-	if (n < 2) return;
-	const M = 40, X0 = -40, Y0 = -40, X1 = W + M, Y1 = H + M;
-	ctx.beginPath();
-	let any = false, open = false;
-	for (let i = 1; i < n; i++) {
-		if (PATH.brk[i - 1]) {
-			open = false;
-			continue;
-		}
-		const ax = PATH.x[i - 1], ay = PATH.y[i - 1], dx = PATH.x[i] - ax, dy = PATH.y[i] - ay;
-		let t0 = 0, t1 = 1, ok = true;
-		for (let e = 0; e < 4; e++) {
-			const q = e === 0 ? -dx : e === 1 ? dx : e === 2 ? -dy : dy;
-			const r = e === 0 ? ax - X0 : e === 1 ? X1 - ax : e === 2 ? ay - Y0 : Y1 - ay;
-			if (q === 0) {
-				if (r < 0) {
-					ok = false;
-					break;
-				}
-				continue;
-			}
-			const t = r / q;
-			if (q < 0) {
-				if (t > t1) {
-					ok = false;
-					break;
-				}
-				if (t > t0) t0 = t;
-			} else {
-				if (t < t0) {
-					ok = false;
-					break;
-				}
-				if (t < t1) t1 = t;
-			}
-		}
-		if (!ok) {
-			open = false;
-			continue;
-		}
-		if (!open || t0 > 0) ctx.moveTo(ax + dx * t0, ay + dy * t0);
-		ctx.lineTo(ax + dx * t1, ay + dy * t1);
-		any = true;
-		open = t1 >= 1;
-	}
-	if (!any) return;
-	ctx.strokeStyle = style;
-	ctx.lineWidth = lw;
-	if (dash) {
-		ctx.setLineDash(dash);
-		ctx.stroke();
-		ctx.setLineDash([]);
-	} else ctx.stroke();
-}
-var PROF = {
-	on: false,
-	t: Object.create(null),
-	frames: 0
-};
-function P(k, fn) {
-	if (!PROF.on) return fn();
-	const a = performance.now();
-	const r = fn();
-	PROF.t[k] = (PROF.t[k] || 0) + (performance.now() - a);
-	return r;
-}
-api.prof = (on) => {
-	if (on) {
-		PROF.on = true;
-		PROF.t = Object.create(null);
-		PROF.frames = 0;
-		return null;
-	}
-	PROF.on = false;
-	const f = PROF.frames || 1;
-	return {
-		frames: PROF.frames,
-		ms: Object.fromEntries(Object.entries(PROF.t).map(([k, v]) => [k, +(v / f).toFixed(2)]).sort((a, b) => b[1] - a[1]))
-	};
-};
-//#endregion
 //#region src/engine/solar-data.js
 var SUN = {
 	n: "Sun",
@@ -2886,7 +2733,10 @@ for (const s of STARS) s._v = velocityOf([
 	s._dy,
 	s._dz
 ], s._r, s.pr, s.pd, s.rv);
-var tNow = () => S.pm ? S.pmYears : 0;
+var yearsSinceJ2000 = () => (Date.now() / 864e5 + 2440587.5 - 2451545) / 365.25;
+var tNow = () => yearsSinceJ2000() + (S.pm ? S.pmYears : 0);
+var tSince = (epoch) => tNow() - (epoch - 2e3);
+var epochNow = () => 2e3 + tNow();
 function hygPos(s, t) {
 	return [
 		s.dx * s.d + s._v[0] * t,
@@ -2913,7 +2763,7 @@ var ENCOUNTERS = (() => {
 		const d = Math.hypot(rx + v[0] * t, ry + v[1] * t, rz + v[2] * t);
 		if (d < 1.5 && d < s.d * .9) out.push({
 			s,
-			t: Math.round(t),
+			t: Math.round(t - yearsSinceJ2000()),
 			d,
 			v: Math.sqrt(vv) / KMS2PCYR
 		});
@@ -2930,16 +2780,169 @@ encounters.set(ENCOUNTERS.map((e, i) => ({
 	dNow: e.s.d
 })));
 //#endregion
+//#region src/engine/draw.js
+var _sprites = {};
+function blobSprite(r, g, b, a0, a1) {
+	const k = r + "," + g + "," + b + "," + a0 + "," + a1;
+	let sp = _sprites[k];
+	if (!sp) {
+		sp = document.createElement("canvas");
+		sp.width = sp.height = 64;
+		const c2 = sp.getContext("2d");
+		const gr = c2.createRadialGradient(32, 32, 0, 32, 32, 32);
+		gr.addColorStop(0, `rgba(${r},${g},${b},${a0})`);
+		gr.addColorStop(.5, `rgba(${r},${g},${b},${a1})`);
+		gr.addColorStop(1, `rgba(${r},${g},${b},0)`);
+		c2.fillStyle = gr;
+		c2.fillRect(0, 0, 64, 64);
+		_sprites[k] = sp;
+	}
+	return sp;
+}
+var _halos = {};
+function haloSprite(key, stops, size) {
+	let sp = _halos[key];
+	if (sp) return sp;
+	sp = document.createElement("canvas");
+	sp.width = sp.height = size || 256;
+	const h = sp.width / 2, c2 = sp.getContext("2d"), gr = c2.createRadialGradient(h, h, 0, h, h, h);
+	for (const [t, col] of stops) gr.addColorStop(t, col);
+	c2.fillStyle = gr;
+	c2.beginPath();
+	c2.arc(h, h, h, 0, 6.2832);
+	c2.fill();
+	_halos[key] = sp;
+	return sp;
+}
+function drawHalo(sp, x, y, r, alpha) {
+	if (!(r > .5)) return;
+	if (r > 4 * Math.max(W, H)) return;
+	const ga = ctx.globalAlpha;
+	ctx.globalAlpha = ga * alpha;
+	ctx.drawImage(sp, x - r, y - r, r * 2, r * 2);
+	ctx.globalAlpha = ga;
+}
+var PLIM = 32768;
+function offscr(p) {
+	return p.depth <= V.NEAR || Math.abs(p.x - V.cx) > PLIM || Math.abs(p.y - V.cy) > PLIM;
+}
+var PATH = {
+	n: 0,
+	x: /* @__PURE__ */ new Float64Array(2048),
+	y: /* @__PURE__ */ new Float64Array(2048),
+	brk: /* @__PURE__ */ new Uint8Array(2048)
+};
+function pathBegin() {
+	PATH.n = 0;
+}
+function pathPt(p) {
+	if (offscr(p)) {
+		if (PATH.n) PATH.brk[PATH.n - 1] = 1;
+		return;
+	}
+	const i = PATH.n;
+	if (i >= PATH.x.length) return;
+	PATH.x[i] = p.x;
+	PATH.y[i] = p.y;
+	PATH.brk[i] = 0;
+	PATH.n = i + 1;
+}
+function pathBreak() {
+	if (PATH.n) PATH.brk[PATH.n - 1] = 1;
+}
+function pathStroke(style, lw, dash) {
+	const n = PATH.n;
+	if (n < 2) return;
+	const M = 40, X0 = -40, Y0 = -40, X1 = W + M, Y1 = H + M;
+	ctx.beginPath();
+	let any = false, open = false;
+	for (let i = 1; i < n; i++) {
+		if (PATH.brk[i - 1]) {
+			open = false;
+			continue;
+		}
+		const ax = PATH.x[i - 1], ay = PATH.y[i - 1], dx = PATH.x[i] - ax, dy = PATH.y[i] - ay;
+		let t0 = 0, t1 = 1, ok = true;
+		for (let e = 0; e < 4; e++) {
+			const q = e === 0 ? -dx : e === 1 ? dx : e === 2 ? -dy : dy;
+			const r = e === 0 ? ax - X0 : e === 1 ? X1 - ax : e === 2 ? ay - Y0 : Y1 - ay;
+			if (q === 0) {
+				if (r < 0) {
+					ok = false;
+					break;
+				}
+				continue;
+			}
+			const t = r / q;
+			if (q < 0) {
+				if (t > t1) {
+					ok = false;
+					break;
+				}
+				if (t > t0) t0 = t;
+			} else {
+				if (t < t0) {
+					ok = false;
+					break;
+				}
+				if (t < t1) t1 = t;
+			}
+		}
+		if (!ok) {
+			open = false;
+			continue;
+		}
+		if (!open || t0 > 0) ctx.moveTo(ax + dx * t0, ay + dy * t0);
+		ctx.lineTo(ax + dx * t1, ay + dy * t1);
+		any = true;
+		open = t1 >= 1;
+	}
+	if (!any) return;
+	ctx.strokeStyle = style;
+	ctx.lineWidth = lw;
+	if (dash) {
+		ctx.setLineDash(dash);
+		ctx.stroke();
+		ctx.setLineDash([]);
+	} else ctx.stroke();
+}
+var PROF = {
+	on: false,
+	t: Object.create(null),
+	frames: 0
+};
+function P(k, fn) {
+	if (!PROF.on) return fn();
+	const a = performance.now();
+	const r = fn();
+	PROF.t[k] = (PROF.t[k] || 0) + (performance.now() - a);
+	return r;
+}
+api.prof = (on) => {
+	if (on) {
+		PROF.on = true;
+		PROF.t = Object.create(null);
+		PROF.frames = 0;
+		return null;
+	}
+	PROF.on = false;
+	const f = PROF.frames || 1;
+	return {
+		frames: PROF.frames,
+		ms: Object.fromEntries(Object.entries(PROF.t).map(([k, v]) => [k, +(v / f).toFixed(2)]).sort((a, b) => b[1] - a[1]))
+	};
+};
+//#endregion
 //#region src/engine/hyg.js
 var hygProj = [];
 Math.PI / (180 * 3600 * 1e3);
 function projectHyg() {
 	hygProj.length = 0;
 	if (!S.hyg) return;
-	const pm = S.pm && S.pmYears !== 0, ty = S.pmYears;
+	const ty = tNow();
 	for (const s of HYG) {
 		let dx = s.dx, dy = s.dy, dz = s.dz, dNow = s.d;
-		if (pm) {
+		{
 			const q = hygPos(s, ty);
 			dNow = Math.hypot(q[0], q[1], q[2]) || 1e-9;
 			dx = q[0] / dNow;
@@ -3674,9 +3677,9 @@ var MAS$1 = 4.84813681e-9;
 function projectUser() {
 	userProj.length = 0;
 	if (!S.user || !USER.rows.length) return;
-	const t = tNow();
 	for (const o of USER.rows) {
 		let dx = o.dx, dy = o.dy, dz = o.dz;
+		const t = tSince(o.ep || 2e3);
 		if (t && (o.pr || o.pd)) {
 			const cq = Math.hypot(dx, dy) || 1e-9, ex = -dy / cq, ey = dx / cq;
 			const nx = -dz * dx / cq, ny = -dz * dy / cq, nz = cq;
@@ -4093,7 +4096,7 @@ function updateHUD() {
 		if (ra < 0) ra += 360;
 		dec = Math.asin(Math.max(-1, Math.min(1, camFwd[2]))) * 57.29578;
 	}
-	const ck = here.toPrecision(3) + "|" + S.realScale + "|" + inSolar + "|" + S.skyMode + "|" + fov.toPrecision(3) + "|" + ra.toFixed(2) + "|" + dec.toFixed(2) + "|" + (V.skyFrom || "");
+	const ck = here.toPrecision(3) + "|" + S.realScale + "|" + inSolar + "|" + S.skyMode + "|" + fov.toPrecision(3) + "|" + ra.toFixed(2) + "|" + dec.toFixed(2) + "|" + (V.skyFrom || "") + "|" + (S.pm ? S.pmYears : 0);
 	if (ck !== _cam) {
 		_cam = ck;
 		camera.set({
@@ -4108,7 +4111,9 @@ function updateHUD() {
 			fov,
 			ra,
 			dec,
-			order: SKYSTAT.order
+			order: SKYSTAT.order,
+			epoch: epochNow(),
+			pxScale: S.skyMode ? fov * 3600 / Math.max(W, H) : 0
 		});
 	}
 	if (!V.navTarget) {
@@ -6058,11 +6063,59 @@ function radec(dx, dy, dz) {
 	const dec = Math.asin(Math.max(-1, Math.min(1, dz))) * 57.29578;
 	return [ra, dec];
 }
-function radecText(dx, dy, dz) {
-	const [ra, dec] = radec(dx, dy, dz);
-	const hh = Math.floor(ra / 15), mm = Math.round((ra / 15 - hh) * 60);
-	return `${hh}h ${String(mm).padStart(2, "0")}m · ${dec >= 0 ? "+" : "−"}${Math.abs(dec).toFixed(1)}°`;
+function hmsOf(ra, secDigits = 1) {
+	ra = (ra % 360 + 360) % 360;
+	const h = ra / 15, hh = Math.floor(h), m = (h - hh) * 60, mm = Math.floor(m);
+	let ss = ((m - mm) * 60).toFixed(secDigits);
+	if (+ss >= 60) ss = 0 .toFixed(secDigits);
+	return `${String(hh).padStart(2, "0")}h${String(mm).padStart(2, "0")}m${ss.padStart(secDigits ? 3 + secDigits : 2, "0")}s`;
 }
+function dmsOf(dec, secDigits = 0) {
+	const sg = dec < 0 ? "−" : "+", a = Math.abs(dec), dd = Math.floor(a), m = (a - dd) * 60, mm = Math.floor(m), s = (m - mm) * 60;
+	return `${sg}${String(dd).padStart(2, "0")}°${String(mm).padStart(2, "0")}′${s.toFixed(secDigits).padStart(secDigits ? 3 + secDigits : 2, "0")}″`;
+}
+var GAL_M = [
+	[
+		-.0548755604162154,
+		-.873437090234885,
+		-.4838350155487132
+	],
+	[
+		.4941094278755837,
+		-.4448296299600112,
+		.746982244497219
+	],
+	[
+		-.8676661490190047,
+		-.1980763734312015,
+		.4559837761750669
+	]
+];
+function galactic(dx, dy, dz) {
+	const x = GAL_M[0][0] * dx + GAL_M[0][1] * dy + GAL_M[0][2] * dz, y = GAL_M[1][0] * dx + GAL_M[1][1] * dy + GAL_M[1][2] * dz, z = GAL_M[2][0] * dx + GAL_M[2][1] * dy + GAL_M[2][2] * dz;
+	let l = Math.atan2(y, x) * 57.29577951;
+	if (l < 0) l += 360;
+	return [l, Math.asin(Math.max(-1, Math.min(1, z))) * 57.29577951];
+}
+function coordText(dx, dy, dz) {
+	const [ra, dec] = radec(dx, dy, dz);
+	return `${hmsOf(ra)} ${dmsOf(dec)}`;
+}
+function galText(dx, dy, dz) {
+	const [l, b] = galactic(dx, dy, dz);
+	return `l ${l.toFixed(3)}° b ${b >= 0 ? "+" : "−"}${Math.abs(b).toFixed(3)}°`;
+}
+function radecText(dx, dy, dz) {
+	return coordText(dx, dy, dz);
+}
+function pmText(pr, pd) {
+	const t = Math.hypot(pr || 0, pd || 0);
+	if (!t) return "—";
+	let pa = Math.atan2(pr || 0, pd || 0) * 57.29578;
+	if (pa < 0) pa += 360;
+	return `${t >= 1e3 ? (t / 1e3).toFixed(2) + "″/yr" : t.toFixed(1) + " mas/yr"} · PA ${pa.toFixed(0)}°`;
+}
+var KMS_PER_PCYR_MAS = 4.74047;
 var simbadCoo = (ra, dec, r) => `https://simbad.cds.unistra.fr/simbad/sim-coo?Coord=${ra.toFixed(4)}%20${dec.toFixed(4)}&Radius=${r}&Radius.unit=arcmin`;
 var simbadId = (id) => `https://simbad.cds.unistra.fr/simbad/sim-id?Ident=${encodeURIComponent(id)}`;
 var aladin = (ra, dec, fov) => `https://aladin.cds.unistra.fr/AladinLite/?target=${ra.toFixed(4)}%20${dec.toFixed(4)}&fov=${fov}`;
@@ -6089,7 +6142,7 @@ function card(o) {
 			const setName = (USER.sets[o.set] || {}).name || "your data";
 			c.title = o.n || `Row ${o.i + 1}`;
 			c.kindLabel = `Your data · ${setName}`;
-			c.rows.push(["Source", setName], ["RA / Dec", radecText(o.dx, o.dy, o.dz)]);
+			c.rows.push(["Source", setName], ["Position", coordText(o.dx, o.dy, o.dz)], ["Galactic", galText(o.dx, o.dy, o.dz)], ["Epoch", `J${(o.ep || 2e3).toFixed(1)}${o.pr || o.pd ? " · shown at J" + epochNow().toFixed(2) : ""}`]);
 			c.rows.push(["Distance", o.noDist ? "not given — placed on the sky" : `${ly$1(o.d)} · ${o.d < 100 ? o.d.toFixed(2) : fmt(o.d)} pc`]);
 			if (o.m !== void 0) c.rows.push(["Magnitude", o.m.toFixed(2)]);
 			if (o.pr || o.pd) c.rows.push(["Proper motion", `${o.pr.toFixed(1)} · ${o.pd.toFixed(1)} mas/yr · ${Math.hypot(o.pr, o.pd).toFixed(0)} total`]);
@@ -6106,8 +6159,10 @@ function card(o) {
 		}
 		case "gpick": {
 			const [ra, dec] = radec(o._dir[0], o._dir[1], o._dir[2]);
-			if (o.gpick === "gaia") c.rows.push(["Type", "Star · Gaia DR3"], ["Mag G", o.mag.toFixed(1)], ["Colour bp−rp", o.bprp.toFixed(2)], ["Distance", `${ly$1(o.d)} · ${o.d.toFixed(1)} pc`]);
-			else if (o.gpick === "web") c.rows.push(["Type", "Galaxy · 2MRS survey"], ["Mag K", o.kmag.toFixed(1)], ["Distance", `${(o.d / 1e6).toFixed(1)} Mpc · ${(o.d * PC2LY / 1e6).toFixed(0)} Mly`]);
+			if (o.gpick === "gaia") {
+				c.rows.push(["Type", "Star · Gaia DR3"], ["Position", coordText(o._dir[0], o._dir[1], o._dir[2]) + " (±20″, packed)"], ["Galactic", galText(o._dir[0], o._dir[1], o._dir[2])], ["G magnitude", o.mag.toFixed(1)], ["Colour BP−RP", o.bprp.toFixed(2)], ["Distance", `${ly$1(o.d)} · ${o.d.toFixed(1)} pc · ϖ ≈ ${(1e3 / o.d).toFixed(1)} mas`]);
+				if (o.pr !== void 0) c.rows.push(["Proper motion", pmText(o.pr, o.pd)], ["Tangential velocity", `${(KMS_PER_PCYR_MAS * Math.hypot(o.pr, o.pd) / 1e3 * o.d).toFixed(1)} km/s`]);
+			} else if (o.gpick === "web") c.rows.push(["Type", "Galaxy · 2MRS survey"], ["Mag K", o.kmag.toFixed(1)], ["Distance", `${(o.d / 1e6).toFixed(1)} Mpc · ${(o.d * PC2LY / 1e6).toFixed(0)} Mly`]);
 			else if (o.gpick === "qso") c.rows.push(["Type", "Quasar · Milliquas"], ["Redshift", `z ≈ ${o.z.toFixed(2)}`], ["Distance", `${(o.d / 1e9).toFixed(2)} Gpc comoving`]);
 			else c.rows.push(["Type", `${o.n} · JPL SBDB`], ["Abs. mag H", o.H.toFixed(1)], ["Distance", `${o.rAU.toFixed(2)} AU from the Sun`]);
 			c.links = [{
@@ -6318,29 +6373,41 @@ function card(o) {
 		}
 		case "star": {
 			const [ra, dec] = radec(o.dx, o.dy, o.dz);
-			c.title = o.n || "Star";
-			c.rows.push(["Distance", `${ly$1(o.d)} · ${o.d} pc`], ["Apparent mag.", String(o.m)]);
-			if (tNow()) {
+			c.title = o.n || (o.hip ? `HIP ${o.hip}` : "Star");
+			const q = hygPos(o, tNow()), L = Math.hypot(q[0], q[1], q[2]) || 1e-9;
+			c.rows.push(["Position", coordText(q[0] / L, q[1] / L, q[2] / L)], ["Galactic", galText(q[0] / L, q[1] / L, q[2] / L)], ["Epoch", `J${epochNow().toFixed(2)} (J2000 + μ)`]);
+			c.rows.push(["Distance", `${ly$1(o.d)} · ${o.d} pc · ϖ ${(1e3 / o.d).toFixed(2)} mas`], ["V magnitude", String(o.m)], ["Proper motion", pmText(o.pr, o.pd)]);
+			if (o.pr !== void 0) {
+				const vt = KMS_PER_PCYR_MAS * Math.hypot(o.pr || 0, o.pd || 0) / 1e3 * o.d;
+				c.rows.push(["Velocity", o.rv !== void 0 ? `v_t ${vt.toFixed(1)} · v_r ${o.rv > 0 ? "+" : ""}${o.rv.toFixed(1)} · ${Math.hypot(vt, o.rv).toFixed(1)} km/s` : `v_t ${vt.toFixed(1)} km/s · no radial velocity`]);
+			}
+			if (o.hip) c.rows.push(["Hipparcos", `HIP ${o.hip}`]);
+			if (S.pm) {
 				const q = hygPos(o, tNow()), L = Math.hypot(q[0], q[1], q[2]);
 				c.rows.push(["On the timeline", `${L < .5 ? (L * 206265).toFixed(0) + " AU" : ly$1(L)} away`]);
 			}
 			if (o.con) c.rows.push(["Constellation", o.con]);
-			c.rows.push(["RA / Dec", radecText(o.dx, o.dy, o.dz)]);
 			c.links = [{
 				t: "SIMBAD",
-				u: o.n ? simbadId(o.n) : simbadCoo(ra, dec, 2)
+				u: o.n ? simbadId(o.n) : o.hip ? simbadId("HIP " + o.hip) : simbadCoo(ra, dec, 2)
 			}, {
 				t: "Aladin",
 				u: aladin(ra, dec, .5)
 			}];
-			c.hint = "Background star · HYG catalogue";
+			c.hint = "HYG v4.1 (Hipparcos · Yale · Gliese) · ICRS, position propagated to the displayed epoch";
 			break;
 		}
 		case "host": {
 			const pls = o.p.filter((p) => p.y <= S.year || p.y === 0).sort((a, b) => (a.y || 9999) - (b.y || 9999));
 			const fc = FAC[o.fac] || FAC.other, [ra, dec] = radec(o.x / o.d, o.y / o.d, o.z / o.d);
-			c.rows.push(["Distance", `${ly$1(o.d)} · ${fmt(o.d)} pc`], ["Star", o.sp ? o.sp : o.t ? fmt(o.t) + " K" : "—"], ["Discovered", String(o.fy || "—")], ["Instrument", fc.l]);
-			if (tNow()) {
+			{
+				const q = hostPos(o, tNow()), L = Math.hypot(q[0], q[1], q[2]) || 1e-9;
+				c.rows.push(["Position", coordText(q[0] / L, q[1] / L, q[2] / L)], ["Galactic", galText(q[0] / L, q[1] / L, q[2] / L)]);
+			}
+			c.rows.push(["Distance", `${ly$1(o.d)} · ${fmt(o.d)} pc · ϖ ${(1e3 / o.d).toFixed(2)} mas`], ["Star", o.sp ? o.sp : o.t ? fmt(o.t) + " K" : "—"], ["Discovered", String(o.fy || "—")], ["Instrument", fc.l]);
+			if (o.pr !== void 0 || o.pd !== void 0) c.rows.push(["Proper motion", pmText(o.pr, o.pd)]);
+			if (o.rv !== void 0) c.rows.push(["Radial velocity", `${o.rv > 0 ? "+" : ""}${(+o.rv).toFixed(1)} km/s`]);
+			if (S.pm) {
 				const q = hostPos(o, tNow()), L = Math.hypot(q[0], q[1], q[2]);
 				c.rows.push(["On the timeline", `${ly$1(L)} away`]);
 			}
@@ -7025,7 +7092,7 @@ function initGL() {
 			pal.push(c3[0] / 255, c3[1] / 255, c3[2] / 255);
 		}
 		gl.uniform3fv(progF.loc.u_pal, pal);
-		gl.clearColor(.027, .035, .07, 1);
+		gl.clearColor(0, 0, 0, 1);
 		gl.enable(gl.BLEND);
 		gl.blendFunc(gl.ONE, gl.ONE);
 		glOK = true;
@@ -7274,28 +7341,28 @@ function loadExtragal() {
 		if (typeof window.__WEB_B64__ === "string" && window.__WEB_B64__.length) {
 			buildWeb(b64ToBytes(window.__WEB_B64__));
 			window.__WEB_B64__ = null;
-		} else fetch("data/cosmicweb.bin?b=b22:05").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		} else fetch("data/cosmicweb.bin?b=b22:18").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildWeb(new Uint8Array(a));
 		}).catch(() => {});
 		if (typeof window.__QSO_B64__ === "string" && window.__QSO_B64__.length) {
 			buildQso(b64ToBytes(window.__QSO_B64__));
 			window.__QSO_B64__ = null;
-		} else fetch("data/quasars.bin?b=b22:05").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		} else fetch("data/quasars.bin?b=b22:18").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildQso(new Uint8Array(a));
 		}).catch(() => {});
-		fetch("data/quasarsbig.bin?b=b22:05").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		fetch("data/quasarsbig.bin?b=b22:18").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildQso(new Uint8Array(a));
 		}).catch(() => {});
 		if (typeof window.__BELT_B64__ === "string" && window.__BELT_B64__.length) {
 			buildBelt(b64ToBytes(window.__BELT_B64__));
 			window.__BELT_B64__ = null;
-		} else fetch("data/belt.bin?b=b22:05").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		} else fetch("data/belt.bin?b=b22:18").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildBelt(new Uint8Array(a));
 		}).catch(() => {});
-		fetch("data/gaiabig.bin?b=b22:05").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		fetch("data/gaiabig.bin?b=b22:18").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) {
 				buildGaiaBig(new Uint8Array(a));
-				fetch("data/gaiabig_pm.bin?b=b22:05").then((r) => r.ok ? r.arrayBuffer() : null).then((p) => {
+				fetch("data/gaiabig_pm.bin?b=b22:18").then((r) => r.ok ? r.arrayBuffer() : null).then((p) => {
 					if (p) {
 						gaiaPm = new Uint8Array(p);
 						if (CL.G) CL.G.pm = false;
@@ -7307,13 +7374,13 @@ function loadExtragal() {
 		if (typeof window.__OB_B64__ === "string" && window.__OB_B64__.length) {
 			buildOB(b64ToBytes(window.__OB_B64__));
 			window.__OB_B64__ = null;
-		} else fetch("data/obstars.bin?b=b22:05").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		} else fetch("data/obstars.bin?b=b22:18").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildOB(new Uint8Array(a));
 		}).catch(() => {});
 		if (typeof window.__VAR_B64__ === "string" && window.__VAR_B64__.length) {
 			buildVars(b64ToBytes(window.__VAR_B64__));
 			window.__VAR_B64__ = null;
-		} else fetch("data/variables.bin?b=b22:05").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		} else fetch("data/variables.bin?b=b22:18").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildVars(new Uint8Array(a));
 		}).catch(() => {});
 	} catch (e) {}
@@ -7331,10 +7398,10 @@ function loadGaia() {
 			window.__GAIA_B64__ = null;
 			return;
 		}
-		fetch("data/gaia.bin?b=b22:05").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		fetch("data/gaia.bin?b=b22:18").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildGaia(new Uint8Array(a));
 		}).catch(() => {});
-		fetch("data/gaia_pm.bin?b=b22:05").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		fetch("data/gaia_pm.bin?b=b22:18").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a && (!gaiaPm || gaiaRange === 100)) {
 				gaiaPm = new Uint8Array(a);
 				attachGaiaPm();
@@ -7501,6 +7568,9 @@ var SKYSTAT = {
 	tiles: 0,
 	drawn: 0
 };
+function glClearColor() {
+	return GL ? Array.from(GL.getParameter(GL.COLOR_CLEAR_VALUE)) : null;
+}
 function glRender() {
 	const gl = GL;
 	if (hdrOK) gl.bindFramebuffer(gl.FRAMEBUFFER, hdrFB);
@@ -7508,7 +7578,7 @@ function glRender() {
 	drawSurveyTiles();
 	gl.useProgram(progU.p);
 	glShared(progU.loc);
-	gl.uniform1f(progU.loc.u_pmYearsU, S.pm ? S.pmYears : 0);
+	gl.uniform1f(progU.loc.u_pmYearsU, tSince(2016));
 	if (V.solarA < .5) {
 		const far = camDist > 1e-9 && invScale(camDist) > 3e6;
 		if (CL.W && S.web) drawCloud(CL.W, .05, far ? 1.6 : 1.1, far ? 2.4 : 1);
@@ -7528,7 +7598,7 @@ function glRender() {
 	const L = progF.loc;
 	gl.useProgram(progF.p);
 	glShared(L);
-	gl.uniform1f(L.u_pmYears, S.pm ? S.pmYears : 0);
+	gl.uniform1f(L.u_pmYears, tNow());
 	gl.uniform1f(L.u_hostMode, 0);
 	gl.uniform1f(L.u_glow, 0);
 	if (glBufH) {
@@ -7771,6 +7841,21 @@ function lookAlong(d) {
 		yaw: Math.atan2(x, -z),
 		pitch: Math.asin(Math.max(-1, Math.min(1, -y)))
 	};
+}
+function screenDir(mx, my) {
+	camBasis();
+	const f = V.foc * V.fovK, a = (mx - V.cx) / f, b = (V.cy - my) / f;
+	const d = [
+		camFwd[0] + camRight[0] * a + camUp[0] * b,
+		camFwd[1] + camRight[1] * a + camUp[1] * b,
+		camFwd[2] + camRight[2] * a + camUp[2] * b
+	];
+	const l = Math.hypot(d[0], d[1], d[2]) || 1;
+	return [
+		d[0] / l,
+		d[1] / l,
+		d[2] / l
+	];
 }
 //#endregion
 //#region src/engine/blackhole.js
@@ -8725,7 +8810,7 @@ function drawMeasure() {
 	pathPt(pB);
 	pathStroke("rgba(255,207,107,.7)", 1.4, [5, 4]);
 	const dpc = Math.hypot(measA.P[0] - measB.P[0], measA.P[1] - measB.P[1], measA.P[2] - measB.P[2]);
-	const txt = dpc < .001 ? (dpc / AU_PC).toFixed(2) + " AU" : fmt(dpc * PC2LY) + " ly · light needs " + fmt(dpc * PC2LY) + " yr";
+	const txt = (dpc < .001 ? (dpc / AU_PC).toFixed(2) + " AU" : fmt(dpc * PC2LY) + " ly · light needs " + fmt(dpc * PC2LY) + " yr") + " · " + angularText(measA.P, measB.P);
 	ctx.font = "11px ui-monospace,monospace";
 	ctx.fillStyle = "rgba(255,220,140,.95)";
 	ctx.fillText(txt, (pA.x + pB.x) / 2 + 8, (pA.y + pB.y) / 2 - 6);
@@ -8746,7 +8831,7 @@ function measurePick(hit) {
 			P
 		};
 		const dpc = Math.hypot(measA.P[0] - P[0], measA.P[1] - P[1], measA.P[2] - P[2]);
-		msg(measName(measA.o) + " ↔ " + measName(hit) + " = " + (dpc < .001 ? (dpc / AU_PC).toFixed(2) + " AU" : fmt(dpc * PC2LY) + " ly"));
+		msg(measName(measA.o) + " ↔ " + measName(hit) + " = " + (dpc < .001 ? (dpc / AU_PC).toFixed(2) + " AU" : fmt(dpc * PC2LY) + " ly") + " · " + angularText(measA.P, P));
 	}
 	V.dirty = true;
 }
@@ -8758,6 +8843,26 @@ function measureToggle() {
 	V.dirty = true;
 }
 api.measure = measureToggle;
+function angularText(A, B) {
+	const a = [
+		A[0] - ctr.x,
+		A[1] - ctr.y,
+		A[2] - ctr.z
+	], b = [
+		B[0] - ctr.x,
+		B[1] - ctr.y,
+		B[2] - ctr.z
+	];
+	const la = Math.hypot(a[0], a[1], a[2]) || 1e-12, lb = Math.hypot(b[0], b[1], b[2]) || 1e-12;
+	for (let i = 0; i < 3; i++) {
+		a[i] /= la;
+		b[i] /= lb;
+	}
+	const chord = Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]), sep = 2 * Math.asin(Math.min(1, chord / 2)) * 57.29577951;
+	const [ra1, de1] = radec(a[0], a[1], a[2]), [ra2, de2] = radec(b[0], b[1], b[2]), D = Math.PI / 180;
+	const dA = (ra2 - ra1) * D, pa = Math.atan2(Math.sin(dA) * Math.cos(de2 * D), Math.cos(de1 * D) * Math.sin(de2 * D) - Math.sin(de1 * D) * Math.cos(de2 * D) * Math.cos(dA)) * 57.29577951;
+	return `sep ${sep >= 1 ? `${Math.floor(sep)}°${String(Math.round((sep - Math.floor(sep)) * 60)).padStart(2, "0")}′` : sep * 60 >= 1 ? `${Math.floor(sep * 60)}′${String(Math.round((sep * 60 - Math.floor(sep * 60)) * 60)).padStart(2, "0")}″` : `${(sep * 3600).toFixed(1)}″`} · PA ${((pa + 360) % 360).toFixed(1)}°`;
+}
 //#endregion
 //#region src/engine/sky.js
 function skyAlpha() {
@@ -9894,6 +9999,11 @@ function gpuPick(mx, my) {
 		o.n = "Gaia DR3 star";
 		o.mag = b6 / 255 * 28 - 2;
 		o.bprp = b7 / 255 * 6 - 1;
+		if (gaiaPm && (gaiaPm.length / 4 | 0) === (best.bytes.length / 8 | 0)) {
+			const pv = new DataView(gaiaPm.buffer, gaiaPm.byteOffset, gaiaPm.byteLength), i = best.b / 8;
+			o.pr = pv.getInt16(i * 4, true);
+			o.pd = pv.getInt16(i * 4 + 2, true);
+		}
 	} else if (best.type === "web") {
 		o.n = "2MRS galaxy";
 		o.kmag = b6 / 255 * 16;
@@ -10023,6 +10133,15 @@ cv.addEventListener("pointermove", (e) => {
 		const h = pick(e.clientX, e.clientY);
 		S.hover = h === SUNHIT ? null : h;
 		cv.style.cursor = h ? "pointer" : "grab";
+		if (S.skyMode) {
+			const d = screenDir(e.clientX, e.clientY), [ra, dec] = radec(d[0], d[1], d[2]), [l, b] = galactic(d[0], d[1], d[2]);
+			skyCursor.set({
+				ra,
+				dec,
+				l,
+				b
+			});
+		}
 	}
 });
 var lastTap = {
@@ -11500,7 +11619,8 @@ window.__ku = {
 		const o = {};
 		projectInto(0, 0, 0, o);
 		return o;
-	}
+	},
+	clearColor: () => glClearColor()
 };
 window.__kuapi = api;
 facList$1.set(facList);

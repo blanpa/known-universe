@@ -2,7 +2,7 @@
 import { objWorld } from './actions.js';
 import { PC2LY } from './data.js';
 import { fmt } from './hud.js';
-import { hostPos, hygPos, tNow } from './motion.js';
+import { epochNow, hostPos, hygPos, tNow } from './motion.js';
 import { CLU_T, DSO_T } from './sky-data.js';
 import { FAC, SOLAR_BODIES, SUN, dateStr, eclDir, eclToWorld } from './solar-data.js';
 import { S } from './state.js';
@@ -129,11 +129,24 @@ export function radec(dx,dy,dz){
   const dec=Math.asin(Math.max(-1,Math.min(1,dz)))*57.29578;
   return [ra,dec];
 }
-function radecText(dx,dy,dz){
-  const [ra,dec]=radec(dx,dy,dz);
-  const hh=Math.floor(ra/15), mm=Math.round((ra/15-hh)*60);
-  return `${hh}h ${String(mm).padStart(2,'0')}m · ${dec>=0?'+':'−'}${Math.abs(dec).toFixed(1)}°`;
+// sexagesimal, to the precision the catalogues carry (0.1 s of RA ≈ 1.5″, 1″ of Dec)
+export function hmsOf(ra,secDigits=1){ ra=((ra%360)+360)%360; const h=ra/15, hh=Math.floor(h), m=(h-hh)*60, mm=Math.floor(m), s=(m-mm)*60;
+  let ss=s.toFixed(secDigits); if(+ss>=60){ ss=(0).toFixed(secDigits); } return `${String(hh).padStart(2,'0')}h${String(mm).padStart(2,'0')}m${ss.padStart(secDigits?3+secDigits:2,'0')}s`; }
+export function dmsOf(dec,secDigits=0){ const sg=dec<0?'−':'+', a=Math.abs(dec), dd=Math.floor(a), m=(a-dd)*60, mm=Math.floor(m), s=(m-mm)*60;
+  return `${sg}${String(dd).padStart(2,'0')}°${String(mm).padStart(2,'0')}′${s.toFixed(secDigits).padStart(secDigits?3+secDigits:2,'0')}″`; }
+// ICRS → galactic (the Hipparcos definition: α_G 192.85948°, δ_G 27.12825°, l_Ω 32.93192°)
+const GAL_M=[[-0.0548755604162154,-0.8734370902348850,-0.4838350155487132],[0.4941094278755837,-0.4448296299600112,0.7469822444972189],[-0.8676661490190047,-0.1980763734312015,0.4559837761750669]];
+export function galactic(dx,dy,dz){
+  const x=GAL_M[0][0]*dx+GAL_M[0][1]*dy+GAL_M[0][2]*dz, y=GAL_M[1][0]*dx+GAL_M[1][1]*dy+GAL_M[1][2]*dz, z=GAL_M[2][0]*dx+GAL_M[2][1]*dy+GAL_M[2][2]*dz;
+  let l=Math.atan2(y,x)*57.29577951; if(l<0) l+=360; return [l, Math.asin(Math.max(-1,Math.min(1,z)))*57.29577951];
 }
+export function coordText(dx,dy,dz){ const [ra,dec]=radec(dx,dy,dz); return `${hmsOf(ra)} ${dmsOf(dec)}`; }
+export function galText(dx,dy,dz){ const [l,b]=galactic(dx,dy,dz); return `l ${l.toFixed(3)}° b ${b>=0?'+':'−'}${Math.abs(b).toFixed(3)}°`; }
+function radecText(dx,dy,dz){ return coordText(dx,dy,dz); }
+// proper motion: total and position angle (east of north), from μα* and μδ in mas/yr
+export function pmText(pr,pd){ const t=Math.hypot(pr||0,pd||0); if(!t) return '—'; let pa=Math.atan2(pr||0,pd||0)*57.29578; if(pa<0) pa+=360;
+  return `${t>=1000?(t/1000).toFixed(2)+'″/yr':t.toFixed(1)+' mas/yr'} · PA ${pa.toFixed(0)}°`; }
+const KMS_PER_PCYR_MAS=4.740470;                      // v_t [km/s] = 4.74047 · μ[″/yr] · d[pc]
 const simbadCoo=(ra,dec,r)=>`https://simbad.cds.unistra.fr/simbad/sim-coo?Coord=${ra.toFixed(4)}%20${dec.toFixed(4)}&Radius=${r}&Radius.unit=arcmin`;
 const simbadId=id=>`https://simbad.cds.unistra.fr/simbad/sim-id?Ident=${encodeURIComponent(id)}`;
 const aladin=(ra,dec,fov)=>`https://aladin.cds.unistra.fr/AladinLite/?target=${ra.toFixed(4)}%20${dec.toFixed(4)}&fov=${fov}`;
@@ -150,7 +163,7 @@ export function card(o){
     case 'user': {
       const setName=(USER.sets[o.set]||{}).name||'your data';
       c.title=o.n||`Row ${o.i+1}`; c.kindLabel=`Your data · ${setName}`;
-      c.rows.push(['Source',setName],['RA / Dec',radecText(o.dx,o.dy,o.dz)]);
+      c.rows.push(['Source',setName],['Position',coordText(o.dx,o.dy,o.dz)],['Galactic',galText(o.dx,o.dy,o.dz)],['Epoch',`J${(o.ep||2000).toFixed(1)}${(o.pr||o.pd)?' · shown at J'+epochNow().toFixed(2):''}`]);
       c.rows.push(['Distance', o.noDist ? 'not given — placed on the sky' : `${ly(o.d)} · ${o.d<100?o.d.toFixed(2):fmt(o.d)} pc`]);
       if(o.m!==undefined) c.rows.push(['Magnitude',o.m.toFixed(2)]);
       if(o.pr||o.pd) c.rows.push(['Proper motion',`${o.pr.toFixed(1)} · ${o.pd.toFixed(1)} mas/yr · ${Math.hypot(o.pr,o.pd).toFixed(0)} total`]);
@@ -159,7 +172,8 @@ export function card(o){
       c.hint='from your file · the links query the catalogues at this position'; break; }
     case 'gpick': {
       const [ra,dec]=radec(o._dir[0],o._dir[1],o._dir[2]);
-      if(o.gpick==='gaia') c.rows.push(['Type','Star · Gaia DR3'],['Mag G',o.mag.toFixed(1)],['Colour bp−rp',o.bprp.toFixed(2)],['Distance',`${ly(o.d)} · ${o.d.toFixed(1)} pc`]);
+      if(o.gpick==='gaia'){ c.rows.push(['Type','Star · Gaia DR3'],['Position',coordText(o._dir[0],o._dir[1],o._dir[2])+' (±20″, packed)'],['Galactic',galText(o._dir[0],o._dir[1],o._dir[2])],['G magnitude',o.mag.toFixed(1)],['Colour BP−RP',o.bprp.toFixed(2)],['Distance',`${ly(o.d)} · ${o.d.toFixed(1)} pc · ϖ ≈ ${(1000/o.d).toFixed(1)} mas`]);
+        if(o.pr!==undefined) c.rows.push(['Proper motion',pmText(o.pr,o.pd)],['Tangential velocity',`${(KMS_PER_PCYR_MAS*Math.hypot(o.pr,o.pd)/1000*o.d).toFixed(1)} km/s`]); }
       else if(o.gpick==='web') c.rows.push(['Type','Galaxy · 2MRS survey'],['Mag K',o.kmag.toFixed(1)],['Distance',`${(o.d/1e6).toFixed(1)} Mpc · ${(o.d*PC2LY/1e6).toFixed(0)} Mly`]);
       else if(o.gpick==='qso') c.rows.push(['Type','Quasar · Milliquas'],['Redshift',`z ≈ ${o.z.toFixed(2)}`],['Distance',`${(o.d/1e9).toFixed(2)} Gpc comoving`]);
       else c.rows.push(['Type',`${o.n} · JPL SBDB`],['Abs. mag H',o.H.toFixed(1)],['Distance',`${o.rAU.toFixed(2)} AU from the Sun`]);
@@ -252,18 +266,26 @@ export function card(o){
       c.links=[{t:'SIMBAD',u:simbadId(o.id)},{t:'NED',u:`https://ned.ipac.caltech.edu/byname?objname=${encodeURIComponent(o.id)}`},{t:'Aladin',u:aladin(ra,dec,1)}];
       c.hint=pin; break; }
     case 'star': {
-      const [ra,dec]=radec(o.dx,o.dy,o.dz); c.title=o.n||'Star';
-      c.rows.push(['Distance',`${ly(o.d)} · ${o.d} pc`],['Apparent mag.',String(o.m)]);
-      if(tNow()){ const q=hygPos(o,tNow()), L=Math.hypot(q[0],q[1],q[2]); c.rows.push(['On the timeline',`${L<0.5?(L*206265).toFixed(0)+' AU':ly(L)} away`]); }
+      const [ra,dec]=radec(o.dx,o.dy,o.dz); c.title=o.n||(o.hip?`HIP ${o.hip}`:'Star');
+      const q=hygPos(o,tNow()), L=Math.hypot(q[0],q[1],q[2])||1e-9;
+      c.rows.push(['Position', coordText(q[0]/L,q[1]/L,q[2]/L)],['Galactic', galText(q[0]/L,q[1]/L,q[2]/L)],['Epoch',`J${epochNow().toFixed(2)} (J2000 + μ)`]);
+      c.rows.push(['Distance',`${ly(o.d)} · ${o.d} pc · ϖ ${(1000/o.d).toFixed(2)} mas`],['V magnitude',String(o.m)],['Proper motion',pmText(o.pr,o.pd)]);
+      if(o.pr!==undefined){ const vt=KMS_PER_PCYR_MAS*Math.hypot(o.pr||0,o.pd||0)/1000*o.d;
+        c.rows.push(['Velocity', o.rv!==undefined ? `v_t ${vt.toFixed(1)} · v_r ${o.rv>0?'+':''}${o.rv.toFixed(1)} · ${Math.hypot(vt,o.rv).toFixed(1)} km/s` : `v_t ${vt.toFixed(1)} km/s · no radial velocity`]); }
+      if(o.hip) c.rows.push(['Hipparcos',`HIP ${o.hip}`]);
+      if(S.pm){ const q=hygPos(o,tNow()), L=Math.hypot(q[0],q[1],q[2]); c.rows.push(['On the timeline',`${L<0.5?(L*206265).toFixed(0)+' AU':ly(L)} away`]); }
       if(o.con) c.rows.push(['Constellation',o.con]);
-      c.rows.push(['RA / Dec',radecText(o.dx,o.dy,o.dz)]);
-      c.links=[{t:'SIMBAD',u:o.n?simbadId(o.n):simbadCoo(ra,dec,2)},{t:'Aladin',u:aladin(ra,dec,0.5)}];
-      c.hint='Background star · HYG catalogue'; break; }
+      c.links=[{t:'SIMBAD',u:o.n?simbadId(o.n):o.hip?simbadId('HIP '+o.hip):simbadCoo(ra,dec,2)},{t:'Aladin',u:aladin(ra,dec,0.5)}];
+      c.hint='HYG v4.1 (Hipparcos · Yale · Gliese) · ICRS, position propagated to the displayed epoch'; break; }
     case 'host': {
       const pls=o.p.filter(p=>p.y<=S.year||p.y===0).sort((a,b)=>(a.y||9999)-(b.y||9999));
       const fc=FAC[o.fac]||FAC.other, [ra,dec]=radec(o.x/o.d,o.y/o.d,o.z/o.d);
-      c.rows.push(['Distance',`${ly(o.d)} · ${fmt(o.d)} pc`],['Star',o.sp?o.sp:(o.t?fmt(o.t)+' K':'—')],['Discovered',String(o.fy||'—')],['Instrument',fc.l]);
-      if(tNow()){ const q=hostPos(o,tNow()), L=Math.hypot(q[0],q[1],q[2]); c.rows.push(['On the timeline',`${ly(L)} away`]); }
+      { const q=hostPos(o,tNow()), L=Math.hypot(q[0],q[1],q[2])||1e-9;
+        c.rows.push(['Position', coordText(q[0]/L,q[1]/L,q[2]/L)],['Galactic', galText(q[0]/L,q[1]/L,q[2]/L)]); }
+      c.rows.push(['Distance',`${ly(o.d)} · ${fmt(o.d)} pc · ϖ ${(1000/o.d).toFixed(2)} mas`],['Star',o.sp?o.sp:(o.t?fmt(o.t)+' K':'—')],['Discovered',String(o.fy||'—')],['Instrument',fc.l]);
+      if(o.pr!==undefined||o.pd!==undefined) c.rows.push(['Proper motion',pmText(o.pr,o.pd)]);
+      if(o.rv!==undefined) c.rows.push(['Radial velocity',`${o.rv>0?'+':''}${(+o.rv).toFixed(1)} km/s`]);
+      if(S.pm){ const q=hostPos(o,tNow()), L=Math.hypot(q[0],q[1],q[2]); c.rows.push(['On the timeline',`${ly(L)} away`]); }
       c.instrumentColor=fc.c;
       c.planets=pls.slice(0,6).map(p=>({n:p.n, y:p.y||'', extra:p.r?`${p.r} R⊕`:(p.ma?`${p.ma} M⊕`:'')}));
       c.planetsTotal=pls.length;

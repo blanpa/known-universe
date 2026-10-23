@@ -19,7 +19,13 @@ export function velocityOf(dir,d,pr,pd,rv){
 for(const s of HYG)   s._v=velocityOf([s.dx,s.dy,s.dz], s.d, s.pr, s.pd, s.rv);
 for(const s of STARS) s._v=velocityOf([s._dx,s._dy,s._dz], s._r, s.pr, s.pd, s.rv);
 
-export const tNow=()=> S.pm ? S.pmYears : 0;             // years from today on the timeline
+// Catalogue positions carry an epoch (HYG and the exoplanet hosts J2000.0, Gaia DR3 2016.0,
+// imported rows their own). The map shows the sky at the displayed date: today, or today
+// plus the timeline's offset — so a fast star stands where it is now, not where it was in 2000.
+export const yearsSinceJ2000=()=> (Date.now()/86400000+2440587.5-2451545.0)/365.25;
+export const tNow=()=> yearsSinceJ2000() + (S.pm ? S.pmYears : 0);   // years from J2000.0 to the displayed date
+export const tSince=epoch=> tNow() - (epoch-2000);                     // the same from another catalogue epoch
+export const epochNow=()=> 2000 + tNow();                              // the displayed date as a Julian epoch
 export function hygPos(s,t){ return [s.dx*s.d+s._v[0]*t, s.dy*s.d+s._v[1]*t, s.dz*s.d+s._v[2]*t]; }
 export function hostPos(s,t){ return [s._dx*s._r+s._v[0]*t, s._dy*s._r+s._v[1]*t, s._dz*s._r+s._v[2]*t]; }
 
@@ -33,7 +39,7 @@ export const ENCOUNTERS=(()=>{
     const vv=v[0]*v[0]+v[1]*v[1]+v[2]*v[2]; if(vv<=0) continue;
     const t=-(rx*v[0]+ry*v[1]+rz*v[2])/vv; if(Math.abs(t)>2e6) continue;
     const d=Math.hypot(rx+v[0]*t, ry+v[1]*t, rz+v[2]*t);
-    if(d<1.5 && d<s.d*0.9) out.push({s, t:Math.round(t), d, v:Math.sqrt(vv)/KMS2PCYR});
+    if(d<1.5 && d<s.d*0.9) out.push({s, t:Math.round(t-yearsSinceJ2000()), d, v:Math.sqrt(vv)/KMS2PCYR});   // t from today, not from J2000
   }
   out.sort((a,b)=>a.d-b.d);
   return out.slice(0,40);

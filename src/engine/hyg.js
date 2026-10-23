@@ -1,7 +1,7 @@
 // HYG background star field (2D fallback + projection for picking).
 import { ctx } from './canvas.js';
 import { LBL, P_SEL, P_STAR } from './labels.js';
-import { hygPos } from './motion.js';
+import { hygPos, tNow } from './motion.js';
 import { HYG } from './solar-data.js';
 import { S, V } from './state.js';
 import { H, W, _pj, camDist, camPos, compress, project, projectInto } from './view.js';
@@ -10,10 +10,10 @@ export let hygProj=[];
 const _unusedMAS2RAD=Math.PI/(180*3600*1000);
 export function projectHyg(){
   hygProj.length=0; if(!S.hyg) return;
-  const pm=S.pm && S.pmYears!==0, ty=S.pmYears;
+  const ty=tNow();                                 // J2000 positions, moved to the displayed date
   for(const s of HYG){
     let dx=s.dx,dy=s.dy,dz=s.dz, dNow=s.d;
-    if(pm){                                        // straight-line 3D motion over ty years
+    {                                              // straight-line 3D motion over ty years
       const q=hygPos(s,ty); dNow=Math.hypot(q[0],q[1],q[2])||1e-9;
       dx=q[0]/dNow; dy=q[1]/dNow; dz=q[2]/dNow;
     }

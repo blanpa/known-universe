@@ -315,6 +315,14 @@ body.show-time .tourp { bottom: 72px; }
 .enc.mov { max-height: 32vh; }
 .enc-n.usr { color: #ffc482; }
 .hint.busy { color: var(--sel); }
+/* telescope status line */
+#skystatus { position: fixed; left: 50%; bottom: 14px; transform: translateX(-50%); z-index: 60; display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 12px;
+  max-width: calc(100vw - 140px); padding: 6px 12px; border-radius: 10px; background: var(--bg-1); border: 1px solid var(--line); font-size: 11.5px; color: var(--txt-1); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); pointer-events: none; }
+body.show-time #skystatus { bottom: 62px; }
+#skystatus .ss-k { color: var(--txt-3); text-transform: uppercase; letter-spacing: .06em; font-size: 10px; }
+#skystatus .ss-dim { color: var(--txt-2); }
+#skystatus .ss-sep { width: 1px; height: 12px; background: var(--line-strong); align-self: center; }
+@media (max-width: 720px) { #skystatus { bottom: 64px; max-width: calc(100vw - 16px); font-size: 10.5px; } }
 .chip:disabled { opacity: .45; cursor: default; }
 a.chip { text-decoration: none; }
 .enc { list-style: none; margin: 6px 0 0; padding: 0; max-height: 46vh; overflow-y: auto; scrollbar-width: thin; }

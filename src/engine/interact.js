@@ -3,12 +3,13 @@ import { aim, enterSolar, flyTo, objWorld, resetView } from './actions.js';
 import { cv } from './canvas.js';
 import { clickToggle, syncToggle } from './controls.js';
 import { SURF, surfPan } from './earth.js';
+import { galactic, radec } from './entity.js';
 import { measureMode, measurePick } from './measure.js';
 import { navWorld } from './nav.js';
 import { gpuPick, pick } from './pick.js';
 import { SUN, SUNHIT } from './solar-data.js';
 import { S, V } from './state.js';
-import { H, W, camBasis, camDist, camFwd, camPos, camRight, camUp, ctr, keys, lookAlong, project, scale, tgtCtr } from './view.js';
+import { H, W, camBasis, camDist, camFwd, camPos, camRight, camUp, ctr, keys, lookAlong, project, scale, screenDir, tgtCtr } from './view.js';
 // ---- interaction ----
 export let dragging=false,panning=false,lx=0,ly=0,moved=0;
 cv.addEventListener('contextmenu',e=>e.preventDefault());
@@ -75,6 +76,7 @@ cv.addEventListener('pointermove',e=>{
     const h=pick(e.clientX,e.clientY);
     S.hover = (h===SUNHIT)?null:h;
     cv.style.cursor=h?'pointer':'grab';
+    if(S.skyMode){ const d=screenDir(e.clientX,e.clientY), [ra,dec]=radec(d[0],d[1],d[2]), [l,b]=galactic(d[0],d[1],d[2]); skyCursor.set({ra,dec,l,b}); }
   }
 });
 let lastTap={t:0,x:0,y:0}, lastTapFocusT=0;   // touch double-tap (dblclick is unreliable on mobile)

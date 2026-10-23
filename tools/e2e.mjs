@@ -96,12 +96,27 @@ async function open(vp, mobile, hash) {
     return { head: document.querySelector('#hud-head .ctx-where')?.textContent, northUp: n.y < s.y && Math.abs(n.x - s.x) < 2, eastLeft: e.x < w.x && Math.abs(e.y - w.y) < 2, ...window.__ku.survey.SKYSTAT };
   });
   ok(/^FOV 6\.0°/.test(sky.head || ''), 'sky view header shows the field of view (' + sky.head + ')');
+  // scientific conventions: black space, positions propagated to today's epoch, the status line
+  const sci = await page.evaluate(() => {
+    const cc = window.__ku.clearColor(), bg = getComputedStyle(document.body).backgroundColor;
+    const b = window.__ku.hyg.find(s => /Barnard/.test(s.n || ''));
+    const cat = window.__ku.projDir(b.dx, b.dy, b.dz);          // J2000 direction
+    const q = window.__ku.api.getCam && b._sx !== undefined ? [b._sx, b._sy] : null;   // where the 2D pass put it (today)
+    return { cc, bg, status: document.getElementById('skystatus')?.textContent || '', barnard: q ? Math.hypot(q[0] - cat.x, q[1] - cat.y) : null, fovPx: innerWidth / 6 };
+  });
+  ok(sci.cc && sci.cc[0] === 0 && sci.cc[1] === 0 && sci.cc[2] === 0 && sci.bg === 'rgb(0, 0, 0)', 'space is black (GL clear ' + JSON.stringify(sci.cc) + ', body ' + sci.bg + ')');
+  ok(/Epoch\s*J\d{4,6}\.\d\d/.test(sci.status) && /ICRS/.test(sci.status), 'telescope status line shows epoch and frame (' + sci.status.slice(0, 60) + '…)');
   ok(sky.northUp && sky.eastLeft, 'sky view keeps north up and east left');
   ok(true, sky.drawn > 0 ? `survey tiles drawn: ${sky.drawn}/${sky.tiles} at order ${sky.order}` : 'survey tiles: none loaded (no network?) — not a failure');
   await page.screenshot({ path: join(OUT, 'desktop-sky.png') });
   // guided blink: at Barnard's star the jump list must lead with it (10,393 mas/yr × 20 yr DSS→PS1 = 3.5′), from HYG and the Gaia cloud
   await page.evaluate(() => { const a = window.__kuapi; a.timeline.now(); a.setBlink(true, 'ps1'); a.lookAt(269.45, 4.69); a.setFov(1); });
   await page.waitForTimeout(3000);
+  // epoch propagation: Barnard's star has moved ~10.4″/yr since J2000 — today it stands ~4.6′ north of its catalogue place
+  const ep = await page.evaluate(() => { const b = window.__ku.hyg.find(s => /Barnard/.test(s.n || '')); const cat = window.__ku.projDir(b.dx, b.dy, b.dz);
+    const yrs = 2000 + (Date.now() / 86400000 + 2440587.5 - 2451545.0) / 365.25 - 2000; const pm = Math.hypot(b.pr, b.pd) / 1000 * yrs;   // arcsec
+    return { px: Math.hypot(b._sx - cat.x, b._sy - cat.y), expectPx: pm / 3600 * innerWidth / 1, yrs }; });
+  ok(Math.abs(ep.px - ep.expectPx) < ep.expectPx * 0.08, `catalogue positions are propagated to today (Barnard ${ep.px.toFixed(0)} px from J2000, expected ${ep.expectPx.toFixed(0)} px for ${ep.yrs.toFixed(1)} yr)`);
   const mv = await page.evaluate(() => { const l = [...document.querySelectorAll('#hud-sky .mov li')].map(li => li.textContent.replace(/\s+/g, ' ').trim()); return { n: l.length, first: l[0] || '', top: l.slice(0, 3).join(' | '), gaia: l.filter(t => /Gaia star/.test(t)).length, pm: !!window.__ku.gaiaPm, head: document.querySelector('#hud-head .ctx-where')?.textContent, range: window.__ku.gaiaRange }; });
   ok(/Barnard|G 8\.2/.test(mv.first) && /3\.[345]′/.test(mv.first), 'expected-jump list leads with Barnard\'s star at 3.5′ (got "' + mv.top + '" at ' + mv.head + ', gaia set ' + mv.range + ' pc)');
   ok(mv.gaia > 0 && mv.pm, `Gaia cloud contributes movers (${mv.gaia} of ${mv.n}; proper motions loaded: ${mv.pm})`);

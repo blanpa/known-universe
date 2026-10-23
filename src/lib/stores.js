@@ -21,4 +21,5 @@ export const transit = writable(null);          // the focused system's transits
 export const survey = writable({ id: null, blink: false, blinkWith: 'ps1' });   // sky-survey backdrop state
 export const userLayer = writable({ sets: [], n: 0, warn: '', saved: false });   // the imported rows: files and field queries
 export const fieldQuery = writable({ busy: null, msg: '' });                       // live Gaia/SIMBAD cone query state
+export const skyCursor = writable(null);     // sky view: the sky position under the pointer {ra,dec,l,b}
 export const movers = writable({ list: [], a: '', b: '', ea: 0, eb: 0, dt: 0 });   // predicted jumps between the blink epochs

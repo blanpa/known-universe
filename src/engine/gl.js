@@ -1,6 +1,7 @@
 // WebGL 2 point-cloud renderer with HDR accumulation.
 import { labels } from '../lib/stores.js';
 import { BND, STARS, starRadius } from './data.js';
+import { tNow, tSince } from './motion.js';
 import { lensPar } from './mw.js';
 import { CLUSTERS, CLU_T, PULSARS } from './sky-data.js';
 import { FAC, HYG, solarJD } from './solar-data.js';
@@ -266,7 +267,7 @@ export function initGL(){
     gl.useProgram(progF.p);
     const pal=[]; for(const k of ['kepler','tess','k2','rv','micro','imaging','ground','other']){ const c3=FAC[k].c; pal.push(c3[0]/255,c3[1]/255,c3[2]/255); }
     gl.uniform3fv(progF.loc.u_pal,pal);
-    gl.clearColor(0.027,0.035,0.070,1.0);
+    gl.clearColor(0,0,0,1);                            // space is black, not navy
     gl.enable(gl.BLEND); gl.blendFunc(gl.ONE,gl.ONE);    // premultiplied additive
     glOK=true; glResize();
   }catch(e){ glOK=false; }
@@ -482,6 +483,7 @@ function drawSurveyTiles(){
   SKYSTAT.order=order; SKYSTAT.tiles=tiles.length; SKYSTAT.drawn=drawn;
 }
 export const SKYSTAT={order:0,tiles:0,drawn:0};
+export function glClearColor(){ return GL?Array.from(GL.getParameter(GL.COLOR_CLEAR_VALUE)):null; }
 
 export function glRender(){
   const gl=GL;
@@ -490,7 +492,7 @@ export function glRender(){
   drawSurveyTiles();                                   // the sky images, under everything
   // raw-byte catalogue layers (decoded in the vertex shader)
   gl.useProgram(progU.p); glShared(progU.loc);
-  gl.uniform1f(progU.loc.u_pmYearsU,(S.pm?S.pmYears:0));
+  gl.uniform1f(progU.loc.u_pmYearsU,tSince(2016));           // Gaia DR3 epoch 2016.0 → the displayed date
   if(V.solarA<0.5){
     const far = camDist>1e-9 && invScale(camDist)>3e6;              // out among the galaxies: brighter web
     if(CL.W && S.web) drawCloud(CL.W,0.05,far?1.6:1.1, far?2.4:1);
@@ -512,7 +514,7 @@ export function glRender(){
   // open clusters (cosmos view only, matching the 2D gate), HYG stars + halo
   const L=progF.loc;
   gl.useProgram(progF.p); glShared(L);
-  gl.uniform1f(L.u_pmYears,(S.pm?S.pmYears:0));
+  gl.uniform1f(L.u_pmYears,tNow());                          // J2000 → the displayed date
   gl.uniform1f(L.u_hostMode,0); gl.uniform1f(L.u_glow,0);
   if(glBufH){
     gl.uniform1f(L.u_hostMode,1); gl.uniform1f(L.u_year,S.year);

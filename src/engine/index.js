@@ -5,7 +5,7 @@ import { facList as facListStore } from '../lib/stores.js';
 import { facList, objWorld } from './actions.js';
 import { clickToggle } from './controls.js';
 import { STARS } from './data.js';
-import { SKYSTAT, gaiaPm, gaiaRange, initGL, loadExtragal, loadGaia } from './gl.js';
+import { SKYSTAT, gaiaPm, gaiaRange, glClearColor, initGL, loadExtragal, loadGaia } from './gl.js';
 import { zoomFactorAt } from './interact.js';
 import { frame } from './loop.js';
 import { suggestList } from './search.js';
@@ -36,7 +36,7 @@ api.liveStats=()=>{ const y=new Date().getFullYear();
 LIVE.onUpdate=()=>{ V.dirty=true; };
 // headless-verify hook: lets the test harness inspect/inject live-layer state
 restoreUser();
-window.__ku={api, live:LIVE, redraw:()=>{V.dirty=true;}, survey:{ST, SKYSTAT, cacheSize}, user:USER, userProj, hyg:HYG, projDir:(x,y,z)=>{ const R=scale(SKY_R_PC), o={}; projectInto(x*R,y*R,z*R,o); return o; }, get gaiaPm(){ return gaiaPm; }, get gaiaRange(){ return gaiaRange; }, sunScreen:()=>{ const o={}; projectInto(0,0,0,o); return o; }};
+window.__ku={api, live:LIVE, redraw:()=>{V.dirty=true;}, survey:{ST, SKYSTAT, cacheSize}, user:USER, userProj, hyg:HYG, projDir:(x,y,z)=>{ const R=scale(SKY_R_PC), o={}; projectInto(x*R,y*R,z*R,o); return o; }, get gaiaPm(){ return gaiaPm; }, get gaiaRange(){ return gaiaRange; }, sunScreen:()=>{ const o={}; projectInto(0,0,0,o); return o; }, clearColor:()=>glClearColor()};
 window.__kuapi=api;
 
 facListStore.set(facList);

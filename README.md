@@ -265,6 +265,40 @@ are separate sets in the same layer; each can be removed on its own. HYG star di
 now stored with six decimals (0.2″) so catalogue and imported positions agree at
 telescope zoom; they used to be rounded to 4 (up to an arcminute off).
 
+## Scientific conventions
+
+The map is meant to be used as an instrument, so its conventions are fixed and stated:
+
+- **Frame.** World axes are ICRS/J2000 equatorial: x toward RA 0h, z toward the north
+  celestial pole. Nothing is precessed (ICRS axes do not move); no aberration,
+  refraction or annual parallax is applied — the vantage is the Sun, not the Earth.
+  The solar system is rotated into this frame by the J2000 obliquity (23.439 291°).
+- **Epochs.** Catalogue positions are propagated to the displayed date: HYG (J2000.0)
+  and the exoplanet hosts (J2000.0) along their 3D space velocities (proper motion +
+  radial velocity, straight lines), the Gaia clouds (2016.0) along great circles from
+  their DR3 proper motions, imported rows from their own epoch. The telescope status
+  line shows the epoch in use; the timeline adds its offset to it. Survey images stay at
+  their own epochs (DSS2 ≈ 1992, 2MASS ≈ 1999, AllWISE 2010.5, Pan-STARRS ≈ 2012).
+- **Coordinates** are shown sexagesimal to the data's precision (0.1 s, 1″), with
+  galactic l, b (Hipparcos definition) and, in the telescope, the position under the
+  pointer, the field, the plate scale in ″/px and the epoch.
+- **Measure** gives, besides the 3D distance and light time, the angular separation and
+  the position angle (east of north) of two objects as seen from the vantage.
+- **Magnitudes** are labelled by band: HYG V, Gaia G with BP−RP, 2MRS K. Parallaxes are
+  quoted as 1000/d. Uncertainties are not carried by the packed catalogues and are not
+  shown; Gaia cloud positions are packed to 20″ and said so on the card.
+- **Ephemerides.** Planets and moons from JPL Horizons osculating elements within ±2 yr
+  of their epoch, Standish mean elements beyond; verified against Horizons to 0.07°
+  (Sun from Earth), 0.02° (Moon), 0.3° (Io). Exoplanet orbits are drawn edge-on at the
+  true phase from the archive's epoch of transit.
+- **Distances.** HYG and Gaia from parallax; exoplanet hosts from the archive; 2MRS
+  galaxies from cz in the CMB frame (Planck dipole) through a flat ΛCDM comoving
+  distance; quasars from redshift, comoving. The ladder, the rings and the header use
+  these; the *compact view* is a visualisation and is off by default.
+- **Glyphs** are not physical: star sizes follow apparent magnitude, body sizes a
+  radius^0.35 law; the survey images are the only thing drawn to scale on the sky.
+- **Space is black.** The GL clear colour and the page background are #000.
+
 ## What's *not* (yet) included
 
 "Everything humanity knows" is literally billions of objects and terabytes of

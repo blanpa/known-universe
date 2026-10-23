@@ -1,4 +1,10 @@
 // Your own data on the map. A CSV or TSV with positions becomes a layer: drawn as
+import { userLayer } from '../lib/stores.js';
+import { ctx } from './canvas.js';
+import { LBL, P_SEL, P_STAR } from './labels.js';
+import { tNow, tSince } from './motion.js';
+import { S, V } from './state.js';
+import { H, W, _pj, compress, projectInto } from './view.js';
 // amber rings, picked, searched, kept in localStorage. Meant for raw data — a Gaia or
 // SIMBAD cone search, a list of candidates from a blink session, a survey's output —
 // so that unlabelled points can be checked against everything else here.
@@ -6,12 +12,6 @@
 // Columns are found by name (RA, Dec, distance or parallax or light-years, magnitude,
 // name, proper motions); the order does not matter, a file without a header is read as
 // ra, dec, dist, mag, name. RA/Dec in degrees or sexagesimal (03:47:24, +24 07 00).
-import { userLayer } from '../lib/stores.js';
-import { ctx } from './canvas.js';
-import { LBL, P_SEL, P_STAR } from './labels.js';
-import { tNow } from './motion.js';
-import { S, V } from './state.js';
-import { H, W, _pj, compress, projectInto } from './view.js';
 
 export const USER={ sets:[], rows:[], warn:'' };     // sets: {name, src, epoch, prefix, text, n, noDist, warn}
 export let userProj=[];
@@ -131,9 +131,9 @@ export function restoreUser(){
 const MAS=4.84813681e-9;                                 // mas → rad
 export function projectUser(){
   userProj.length=0; if(!S.user||!USER.rows.length) return;
-  const t=tNow();
   for(const o of USER.rows){
     let dx=o.dx,dy=o.dy,dz=o.dz;
+    const t=tSince(o.ep||2000);                          // the row's epoch → the displayed date
     if(t&&(o.pr||o.pd)){                                 // proper motion on the sky (small angles)
       const cq=Math.hypot(dx,dy)||1e-9, ex=-dy/cq, ey=dx/cq;                 // east
       const nx=-dz*dx/cq, ny=-dz*dy/cq, nz=cq;                              // north

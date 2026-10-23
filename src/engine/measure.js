@@ -5,11 +5,11 @@ import { msg } from './actions.js';
 import { ctx } from './canvas.js';
 import { PC2LY } from './data.js';
 import { pathBegin, pathPt, pathStroke } from './draw.js';
-import { nameOf, physPos } from './entity.js';
+import { nameOf, physPos, radec } from './entity.js';
 import { fmt } from './hud.js';
 import { LBL, P_HUD } from './labels.js';
 import { V } from './state.js';
-import { AU_PC, project, scale } from './view.js';
+import { AU_PC, ctr, project, scale } from './view.js';
 // ---- measure tool: physical distance between two picked objects ----
 export let measureMode=false, measA=null, measB=null;
 function measWorld(P){ const r=Math.hypot(P[0],P[1],P[2]); if(r<1e-15) return [0,0,0];
@@ -25,7 +25,7 @@ export function drawMeasure(){ LBL.prio=P_HUD;
   ctx.beginPath(); ctx.arc(pB.x,pB.y,6,0,6.2832); ctx.stroke();
   pathBegin(); pathPt(pA); pathPt(pB); pathStroke('rgba(255,207,107,.7)',1.4,[5,4]);
   const dpc=Math.hypot(measA.P[0]-measB.P[0],measA.P[1]-measB.P[1],measA.P[2]-measB.P[2]);
-  const txt = dpc<0.001 ? (dpc/AU_PC).toFixed(2)+' AU' : fmt(dpc*PC2LY)+' ly · light needs '+fmt(dpc*PC2LY)+' yr';
+  const txt = (dpc<0.001 ? (dpc/AU_PC).toFixed(2)+' AU' : fmt(dpc*PC2LY)+' ly · light needs '+fmt(dpc*PC2LY)+' yr')+' · '+angularText(measA.P,measB.P);
   ctx.font='11px ui-monospace,monospace'; ctx.fillStyle='rgba(255,220,140,.95)';
   ctx.fillText(txt,(pA.x+pB.x)/2+8,(pA.y+pB.y)/2-6);
 }
@@ -34,7 +34,7 @@ export function measurePick(hit){
   if(!measA||measB){ measA={o:hit,P:P}; measB=null; msg(measName(hit)+' — pick a second object'); }
   else { measB={o:hit,P:P};
     const dpc=Math.hypot(measA.P[0]-P[0],measA.P[1]-P[1],measA.P[2]-P[2]);
-    msg(measName(measA.o)+' ↔ '+measName(hit)+' = '+(dpc<0.001?(dpc/AU_PC).toFixed(2)+' AU':fmt(dpc*PC2LY)+' ly')); }
+    msg(measName(measA.o)+' ↔ '+measName(hit)+' = '+(dpc<0.001?(dpc/AU_PC).toFixed(2)+' AU':fmt(dpc*PC2LY)+' ly')+' · '+angularText(measA.P,P)); }
   V.dirty=true;
 }
 export function measureToggle(){
@@ -42,3 +42,15 @@ export function measureToggle(){
   msg(measureMode?'Measure: click the first object':''); V.dirty=true;
 }
 api.measure=measureToggle;
+
+// angular separation and position angle (east of north) as seen from the vantage point
+export function angularText(A,B){
+  const a=[A[0]-ctr.x,A[1]-ctr.y,A[2]-ctr.z], b=[B[0]-ctr.x,B[1]-ctr.y,B[2]-ctr.z];
+  const la=Math.hypot(a[0],a[1],a[2])||1e-12, lb=Math.hypot(b[0],b[1],b[2])||1e-12;
+  for(let i=0;i<3;i++){ a[i]/=la; b[i]/=lb; }
+  const chord=Math.hypot(a[0]-b[0],a[1]-b[1],a[2]-b[2]), sep=2*Math.asin(Math.min(1,chord/2))*57.29577951;
+  const [ra1,de1]=radec(a[0],a[1],a[2]), [ra2,de2]=radec(b[0],b[1],b[2]), D=Math.PI/180;
+  const dA=(ra2-ra1)*D, pa=Math.atan2(Math.sin(dA)*Math.cos(de2*D), Math.cos(de1*D)*Math.sin(de2*D)-Math.sin(de1*D)*Math.cos(de2*D)*Math.cos(dA))*57.29577951;
+  const sepT = sep>=1 ? `${Math.floor(sep)}°${String(Math.round((sep-Math.floor(sep))*60)).padStart(2,'0')}′` : sep*60>=1 ? `${Math.floor(sep*60)}′${String(Math.round((sep*60-Math.floor(sep*60))*60)).padStart(2,'0')}″` : `${(sep*3600).toFixed(1)}″`;
+  return `sep ${sepT} · PA ${((pa+360)%360).toFixed(1)}°`;
+}

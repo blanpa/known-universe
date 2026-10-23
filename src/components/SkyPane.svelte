@@ -25,8 +25,9 @@
 <div class="panel" id="hud-sky">
   <div class="label">Sky</div>
   <p class="hint">The sky as the surveys photographed it, under the catalogue. From the Sun the view
-    direction is the sky direction, so the stars drawn here sit on their own images. Move the
-    timeline off today and they drift away from the fixed photographs by their proper motion.</p>
+    direction is the sky direction. Catalogue positions are propagated to the displayed epoch
+    (HYG from J2000, Gaia from 2016, your rows from their own), the photographs keep theirs —
+    so a fast star stands off its plate by its motion since. The arrows say how far.</p>
   <button type="button" class="toggle" class:on={$camera.sky} role="switch" aria-checked={$camera.sky}
           onclick={() => api.skyView?.()}>
     <span class="tg-l">Telescope view</span><span class="sw" aria-hidden="true"></span></button>

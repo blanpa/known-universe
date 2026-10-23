@@ -10,6 +10,7 @@
   import TourPanel from './components/TourPanel.svelte';
   import TimePane from './components/TimePane.svelte';
   import SkyPane from './components/SkyPane.svelte';
+  import SkyStatus from './components/SkyStatus.svelte';
   import TransitCard from './components/TransitCard.svelte';
   import MobileNav from './components/MobileNav.svelte';
   import ScaleLadder from './components/ScaleLadder.svelte';
@@ -92,5 +93,6 @@
 <ScaleLadder variant="strip" />
 
 {#if $timeBar}<Timeline />{/if}
+<SkyStatus />
 <TourPanel />
 <MobileNav />

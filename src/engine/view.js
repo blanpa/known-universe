@@ -109,3 +109,10 @@ export function projectInto(px,py,pz,o){
 // yaw/pitch that point the view (from the Sun outward) along a world direction
 export function lookAlong(d){ const l=Math.hypot(d[0],d[1],d[2])||1, x=d[0]/l,y=d[1]/l,z=d[2]/l;
   return { yaw:Math.atan2(x,-z), pitch:Math.asin(Math.max(-1,Math.min(1,-y))) }; }
+
+// screen → sky direction (the inverse of projectInto for a point at infinity)
+export function screenDir(mx,my){
+  camBasis(); const f=V.foc*V.fovK, a=(mx-V.cx)/f, b=(V.cy-my)/f;
+  const d=[camFwd[0]+camRight[0]*a+camUp[0]*b, camFwd[1]+camRight[1]*a+camUp[1]*b, camFwd[2]+camRight[2]*a+camUp[2]*b];
+  const l=Math.hypot(d[0],d[1],d[2])||1; return [d[0]/l,d[1]/l,d[2]/l];
+}
