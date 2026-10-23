@@ -52,6 +52,10 @@ function saturnRings(x,y,px,A,near){
 // deep zoom turns into screen-filling flat circles. Radial gradient offset toward
 // the Sun's screen position → correct terminator side + limb darkening.
 let _ballSun=null;                                    // set per frame by drawSolar
+let _sunPx=0;
+// an object whose glyph still sits inside the Sun's glyph is not resolved at this zoom:
+// its label would only pile up on the Sun (the inner system from 60 AU out, say)
+export function nearSun(x,y){ return !!_ballSun && Math.hypot(x-_ballSun.x,y-_ballSun.y) < _sunPx+10; }
 function ballFill(x,y,r,c,A){
   ctx.beginPath(); ctx.arc(x,y,r,0,6.2832);
   if(r<5){ ctx.fillStyle=`rgba(${c[0]},${c[1]},${c[2]},${A})`; ctx.fill(); return; }
@@ -100,8 +104,8 @@ export function drawSolar(alpha){ LBL.prio=P_SOLAR;
   if(S.hz){                                                     // habitable zone (Sun, L=1)
     orbitRing(orbitR(0.95),`rgba(110,230,150,${A*0.30})`);
     orbitRing(orbitR(1.67),`rgba(110,230,150,${A*0.30})`);
-    const hp=project(orbitR(1.28),0,0);
-    if(hp.depth>V.NEAR){ ctx.font='9px ui-monospace,monospace'; ctx.fillStyle=`rgba(120,230,150,${A*0.72})`;
+    const hp=project(orbitR(1.28),0,0), h0=project(0,0,0);
+    if(hp.depth>V.NEAR && Math.hypot(hp.x-h0.x,hp.y-h0.y)>34){ ctx.font='9px ui-monospace,monospace'; ctx.fillStyle=`rgba(120,230,150,${A*0.72})`;
       ctx.fillText('habitable zone', hp.x+4, hp.y-3); }
   }
   // orbits — true (eccentric, inclined) ellipses for planets AND dwarfs
@@ -128,11 +132,15 @@ export function drawSolar(alpha){ LBL.prio=P_SOLAR;
         if(spx>46){ ctx.font='9px ui-monospace,monospace'; ctx.fillStyle=`rgba(255,200,140,${A*0.7})`;
           ctx.fillText('GOES SUVI 304 Å · live (~4 min)', sp.x+spx+4, sp.y+16); } }
     }
+    _sunPx=spx;
     solarProj.push({o:SUN,x:sp.x,y:sp.y,px:spx}); window.__solarProj=solarProj;
     ctx.font='11px ui-monospace,monospace'; ctx.fillStyle=`rgba(255,238,178,${A*0.9})`;
     ctx.fillText('Sun', sp.x+spx+4, sp.y+3);
-    ctx.font='9px ui-monospace,monospace'; ctx.fillStyle=`rgba(200,208,225,${A*0.6})`;
-    ctx.fillText('Orbital positions · '+dateStr(solarJD()), sp.x+spx+4, sp.y+16);
+    // the date line belongs to the planets: only once Earth's orbit is wider than the Sun's glyph
+    const au1=project(orbitR(1),0,0);
+    if(au1.depth>V.NEAR && Math.hypot(au1.x-sp.x,au1.y-sp.y)>spx+30){
+      ctx.font='9px ui-monospace,monospace'; ctx.fillStyle=`rgba(200,208,225,${A*0.6})`;
+      ctx.fillText('Orbital positions · '+dateStr(solarJD()), sp.x+spx+4, sp.y+16); }
     if(S.sunAR) drawSunspots(A, sp, spx);
   }
   // planets & dwarfs at their real positions (painter: sort by depth)
@@ -190,9 +198,11 @@ export function drawSolar(alpha){ LBL.prio=P_SOLAR;
       ctx.strokeStyle='rgba(79,214,200,.9)'; ctx.lineWidth=1.2; ctx.stroke(); }
     solarProj.push({o:b,x:p.x,y:p.y,px:px});
     const faint=b.kind!=='Planet';
-    ctx.font=(sel?'11px':'10px')+' ui-monospace,monospace';
-    ctx.fillStyle=`rgba(${c[0]},${c[1]},${c[2]},${A*(faint?0.72:0.95)})`;
-    ctx.fillText(b.n, p.x+px+4, p.y+3);
+    // a body still inside the Sun's glyph is not resolved — its label would just pile up there
+    if(sel || Math.hypot(p.x-sp.x,p.y-sp.y)>px+10){
+      ctx.font=(sel?'11px':'10px')+' ui-monospace,monospace';
+      ctx.fillStyle=`rgba(${c[0]},${c[1]},${c[2]},${A*(faint?0.72:0.95)})`;
+      ctx.fillText(b.n, p.x+px+4, p.y+3); }
     // moons — spaced by REAL relative orbital distance (am), sized by real radius
     if(S.moons && b.moons.length){
       // the moon list is static, but this used to map+slice+sort it on every frame for
@@ -297,7 +307,7 @@ function drawProbes(A){ LBL.prio=P_PROBE;
     if(sel){ ctx.beginPath(); ctx.arc(pr.x,pr.y,sz+6,0,6.2832); ctx.strokeStyle='rgba(79,214,200,.9)'; ctx.lineWidth=1.2; ctx.stroke(); }
     solarProj.push({o:p,x:pr.x,y:pr.y,px:Math.max(7,sz+3)});
     ctx.font=(sel?'10px':'9px')+' ui-monospace,monospace'; ctx.fillStyle=`rgba(${c[0]},${c[1]},${c[2]},${A*0.92})`;
-    ctx.fillText(p.n, pr.x+sz+4, pr.y+3);
+    if(sel||!nearSun(pr.x,pr.y)) ctx.fillText(p.n, pr.x+sz+4, pr.y+3);
   }
 }
 // ---- interstellar visitors: the only known objects from beyond the solar system ----
@@ -348,7 +358,7 @@ function drawISO(A){ LBL.prio=P_PROBE;
     solarProj.push({o,x:p.x,y:p.y,px:sz+5});
     ctx.font=(sel?'10px':'9px')+' ui-monospace,monospace';
     ctx.fillStyle=`rgba(150,255,200,${A*0.95})`;
-    ctx.fillText(o.n+' · interstellar', p.x+sz+4, p.y+3);
+    if(sel||!nearSun(p.x,p.y)) ctx.fillText(o.n+' · interstellar', p.x+sz+4, p.y+3);
   }
 }
 // large asteroids & comets on their real orbits (time-aware)
@@ -376,7 +386,7 @@ function drawSmall(A, jd){ LBL.prio=P_SMALL;
     ctx.beginPath(); ctx.arc(p.x,p.y,px,0,6.2832); ctx.fillStyle=`rgba(${c[0]},${c[1]},${c[2]},${A})`; ctx.fill();
     if(sel){ ctx.beginPath(); ctx.arc(p.x,p.y,px+5,0,6.2832); ctx.strokeStyle='rgba(79,214,200,.9)'; ctx.lineWidth=1.1; ctx.stroke(); }
     solarProj.push({o,x:p.x,y:p.y,px:Math.max(6,px)});
-    if((A>0.5||sel)&&(!bulk||sel)){ ctx.font=(sel?'10px':'8.5px')+' ui-monospace,monospace';
+    if((A>0.5||sel)&&(!bulk||sel)&&(sel||!nearSun(p.x,p.y))){ ctx.font=(sel?'10px':'8.5px')+' ui-monospace,monospace';
       ctx.fillStyle=`rgba(${c[0]},${c[1]},${c[2]},${sel?1:0.72})`;
       LBL.prio=sel?P_SEL:P_SMALL; ctx.fillText(o.n, p.x+px+3, p.y+3); LBL.prio=P_SMALL; }
   }

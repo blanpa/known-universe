@@ -2,10 +2,11 @@
   import { api } from '../lib/api.js';
   import { tour } from '../lib/stores.js';
   import Icon from './Icon.svelte';
+  import { reserve } from '../lib/reserve.js';
 </script>
 
 {#if $tour}
-  <div class="panel tourp" id="tourPanel" role="dialog" aria-label="Cosmic tour">
+  <div class="panel tourp" id="tourPanel" role="dialog" aria-label="Cosmic tour" use:reserve={'tour'}>
     <div class="tp-head">
       <span class="tp-step mono">{$tour.idx + 1} / {$tour.total}</span>
       <span class="tp-title">{$tour.title}</span>

@@ -91,8 +91,9 @@ export function drawMW(){ LBL.prio=P_DEEP;
   if(sp.depth>V.NEAR){
     sgraScreen={x:sp.x,y:sp.y};
     // close enough → the simulated look (shadow, photon ring, folded disk)
-    const rbh=Math.min(Math.min(W,H)*0.28, V.foc*(S.realScale?500:0.35)/sp.depth);  // compact: log squeeze
-                                                                                   // made it huge from afar
+    // a 60-pc virtual radius: the ray-traced look appears inside the central kiloparsecs,
+    // from the Sun's distance it is the small marker (a 500-pc radius read as a brown planet)
+    const rbh=Math.min(Math.min(W,H)*0.28, V.foc*(S.realScale?60:0.35)/sp.depth);
     if(rbh>=10){
       drawBlackHole(sp.x,sp.y,rbh,1,S.eht);
       ctx.font='10px ui-monospace,monospace'; ctx.fillStyle='rgba(255,205,150,0.92)';

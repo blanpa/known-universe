@@ -4,6 +4,7 @@
   import { api } from '../lib/api.js';
   import { selection } from '../lib/stores.js';
   import Icon from './Icon.svelte';
+  import { reserve } from '../lib/reserve.js';
   const rgb = c => `rgb(${c[0]},${c[1]},${c[2]})`;
   const KIND = { gpick: 'Catalogue point', cluster: 'Cluster', pulsar: 'Pulsar', lagrange: 'Lagrange point',
     cme: 'Solar storm', route: 'Interstellar route', transfer: 'Transfer orbit', spot: 'Active region',
@@ -16,7 +17,7 @@
 {#if $selection}
   {@const s = $selection}
   {@const c = s.card}
-  <section class="panel info" id="info" class:pinned={s.pinned} aria-live="polite">
+  <section class="panel info" id="info" class:pinned={s.pinned} aria-live="polite" use:reserve={'info'}>
     <header class="in-h">
       <span class="in-dot" style="background:{rgb(c.color)};box-shadow:0 0 10px {rgb(c.color)}"></span>
       <div class="in-t">

@@ -3,6 +3,7 @@
   // The marker shows the camera's framing; a rung flies there, dragging zooms.
   import { api } from '../lib/api.js';
   import { camera } from '../lib/stores.js';
+  import { reserve } from '../lib/reserve.js';
   let { variant = 'edge' } = $props();          // 'edge' (desktop, labelled) · 'strip' (phone)
   const PC_AU = 4.84814e-6, PC_LY = 1 / 3.261564;
   const RUNGS = [
@@ -32,7 +33,7 @@
   }
 </script>
 
-<div class="ladder ladder-{variant}" id="ladder" role="group" aria-label="Scale">
+<div class="ladder ladder-{variant}" id={variant === 'edge' ? 'ladder' : undefined} role="group" aria-label="Scale" use:reserve={'ladder-' + variant}>
   <div class="ld-track" bind:this={track} role="slider" tabindex="0" aria-label="Scale ladder"
        aria-valuemin="0" aria-valuemax="100" aria-valuenow={Math.round((1 - y) * 100)}
        onpointerdown={down} onpointermove={move} onpointerup={up} onpointercancel={up} onkeydown={key}>

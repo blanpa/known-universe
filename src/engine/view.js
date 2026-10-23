@@ -28,7 +28,7 @@ export function invScale(u){ return S.realScale ? u/REALK : Math.pow(10, u/KDEC 
 // level-of-detail opacity from a camera distance, using physical fade thresholds (pc)
 export function lodA(camd, fullPc, hidePc){ const f=scale(fullPc), h=scale(hidePc);
   return Math.max(0, Math.min(1, (h-camd)/((h-f)||1e-12))); }
-export function camSolar(){ return scale(0.0015); }        // frame the solar system (~300 AU)
+export function camSolar(){ return scale(3e-4); }          // frame the solar system (~60 AU: Neptune's orbit)
 export function camCosmos(){ return scale(3e7); }          // frame out to the farthest galaxy
 
 // free movement: a movable view centre + camera basis vectors (computed each frame)

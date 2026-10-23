@@ -4,7 +4,7 @@ import { GAL, PC2LY } from './data.js';
 import { blobSprite } from './draw.js';
 import { LBL, P_GAL, P_SEL } from './labels.js';
 import { S, V } from './state.js';
-import { DPR, H, W, _d2x, _d2y, _pj, camDir2i, projectInto, scale } from './view.js';
+import { DPR, H, W, _d2x, _d2y, _pj, camDir2i, camDist, invScale, projectInto, scale } from './view.js';
 // ---- galaxy layer ----
 export let galProj=[];
 export function projectGalaxies(){
@@ -20,6 +20,9 @@ export function projectGalaxies(){
   galProj.sort((a,b)=>a._z2-b._z2);
 }
 export function drawGalaxies(list){ LBL.prio=P_GAL;
+  // galaxy names next to Voyager 2 confuse the picture: from inside the solar system and
+  // the nearest stars they are directions, not neighbours — labels wait until ~2 kpc out
+  const farView = camDist<=1e-9 || invScale(camDist)>2e3;
   for(const g of list){
     const s=Math.max(1.4, V.foc*0.011/g._depth*g._gs);
     const c=g.c, a=Math.max(.25,Math.min(.95, 1.7-g._depth*0.045));
@@ -58,7 +61,7 @@ export function drawGalaxies(list){ LBL.prio=P_GAL;
     const sel=(g===S.hover||g===S.pinned);
     if(sel){ ctx.beginPath(); ctx.arc(g._sx,g._sy,s+6,0,6.2832);
       ctx.strokeStyle='rgba(79,214,200,.9)'; ctx.lineWidth=1.2; ctx.stroke(); }
-    if(g.f||sel){
+    if(sel || (g.f && farView)){
       ctx.font=(sel?'11px':'10px')+' ui-monospace,monospace';
       ctx.fillStyle=`rgba(${c[0]},${c[1]},${c[2]},${sel?1:0.72})`;
       LBL.prio=sel?P_SEL:P_GAL;

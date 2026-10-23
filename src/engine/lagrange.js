@@ -3,7 +3,7 @@ import { ctx } from './canvas.js';
 import { pathBegin, pathPt, pathStroke } from './draw.js';
 import { LBL, P_SMALL } from './labels.js';
 import { SOLAR_BODIES, eclToWorld } from './solar-data.js';
-import { solarProj } from './solar.js';
+import { nearSun, solarProj } from './solar.js';
 import { S, V } from './state.js';
 import { H, W, project } from './view.js';
 // ---- gravity structure: Lagrange points + Hill spheres (real, time-aware) ----
@@ -70,6 +70,6 @@ export function drawLagrange(A){ LBL.prio=P_SMALL;
       ctx.strokeStyle='rgba(79,214,200,.9)'; ctx.lineWidth=1.1; ctx.stroke(); }
     solarProj.push({o:q,x:p.x,y:p.y,px:7});
     ctx.font='9px ui-monospace,monospace'; ctx.fillStyle=`rgba(196,170,255,${A*(sel?1:0.78)})`;
-    ctx.fillText(q.L+(q.pl==='Jupiter'?' · Jupiter':''), p.x+r+3, p.y+3);
+    if(q===S.pinned||q===S.hover||!nearSun(p.x,p.y)) ctx.fillText(q.L+(q.pl==='Jupiter'?' · Jupiter':''), p.x+r+3, p.y+3);
   }
 }

@@ -9,7 +9,7 @@ import { glBufH, glClearCanvas, glRender, glStars } from './gl.js';
 import { drawBubble, drawGalGrid, drawRadioSphere, drawRings, drawSkyGrid, drawVeilSphere } from './grids.js';
 import { drawNav, drawScaleBar, updateHUD } from './hud.js';
 import { drawHyg, projectHyg } from './hyg.js';
-import { lblFlush, lblReset } from './labels.js';
+import { LBL, P_SOLAR, P_STAR, lblFlush, lblReset } from './labels.js';
 import { drawMeasure, measureMode } from './measure.js';
 import { LENS_EXAG, calcLens, drawGalaxyModel, drawMW, lensPar } from './mw.js';
 import { drawConstellations, drawShowers } from './sky.js';
@@ -140,9 +140,11 @@ export function render(){
   if(S.galaxies && sp.depth>V.NEAR && V.solarA<0.5){
     ctx.globalAlpha=1-V.solarA*2;
     ctx.font='10px ui-monospace,monospace'; ctx.fillStyle='rgba(233,237,250,.55)';
+    LBL.prio=P_SOLAR;                            // the centre's own label is never crowded out
     ctx.fillText('Milky Way · all exoplanets', sp.x+14, sp.y-10);
     if(V.solarA<0.15){ ctx.fillStyle='rgba(255,238,178,.7)'; ctx.font='9px ui-monospace,monospace';
       ctx.fillText('click → into the solar system', sp.x+14, sp.y+4); }
+    LBL.prio=P_STAR;
     ctx.globalAlpha=1;
   }
   lastSun.x=sp.x; lastSun.y=sp.y; lastSun.depth=sp.depth;

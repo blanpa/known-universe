@@ -1,5 +1,7 @@
 // Canvas labels: halo, priority queue, collision declutter.
+import { RESERVED } from '../lib/reserve.js';
 import { ctx } from './canvas.js';
+import { lastSun } from './render.js';
 import { S } from './state.js';
 import { H, W } from './view.js';
 // ---- label pipeline: halo + priority declutter -------------------------------
@@ -31,6 +33,11 @@ ctx.fillText = (s, x, y, mw) => {
   if (!LBL.on) { _paint(s, x, y, mw, st); ctx.globalAlpha = st.g; return; }
   LBL.q.push({ s, x, y, mw, p: LBL.prio, st });
 };
+// labels never run under a panel, the quick-jump chips or the scale ladder
+function underChrome(x0, y0, x1, y1) {
+  for (const r of RESERVED.values()) if (x0 < r[2] && x1 > r[0] && y0 < r[3] && y1 > r[1]) return true;
+  return false;
+}
 export function lblReset() { LBL.q.length = 0; LBL.grid.clear(); LBL.prio = P_STAR; }
 // uniform-grid occupancy test — labels are small and clustered, so a hash beats an O(n²) sweep
 function lblFits(x0, y0, x1, y1, place) {
@@ -55,8 +62,11 @@ export function lblFlush() {
   for (let i = 0; i < q.length; i++) q[i]._i = i;
   q.sort((a, b) => (b.p - a.p) || (a._i - b._i));
   const pf = ctx.font, pc = ctx.fillStyle, pa = ctx.textAlign, pb = ctx.textBaseline, pg = ctx.globalAlpha;
+  // a frame has room for so many words: past the budget only the selection and the HUD speak
+  const budget = W <= 720 ? 34 : 64; let drawn = 0;
   for (let i = 0; i < q.length; i++) {
     const it = q[i], st = it.st;
+    if (drawn >= budget && it.p < P_SEL) continue;
     ctx.font = st.f;
     const fs = parseFloat(st.f) || 10;
     // measureText is the expensive part of decluttering and the same strings recur every
@@ -75,8 +85,12 @@ export function lblFlush() {
     // be sliced by the right edge is dropped rather than shown as a truncated word
     if (x0 > W || x0 + w < 0 || y0 > H || y1 < 0) continue;
     if (it.p < P_HUD && (x0 + w > W - 2 || x0 < -2)) continue;
+    if (it.p < P_HUD && underChrome(x0, y0, x0 + w, y1)) continue;
+    // a word right on the Sun marker belongs to something unresolved at this zoom (the
+    // dozen nearest stars from 500 ly out, say) — the centre keeps its own label only
+    if (it.p < P_SOLAR && lastSun.depth > 0 && Math.hypot(it.x - lastSun.x, it.y - lastSun.y) < 24) continue;
     if (!lblFits(x0 - 1, y0 - 1, x0 + w + 1, y1 + 1, true) && it.p < P_HUD) continue;
-    _paint(it.s, it.x, it.y, it.mw, st);
+    _paint(it.s, it.x, it.y, it.mw, st); drawn++;
   }
   ctx.font = pf; ctx.fillStyle = pc; ctx.textAlign = pa; ctx.textBaseline = pb; ctx.globalAlpha = pg;
 }

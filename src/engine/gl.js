@@ -5,7 +5,7 @@ import { lensPar } from './mw.js';
 import { CLUSTERS, CLU_T, PULSARS } from './sky-data.js';
 import { FAC, HYG, solarJD } from './solar-data.js';
 import { S, V } from './state.js';
-import { H, KDEC, LOG0, REALK, W, ctr, exactPx } from './view.js';
+import { AU_PC, H, KDEC, LOG0, REALK, W, camDist, ctr, exactPx, invScale } from './view.js';
 export let glOK=false, GL=null, glcv=null;
 let progF=null, progU=null, progT=null;        // float layout · raw-byte layout · tonemap
 let hdrOK=false, hdrFB=null, hdrTex=null, glMaxPt=64;
@@ -35,11 +35,15 @@ function glTail(host){ return `
   float y2=y1*cp - z1*sp;
   float z2=y1*sp + z1*cp;
   float depth=u_camZ - z2;
+  // Size and fade work on the depth RELATIVE to the framing distance (3.2 at the
+  // centre of the view), as the 2D glyphs do. In real scale an absolute depth in
+  // parsec made every far cloud sub-pixel: the cosmic web was culled wholesale.
+  float dz = u_real ? depth/u_camZ*3.2 : depth;
   float focCss=u_foc/u_dpr;
   float bright=max(0.0, 6.8 - mg);
   float sizeCss;
-  ${host?`if(u_hostMode>0.5) sizeCss=min(20.0, max(0.7, focCss*0.0075/depth*rs));
-  else `:''}sizeCss=clamp((0.4+bright*0.34)*focCss*0.0032/depth, 0.0, 3.6);
+  ${host?`if(u_hostMode>0.5) sizeCss=min(20.0, max(0.7, focCss*0.0075/dz*rs));
+  else `:''}sizeCss=clamp((0.4+bright*0.34)*focCss*0.0032/dz, 0.0, 3.6);
   float nearP=u_real?u_camZ*0.02:0.05; if(depth<=nearP || sizeCss<u_cull){ gl_Position=vec4(2.0,0.0,0.0,1.0); gl_PointSize=0.0; return; }
   float px=max(sizeCss, u_minPx);
   ${host?`if(u_glow>0.5){
@@ -58,7 +62,7 @@ function glTail(host){ return `
   gl_PointSize=min(px*u_dpr, u_maxPt);
   v_color=col;
   ${host?`if(u_hostMode>0.5){
-    float av=clamp(1.9-depth*0.55, 0.12, 1.0);
+    float av=clamp(1.9-dz*0.55, 0.12, 1.0);
     if(u_veil>0.5 && dist>u_bnd){                        // red veil beyond the charted edge
       float t=min(1.0,(dist-u_bnd)/(u_bnd*1.6));
       v_color=mix(v_color, vec3(0.9098,0.2275,0.1961), t*0.85); av*=(1.0-t*0.4);
@@ -66,7 +70,7 @@ function glTail(host){ return `
     if(a_pm.y>0.5 && abs(a_pm.y-u_year)<0.5){ v_color=vec3(0.3098,0.8392,0.7843); av=1.0; }
     v_alpha=av;
   } else {`:'{'}
-    float fade=clamp(1.9-depth*0.4, 0.22, 1.0);
+    float fade=clamp(1.9-dz*0.4, 0.22, 1.0);
     v_alpha=clamp((0.28+bright*0.12)*fade, 0.0, 1.0);
     if(u_minPx>0.0) v_alpha=max(v_alpha, 0.17);          // Gaia: keep faint dwarfs visible
   }
@@ -364,6 +368,8 @@ function glShared(L){                // per-frame camera/scale uniforms, per pro
 }
 function drawCloud(h,cull,minPx,alphaK,beltDt){
   const gl=GL, L=progU.loc, d=CLOUD_DEC[h.key];
+  const tune=window.__ku&&window.__ku.tune&&window.__ku.tune[h.key];   // live tuning hook (verify harness)
+  if(tune){ if(tune.a!==undefined) alphaK=tune.a; if(tune.px!==undefined) minPx=tune.px; }
   gl.uniform1f(L.u_cull,cull); gl.uniform1f(L.u_minPx,minPx); gl.uniform1f(L.u_alphaK,alphaK||1);
   gl.uniform1f(L.u_decDist,d.dist); gl.uniform2f(L.u_decMag,d.mag[0],d.mag[1]);
   gl.uniform1f(L.u_colMode,d.mode);
@@ -380,11 +386,14 @@ export function glRender(){
   // raw-byte catalogue layers (decoded in the vertex shader)
   gl.useProgram(progU.p); glShared(progU.loc);
   if(V.solarA<0.5){
-    if(CL.W && S.web) drawCloud(CL.W,0.05,1.1);
-    if(CL.Q && S.qso) drawCloud(CL.Q,0.05,1.15);
+    const far = camDist>1e-9 && invScale(camDist)>3e6;              // out among the galaxies: brighter web
+    if(CL.W && S.web) drawCloud(CL.W,0.05,far?1.6:1.1, far?2.4:1);
+    if(CL.Q && S.qso) drawCloud(CL.Q,0.05,1.15, far?1.5:1);
   }
-  if(CL.B && S.belt && V.solarA>0.05)
-    drawCloud(CL.B,0.03,1.05,1, beltEpoch?(solarJD()-beltEpoch):0);
+  if(CL.B && S.belt && V.solarA>0.05){
+    const ringPx = S.realScale ? V.foc*(2.8*AU_PC)/S.camZ : 60;      // the belt's radius on screen
+    const beltA = Math.max(0.12, Math.min(1, (ringPx-24)/140));       // unresolved ring → faint
+    drawCloud(CL.B,0.03,1.05,beltA, beltEpoch?(solarJD()-beltEpoch):0); }
   if(CL.G && S.gaia) drawCloud(CL.G,0.12,1.2, hdrOK?1:0.85);   // HDR tames the dense core itself
   if(V.solarA<0.5 && V.sysA<0.5){
     if(CL.O && S.ob) drawCloud(CL.O,0.05,1.0,0.8);

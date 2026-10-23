@@ -4,9 +4,10 @@
   import { api } from '../lib/api.js';
   import { timeline } from '../lib/stores.js';
   import Icon from './Icon.svelte';
+  import { reserve } from '../lib/reserve.js';
 </script>
 
-<div class="panel tl" id="hud-uni" role="group" aria-label="Time">
+<div class="panel tl" id="hud-uni" role="group" aria-label="Time" use:reserve={'timeline'}>
   <button type="button" class="ib" aria-label={$timeline.playing ? 'Pause' : 'Play time'} onclick={() => api.timeline?.play()}>
     <Icon name={$timeline.playing ? 'pause' : 'play'} size={15} /></button>
   <button type="button" class="ib" aria-label="Back to today" title="Back to today" onclick={() => api.timeline?.now()}><Icon name="reset" size={14} /></button>

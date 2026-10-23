@@ -3,10 +3,11 @@
   import { api } from '../lib/api.js';
   import { nav } from '../lib/stores.js';
   import Icon from './Icon.svelte';
+  import { reserve } from '../lib/reserve.js';
 </script>
 
 {#if $nav}
-  <div class="panel navc" id="hud-nav" role="status">
+  <div class="panel navc" id="hud-nav" role="status" use:reserve={'nav'}>
     <span class="nv-name"><Icon name="scope" size={14} />{$nav.name}</span>
     <span class="nv-cell"><b class="mono">{$nav.dist}</b><small>distance</small></span>
     <span class="nv-cell"><b class="mono">{$nav.light}</b><small>at light speed</small></span>

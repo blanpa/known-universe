@@ -4516,6 +4516,36 @@ function html(node, get_value, is_controlled = false, svg = false, mathml = fals
 	});
 }
 //#endregion
+//#region node_modules/svelte/src/internal/client/dom/elements/actions.js
+/** @import { ActionPayload } from '#client' */
+/**
+* @template P
+* @param {Element} dom
+* @param {(dom: Element, value?: P) => ActionPayload<P>} action
+* @param {() => P} [get_value]
+* @returns {void}
+*/
+function action(dom, action, get_value) {
+	effect(() => {
+		var payload = untrack(() => action(dom, get_value?.()) || {});
+		if (get_value && payload?.update) {
+			var inited = false;
+			/** @type {P} */
+			var prev = {};
+			render_effect(() => {
+				var value = get_value();
+				deep_read_state(value);
+				if (inited && safe_not_equal(prev, value)) {
+					prev = value;
+					/** @type {Function} */ payload.update(value);
+				}
+			});
+			inited = true;
+		}
+		if (payload?.destroy) return () => payload.destroy();
+	});
+}
+//#endregion
 //#region node_modules/svelte/src/internal/shared/attributes.js
 var whitespace = [..." 	\n\r\f\xA0\v﻿"];
 /**
@@ -5348,6 +5378,30 @@ delegate(["keydown", "click"]);
 //#region node_modules/svelte/src/internal/flags/legacy.js
 enable_legacy_mode_flag();
 //#endregion
+//#region src/lib/reserve.js
+var RESERVED = /* @__PURE__ */ new Map();
+function reserve(node, id) {
+	const report = () => {
+		const r = node.getBoundingClientRect();
+		if (r.width > 0 && r.height > 0 && getComputedStyle(node).display !== "none") RESERVED.set(id, [
+			r.left,
+			r.top,
+			r.right,
+			r.bottom
+		]);
+		else RESERVED.delete(id);
+	};
+	const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(report) : null;
+	ro?.observe(node);
+	window.addEventListener("resize", report);
+	report();
+	return { destroy() {
+		ro?.disconnect();
+		window.removeEventListener("resize", report);
+		RESERVED.delete(id);
+	} };
+}
+//#endregion
 //#region src/components/InfoCard.svelte
 var root$12 = /* @__PURE__ */ from_html(`<button type="button" class="ib" aria-label="Release" title="Release (Esc)"><!></button>`);
 var root_1$7 = /* @__PURE__ */ from_html(`<dt> </dt><dd> </dd>`, 1);
@@ -5626,6 +5680,7 @@ function InfoCard($$anchor, $$props) {
 			if (get(c).hint) $$render(consequent_9);
 		});
 		reset(section);
+		action(section, ($$node, $$action_arg) => reserve?.($$node, $$action_arg), () => "info");
 		template_effect(($0, $1) => {
 			classes = set_class(section, 1, "panel info", null, classes, { pinned: get(s).pinned });
 			set_style(span, `background:${$0 ?? ""};box-shadow:0 0 10px ${$1 ?? ""}`);
@@ -6432,6 +6487,7 @@ function NavConsole($$anchor, $$props) {
 		});
 		reset(button_1);
 		reset(div);
+		action(div, ($$node, $$action_arg) => reserve?.($$node, $$action_arg), () => "nav");
 		template_effect(() => {
 			set_text(text, $nav().name);
 			set_text(text_1, $nav().dist);
@@ -6484,6 +6540,7 @@ function Timeline($$anchor, $$props) {
 	remove_input_defaults(input);
 	next(2);
 	reset(div);
+	action(div, ($$node, $$action_arg) => reserve?.($$node, $$action_arg), () => "timeline");
 	template_effect(() => {
 		set_attribute(button, "aria-label", $timeline().playing ? "Pause" : "Play time");
 		set_text(text, $timeline().label);
@@ -6543,6 +6600,7 @@ function TourPanel($$anchor, $$props) {
 		reset(button_2);
 		reset(div_2);
 		reset(div);
+		action(div, ($$node, $$action_arg) => reserve?.($$node, $$action_arg), () => "tour");
 		template_effect(() => {
 			set_text(text, `${$tour().idx + 1} / ${$tour().total ?? ""}`);
 			set_text(text_1, $tour().title);
@@ -9079,6 +9137,7 @@ function PoiBar($$anchor, $$props) {
 		append($$anchor, button);
 	});
 	reset(div);
+	action(div, ($$node, $$action_arg) => reserve?.($$node, $$action_arg), () => "poi-" + (variant() || "sheet"));
 	template_effect(() => set_class(div, 1, `poibar ${variant() ? "poibar-" + variant() : ""}`));
 	append($$anchor, div);
 	pop();
@@ -9218,6 +9277,7 @@ function MobileNav($$anchor, $$props) {
 	next();
 	reset(button_3);
 	reset(nav);
+	action(nav, ($$node, $$action_arg) => reserve?.($$node, $$action_arg), () => "mobbar");
 	var div = sibling(nav, 2);
 	var span = sibling(child(div), 2);
 	var text = child(span, true);
@@ -9226,6 +9286,7 @@ function MobileNav($$anchor, $$props) {
 	var text_1 = child(span_1, true);
 	reset(span_1);
 	reset(div);
+	action(div, ($$node, $$action_arg) => reserve?.($$node, $$action_arg), () => "mobhead");
 	var node_4 = sibling(div, 2);
 	var consequent_1 = ($$anchor) => {
 		var div_1 = root_1$2();
@@ -9246,7 +9307,7 @@ function MobileNav($$anchor, $$props) {
 		}
 		var text_2 = sibling(node_5);
 		var small = sibling(text_2);
-		small.textContent = `· b17:23`;
+		small.textContent = `· b17:34`;
 		reset(span_2);
 		var span_3 = sibling(span_2, 2);
 		var button_5 = child(span_3);
@@ -9381,7 +9442,7 @@ delegate([
 //#endregion
 //#region src/components/ScaleLadder.svelte
 var root$1 = /* @__PURE__ */ from_html(`<button type="button" class="ld-rung"><span class="ld-tick"></span><span class="ld-l"> </span></button>`);
-var root_1$1 = /* @__PURE__ */ from_html(`<div id="ladder" role="group" aria-label="Scale"><div class="ld-track" role="slider" tabindex="0" aria-label="Scale ladder" aria-valuemin="0" aria-valuemax="100"><!> <div class="ld-mark" aria-hidden="true"></div></div></div>`);
+var root_1$1 = /* @__PURE__ */ from_html(`<div role="group" aria-label="Scale"><div class="ld-track" role="slider" tabindex="0" aria-label="Scale ladder" aria-valuemin="0" aria-valuemax="100"><!> <div class="ld-mark" aria-hidden="true"></div></div></div>`);
 function ScaleLadder($$anchor, $$props) {
 	push($$props, true);
 	const $camera = () => store_get(camera, "$camera", $$stores);
@@ -9478,8 +9539,10 @@ function ScaleLadder($$anchor, $$props) {
 	reset(div_1);
 	bind_this(div_1, ($$value) => track = $$value, () => track);
 	reset(div);
+	action(div, ($$node, $$action_arg) => reserve?.($$node, $$action_arg), () => "ladder-" + variant());
 	template_effect(($0) => {
 		set_class(div, 1, `ladder ladder-${variant() ?? ""}`);
+		set_attribute(div, "id", variant() === "edge" ? "ladder" : void 0);
 		set_attribute(div_1, "aria-valuenow", $0);
 		set_style(div_2, `top:${get(y) * 100}%`);
 	}, [() => Math.round((1 - get(y)) * 100)]);
@@ -9556,6 +9619,7 @@ function App($$anchor, $$props) {
 	SearchBox(node_2, {});
 	InfoCard(sibling(node_2, 2), {});
 	reset(div);
+	action(div, ($$node, $$action_arg) => reserve?.($$node, $$action_arg), () => "left");
 	var node_4 = sibling(div, 2);
 	NavConsole(node_4, {});
 	var div_1 = sibling(node_4, 2);
@@ -9588,6 +9652,7 @@ function App($$anchor, $$props) {
 	LivePanel(child(div_7), { collapsible: false });
 	reset(div_7);
 	reset(div_2);
+	action(div_2, ($$node, $$action_arg) => reserve?.($$node, $$action_arg), () => "railpanel");
 	var nav = sibling(div_2, 2);
 	var node_9 = child(nav);
 	each(node_9, 17, () => RAIL, (r) => r.k, ($$anchor, r) => {
@@ -9643,6 +9708,7 @@ function App($$anchor, $$props) {
 	next();
 	reset(button_4);
 	reset(nav);
+	action(nav, ($$node, $$action_arg) => reserve?.($$node, $$action_arg), () => "rail");
 	reset(div_1);
 	var node_15 = sibling(div_1, 2);
 	ScaleLadder(node_15, { variant: "edge" });
@@ -9759,7 +9825,7 @@ window.addEventListener("error", (e) => showErr("⚠ " + (e.message || e.type) +
 window.addEventListener("unhandledrejection", (e) => showErr("⚠ promise: " + (e.reason && e.reason.message || e.reason)));
 mount(App, { target: document.getElementById("app") });
 function boot() {
-	return __vitePreload(() => import("./engine-BRtD-Ou1.js").then(() => {
+	return __vitePreload(() => import("./engine-CFe7xIrO.js").then(() => {
 		try {
 			restore();
 		} catch (e) {}
@@ -9779,4 +9845,4 @@ else Promise.all([getJSON("data/data.json"), getJSON("data/catalog.json")]).then
 	return boot();
 }).catch(fail);
 //#endregion
-export { tour as _, startLive as a, facList as c, nav as d, searchMsg as f, toggleState as g, timeline as h, satEcl as i, labels as l, stats as m, activeShowers as n, camera as o, selection as p, groundEcl as r, facColor as s, LIVE as t, measure as u, api as v };
+export { toggleState as _, startLive as a, facColor as c, measure as d, nav as f, timeline as g, stats as h, satEcl as i, facList as l, selection as m, activeShowers as n, RESERVED as o, searchMsg as p, groundEcl as r, camera as s, LIVE as t, labels as u, tour as v, api as y };

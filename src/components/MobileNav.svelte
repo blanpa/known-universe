@@ -6,6 +6,7 @@
   import Icon from './Icon.svelte';
   import { api } from '../lib/api.js';
   import { camera, timeBar } from '../lib/stores.js';
+  import { reserve } from '../lib/reserve.js';
 
   // Bottom sheet with snap points. The old sheet was inset:0 and opaque, so flipping a
   // layer was a blind action — you could not see what it did. Now the scene stays
@@ -62,7 +63,7 @@
   }
 </script>
 
-<nav id="mobbar" aria-label="Main">
+<nav id="mobbar" aria-label="Main" use:reserve={'mobbar'}>
   <button type="button" class="mb" class:active={mobPanel === 'search'} aria-pressed={mobPanel === 'search'}
           onclick={() => openSheet('search')}><Icon name="search" size={20} />Search</button>
   <button type="button" class="mb" class:active={mobPanel === 'layers'} aria-pressed={mobPanel === 'layers'}
@@ -73,7 +74,7 @@
 </nav>
 
 <!-- phone header: where am I, instead of counters that mean nothing in the solar system -->
-<div id="mobhead" class="panel">
+<div id="mobhead" class="panel" use:reserve={'mobhead'}>
   <span class="mh-app"><span class="dot" aria-hidden="true"></span>Known Universe</span>
   <span class="mh-band">{$camera.band}</span>
   <span class="mh-where mono">{$camera.distText}</span>

@@ -14,6 +14,7 @@
   import PoiBar from './components/PoiBar.svelte';
   import Icon from './components/Icon.svelte';
   import { api } from './lib/api.js';
+  import { reserve } from './lib/reserve.js';
   import { measure, timeBar, toggleState } from './lib/stores.js';
 
   // Desktop chrome is on-demand: a 56 px icon rail, one overlay panel at a time.
@@ -38,7 +39,7 @@
 
 <PoiBar variant="top" />
 
-<div id="left-col">
+<div id="left-col" use:reserve={'left'}>
   <ContextHeader />
   <SearchBox />
   <InfoCard />
@@ -48,14 +49,14 @@
 
 <div id="rail-wrap">
   <!-- every pane stays mounted: a hidden pane keeps its scroll position -->
-  <div id="railpanel" class:open={!!panel}>
+  <div id="railpanel" class:open={!!panel} use:reserve={'railpanel'}>
     <div class="rp-pane" class:on={panel === 'layers'}><Controls /></div>
     <div class="rp-pane" class:on={panel === 'legend'}><Legend /></div>
     <div class="rp-pane" class:on={panel === 'map'}>{#if $toggleState['t-mw'] !== false}<MwMap />{:else}<div class="panel"><div class="label">Milky Way</div><div class="hint">Switch the “Milky Way · Sgr A*” layer on to see the map.</div></div>{/if}</div>
     <div class="rp-pane" class:on={panel === 'live'}><LivePanel collapsible={false} /></div>
   </div>
 
-  <nav id="rail" aria-label="Panels and tools">
+  <nav id="rail" aria-label="Panels and tools" use:reserve={'rail'}>
     {#each RAIL as r (r.k)}
       <button type="button" class="rb" class:on={panel === r.k} aria-pressed={panel === r.k}
               title={r.label} onclick={() => pick(r.k)}>

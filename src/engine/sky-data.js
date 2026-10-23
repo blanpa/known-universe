@@ -92,7 +92,7 @@ export const DSO=[
  {n:'Sirius B',t:'WD',ra:101.287,dec:-16.716,d:2.64},   {n:'Procyon B',t:'WD',ra:114.826,dec:5.225,d:3.51},
  {n:'40 Eridani B',t:'WD',ra:63.818,dec:-7.653,d:5.04},  {n:'Van Maanen 2',t:'WD',ra:11.332,dec:5.388,d:4.31},
  {n:'Luhman 16',t:'BD',ra:162.328,dec:-53.319,d:2.0},    {n:'WISE 0855-0714',t:'BD',ra:133.787,dec:-7.245,d:2.28},
- {n:'Gliese 229 B',t:'BD',ra:86.864,dec:-21.864,d:5.76}, {n:'Epsilon Indi Ba',t:'BD',ra:330.84,dec:-56.786,d:3.64},
+ {n:'Epsilon Indi Ba',t:'BD',ra:330.84,dec:-56.786,d:3.64},
  {n:'GRB 221009A · BOAT',t:'GRB',ra:288.265,dec:19.773,d:624e6},{n:'GRB 080319B · naked-eye',t:'GRB',ra:217.920,dec:36.303,d:3148e6},
  {n:'GRB 090423 · z 8.2',t:'GRB',ra:148.888,dec:18.149,d:9000e6},{n:'GRB 130427A',t:'GRB',ra:173.136,dec:27.699,d:1340e6},
  {n:'FRB 121102 · repeater',t:'FRB',ra:82.995,dec:33.148,d:790e6},{n:'FRB 180924',t:'FRB',ra:326.105,dec:-40.900,d:1273e6},
