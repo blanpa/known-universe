@@ -112,7 +112,7 @@
         <button type="button" onclick={() => act(() => api.toggleSolar?.())}><Icon name="sun" size={15} />{$camera.inSolar ? 'Back out' : 'Solar system'}</button>
         <button type="button" onclick={() => act(() => api.measure?.())}><Icon name="ruler" size={15} />Measure</button>
         <button type="button" onclick={() => act(() => api.share?.())}><Icon name="link" size={15} />Share view</button>
-        <button type="button" onclick={() => act(() => api.reset?.())}><Icon name="reset" size={15} />Reset view</button>
+        <button type="button" onclick={() => act(() => api.reset?.())}><Icon name="reset" size={15} />Start view</button>
       </div>
       <LivePanel onpick={() => { mobPanel = null; }} />
     {/if}

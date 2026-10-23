@@ -52,16 +52,23 @@ export function transferToggle(){             // Lambert transfer Earth → a so
 export function goCosmos(){ if(S.realScale) clickToggle('t-real'); V.tgtCamZ=camCosmos(); }
 export function enterSolar(){ S.pinned=null; S.hover=null; V.tgtCamZ=camSolar(); V.tgtPitch=-0.5;
   tgtCtr.x=tgtCtr.y=tgtCtr.z=0; }
+// Neither of these changes the scale mode: "Back out" and "Reset" used to jump to the
+// compact overview, so switching the compact view off never stuck — it came back with
+// the next button. The mode is the user's choice; only the tour and the far rungs of
+// the ladder (beyond what real scale can hold) switch it, and say so.
 export function toggleSolar(){                 // fly in / back out — a pure camera move along the scale
-  if(V.solarA>0.5){ goCosmos(); V.tgtPitch=-0.35; tgtCtr.x=tgtCtr.y=tgtCtr.z=0; }
+  if(V.solarA>0.5){                            // out to the nearest stars, in the current mode
+    V.FOLLOW=null; V.focusSys=null; V.tgtPitch=-0.35; tgtCtr.x=tgtCtr.y=tgtCtr.z=0; V.tgtCamZ=scale(6); }
   else enterSolar();
-  S.pinned=null;
+  S.pinned=null; V.dirty=true;
 }
-export function resetView(){
-  V.tgtYaw=0.5; V.tgtPitch=-0.35; S.focusStar=null; S.pinned=null; V.focusSys=null;
+export function resetView(){                   // the view you started with
+  V.tgtYaw=0.5; V.tgtPitch=-0.5; S.focusStar=null; S.pinned=null; S.hover=null;
+  V.focusSys=null; V.FOLLOW=null; V.navTarget=null; V.ROUTE=null; V.TRANSFER=null;
   tgtCtr.x=tgtCtr.y=tgtCtr.z=0;                    // back to the Sun
-  goCosmos();                                      // overview: the whole universe
-  S.autorot=false; syncToggle('t-rot',false);
+  if(!S.realScale) clickToggle('t-real');          // the start is real scale …
+  V.tgtCamZ=camSolar();                            // … framing Neptune's orbit
+  S.autorot=false; syncToggle('t-rot',false); V.lastInfo=undefined; V.dirty=true;
 }
 // the scale ladder: frame `pc` parsec around the current centre, keeping the heading.
 // Beyond what real scale can hold, hand over to the compact view (and back below it).

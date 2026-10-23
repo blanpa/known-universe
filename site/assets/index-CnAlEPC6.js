@@ -9145,7 +9145,7 @@ function PoiBar($$anchor, $$props) {
 delegate(["click"]);
 //#endregion
 //#region src/components/MobileNav.svelte
-var root$2 = /* @__PURE__ */ from_html(`<!> <!> <div class="ms-actions"><button type="button"><!> </button> <button type="button"><!>Measure</button> <button type="button"><!>Share view</button> <button type="button"><!>Reset view</button></div> <!>`, 1);
+var root$2 = /* @__PURE__ */ from_html(`<!> <!> <div class="ms-actions"><button type="button"><!> </button> <button type="button"><!>Measure</button> <button type="button"><!>Share view</button> <button type="button"><!>Start view</button></div> <!>`, 1);
 var root_1$2 = /* @__PURE__ */ from_html(`<div id="mobsheet" role="dialog" aria-modal="false"><div class="ms-head"><button type="button" class="ms-grab" aria-label="Sheet size — drag, or press to cycle"><span></span></button> <div class="ms-headrow"><span class="ms-title"><!> <small></small></span> <span class="ms-btns"><button type="button" class="ms-x" aria-label="Expand or collapse"><!></button> <button type="button" class="ms-x" aria-label="Close"><!></button></span></div></div> <div class="ms-body"><!></div></div>`);
 var root_2$1 = /* @__PURE__ */ from_html(`<nav id="mobbar" aria-label="Main"><button type="button"><!>Search</button> <button type="button"><!>Layers</button> <button type="button"><!>Time</button> <button type="button" class="mb"><!>Tour</button></nav> <div id="mobhead" class="panel"><span class="mh-app"><span class="dot" aria-hidden="true"></span>Known Universe</span> <span class="mh-band"> </span> <span class="mh-where mono"> </span></div> <!>`, 1);
 function MobileNav($$anchor, $$props) {
@@ -9307,7 +9307,7 @@ function MobileNav($$anchor, $$props) {
 		}
 		var text_2 = sibling(node_5);
 		var small = sibling(text_2);
-		small.textContent = `· b17:45`;
+		small.textContent = `· b17:53`;
 		reset(span_2);
 		var span_3 = sibling(span_2, 2);
 		var button_5 = child(span_3);
@@ -9566,7 +9566,7 @@ delegate([
 //#region src/App.svelte
 var root = /* @__PURE__ */ from_html(`<div class="panel"><div class="label">Milky Way</div><div class="hint">Switch the “Milky Way · Sgr A*” layer on to see the map.</div></div>`);
 var root_1 = /* @__PURE__ */ from_html(`<button type="button"><!><span class="rb-l"> </span></button>`);
-var root_2 = /* @__PURE__ */ from_html(`<canvas id="gl"></canvas> <canvas id="sky"></canvas> <!> <div id="left-col"><!> <!> <!></div> <!> <div id="rail-wrap"><div id="railpanel"><div><!></div> <div><!></div> <div><!></div> <div><!></div></div> <nav id="rail" aria-label="Panels and tools"><!> <div class="rail-gap"></div> <button type="button" class="rb" title="A guided flight from Earth to the edge of the observable universe"><!><span class="rb-l">Tour</span></button> <button type="button" title="Click two objects to measure the real distance between them"><!><span class="rb-l">Measure</span></button> <button type="button" class="rb" title="Copy a link to this exact view"><!><span class="rb-l">Share</span></button> <button type="button" class="rb" title="Back to the full view (Home)"><!><span class="rb-l">Reset</span></button></nav></div> <!> <!> <!> <!> <!>`, 1);
+var root_2 = /* @__PURE__ */ from_html(`<canvas id="gl"></canvas> <canvas id="sky"></canvas> <!> <div id="left-col"><!> <!> <!></div> <!> <div id="rail-wrap"><div id="railpanel"><div><!></div> <div><!></div> <div><!></div> <div><!></div></div> <nav id="rail" aria-label="Panels and tools"><!> <div class="rail-gap"></div> <button type="button" class="rb" title="A guided flight from Earth to the edge of the observable universe"><!><span class="rb-l">Tour</span></button> <button type="button" title="Click two objects to measure the real distance between them"><!><span class="rb-l">Measure</span></button> <button type="button" class="rb" title="Copy a link to this exact view"><!><span class="rb-l">Share</span></button> <button type="button" class="rb" title="Back to the start view (Home)"><!><span class="rb-l">Reset</span></button></nav></div> <!> <!> <!> <!> <!>`, 1);
 function App($$anchor, $$props) {
 	push($$props, true);
 	const $timeBar = () => store_get(timeBar, "$timeBar", $$stores);
@@ -9825,7 +9825,7 @@ window.addEventListener("error", (e) => showErr("⚠ " + (e.message || e.type) +
 window.addEventListener("unhandledrejection", (e) => showErr("⚠ promise: " + (e.reason && e.reason.message || e.reason)));
 mount(App, { target: document.getElementById("app") });
 function boot() {
-	return __vitePreload(() => import("./engine-klI_NKXz.js").then(() => {
+	return __vitePreload(() => import("./engine-Op-wkrxp.js").then(() => {
 		try {
 			restore();
 		} catch (e) {}

@@ -1,4 +1,4 @@
-import { _ as toggleState, a as startLive, c as facColor, d as measure, f as nav, g as timeline, h as stats, i as satEcl, l as facList$1, m as selection, n as activeShowers, o as RESERVED, p as searchMsg, r as groundEcl, s as camera, t as LIVE, u as labels, v as tour, y as api } from "./index-DdNHgGm8.js";
+import { _ as toggleState, a as startLive, c as facColor, d as measure, f as nav, g as timeline, h as stats, i as satEcl, l as facList$1, m as selection, n as activeShowers, o as RESERVED, p as searchMsg, r as groundEcl, s as camera, t as LIVE, u as labels, v as tour, y as api } from "./index-CnAlEPC6.js";
 //#region src/engine/canvas.js
 var cv = document.getElementById("sky");
 var ctx = cv.getContext("2d");
@@ -6288,9 +6288,6 @@ function lodA(camd, fullPc, hidePc) {
 function camSolar() {
 	return scale(3e-4);
 }
-function camCosmos() {
-	return scale(3e7);
-}
 var ctr = {
 	x: 0,
 	y: 0,
@@ -9079,10 +9076,6 @@ function transferToggle() {
 		V.dirty = true;
 	} else computeTransfer(b);
 }
-function goCosmos() {
-	if (S.realScale) clickToggle("t-real");
-	V.tgtCamZ = camCosmos();
-}
 function enterSolar() {
 	S.pinned = null;
 	S.hover = null;
@@ -9092,22 +9085,33 @@ function enterSolar() {
 }
 function toggleSolar() {
 	if (V.solarA > .5) {
-		goCosmos();
+		V.FOLLOW = null;
+		V.focusSys = null;
 		V.tgtPitch = -.35;
 		tgtCtr.x = tgtCtr.y = tgtCtr.z = 0;
+		V.tgtCamZ = scale(6);
 	} else enterSolar();
 	S.pinned = null;
+	V.dirty = true;
 }
 function resetView() {
 	V.tgtYaw = .5;
-	V.tgtPitch = -.35;
+	V.tgtPitch = -.5;
 	S.focusStar = null;
 	S.pinned = null;
+	S.hover = null;
 	V.focusSys = null;
+	V.FOLLOW = null;
+	V.navTarget = null;
+	V.ROUTE = null;
+	V.TRANSFER = null;
 	tgtCtr.x = tgtCtr.y = tgtCtr.z = 0;
-	goCosmos();
+	if (!S.realScale) clickToggle("t-real");
+	V.tgtCamZ = camSolar();
 	S.autorot = false;
 	syncToggle("t-rot", false);
+	V.lastInfo = void 0;
+	V.dirty = true;
 }
 function flyToScale(pc) {
 	if (!(pc > 0)) return;

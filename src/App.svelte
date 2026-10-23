@@ -70,7 +70,7 @@
       <Icon name="ruler" size={19} /><span class="rb-l">Measure</span></button>
     <button type="button" class="rb" title="Copy a link to this exact view" onclick={() => api.share?.()}>
       <Icon name="link" size={19} /><span class="rb-l">Share</span></button>
-    <button type="button" class="rb" title="Back to the full view (Home)" onclick={() => api.reset?.()}>
+    <button type="button" class="rb" title="Back to the start view (Home)" onclick={() => api.reset?.()}>
       <Icon name="reset" size={19} /><span class="rb-l">Reset</span></button>
   </nav>
 </div>
