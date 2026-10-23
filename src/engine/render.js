@@ -19,6 +19,7 @@ import { drawSolar } from './solar.js';
 import { S, V } from './state.js';
 import { clearTransits, drawSystem, sysProj } from './system.js';
 import { drawRoute } from './transfer.js';
+import { drawUser, projectUser } from './userdata.js';
 import { H, W, _pj, camBasis, camDist, camPos, compress, lodA, project, projectInto } from './view.js';
 export let visSys=0,visPl=0,nearD=Infinity,farD=0;
 export const order=[];
@@ -80,6 +81,7 @@ export function render(){
 
   // background starfield (HYG) behind the exoplanet hosts
   P('hyg:project',projectHyg); if(glStars()){ P('gl:render',glRender); if(S.skyMode) P('hyg:labels',drawHygLabels); } else { glClearCanvas(); P('hyg:draw',drawHyg); }
+  if(S.user) P('user',()=>{ projectUser(); drawUser(); });   // your imported rows, over the catalogue
 
   // draw sun at origin
   const sp=project(0,0,0);

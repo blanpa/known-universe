@@ -1,13 +1,13 @@
 // Sky surveys as a backdrop: real images of the sky (DSS2, 2MASS, AllWISE, Pan-STARRS)
+import { survey as surveyStore } from '../lib/stores.js';
+import { nest2xyf, tileCentre, tileDir, tileRadiusDeg } from './healpix.js';
+import { V } from './state.js';
+import { H, W, camDist, camFwd, invScale, projectInto, scale } from './view.js';
 // served as HiPS tiles by the CDS, projected on a sphere far outside the stellar
 // neighbourhood. From the Sun's position the view direction is the sky direction, so
 // the catalogue stars fall on their images. Different surveys are different epochs:
 // blink DSS2 (1980s–90s) against Pan-STARRS or WISE (2010s) and the stars that move
 // are the ones nobody has catalogued yet, or has.
-import { survey as surveyStore } from '../lib/stores.js';
-import { nest2xyf, tileCentre, tileDir, tileRadiusDeg } from './healpix.js';
-import { V } from './state.js';
-import { H, W, camDist, camFwd, invScale } from './view.js';
 
 export const SURVEYS=[
   { id:'dss',   n:'DSS2 colour',        epoch:'1983–1999', base:'https://alasky.cds.unistra.fr/DSS/DSSColor',               ext:'jpg', maxOrder:9 },
@@ -86,13 +86,21 @@ export function chooseOrder(sv){
   let o=Math.round(Math.log2(58.6*pxPerDeg/512)+0.3);
   return Math.max(3,Math.min(sv.maxOrder,o));
 }
+// The tiles in view: a cone test prunes the HEALPix tree, then each leaf's centre is
+// projected and kept when it lands inside the viewport plus its own radius. (A cone
+// alone over-fetched tenfold at narrow fields — 800 tiles for a 2° view.)
 export function visibleTiles(order){
-  const fw=camFwd, half=fovDeg()*0.75+2, out=[];
+  const fw=camFwd, fov=fovDeg(), half=fov*Math.hypot(W,H)/Math.max(W,H)*0.5, out=[];
+  const pxPerDeg=Math.max(W,H)/fov, R=scale(SKY_R_PC), o_={};
   function visit(o,pix){
     const c=tileCentre(o,pix), dot=c[0]*fw[0]+c[1]*fw[1]+c[2]*fw[2];
     const r=tileRadiusDeg(o);
-    if(dot < Math.cos(Math.min(179,half+r)*0.0174533)) return;  // outside the cone
-    if(o===order){ out.push(pix); return; }
+    if(dot < Math.cos(Math.min(179,half+r+0.5)*0.0174533)) return;  // outside the cone
+    if(o===order){
+      projectInto(c[0]*R,c[1]*R,c[2]*R,o_);
+      const m=r*pxPerDeg*1.3+8;                                   // the tile's own extent on screen
+      if(o_.depth>0 && o_.x>-m && o_.x<W+m && o_.y>-m && o_.y<H+m) out.push(pix);
+      return; }
     for(let k=0;k<4;k++) visit(o+1,(pix<<2)|k);
   }
   for(let p=0;p<768;p++) visit(3,p);

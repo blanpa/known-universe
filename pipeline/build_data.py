@@ -217,7 +217,7 @@ def build_hyg():
             rr, dr = math.radians(ra), math.radians(dec)
             dx = math.cos(dr) * math.cos(rr); dy = math.cos(dr) * math.sin(rr); dz = math.sin(dr)
             teff = teff_from_bv(r.get("ci"))
-            rec = {"dx": round(dx, 4), "dy": round(dy, 4), "dz": round(dz, 4),
+            rec = {"dx": round(dx, 6), "dy": round(dy, 6), "dz": round(dz, 6),
                    "d": round(d, 2), "m": round(mag, 2), "c": temp_color(teff)}
             try: rec["pr"] = round(float(r["pmra"]), 1)      # proper motion (mas/yr)
             except (ValueError, KeyError): pass

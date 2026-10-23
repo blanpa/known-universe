@@ -99,7 +99,22 @@ async function open(vp, mobile, hash) {
   ok(sky.northUp && sky.eastLeft, 'sky view keeps north up and east left');
   ok(true, sky.drawn > 0 ? `survey tiles drawn: ${sky.drawn}/${sky.tiles} at order ${sky.order}` : 'survey tiles: none loaded (no network?) — not a failure');
   await page.screenshot({ path: join(OUT, 'desktop-sky.png') });
-  await page.evaluate(() => window.__kuapi.skyView(false));
+  // your data: a CSV with degrees, sexagesimal and a row without distance — rows land where the catalogue has them
+  const usr = await page.evaluate(() => {
+    const n = window.__kuapi.importUser('name;ra;dec;plx;mag\nMy Sirius;101.2872;-16.7161;379.21;-1.46\nMy Vega;18:36:56.3;+38 47 01;130.23;0.03\nGhost;03:48:10;+24:12:00;;18\n', 'e2e.csv');
+    const rows = window.__ku.user.rows, hyg = window.__ku.hyg, P = window.__ku.projDir;
+    const off = (r, h) => { const a = P(r.dx, r.dy, r.dz), b = P(h.dx, h.dy, h.dz); return Math.hypot(a.x - b.x, a.y - b.y); };
+    const sir = hyg.find(s => s.n === 'Sirius'), veg = hyg.find(s => s.n === 'Vega');
+    return { n, dSir: off(rows[0], sir), dVeg: off(rows[1], veg), ghost: rows[2].noDist, saved: !!localStorage.getItem('ku_user_v1') };
+  });
+  ok(usr.n === 3 && usr.ghost && usr.saved, `CSV import keeps ${usr.n} rows, flags the one without distance, persists`);
+  ok(usr.dSir < 1.5 && usr.dVeg < 1.5, `imported degrees and sexagesimal positions match the catalogue (${usr.dSir.toFixed(2)} / ${usr.dVeg.toFixed(2)} px)`);
+  await page.evaluate(() => window.__kuapi.doSearch('my vega'));
+  await page.waitForTimeout(800);
+  const uname = await page.evaluate(() => document.querySelector('#info .in-name')?.textContent);
+  ok(uname === 'My Vega', 'search finds an imported row and the card shows it (got ' + uname + ')');
+  await page.screenshot({ path: join(OUT, 'desktop-userdata.png') });
+  await page.evaluate(() => { window.__kuapi.clearUser(); window.__kuapi.skyView(false); });
   await page.waitForTimeout(500);
   ok(errs.length === 0, 'no page errors on desktop' + (errs.length ? ': ' + errs[0] : ''));
 

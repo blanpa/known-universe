@@ -108,6 +108,7 @@ as a fourth dimension.
 | Touch               | One finger rotate · two-finger pinch zoom · the ladder is a strip at the right edge |
 | Share a view        | Rail, bottom — copies a URL that restores this exact camera position, scale and layer set |
 | Into the solar system | Button in the header, or click the Sun |
+| 📄 Your data (CSV) | Drop a CSV/TSV anywhere on the map, or *Sky* → **Import a file…** — rows with RA/Dec become a layer of amber rings: click, search, point the telescope at them. Kept in this browser only |
 | 🔭 Sky view (telescope) | Rail: **Sky** → *Telescope view*. The camera stands at the Sun and looks out; the wheel zooms the **field of view** (78° … 1′), left-drag grabs the sky, north stays up. Search or the quick-jump chips point the telescope instead of flying. Choose a survey (DSS2 · 2MASS · AllWISE · Pan-STARRS) and **Blink** two epochs |
 | Layers on/off       | Rail: **Layers** — presets (Solar system · Neighbourhood · Deep sky · Cosmos · Everything), a filter, 40 switches |
 
@@ -213,6 +214,21 @@ their measured proper motion. The pane links the current field to Aladin Lite an
 the stars to Backyard Worlds and Planet Hunters TESS for real searches.
 Image credits: DSS2 © STScI/ROE/AAO/UKSTU · 2MASS/IPAC-Caltech · WISE/NASA-JPL ·
 Pan-STARRS/IfA, all via CDS/alasky.
+
+**Your data — raw rows on the map**
+
+Any CSV or TSV with positions becomes a layer (`src/engine/userdata.js`): a Gaia or
+SIMBAD cone search, a list of candidates from a blink session, a survey's output.
+Columns are matched by name in any order — `ra`, `dec` (degrees or sexagesimal,
+`03:47:24.5` / `+24 07 00`), a distance as `dist` (pc), `plx` (mas) or `ly`, `mag`,
+`name`, `pmra`/`pmdec` (mas/yr, honoured by the timeline); a file without a header is
+read as *ra, dec, dist, mag, name*. Rows without a distance sit on the sky sphere
+and are flagged as such. The rows are drawn as amber rings over everything, picked
+first, searchable, carried in the info card with their extra columns and SIMBAD /
+Aladin links at that position, and kept in `localStorage` (up to ~4 MB, 50,000
+rows). An example file is at `site/data/sample-stars.csv`. HYG star directions are
+now stored with six decimals (0.2″) so catalogue and imported positions agree at
+telescope zoom; they used to be rounded to 4 (up to an arcminute off).
 
 ## What's *not* (yet) included
 

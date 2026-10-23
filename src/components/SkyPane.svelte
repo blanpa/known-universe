@@ -3,7 +3,7 @@
   // of view with the wheel. Blink two epochs and whatever hops between them is a star that
   // moves — the way Pluto and most brown dwarfs were found.
   import { api } from '../lib/api.js';
-  import { camera, selection, survey } from '../lib/stores.js';
+  import { camera, selection, survey, userLayer } from '../lib/stores.js';
   import Icon from './Icon.svelte';
   const SURVEYS = [
     { id: 'dss',   n: 'DSS2',       sub: 'photographic plates, 1983–1999', band: 'visible' },
@@ -17,6 +17,8 @@
   const dms = d => { const s = d < 0 ? '−' : '+', a = Math.abs(d), dd = Math.floor(a), m = (a - dd) * 60;
     return `${s}${dd}° ${String(Math.floor(m)).padStart(2, '0')}′`; };
   let other = $derived($survey.blinkWith === $survey.id ? ($survey.id === 'dss' ? 'ps1' : 'dss') : $survey.blinkWith);
+  let fileEl = $state(null);
+  async function pickFile(e) { const f = e.target.files?.[0]; if (!f) return; api.importUser?.(await f.text(), f.name); e.target.value = ''; }
   const aladin = () => `https://aladin.cds.unistra.fr/AladinLite/?target=${$camera.ra.toFixed(4)}%20${$camera.dec.toFixed(4)}&fov=${Math.max(0.01, $camera.fov).toFixed(3)}&survey=P%2FDSS2%2Fcolor`;
 </script>
 
@@ -78,5 +80,23 @@
       <a href="https://www.zooniverse.org/projects/nora-dot-eisner/planet-hunters-tess" target="_blank" rel="noopener">Planet Hunters TESS</a>.
     </p>
   {/if}
+  <div class="label lg-sub">Your data</div>
+  <p class="hint">Drop a CSV or TSV anywhere on the map, or pick a file. Columns by name: <span class="mono">ra, dec</span>
+    (degrees or 03:47:24 / +24 07 00), a distance (<span class="mono">dist</span> pc, <span class="mono">plx</span> mas or
+    <span class="mono">ly</span>), <span class="mono">mag</span>, <span class="mono">name</span>, <span class="mono">pmra, pmdec</span>.
+    Rows become amber rings you can click, search and point the telescope at; the file stays in this browser only.</p>
+  {#if $userLayer.n}
+    <div class="usr-row">
+      <span class="usr-n">{$userLayer.name}</span>
+      <span class="usr-c mono">{$userLayer.n} rows{$userLayer.noDist ? ` · ${$userLayer.noDist} without distance` : ''}{$userLayer.saved ? '' : ' · not kept'}</span>
+    </div>
+    {#if $userLayer.warn}<p class="hint warn">{$userLayer.warn}</p>{/if}
+  {/if}
+  <div class="sky-fov">
+    <input type="file" accept=".csv,.tsv,.txt,text/csv,text/plain" bind:this={fileEl} onchange={pickFile} hidden />
+    <button type="button" class="chip" onclick={() => fileEl?.click()}>Import a file…</button>
+    {#if $userLayer.n}<button type="button" class="chip" onclick={() => api.clearUser?.()}>Clear</button>{/if}
+    <a class="chip" href="./data/sample-stars.csv" download>Example CSV</a>
+  </div>
   <p class="hint src">Tiles: CDS/HiPS (DSS2 © STScI/ROE/AAO/UKSTU, 2MASS/IPAC-Caltech, WISE/NASA-JPL, Pan-STARRS/IfA). Loaded on demand; nothing is stored.</p>
 </div>

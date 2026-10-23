@@ -65,6 +65,9 @@ while desktop ANGLE silently accepted it).
     sample screenshot brightness at the catalogue positions of the brightest stars in the field —
     the right mapping scores ~650/765, a wrong one ~320 (scratch script `orient.mjs`). Tiles come
     from alasky.cds.unistra.fr; without network `SKYSTAT.drawn` stays 0 (e2e treats that as a note).
+  - `__kuapi.importUser(text, name)` / `clearUser()` drive the CSV layer; `__ku.user.rows` are the
+    parsed rows (`dx,dy,dz,d,noDist,m,pr,pd,x`), `__ku.userProj` the ones on screen. Position
+    checks: project an imported row and the matching HYG star with `__ku.projDir` and compare px.
   - `__kuapi.getCam()` — `{camZ, tgt, real}`. Assert on **tgt**, not camZ: camZ eases toward
     it, so a burst of zoom input leaves camZ orders of magnitude behind and a test that
     reads camZ concludes "zoom is stuck" when it is merely still travelling. Physical

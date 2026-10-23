@@ -19,6 +19,7 @@ api.readToggles=()=>{ const o={}; for(const id in TOGGLE_ACT) o[id]=!!S[TOGGLE_A
 bindToggle('t-rot','autorot');
 bindToggle('t-freelook','freelook');
 bindToggle('t-hyg','hyg');
+bindToggle('t-user','user');
 bindToggle('t-gpu','gpu');
 bindToggle('t-gaia','gaia');
 bindToggle('t-web','web');

@@ -1,4 +1,4 @@
-import { C as api, S as transit, _ as survey, a as startLive, b as toggleState, c as encounters, d as labels, f as measure, g as stats, h as selection, i as satEcl, l as facColor, m as searchMsg, n as activeShowers, o as RESERVED, p as nav, r as groundEcl, s as camera, t as LIVE, u as facList$1, v as timeBar, x as tour, y as timeline } from "./index-CeiH9o4H.js";
+import { C as userLayer, S as transit, _ as survey, a as startLive, b as toggleState, c as encounters, d as labels, f as measure, g as stats, h as selection, i as satEcl, l as facColor, m as searchMsg, n as activeShowers, o as RESERVED, p as nav, r as groundEcl, s as camera, t as LIVE, u as facList$1, v as timeBar, w as api, x as tour, y as timeline } from "./index-BTj6iiWo.js";
 //#region src/engine/canvas.js
 var cv = document.getElementById("sky");
 var ctx = cv.getContext("2d");
@@ -17,6 +17,7 @@ var S = {
 	size: true,
 	galaxies: true,
 	hyg: true,
+	user: true,
 	gpu: true,
 	gaia: true,
 	web: true,
@@ -1941,7 +1942,7 @@ var _blinkPhase = 0;
 function setSurvey(id) {
 	ST.id = id;
 	ST.on = !!SURVEYS.find((s) => s.id === id);
-	publish$1();
+	publish$2();
 	V.dirty = true;
 }
 function setBlink(on, withId) {
@@ -1955,17 +1956,17 @@ function setBlink(on, withId) {
 		_blinkPhase ^= 1;
 		V.dirty = true;
 	}, 700);
-	publish$1();
+	publish$2();
 	V.dirty = true;
 }
-function publish$1() {
+function publish$2() {
 	survey.set({
 		id: ST.on ? ST.id : null,
 		blink: ST.blink,
 		blinkWith: ST.blinkWith
 	});
 }
-publish$1();
+publish$2();
 function activeSurvey() {
 	if (!ST.on) return null;
 	const id = ST.blink && _blinkPhase ? ST.blinkWith : ST.id;
@@ -2051,13 +2052,16 @@ function chooseOrder(sv) {
 	return Math.max(3, Math.min(sv.maxOrder, o));
 }
 function visibleTiles(order) {
-	const fw = camFwd, half = fovDeg() * .75 + 2, out = [];
+	const fw = camFwd, fov = fovDeg(), half = fov * Math.hypot(W, H) / Math.max(W, H) * .5, out = [];
+	const pxPerDeg = Math.max(W, H) / fov, R = scale(SKY_R_PC), o_ = {};
 	function visit(o, pix) {
 		const c = tileCentre(o, pix), dot = c[0] * fw[0] + c[1] * fw[1] + c[2] * fw[2];
 		const r = tileRadiusDeg(o);
-		if (dot < Math.cos(Math.min(179, half + r) * .0174533)) return;
+		if (dot < Math.cos(Math.min(179, half + r + .5) * .0174533)) return;
 		if (o === order) {
-			out.push(pix);
+			projectInto(c[0] * R, c[1] * R, c[2] * R, o_);
+			const m = r * pxPerDeg * 1.3 + 8;
+			if (o_.depth > 0 && o_.x > -m && o_.x < W + m && o_.y > -m && o_.y < H + m) out.push(pix);
 			return;
 		}
 		for (let k = 0; k < 4; k++) visit(o + 1, pix << 2 | k);
@@ -5145,6 +5149,365 @@ function drawRoute() {
 	} else R._sx = void 0;
 }
 //#endregion
+//#region src/engine/userdata.js
+var USER = {
+	name: "",
+	rows: [],
+	cols: [],
+	warn: ""
+};
+var userProj = [];
+var NO_DIST_PC = 1e4;
+var KEY = "ku_user_v1";
+var MAX_ROWS = 5e4;
+var COLS = {
+	ra: [
+		"ra",
+		"ra_deg",
+		"radeg",
+		"raj2000",
+		"_raj2000",
+		"ra_icrs",
+		"rightascension",
+		"ra(deg)",
+		"rajd",
+		"alpha"
+	],
+	dec: [
+		"dec",
+		"de",
+		"dec_deg",
+		"dedeg",
+		"decdeg",
+		"dej2000",
+		"_dej2000",
+		"de_icrs",
+		"dec_icrs",
+		"declination",
+		"dec(deg)",
+		"dejd",
+		"delta"
+	],
+	dist: [
+		"dist",
+		"distance",
+		"d",
+		"d_pc",
+		"dist_pc",
+		"distance_pc",
+		"r_est",
+		"rgeo",
+		"r_med_geo",
+		"pc"
+	],
+	ly: [
+		"ly",
+		"dist_ly",
+		"distance_ly",
+		"lightyears",
+		"light_years"
+	],
+	plx: [
+		"plx",
+		"parallax",
+		"parallax_mas",
+		"par",
+		"pi"
+	],
+	mag: [
+		"mag",
+		"vmag",
+		"gmag",
+		"phot_g_mean_mag",
+		"v",
+		"g",
+		"magnitude",
+		"rmag",
+		"jmag",
+		"kmag",
+		"imag",
+		"mag_v",
+		"mag_g"
+	],
+	name: [
+		"name",
+		"id",
+		"designation",
+		"source_id",
+		"main_id",
+		"object",
+		"star",
+		"identifier",
+		"label",
+		"source",
+		"target",
+		"ident"
+	],
+	pmra: [
+		"pmra",
+		"pm_ra",
+		"pmra_cosdec",
+		"pm_ra_cosdec",
+		"pmracosdec"
+	],
+	pmdec: [
+		"pmdec",
+		"pm_dec",
+		"pmde",
+		"pm_de"
+	]
+};
+var norm = (h) => h.trim().toLowerCase().replace(/^"|"$/g, "").replace(/[\s]+/g, "").replace(/\[.*?\]$/, "");
+function splitLine(line, sep) {
+	const out = [];
+	let cur = "", q = false;
+	for (let i = 0; i < line.length; i++) {
+		const ch = line[i];
+		if (q) if (ch === "\"") if (line[i + 1] === "\"") {
+			cur += "\"";
+			i++;
+		} else q = false;
+		else cur += ch;
+		else if (ch === "\"") q = true;
+		else if (ch === sep) {
+			out.push(cur);
+			cur = "";
+		} else cur += ch;
+	}
+	out.push(cur);
+	return out.map((s) => s.trim());
+}
+function angle(s, hours) {
+	if (s === void 0 || s === null) return NaN;
+	s = String(s).trim();
+	if (!s) return NaN;
+	if (/^[-+]?\d*\.?\d+(e[-+]?\d+)?$/i.test(s)) return +s * (hours && /h$/i.test(s) ? 15 : 1);
+	const t = s.replace(/[hdms°′″'":]/gi, " ").trim().split(/\s+/).map(Number);
+	if (t.some(isNaN) || !t.length) return NaN;
+	const neg = /^-/.test(s);
+	let v = Math.abs(t[0]) + (t[1] || 0) / 60 + (t[2] || 0) / 3600;
+	if (neg) v = -v;
+	return hours ? v * 15 : v;
+}
+function parseUserText(text) {
+	const lines = text.split(/\r?\n/).filter((l) => l.trim() && !/^\s*#/.test(l));
+	if (!lines.length) return {
+		rows: [],
+		cols: [],
+		warn: "empty file"
+	};
+	const head = lines[0];
+	const sep = [
+		["	", (head.match(/\t/g) || []).length],
+		[";", (head.match(/;/g) || []).length],
+		[",", (head.match(/,/g) || []).length],
+		["|", (head.match(/\|/g) || []).length]
+	].sort((a, b) => b[1] - a[1])[0][1] > 0 ? [
+		["	", (head.match(/\t/g) || []).length],
+		[";", (head.match(/;/g) || []).length],
+		[",", (head.match(/,/g) || []).length],
+		["|", (head.match(/\|/g) || []).length]
+	].sort((a, b) => b[1] - a[1])[0][0] : /\s{2,}/.test(head) ? "  " : " ";
+	const cells = (l) => sep === "  " ? l.trim().split(/\s{2,}|\t/) : sep === " " ? l.trim().split(/\s+/) : splitLine(l, sep);
+	const first = cells(head).map(norm);
+	const known = new Set(Object.values(COLS).flat());
+	const hasHeader = first.some((h) => known.has(h)) || first.filter((h) => h && isNaN(+h)).length >= 2;
+	const cols = hasHeader ? first : [
+		"ra",
+		"dec",
+		"dist",
+		"mag",
+		"name"
+	].slice(0, first.length);
+	const col = (k) => {
+		for (const name of COLS[k]) {
+			const i = cols.indexOf(name);
+			if (i >= 0) return i;
+		}
+		return -1;
+	};
+	const ira = col("ra"), idec = col("dec"), idist = col("dist"), ily = col("ly"), iplx = col("plx"), imag = col("mag"), iname = col("name"), ipra = col("pmra"), ipde = col("pmdec");
+	if (ira < 0 || idec < 0) return {
+		rows: [],
+		cols,
+		warn: "no RA/Dec columns found (looked for ra, dec, raj2000, dej2000, …)"
+	};
+	const known2 = /* @__PURE__ */ new Set([
+		ira,
+		idec,
+		idist,
+		ily,
+		iplx,
+		imag,
+		iname,
+		ipra,
+		ipde
+	]);
+	const extra = cols.map((c, i) => [c, i]).filter(([c, i]) => !known2.has(i) && c).slice(0, 10);
+	const rows = [];
+	let bad = 0;
+	for (let li = hasHeader ? 1 : 0; li < lines.length && rows.length < MAX_ROWS; li++) {
+		const f = cells(lines[li]);
+		const ra = angle(f[ira], /[:hms ]/.test(f[ira] || "") && !/°/.test(f[ira] || "")), dec = angle(f[idec], false);
+		if (!isFinite(ra) || !isFinite(dec) || Math.abs(dec) > 90) {
+			bad++;
+			continue;
+		}
+		let d = NaN;
+		if (idist >= 0) d = +f[idist];
+		if (!(d > 0) && ily >= 0) d = +f[ily] / 3.261564;
+		if (!(d > 0) && iplx >= 0) {
+			const p = +f[iplx];
+			if (p > 0) d = 1e3 / p;
+		}
+		const noDist = !(d > 0);
+		if (noDist) d = NO_DIST_PC;
+		const r = ra * Math.PI / 180, q = dec * Math.PI / 180, cq = Math.cos(q);
+		const row = {
+			usr: true,
+			i: rows.length,
+			n: iname >= 0 ? String(f[iname] || "").replace(/^"|"$/g, "") : "",
+			ra,
+			dec,
+			d,
+			noDist,
+			m: imag >= 0 && isFinite(+f[imag]) ? +f[imag] : void 0,
+			pr: ipra >= 0 ? +f[ipra] || 0 : 0,
+			pd: ipde >= 0 ? +f[ipde] || 0 : 0,
+			dx: cq * Math.cos(r),
+			dy: cq * Math.sin(r),
+			dz: Math.sin(q),
+			x: {}
+		};
+		for (const [c, i] of extra) if (f[i] !== void 0 && f[i] !== "") row.x[c] = f[i];
+		rows.push(row);
+	}
+	let warn = "";
+	if (bad) warn += `${bad} rows skipped (no usable RA/Dec)`;
+	if (lines.length - 1 > MAX_ROWS) warn += (warn ? " · " : "") + `only the first ${MAX_ROWS} rows kept`;
+	return {
+		rows,
+		cols,
+		warn
+	};
+}
+function publish$1(saved) {
+	userLayer.set({
+		name: USER.name,
+		n: USER.rows.length,
+		cols: USER.cols,
+		warn: USER.warn,
+		saved: !!saved,
+		noDist: USER.rows.filter((r) => r.noDist).length
+	});
+}
+function importUser(text, name) {
+	const r = parseUserText(text || "");
+	USER.name = name || "your data";
+	USER.rows = r.rows;
+	USER.cols = r.cols;
+	USER.warn = r.warn;
+	let saved = false;
+	try {
+		const s = JSON.stringify({
+			name: USER.name,
+			text
+		});
+		if (s.length < 4e6) {
+			localStorage.setItem(KEY, s);
+			saved = true;
+		} else USER.warn += (USER.warn ? " · " : "") + "too large to keep after reload";
+	} catch (e) {}
+	if (S.pinned && S.pinned.usr) S.pinned = null;
+	publish$1(saved);
+	V.dirty = true;
+	return r.rows.length;
+}
+function clearUser() {
+	USER.name = "";
+	USER.rows = [];
+	USER.cols = [];
+	USER.warn = "";
+	try {
+		localStorage.removeItem(KEY);
+	} catch (e) {}
+	if (S.pinned && S.pinned.usr) S.pinned = null;
+	if (S.hover && S.hover.usr) S.hover = null;
+	publish$1(false);
+	V.dirty = true;
+}
+function restoreUser() {
+	try {
+		const s = localStorage.getItem(KEY);
+		if (!s) return;
+		const o = JSON.parse(s);
+		if (o && o.text) {
+			const r = parseUserText(o.text);
+			USER.name = o.name || "your data";
+			USER.rows = r.rows;
+			USER.cols = r.cols;
+			USER.warn = r.warn;
+			publish$1(true);
+		}
+	} catch (e) {}
+}
+var MAS = 4.84813681e-9;
+function projectUser() {
+	userProj.length = 0;
+	if (!S.user || !USER.rows.length) return;
+	const t = tNow();
+	for (const o of USER.rows) {
+		let dx = o.dx, dy = o.dy, dz = o.dz;
+		if (t && (o.pr || o.pd)) {
+			const cq = Math.hypot(dx, dy) || 1e-9, ex = -dy / cq, ey = dx / cq;
+			const nx = -dz * dx / cq, ny = -dz * dy / cq, nz = cq;
+			const a = o.pr * t * MAS, b = o.pd * t * MAS;
+			dx += ex * a + nx * b;
+			dy += ey * a + ny * b;
+			dz += nz * b;
+			const L = Math.hypot(dx, dy, dz) || 1;
+			dx /= L;
+			dy /= L;
+			dz /= L;
+		}
+		const R = compress(o.d);
+		const p = projectInto(dx * R, dy * R, dz * R, _pj);
+		if (p.depth <= V.NEAR) continue;
+		if (p.x < -40 || p.x > W + 40 || p.y < -40 || p.y > H + 40) continue;
+		o._sx = p.x;
+		o._sy = p.y;
+		o._depth = p.depth;
+		o._z2 = p.z2;
+		userProj.push(o);
+	}
+}
+function drawUser() {
+	if (!userProj.length) return;
+	const many = userProj.length > 400, label = S.labels && (userProj.length <= 200 || S.skyMode);
+	ctx.lineWidth = 1.4;
+	for (const o of userProj) {
+		const sel = o === S.hover || o === S.pinned;
+		const r = sel ? 8 : many ? 3.5 : 5.5;
+		ctx.beginPath();
+		ctx.arc(o._sx, o._sy, r, 0, 6.2832);
+		ctx.strokeStyle = sel ? "rgba(79,214,200,0.95)" : "rgba(255,176,96,0.85)";
+		ctx.stroke();
+		if (!many || sel) {
+			ctx.beginPath();
+			ctx.arc(o._sx, o._sy, 1.3, 0, 6.2832);
+			ctx.fillStyle = sel ? "rgba(79,214,200,1)" : "rgba(255,176,96,0.9)";
+			ctx.fill();
+		}
+		if (o.n && (sel || label)) {
+			ctx.font = (sel ? "11px" : "9.5px") + " ui-monospace,monospace";
+			ctx.fillStyle = sel ? "rgba(79,214,200,1)" : "rgba(255,196,130,0.8)";
+			LBL.prio = sel ? 92 : 52;
+			ctx.fillText(o.n, o._sx + r + 4, o._sy + 3);
+			LBL.prio = 52;
+		}
+	}
+}
+//#endregion
 //#region src/engine/entity.js
 var GTYPE = {
 	Sp: "Spiral galaxy",
@@ -5156,6 +5519,7 @@ var GTYPE = {
 function kindOf(o) {
 	if (!o) return null;
 	if (o.gpick) return "gpick";
+	if (o.usr) return "user";
 	if (o.oclu) return "cluster";
 	if (o.psr) return "pulsar";
 	if (o.lp) return "lagrange";
@@ -5207,6 +5571,11 @@ function colorOf(o) {
 			207,
 			216,
 			242
+		];
+		case "user": return [
+			255,
+			176,
+			96
 		];
 		case "cluster": return (CLU_T[o.ct || 0] || CLU_T[0]).c;
 		case "pulsar": return [
@@ -5276,6 +5645,11 @@ function physPos(o) {
 			0,
 			0,
 			0
+		];
+		case "user": return o.noDist ? null : [
+			o.dx * o.d,
+			o.dy * o.d,
+			o.dz * o.d
 		];
 		case "gpick":
 		case "sgra":
@@ -5377,6 +5751,23 @@ function card(o) {
 	};
 	const pin = S.pinned ? "Click empty space to release" : "Click to pin";
 	switch (k) {
+		case "user":
+			c.title = o.n || `Row ${o.i + 1}`;
+			c.kindLabel = `Your data · ${USER.name}`;
+			c.rows.push(["Type", `Imported · ${USER.name}`], ["RA / Dec", radecText(o.dx, o.dy, o.dz)]);
+			c.rows.push(["Distance", o.noDist ? "not given — placed on the sky" : `${ly$1(o.d)} · ${o.d < 100 ? o.d.toFixed(2) : fmt(o.d)} pc`]);
+			if (o.m !== void 0) c.rows.push(["Magnitude", o.m.toFixed(2)]);
+			if (o.pr || o.pd) c.rows.push(["Proper motion", `${o.pr.toFixed(1)} · ${o.pd.toFixed(1)} mas/yr · ${Math.hypot(o.pr, o.pd).toFixed(0)} total`]);
+			for (const [kx, vx] of Object.entries(o.x || {}).slice(0, 8)) c.rows.push([kx, String(vx).slice(0, 60)]);
+			c.links = [{
+				t: "SIMBAD",
+				u: simbadCoo(o.ra, o.dec, 2)
+			}, {
+				t: "Aladin",
+				u: aladin(o.ra, o.dec, .3)
+			}];
+			c.hint = "from your file · the links query the catalogues at this position";
+			break;
 		case "gpick": {
 			const [ra, dec] = radec(o._dir[0], o._dir[1], o._dir[2]);
 			if (o.gpick === "gaia") c.rows.push(["Type", "Star · Gaia DR3"], ["Mag G", o.mag.toFixed(1)], ["Colour bp−rp", o.bprp.toFixed(2)], ["Distance", `${ly$1(o.d)} · ${o.d.toFixed(1)} pc`]);
@@ -6516,37 +6907,37 @@ function loadExtragal() {
 		if (typeof window.__WEB_B64__ === "string" && window.__WEB_B64__.length) {
 			buildWeb(b64ToBytes(window.__WEB_B64__));
 			window.__WEB_B64__ = null;
-		} else fetch("data/cosmicweb.bin?b=b21:19").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		} else fetch("data/cosmicweb.bin?b=b21:28").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildWeb(new Uint8Array(a));
 		}).catch(() => {});
 		if (typeof window.__QSO_B64__ === "string" && window.__QSO_B64__.length) {
 			buildQso(b64ToBytes(window.__QSO_B64__));
 			window.__QSO_B64__ = null;
-		} else fetch("data/quasars.bin?b=b21:19").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		} else fetch("data/quasars.bin?b=b21:28").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildQso(new Uint8Array(a));
 		}).catch(() => {});
-		fetch("data/quasarsbig.bin?b=b21:19").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		fetch("data/quasarsbig.bin?b=b21:28").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildQso(new Uint8Array(a));
 		}).catch(() => {});
 		if (typeof window.__BELT_B64__ === "string" && window.__BELT_B64__.length) {
 			buildBelt(b64ToBytes(window.__BELT_B64__));
 			window.__BELT_B64__ = null;
-		} else fetch("data/belt.bin?b=b21:19").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		} else fetch("data/belt.bin?b=b21:28").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildBelt(new Uint8Array(a));
 		}).catch(() => {});
-		fetch("data/gaiabig.bin?b=b21:19").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		fetch("data/gaiabig.bin?b=b21:28").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildGaiaBig(new Uint8Array(a));
 		}).catch(() => {});
 		if (typeof window.__OB_B64__ === "string" && window.__OB_B64__.length) {
 			buildOB(b64ToBytes(window.__OB_B64__));
 			window.__OB_B64__ = null;
-		} else fetch("data/obstars.bin?b=b21:19").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		} else fetch("data/obstars.bin?b=b21:28").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildOB(new Uint8Array(a));
 		}).catch(() => {});
 		if (typeof window.__VAR_B64__ === "string" && window.__VAR_B64__.length) {
 			buildVars(b64ToBytes(window.__VAR_B64__));
 			window.__VAR_B64__ = null;
-		} else fetch("data/variables.bin?b=b21:19").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		} else fetch("data/variables.bin?b=b21:28").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildVars(new Uint8Array(a));
 		}).catch(() => {});
 	} catch (e) {}
@@ -6564,7 +6955,7 @@ function loadGaia() {
 			window.__GAIA_B64__ = null;
 			return;
 		}
-		fetch("data/gaia.bin?b=b21:19").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		fetch("data/gaia.bin?b=b21:28").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildGaia(new Uint8Array(a));
 		}).catch(() => {});
 	} catch (e) {}
@@ -8207,6 +8598,10 @@ function render() {
 		glClearCanvas();
 		P("hyg:draw", drawHyg);
 	}
+	if (S.user) P("user", () => {
+		projectUser();
+		drawUser();
+	});
 	const sp = project(0, 0, 0);
 	const gpuH = glStars() && glBufH;
 	for (const s of order) {
@@ -9090,6 +9485,13 @@ function pick(mx, my) {
 		if (best) return best;
 	}
 	let best = null, bd = 324;
+	if (S.user) for (const o of userProj) {
+		const dx = o._sx - mx, dy = o._sy - my, d = dx * dx + dy * dy;
+		if (d < 144 && d < bd) {
+			bd = d;
+			best = o;
+		}
+	}
 	for (const s of order) {
 		const dx = s._sx - mx, dy = s._sy - my, d = dx * dx + dy * dy;
 		if (d < bd) {
@@ -9569,6 +9971,7 @@ api.readToggles = () => {
 bindToggle("t-rot", "autorot");
 bindToggle("t-freelook", "freelook");
 bindToggle("t-hyg", "hyg");
+bindToggle("t-user", "user");
 bindToggle("t-gpu", "gpu");
 bindToggle("t-gaia", "gaia");
 bindToggle("t-web", "web");
@@ -9851,6 +10254,7 @@ function doSearch(q) {
 		flyTo(SGRA);
 		return;
 	}
+	push("user", USER.rows.find((o) => eq(o.n)));
 	push("iso", ISO.find((o) => eq(o.n)));
 	push("small", SMALL.find((o) => eq(o.n)));
 	push("dso", DSO.find((o) => eq(o.n)));
@@ -9863,6 +10267,7 @@ function doSearch(q) {
 	push("psr", PULSARS.find((o) => eq(o.n)));
 	push("clu", CLUSTERS.find((c) => eq(c.n)));
 	push("iso", ISO.find((o) => has(o.n)));
+	push("user", USER.rows.find((o) => has(o.n)));
 	push("small", SMALL.find((o) => has(o.n)));
 	push("dso", DSO.find((o) => has(o.n)));
 	push("hyg", HYG.find((s) => has(s.n)));
@@ -9878,6 +10283,17 @@ function doSearch(q) {
 		return;
 	}
 	const [t, o] = cands[0];
+	if (t === "user") {
+		msg("→ " + (o.n || "row") + " · your data" + (o.noDist ? " (no distance)" : " · " + fmt(o.d * PC2LY) + " ly"));
+		if (!S.user) {
+			S.user = true;
+			syncToggle("t-user", true);
+		}
+		V.focusSys = null;
+		S.pinned = o;
+		flyTo(o);
+		return;
+	}
 	if (t === "iso") {
 		msg("→ " + o.n + " (interstellar)");
 		if (!S.iso) {
@@ -9970,6 +10386,14 @@ function aim(x, y, z, margin) {
 	syncToggle("t-rot", false);
 }
 function objWorld(o) {
+	if (o.usr) {
+		const R = scale(o.d);
+		return [
+			o.dx * R,
+			o.dy * R,
+			o.dz * R
+		];
+	}
 	if ((o.psr || o.oclu || o.gpick || o.sgra || o.dso) && o._dir && o.d !== void 0) {
 		const R = scale(o.d);
 		return [
@@ -10026,7 +10450,8 @@ function objWorld(o) {
 function flyTo(o) {
 	const w = objWorld(o);
 	if (!w) return;
-	if (S.skyMode) {
+	if (S.skyMode || o.usr && o.noDist) {
+		if (!S.skyMode) skyView(true);
 		turnTo(w);
 		return;
 	}
@@ -10149,6 +10574,8 @@ function gotoEncounter(i) {
 	aim(q[0] * d, q[1] * d, q[2] * d, scale(Math.max(L * .35, 3e-5)));
 }
 Object.assign(api, {
+	importUser,
+	clearUser,
 	skyView,
 	lookAt,
 	lookAtSelection,
@@ -10594,6 +11021,7 @@ api.liveStats = () => {
 LIVE.onUpdate = () => {
 	V.dirty = true;
 };
+restoreUser();
 window.__ku = {
 	api,
 	live: LIVE,
@@ -10605,6 +11033,8 @@ window.__ku = {
 		SKYSTAT,
 		cacheSize
 	},
+	user: USER,
+	userProj,
 	hyg: HYG,
 	projDir: (x, y, z) => {
 		const R = scale(SKY_R_PC), o = {};

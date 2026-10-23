@@ -11,6 +11,7 @@ import { SUNHIT } from './solar-data.js';
 import { solarProj } from './solar.js';
 import { S, V } from './state.js';
 import { sysProj } from './system.js';
+import { userProj } from './userdata.js';
 import { project, scale } from './view.js';
 // ---- picking ----
 export function pick(mx,my){
@@ -32,6 +33,10 @@ export function pick(mx,my){
     if(best) return best;
   }
   let best=null,bd=18*18;
+  if(S.user) for(const o of userProj){        // imported rows first: they are what you are checking
+    const dx=o._sx-mx,dy=o._sy-my,d=dx*dx+dy*dy;
+    if(d<12*12 && d<bd){bd=d;best=o;}
+  }
   for(const s of order){
     const dx=s._sx-mx,dy=s._sy-my,d=dx*dx+dy*dy;
     if(d<bd){bd=d;best=s;}

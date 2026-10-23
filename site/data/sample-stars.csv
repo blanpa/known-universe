@@ -1,0 +1,8 @@
+# Known Universe — example import. Columns are matched by name; order does not matter.
+# ra/dec in degrees or sexagesimal, a distance as dist (pc), plx (mas) or ly, mag, name, pmra/pmdec (mas/yr).
+name,ra,dec,plx,mag,pmra,pmdec,note
+Sirius,101.2872,-16.7161,379.21,-1.46,-546.0,-1223.1,brightest star
+Vega,279.2347,38.7837,130.23,0.03,200.9,286.2,summer triangle
+Barnard's Star,17:57:48.5,+04:41:36,547.45,9.51,-798.6,10328.1,fastest proper motion
+Alcyone,56.8712,24.1051,8.09,2.87,19.3,-43.7,Pleiades
+Candidate 1,03:48:10.2,+24:12:05,,18.4,,,"no distance → placed on the sky"

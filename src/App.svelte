@@ -36,9 +36,13 @@
   $effect(() => { document.body.classList.toggle('sky-on', !!$camera.sky); });
   function pick(k) { panel = panel === k ? null : k; }
   function esc(e) { if (e.key === 'Escape' && panel) panel = null; }
+  // drop a CSV anywhere: it becomes the "Your data" layer (see SkyPane)
+  function dragover(e) { if (e.dataTransfer?.types?.includes('Files')) e.preventDefault(); }
+  async function drop(e) { const f = e.dataTransfer?.files?.[0]; if (!f) return; e.preventDefault();
+    api.importUser?.(await f.text(), f.name); panel = 'sky'; }
 </script>
 
-<svelte:window onkeydown={esc} />
+<svelte:window onkeydown={esc} ondragover={dragover} ondrop={drop} />
 
 <canvas id="gl"></canvas>
 <canvas id="sky"></canvas>

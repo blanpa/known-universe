@@ -8,6 +8,7 @@ import { FAC, SOLAR_BODIES, SUN, dateStr, eclDir, eclToWorld } from './solar-dat
 import { S } from './state.js';
 import { planetColor } from './system.js';
 import { fmtYears, route1g } from './transfer.js';
+import { USER } from './userdata.js';
 import { AU_PC } from './view.js';
 //
 // The catalogues keep their native shapes — an exoplanet host is {h, p:[…]}, a pulsar
@@ -24,6 +25,7 @@ const GTYPE={Sp:'Spiral galaxy',E:'Elliptical galaxy',S0:'Lenticular galaxy',
 export function kindOf(o){
   if(!o) return null;
   if(o.gpick) return 'gpick';
+  if(o.usr) return 'user';
   if(o.oclu) return 'cluster';
   if(o.psr) return 'pulsar';
   if(o.lp) return 'lagrange';
@@ -61,6 +63,7 @@ export const isSolar = o => SOLAR_KINDS.has(kindOf(o));
 export function colorOf(o){
   switch(kindOf(o)){
     case 'gpick': return [207,216,242];
+    case 'user': return [255,176,96];
     case 'cluster': return (CLU_T[o.ct||0]||CLU_T[0]).c;
     case 'pulsar': return [150,220,255];
     case 'lagrange': return [196,170,255];
@@ -84,6 +87,7 @@ export function colorOf(o){
 export function physPos(o){
   switch(kindOf(o)){
     case 'sun': return [0,0,0];
+    case 'user': return o.noDist ? null : [o.dx*o.d, o.dy*o.d, o.dz*o.d];
     case 'gpick': case 'sgra': case 'dso': case 'pulsar': case 'cluster':
       return [o._dir[0]*o.d, o._dir[1]*o.d, o._dir[2]*o.d];
     case 'galaxy': { const d=o.mpc*1e6; return [o.dx*d, o.dy*d, o.dz*d]; }
@@ -143,6 +147,15 @@ export function card(o){
   const c={kind:k, title:nameOf(o), color, rows:[], links:[], hint:''};
   const pin = S.pinned ? 'Click empty space to release' : 'Click to pin';
   switch(k){
+    case 'user': {
+      c.title=o.n||`Row ${o.i+1}`; c.kindLabel=`Your data · ${USER.name}`;
+      c.rows.push(['Type',`Imported · ${USER.name}`],['RA / Dec',radecText(o.dx,o.dy,o.dz)]);
+      c.rows.push(['Distance', o.noDist ? 'not given — placed on the sky' : `${ly(o.d)} · ${o.d<100?o.d.toFixed(2):fmt(o.d)} pc`]);
+      if(o.m!==undefined) c.rows.push(['Magnitude',o.m.toFixed(2)]);
+      if(o.pr||o.pd) c.rows.push(['Proper motion',`${o.pr.toFixed(1)} · ${o.pd.toFixed(1)} mas/yr · ${Math.hypot(o.pr,o.pd).toFixed(0)} total`]);
+      for(const [kx,vx] of Object.entries(o.x||{}).slice(0,8)) c.rows.push([kx,String(vx).slice(0,60)]);
+      c.links=[{t:'SIMBAD',u:simbadCoo(o.ra,o.dec,2)},{t:'Aladin',u:aladin(o.ra,o.dec,0.3)}];
+      c.hint='from your file · the links query the catalogues at this position'; break; }
     case 'gpick': {
       const [ra,dec]=radec(o._dir[0],o._dir[1],o._dir[2]);
       if(o.gpick==='gaia') c.rows.push(['Type','Star · Gaia DR3'],['Mag G',o.mag.toFixed(1)],['Colour bp−rp',o.bprp.toFixed(2)],['Distance',`${ly(o.d)} · ${o.d.toFixed(1)} pc`]);

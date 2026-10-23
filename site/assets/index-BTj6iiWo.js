@@ -5150,6 +5150,14 @@ var survey = writable({
 	blink: false,
 	blinkWith: "ps1"
 });
+var userLayer = writable({
+	name: "",
+	n: 0,
+	cols: [],
+	warn: "",
+	saved: false,
+	noDist: 0
+});
 //#endregion
 //#region src/lib/icons.js
 var ICONS = {
@@ -5462,9 +5470,9 @@ var root_3$4 = /* @__PURE__ */ from_html(`<li class="more"> </li>`);
 var root_4$3 = /* @__PURE__ */ from_html(`<div class="in-sub"> </div> <ul class="in-planets"><!> <!></ul>`, 1);
 var root_5$3 = /* @__PURE__ */ from_html(`<a target="_blank" rel="noopener"> </a>`);
 var root_6$2 = /* @__PURE__ */ from_html(`<div class="in-links"></div>`);
-var root_7$1 = /* @__PURE__ */ from_html(`<button type="button" title="Keep it centred while you zoom"><!> </button>`);
-var root_8$1 = /* @__PURE__ */ from_html(`<button type="button" title="Set a course and see distance, light time and bearing"><!> </button>`);
-var root_9$1 = /* @__PURE__ */ from_html(`<button type="button" title="A 1 g starship from Earth: how long would it take?"><!> </button>`);
+var root_7$2 = /* @__PURE__ */ from_html(`<button type="button" title="Keep it centred while you zoom"><!> </button>`);
+var root_8$2 = /* @__PURE__ */ from_html(`<button type="button" title="Set a course and see distance, light time and bearing"><!> </button>`);
+var root_9$2 = /* @__PURE__ */ from_html(`<button type="button" title="A 1 g starship from Earth: how long would it take?"><!> </button>`);
 var root_10$1 = /* @__PURE__ */ from_html(`<button type="button" title="Minimum-Δv transfer orbit from Earth"><!> </button>`);
 var root_11$1 = /* @__PURE__ */ from_html(`<div class="in-actions" role="group" aria-label="Actions"><!> <!> <!> <!></div>`);
 var root_12$1 = /* @__PURE__ */ from_html(`<div class="in-hint"> </div>`);
@@ -5622,7 +5630,7 @@ function InfoCard($$anchor, $$props) {
 			var div_5 = root_11$1();
 			var node_8 = child(div_5);
 			var consequent_4 = ($$anchor) => {
-				var button_1 = root_7$1();
+				var button_1 = root_7$2();
 				let classes_2;
 				var node_9 = child(button_1);
 				{
@@ -5648,7 +5656,7 @@ function InfoCard($$anchor, $$props) {
 			});
 			var node_10 = sibling(node_8, 2);
 			var consequent_5 = ($$anchor) => {
-				var button_2 = root_8$1();
+				var button_2 = root_8$2();
 				let classes_3;
 				var node_11 = child(button_2);
 				{
@@ -5674,7 +5682,7 @@ function InfoCard($$anchor, $$props) {
 			});
 			var node_12 = sibling(node_10, 2);
 			var consequent_6 = ($$anchor) => {
-				var button_3 = root_9$1();
+				var button_3 = root_9$2();
 				let classes_4;
 				var node_13 = child(button_3);
 				Icon(node_13, {
@@ -6072,6 +6080,11 @@ function Controls($$anchor, $$props) {
 				{
 					id: "t-hyg",
 					label: "Bright stars · HYG",
+					on: true
+				},
+				{
+					id: "t-user",
+					label: "Your data · imported CSV",
 					on: true
 				},
 				{
@@ -6760,15 +6773,20 @@ var root_3$1 = /* @__PURE__ */ from_html(`<button type="button"><span class="sv-
 var root_4$1 = /* @__PURE__ */ from_html(`<button type="button"> </button>`);
 var root_5$1 = /* @__PURE__ */ from_html(`<div class="label lg-sub">Go deeper</div> <p class="hint"><a target="_blank" rel="noopener">Open this field in Aladin Lite</a> for every survey and catalogue the CDS holds.
       Hunt for moving objects with real data at <a href="https://www.zooniverse.org/projects/marckuchner/backyard-worlds-planet-9" target="_blank" rel="noopener">Backyard Worlds</a> (WISE blinks) or transits at <a href="https://www.zooniverse.org/projects/nora-dot-eisner/planet-hunters-tess" target="_blank" rel="noopener">Planet Hunters TESS</a>.</p>`, 1);
-var root_6$1 = /* @__PURE__ */ from_html(`<div class="panel" id="hud-sky"><div class="label">Sky</div> <p class="hint">The sky as the surveys photographed it, under the catalogue. From the Sun the view
+var root_6$1 = /* @__PURE__ */ from_html(`<p class="hint warn"> </p>`);
+var root_7$1 = /* @__PURE__ */ from_html(`<div class="usr-row"><span class="usr-n"> </span> <span class="usr-c mono"> </span></div> <!>`, 1);
+var root_8$1 = /* @__PURE__ */ from_html(`<button type="button" class="chip">Clear</button>`);
+var root_9$1 = /* @__PURE__ */ from_html(`<div class="panel" id="hud-sky"><div class="label">Sky</div> <p class="hint">The sky as the surveys photographed it, under the catalogue. From the Sun the view
     direction is the sky direction, so the stars drawn here sit on their own images. Move the
     timeline off today and they drift away from the fixed photographs by their proper motion.</p> <button type="button" role="switch"><span class="tg-l">Telescope view</span><span class="sw" aria-hidden="true"></span></button> <!> <div class="label lg-sub">Survey</div> <div class="sky-list"><button type="button"><span class="sv-n">None</span><span class="sv-s">catalogue only</span></button> <!></div> <div class="label lg-sub">Blink</div> <p class="hint">Alternate two epochs. A star that jumps between them has a large proper motion:
-    close, or fast, or both. Nearby brown dwarfs and white dwarfs still turn up this way.</p> <button type="button" role="switch"><span class="tg-l"> </span><span class="sw" aria-hidden="true"></span></button> <div class="sky-fov"></div> <!> <p class="hint src">Tiles: CDS/HiPS (DSS2 © STScI/ROE/AAO/UKSTU, 2MASS/IPAC-Caltech, WISE/NASA-JPL, Pan-STARRS/IfA). Loaded on demand; nothing is stored.</p></div>`);
+    close, or fast, or both. Nearby brown dwarfs and white dwarfs still turn up this way.</p> <button type="button" role="switch"><span class="tg-l"> </span><span class="sw" aria-hidden="true"></span></button> <div class="sky-fov"></div> <!> <div class="label lg-sub">Your data</div> <p class="hint">Drop a CSV or TSV anywhere on the map, or pick a file. Columns by name: <span class="mono">ra, dec</span> (degrees or 03:47:24 / +24 07 00), a distance (<span class="mono">dist</span> pc, <span class="mono">plx</span> mas or <span class="mono">ly</span>), <span class="mono">mag</span>, <span class="mono">name</span>, <span class="mono">pmra, pmdec</span>.
+    Rows become amber rings you can click, search and point the telescope at; the file stays in this browser only.</p> <!> <div class="sky-fov"><input type="file" accept=".csv,.tsv,.txt,text/csv,text/plain" hidden=""/> <button type="button" class="chip">Import a file…</button> <!> <a class="chip" href="./data/sample-stars.csv" download="">Example CSV</a></div> <p class="hint src">Tiles: CDS/HiPS (DSS2 © STScI/ROE/AAO/UKSTU, 2MASS/IPAC-Caltech, WISE/NASA-JPL, Pan-STARRS/IfA). Loaded on demand; nothing is stored.</p></div>`);
 function SkyPane($$anchor, $$props) {
 	push($$props, true);
 	const $survey = () => store_get(survey, "$survey", $$stores);
 	const $camera = () => store_get(camera, "$camera", $$stores);
 	const $selection = () => store_get(selection, "$selection", $$stores);
+	const $userLayer = () => store_get(userLayer, "$userLayer", $$stores);
 	const [$$stores, $$cleanup] = setup_stores();
 	const SURVEYS = [
 		{
@@ -6806,8 +6824,15 @@ function SkyPane($$anchor, $$props) {
 		return `${s}${dd}° ${String(Math.floor(m)).padStart(2, "0")}′`;
 	};
 	let other = /* @__PURE__ */ user_derived(() => $survey().blinkWith === $survey().id ? $survey().id === "dss" ? "ps1" : "dss" : $survey().blinkWith);
+	let fileEl = /* @__PURE__ */ state(null);
+	async function pickFile(e) {
+		const f = e.target.files?.[0];
+		if (!f) return;
+		api.importUser?.(await f.text(), f.name);
+		e.target.value = "";
+	}
 	const aladin = () => `https://aladin.cds.unistra.fr/AladinLite/?target=${$camera().ra.toFixed(4)}%20${$camera().dec.toFixed(4)}&fov=${Math.max(.01, $camera().fov).toFixed(3)}&survey=P%2FDSS2%2Fcolor`;
-	var div = root_6$1();
+	var div = root_9$1();
 	var button = sibling(child(div), 4);
 	let classes;
 	var node = sibling(button, 2);
@@ -6945,6 +6970,52 @@ function SkyPane($$anchor, $$props) {
 	if_block(node_5, ($$render) => {
 		if ($camera().sky) $$render(consequent_3);
 	});
+	var node_6 = sibling(node_5, 6);
+	var consequent_5 = ($$anchor) => {
+		var fragment_2 = root_7$1();
+		var div_5 = first_child(fragment_2);
+		var span_7 = child(div_5);
+		var text_11 = child(span_7, true);
+		reset(span_7);
+		var span_8 = sibling(span_7, 2);
+		var text_12 = child(span_8);
+		reset(span_8);
+		reset(div_5);
+		var node_7 = sibling(div_5, 2);
+		var consequent_4 = ($$anchor) => {
+			var p_1 = root_6$1();
+			var text_13 = child(p_1, true);
+			reset(p_1);
+			template_effect(() => set_text(text_13, $userLayer().warn));
+			append($$anchor, p_1);
+		};
+		if_block(node_7, ($$render) => {
+			if ($userLayer().warn) $$render(consequent_4);
+		});
+		template_effect(() => {
+			set_text(text_11, $userLayer().name);
+			set_text(text_12, `${$userLayer().n ?? ""} rows${$userLayer().noDist ? ` · ${$userLayer().noDist} without distance` : ""}${$userLayer().saved ? "" : " · not kept"}`);
+		});
+		append($$anchor, fragment_2);
+	};
+	if_block(node_6, ($$render) => {
+		if ($userLayer().n) $$render(consequent_5);
+	});
+	var div_6 = sibling(node_6, 2);
+	var input = child(div_6);
+	bind_this(input, ($$value) => set(fileEl, $$value), () => get(fileEl));
+	var button_8 = sibling(input, 2);
+	var node_8 = sibling(button_8, 2);
+	var consequent_6 = ($$anchor) => {
+		var button_9 = root_8$1();
+		delegated("click", button_9, () => api.clearUser?.());
+		append($$anchor, button_9);
+	};
+	if_block(node_8, ($$render) => {
+		if ($userLayer().n) $$render(consequent_6);
+	});
+	next(2);
+	reset(div_6);
 	next(2);
 	reset(div);
 	template_effect(($0, $1) => {
@@ -6959,11 +7030,13 @@ function SkyPane($$anchor, $$props) {
 	delegated("click", button, () => api.skyView?.());
 	delegated("click", button_4, () => api.setSurvey?.(null));
 	delegated("click", button_6, () => api.setBlink?.(!$survey().blink, get(other)));
+	delegated("change", input, pickFile);
+	delegated("click", button_8, () => get(fileEl)?.click());
 	append($$anchor, div);
 	pop();
 	$$cleanup();
 }
-delegate(["click"]);
+delegate(["click", "change"]);
 //#endregion
 //#region src/components/TransitCard.svelte
 var root$5 = /* @__PURE__ */ from_svg(`<text class="tc-pl"> </text>`);
@@ -9786,7 +9859,7 @@ function MobileNav($$anchor, $$props) {
 		}
 		var text_2 = sibling(node_6);
 		var small = sibling(text_2);
-		small.textContent = `· b21:19`;
+		small.textContent = `· b21:28`;
 		reset(span_2);
 		var span_3 = sibling(span_2, 2);
 		var button_6 = child(span_3);
@@ -10112,8 +10185,20 @@ function App($$anchor, $$props) {
 	function esc(e) {
 		if (e.key === "Escape" && get(panel)) set(panel, null);
 	}
+	function dragover(e) {
+		if (e.dataTransfer?.types?.includes("Files")) e.preventDefault();
+	}
+	async function drop(e) {
+		const f = e.dataTransfer?.files?.[0];
+		if (!f) return;
+		e.preventDefault();
+		api.importUser?.(await f.text(), f.name);
+		set(panel, "sky");
+	}
 	var fragment = root_2();
 	event("keydown", $window, esc);
+	event("dragover", $window, dragover);
+	event("drop", $window, drop);
 	var node = sibling(first_child(fragment), 4);
 	PoiBar(node, { variant: "top" });
 	var div = sibling(node, 2);
@@ -10341,7 +10426,7 @@ window.addEventListener("error", (e) => showErr("⚠ " + (e.message || e.type) +
 window.addEventListener("unhandledrejection", (e) => showErr("⚠ promise: " + (e.reason && e.reason.message || e.reason)));
 mount(App, { target: document.getElementById("app") });
 function boot() {
-	return __vitePreload(() => import("./engine-DOJJl7jv.js").then(() => {
+	return __vitePreload(() => import("./engine-C8LGZSKt.js").then(() => {
 		try {
 			restore();
 		} catch (e) {}
@@ -10355,10 +10440,10 @@ var fail = (e) => {
 	document.body.innerHTML = "<p style=\"color:#e9edfa;font-family:monospace;padding:2em\">Error loading data: " + e + "</p>";
 };
 if (window.__DATA__) boot().catch(fail);
-else Promise.all([getJSON("data/data.json?b=b21:19"), getJSON("data/catalog.json?b=b21:19")]).then(([d, c]) => {
+else Promise.all([getJSON("data/data.json?b=b21:28"), getJSON("data/catalog.json?b=b21:28")]).then(([d, c]) => {
 	window.__DATA__ = d;
 	window.__CATALOG__ = c;
 	return boot();
 }).catch(fail);
 //#endregion
-export { api as C, transit as S, survey as _, startLive as a, toggleState as b, encounters as c, labels as d, measure as f, stats as g, selection as h, satEcl as i, facColor as l, searchMsg as m, activeShowers as n, RESERVED as o, nav as p, groundEcl as r, camera as s, LIVE as t, facList as u, timeBar as v, tour as x, timeline as y };
+export { userLayer as C, transit as S, survey as _, startLive as a, toggleState as b, encounters as c, labels as d, measure as f, stats as g, selection as h, satEcl as i, facColor as l, searchMsg as m, activeShowers as n, RESERVED as o, nav as p, groundEcl as r, camera as s, LIVE as t, facList as u, timeBar as v, api as w, tour as x, timeline as y };

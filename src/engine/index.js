@@ -13,6 +13,7 @@ import { applyHash } from './share.js';
 import { HYG } from './solar-data.js';
 import { S, V } from './state.js';
 import { SKY_R_PC, ST, cacheSize } from './survey.js';
+import { USER, restoreUser, userProj } from './userdata.js';
 import { H, W, project, projectInto, scale } from './view.js';
 // This module runs at import time and expects the data to be there: main.js imports it
 // dynamically once data.json and catalog.json have arrived (or were embedded).
@@ -34,7 +35,8 @@ api.liveStats=()=>{ const y=new Date().getFullYear();
   return {exoY:n, year:y}; };
 LIVE.onUpdate=()=>{ V.dirty=true; };
 // headless-verify hook: lets the test harness inspect/inject live-layer state
-window.__ku={api, live:LIVE, redraw:()=>{V.dirty=true;}, survey:{ST, SKYSTAT, cacheSize}, hyg:HYG, projDir:(x,y,z)=>{ const R=scale(SKY_R_PC), o={}; projectInto(x*R,y*R,z*R,o); return o; }};
+restoreUser();
+window.__ku={api, live:LIVE, redraw:()=>{V.dirty=true;}, survey:{ST, SKYSTAT, cacheSize}, user:USER, userProj, hyg:HYG, projDir:(x,y,z)=>{ const R=scale(SKY_R_PC), o={}; projectInto(x*R,y*R,z*R,o); return o; }};
 window.__kuapi=api;
 
 facListStore.set(facList);

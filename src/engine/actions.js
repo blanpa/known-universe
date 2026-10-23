@@ -14,6 +14,7 @@ import { S, V } from './state.js';
 import { ST, setBlink, setSurvey } from './survey.js';
 import { setTime, sliderOf } from './timeline.js';
 import { computeRoute, computeTransfer } from './transfer.js';
+import { USER, clearUser, importUser } from './userdata.js';
 import { H, W, camCosmos, camSolar, compress, invScale, lookAlong, scale, tgtCtr } from './view.js';
 // Each is a plain function; the ones the UI needs are published on `api` at the end.
 
@@ -100,6 +101,7 @@ export function doSearch(q){
     if(!S.mw){S.mw=true;syncToggle('t-mw',true);}
     V.focusSys=null; S.pinned=SGRA; flyTo(SGRA); return; }
   // exact first
+  push('user',USER.rows.find(o=>eq(o.n)));
   push('iso', ISO.find(o=>eq(o.n)));
   push('small',SMALL.find(o=>eq(o.n)));
   push('dso', DSO.find(o=>eq(o.n)));
@@ -113,6 +115,7 @@ export function doSearch(q){
   push('clu',CLUSTERS.find(c=>eq(c.n)));
   // substring fallback — ISO first: "borisov"/"atlas" should hit 2I/3I, not namesake comets
   push('iso', ISO.find(o=>has(o.n)));
+  push('user',USER.rows.find(o=>has(o.n)));
   push('small',SMALL.find(o=>has(o.n)));
   push('dso', DSO.find(o=>has(o.n)));
   push('hyg', HYG.find(s=>has(s.n)));
@@ -125,6 +128,8 @@ export function doSearch(q){
   push('clu',CLUSTERS.find(c=>has(c.n)));
   if(!cands.length){msg('nothing found');return;}
   const [t,o]=cands[0];
+  if(t==='user'){ msg('→ '+(o.n||'row')+' · your data'+(o.noDist?' (no distance)':' · '+fmt(o.d*PC2LY)+' ly'));
+    if(!S.user){S.user=true;syncToggle('t-user',true);} V.focusSys=null; S.pinned=o; flyTo(o); return; }
   if(t==='iso'){ msg('→ '+o.n+' (interstellar)');
     if(!S.iso){S.iso=true;syncToggle('t-iso',true);} V.focusSys=null; enterSolar(); S.pinned=o; return; }
   if(t==='small'){ msg('→ '+o.n+' ('+o.kind+')');
@@ -158,6 +163,7 @@ export function aim(x,y,z,margin){        // move the view centre onto the targe
 }
 // world position of a clickable cosmic object (null for solar bodies → handled by zoom)
 export function objWorld(o){
+  if(o.usr){ const R=scale(o.d); return [o.dx*R,o.dy*R,o.dz*R]; }   // an imported row
   // compute from direction × distance — the cached _x is only set once the layer
   // has drawn, which never happens while parked in the solar system (NaN camera)
   if((o.psr||o.oclu||o.gpick||o.sgra||o.dso)&&o._dir&&o.d!==undefined){
@@ -175,7 +181,7 @@ export function objWorld(o){
 }
 export function flyTo(o){
   const w=objWorld(o); if(!w) return;
-  if(S.skyMode){ turnTo(w); return; }                  // the telescope turns instead of flying
+  if(S.skyMode||(o.usr&&o.noDist)){ if(!S.skyMode) skyView(true); turnTo(w); return; }   // the telescope turns instead of flying
   const physPc=invScale(Math.hypot(w[0],w[1],w[2]))||1;
   let m;
   if(o.p) m=S.realScale?scale(physPc*0.12):scale(3e-5);   // host: beside it (real) / into its system (log)
@@ -238,6 +244,6 @@ export function gotoEncounter(i){
   const q=hygPos(e.s,e.t), L=Math.hypot(q[0],q[1],q[2])||1e-9, d=compress(L)/L;
   aim(q[0]*d,q[1]*d,q[2]*d, scale(Math.max(L*0.35, 3e-5)));
 }
-Object.assign(api, { skyView, lookAt, lookAtSelection, setFov, setSurvey, setBlink, gotoEncounter, lock:lockToggle, setCourse, clearCourse, engage:engageCourse, route:routeToggle,
+Object.assign(api, { importUser, clearUser, skyView, lookAt, lookAtSelection, setFov, setSurvey, setBlink, gotoEncounter, lock:lockToggle, setCourse, clearCourse, engage:engageCourse, route:routeToggle,
   transfer:transferToggle, deselect, reset:resetView, toggleSolar, enterSolar, flyToScale,
   doSearch, toggleFac, facColorToggle, facList:()=>facList, msgText });

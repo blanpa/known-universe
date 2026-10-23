@@ -22,6 +22,7 @@
       { id: 't-size', label: 'Star size by real radius', on: true }] },
     { h: 'Stars', icon: 'star', items: [
       { id: 't-hyg', label: 'Bright stars · HYG', on: true },
+      { id: 't-user', label: 'Your data · imported CSV', on: true },
       { id: 't-gaia', label: 'Gaia stars · 100 pc', on: true },
       { id: 't-ob', label: 'OB stars · spiral-arm tracers', on: true },
       { id: 't-var', label: 'Variable stars', on: true },
