@@ -25,6 +25,6 @@ function boot() { return import('./engine/index.js').then(() => { try { restore(
 const getJSON = u => fetch(u).then(r => { if (!r.ok) throw new Error(u + ' → HTTP ' + r.status); return r.json(); });
 const fail = e => { document.body.innerHTML = '<p style="color:#e9edfa;font-family:monospace;padding:2em">Error loading data: ' + e + '</p>'; };
 if (window.__DATA__) boot().catch(fail);
-else Promise.all([getJSON('data/data.json'), getJSON('data/catalog.json')])
+else Promise.all([getJSON('data/data.json?b=' + __BUILD__), getJSON('data/catalog.json?b=' + __BUILD__)])
   .then(([d, c]) => { window.__DATA__ = d; window.__CATALOG__ = c; return boot(); })
   .catch(fail);

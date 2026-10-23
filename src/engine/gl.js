@@ -329,17 +329,17 @@ export function loadExtragal(){
   if(!glOK) return;
   try{
     if(typeof window.__WEB_B64__==='string' && window.__WEB_B64__.length){ buildWeb(b64ToBytes(window.__WEB_B64__)); window.__WEB_B64__=null; }
-    else fetch('data/cosmicweb.bin').then(r=>r.ok?r.arrayBuffer():null).then(a=>{ if(a) buildWeb(new Uint8Array(a)); }).catch(()=>{});
+    else fetch('data/cosmicweb.bin?b='+__BUILD__).then(r=>r.ok?r.arrayBuffer():null).then(a=>{ if(a) buildWeb(new Uint8Array(a)); }).catch(()=>{});
     if(typeof window.__QSO_B64__==='string' && window.__QSO_B64__.length){ buildQso(b64ToBytes(window.__QSO_B64__)); window.__QSO_B64__=null; }
-    else fetch('data/quasars.bin').then(r=>r.ok?r.arrayBuffer():null).then(a=>{ if(a) buildQso(new Uint8Array(a)); }).catch(()=>{});
-    fetch('data/quasarsbig.bin').then(r=>r.ok?r.arrayBuffer():null).then(a=>{ if(a) buildQso(new Uint8Array(a)); }).catch(()=>{});
+    else fetch('data/quasars.bin?b='+__BUILD__).then(r=>r.ok?r.arrayBuffer():null).then(a=>{ if(a) buildQso(new Uint8Array(a)); }).catch(()=>{});
+    fetch('data/quasarsbig.bin?b='+__BUILD__).then(r=>r.ok?r.arrayBuffer():null).then(a=>{ if(a) buildQso(new Uint8Array(a)); }).catch(()=>{});
     if(typeof window.__BELT_B64__==='string' && window.__BELT_B64__.length){ buildBelt(b64ToBytes(window.__BELT_B64__)); window.__BELT_B64__=null; }
-    else fetch('data/belt.bin').then(r=>r.ok?r.arrayBuffer():null).then(a=>{ if(a) buildBelt(new Uint8Array(a)); }).catch(()=>{});
-    fetch('data/gaiabig.bin').then(r=>r.ok?r.arrayBuffer():null).then(a=>{ if(a) buildGaiaBig(new Uint8Array(a)); }).catch(()=>{});
+    else fetch('data/belt.bin?b='+__BUILD__).then(r=>r.ok?r.arrayBuffer():null).then(a=>{ if(a) buildBelt(new Uint8Array(a)); }).catch(()=>{});
+    fetch('data/gaiabig.bin?b='+__BUILD__).then(r=>r.ok?r.arrayBuffer():null).then(a=>{ if(a) buildGaiaBig(new Uint8Array(a)); }).catch(()=>{});
     if(typeof window.__OB_B64__==='string' && window.__OB_B64__.length){ buildOB(b64ToBytes(window.__OB_B64__)); window.__OB_B64__=null; }
-    else fetch('data/obstars.bin').then(r=>r.ok?r.arrayBuffer():null).then(a=>{ if(a) buildOB(new Uint8Array(a)); }).catch(()=>{});
+    else fetch('data/obstars.bin?b='+__BUILD__).then(r=>r.ok?r.arrayBuffer():null).then(a=>{ if(a) buildOB(new Uint8Array(a)); }).catch(()=>{});
     if(typeof window.__VAR_B64__==='string' && window.__VAR_B64__.length){ buildVars(b64ToBytes(window.__VAR_B64__)); window.__VAR_B64__=null; }
-    else fetch('data/variables.bin').then(r=>r.ok?r.arrayBuffer():null).then(a=>{ if(a) buildVars(new Uint8Array(a)); }).catch(()=>{});
+    else fetch('data/variables.bin?b='+__BUILD__).then(r=>r.ok?r.arrayBuffer():null).then(a=>{ if(a) buildVars(new Uint8Array(a)); }).catch(()=>{});
   }catch(e){}
 }
 function b64ToBytes(b64){ const bin=atob(b64), len=bin.length, u=new Uint8Array(len);
@@ -349,7 +349,7 @@ export function loadGaia(){
   try{
     if(typeof window.__GAIA_B64__==='string' && window.__GAIA_B64__.length){
       buildGaia(b64ToBytes(window.__GAIA_B64__)); window.__GAIA_B64__=null; return; }
-    fetch('data/gaia.bin').then(r=>r.ok?r.arrayBuffer():null)
+    fetch('data/gaia.bin?b='+__BUILD__).then(r=>r.ok?r.arrayBuffer():null)
       .then(a=>{ if(a) buildGaia(new Uint8Array(a)); }).catch(()=>{});
   }catch(e){}
 }

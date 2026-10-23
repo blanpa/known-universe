@@ -9515,7 +9515,7 @@ function MobileNav($$anchor, $$props) {
 		}
 		var text_2 = sibling(node_5);
 		var small = sibling(text_2);
-		small.textContent = `· b18:57`;
+		small.textContent = `· b18:59`;
 		reset(span_2);
 		var span_3 = sibling(span_2, 2);
 		var button_5 = child(span_3);
@@ -10049,7 +10049,7 @@ window.addEventListener("error", (e) => showErr("⚠ " + (e.message || e.type) +
 window.addEventListener("unhandledrejection", (e) => showErr("⚠ promise: " + (e.reason && e.reason.message || e.reason)));
 mount(App, { target: document.getElementById("app") });
 function boot() {
-	return __vitePreload(() => import("./engine-mpwrtgQw.js").then(() => {
+	return __vitePreload(() => import("./engine-0Ffn6CUG.js").then(() => {
 		try {
 			restore();
 		} catch (e) {}
@@ -10063,7 +10063,7 @@ var fail = (e) => {
 	document.body.innerHTML = "<p style=\"color:#e9edfa;font-family:monospace;padding:2em\">Error loading data: " + e + "</p>";
 };
 if (window.__DATA__) boot().catch(fail);
-else Promise.all([getJSON("data/data.json"), getJSON("data/catalog.json")]).then(([d, c]) => {
+else Promise.all([getJSON("data/data.json?b=b18:59"), getJSON("data/catalog.json?b=b18:59")]).then(([d, c]) => {
 	window.__DATA__ = d;
 	window.__CATALOG__ = c;
 	return boot();
