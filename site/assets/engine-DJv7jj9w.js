@@ -1,7 +1,11 @@
-import { A as timeline, B as tfetch, C as samp, D as stats, E as skyCursor, F as api, I as count, L as declare, M as tour, N as transit, O as survey, P as userLayer, R as mark, S as observer, T as selection, V as timg, _ as lightcurve, a as satEcl, b as movers, c as camera, d as facColor, f as facList$1, g as labels, h as kinematics, i as refreshLive, j as toggleState, k as timeBar, l as crossmatch$1, m as fielddiag, n as activeShowers, o as startLive, p as fieldQuery, r as groundEcl, s as RESERVED, t as LIVE, u as encounters, v as measure, w as searchMsg, x as nav, y as measureLog, z as tally } from "./index-B_LenzS3.js";
+import { A as timeline, B as tfetch, C as samp, D as stats, E as skyCursor, F as api, I as count, L as declare, M as tour, N as transit, O as survey, P as userLayer, R as mark, S as observer, T as selection, V as timg, _ as lightcurve, a as satEcl, b as movers, c as camera, d as facColor, f as facList$1, g as labels, h as kinematics, i as refreshLive, j as toggleState, k as timeBar, l as crossmatch$1, m as fielddiag, n as activeShowers, o as startLive, p as fieldQuery, r as groundEcl, s as RESERVED, t as LIVE, u as encounters, v as measure, w as searchMsg, x as nav, y as measureLog, z as tally } from "./index-dECbDl3W.js";
 //#region src/engine/canvas.js
 var cv = document.getElementById("sky");
 var ctx = cv.getContext("2d");
+var ctx2d = ctx;
+function swapContext(c) {
+	ctx = c || ctx2d;
+}
 //#endregion
 //#region src/engine/state.js
 var S = {
@@ -247,7 +251,7 @@ var R3 = (a) => {
 		]
 	];
 };
-var mul = (A, B) => A.map((r, i) => [
+var mul$1 = (A, B) => A.map((r, i) => [
 	0,
 	1,
 	2
@@ -276,7 +280,7 @@ var transpose = (M) => [
 ];
 function biasMatrix() {
 	const dra0 = -.0146 * AS2R, xi0 = -.016617 * AS2R;
-	return mul(R1(-(-.0068192 * AS2R)), mul(R2(xi0), R3(dra0)));
+	return mul$1(R1(-(-.0068192 * AS2R)), mul$1(R2(xi0), R3(dra0)));
 }
 var R2 = (a) => {
 	const c = Math.cos(a), s = Math.sin(a);
@@ -312,7 +316,7 @@ function precessionAngles(T) {
 }
 function precessionMatrix(T) {
 	const a = precessionAngles(T);
-	return mul(R3(a.chiA), mul(R1(-a.omA), mul(R3(-a.psiA), R1(a.eps0))));
+	return mul$1(R3(a.chiA), mul$1(R1(-a.omA), mul$1(R3(-a.psiA), R1(a.eps0))));
 }
 var meanObliquity = (T) => (84381.406 + (-46.836769 + (-1831e-7 + (.0020034 + (-576e-9 - 4.34e-8 * T) * T) * T) * T) * T) * AS2R;
 var NUT = [
@@ -562,11 +566,11 @@ function nutation(T) {
 }
 function nutationMatrix(T) {
 	const e = meanObliquity(T), n = nutation(T);
-	return mul(R1(-(e + n.deps)), mul(R3(-n.dpsi), R1(e)));
+	return mul$1(R1(-(e + n.deps)), mul$1(R3(-n.dpsi), R1(e)));
 }
 function icrsToDateMatrix(jdTT) {
 	const T = (jdTT - J2000) / 36525;
-	return mul(nutationMatrix(T), mul(precessionMatrix(T), biasMatrix()));
+	return mul$1(nutationMatrix(T), mul$1(precessionMatrix(T), biasMatrix()));
 }
 function sunGeometric(jdTT) {
 	const T = (jdTT - J2000) / 36525, L0 = (280.46646 + 36000.76983 * T + 3032e-7 * T * T) * D2R$7, M = (357.52911 + 35999.05029 * T - 1537e-7 * T * T) * D2R$7, e = .016708634 - 42037e-9 * T - 1.267e-7 * T * T;
@@ -817,7 +821,7 @@ function loadEphem() {
 		name: "ephem.bin · JPL Horizons DE441, planets + Moon 2015–2045",
 		group: "catalogue",
 		optional: true
-	}, "data/ephem.json?b=b13:36").then((r) => r.ok ? r.json() : null), fetch("data/ephem.bin?b=b13:36").then((r) => r.ok ? r.arrayBuffer() : null)]).then(([m, b]) => {
+	}, "data/ephem.json?b=20261024-1148").then((r) => r.ok ? r.json() : null), fetch("data/ephem.bin?b=20261024-1148").then((r) => r.ok ? r.arrayBuffer() : null)]).then(([m, b]) => {
 		if (!m || !b) return;
 		EPH.meta = m;
 		EPH.table = ephemTable(m, new Uint8Array(b));
@@ -6579,7 +6583,7 @@ function loadExtragal() {
 		} else tfetch("file-cosmicweb", {
 			name: "cosmicweb.bin",
 			group: "catalogue"
-		}, "data/cosmicweb.bin?b=b13:36").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/cosmicweb.bin?b=20261024-1148").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildWeb(new Uint8Array(a));
 		}).catch(() => {});
 		if (typeof window.__QSO_B64__ === "string" && window.__QSO_B64__.length) {
@@ -6588,14 +6592,14 @@ function loadExtragal() {
 		} else tfetch("file-quasars", {
 			name: "quasars.bin",
 			group: "catalogue"
-		}, "data/quasars.bin?b=b13:36").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/quasars.bin?b=20261024-1148").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildQso(new Uint8Array(a));
 		}).catch(() => {});
 		tfetch("file-quasarsbig", {
 			name: "quasarsbig.bin",
 			group: "catalogue",
 			optional: true
-		}, "data/quasarsbig.bin?b=b13:36").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/quasarsbig.bin?b=20261024-1148").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildQso(new Uint8Array(a));
 		}).catch(() => {});
 		if (typeof window.__BELT_B64__ === "string" && window.__BELT_B64__.length) {
@@ -6604,21 +6608,21 @@ function loadExtragal() {
 		} else tfetch("file-belt", {
 			name: "belt.bin",
 			group: "catalogue"
-		}, "data/belt.bin?b=b13:36").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/belt.bin?b=20261024-1148").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildBelt(new Uint8Array(a));
 		}).catch(() => {});
 		tfetch("file-gaiabig", {
 			name: "gaiabig.bin",
 			group: "catalogue",
 			optional: true
-		}, "data/gaiabig.bin?b=b13:36").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/gaiabig.bin?b=20261024-1148").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) {
 				buildGaiaBig(new Uint8Array(a));
 				tfetch("file-gaiabig_pm", {
 					name: "gaiabig_pm.bin",
 					group: "catalogue",
 					optional: true
-				}, "data/gaiabig_pm.bin?b=b13:36").then((r) => r.ok ? r.arrayBuffer() : null).then((p) => {
+				}, "data/gaiabig_pm.bin?b=20261024-1148").then((r) => r.ok ? r.arrayBuffer() : null).then((p) => {
 					if (p) {
 						gaiaPm = new Uint8Array(p);
 						if (CL.G) CL.G.pm = false;
@@ -6629,7 +6633,7 @@ function loadExtragal() {
 					name: "gaiabig_q.bin · errors, RUWE, distances",
 					group: "catalogue",
 					optional: true
-				}, "data/gaiabig_q.bin?b=b13:36").then((r) => r.ok ? r.arrayBuffer() : null).then((p) => {
+				}, "data/gaiabig_q.bin?b=20261024-1148").then((r) => r.ok ? r.arrayBuffer() : null).then((p) => {
 					if (p) {
 						gaiaQ = new Uint8Array(p);
 						if (CL.G) CL.G.q = false;
@@ -6644,7 +6648,7 @@ function loadExtragal() {
 		} else tfetch("file-obstars", {
 			name: "obstars.bin",
 			group: "catalogue"
-		}, "data/obstars.bin?b=b13:36").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/obstars.bin?b=20261024-1148").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildOB(new Uint8Array(a));
 		}).catch(() => {});
 		if (typeof window.__VAR_B64__ === "string" && window.__VAR_B64__.length) {
@@ -6653,7 +6657,7 @@ function loadExtragal() {
 		} else tfetch("file-variables", {
 			name: "variables.bin",
 			group: "catalogue"
-		}, "data/variables.bin?b=b13:36").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/variables.bin?b=20261024-1148").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildVars(new Uint8Array(a));
 		}).catch(() => {});
 	} catch (e) {}
@@ -6674,14 +6678,14 @@ function loadGaia() {
 		tfetch("file-gaia", {
 			name: "gaia.bin",
 			group: "catalogue"
-		}, "data/gaia.bin?b=b13:36").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/gaia.bin?b=20261024-1148").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildGaia(new Uint8Array(a));
 		}).catch(() => {});
 		tfetch("file-gaia_pm", {
 			name: "gaia_pm.bin",
 			group: "catalogue",
 			optional: true
-		}, "data/gaia_pm.bin?b=b13:36").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/gaia_pm.bin?b=20261024-1148").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a && (!gaiaPm || gaiaRange === 100)) {
 				gaiaPm = new Uint8Array(a);
 				attachGaiaPm();
@@ -6691,7 +6695,7 @@ function loadGaia() {
 			name: "gaia_q.bin · errors, RUWE, distances",
 			group: "catalogue",
 			optional: true
-		}, "data/gaia_q.bin?b=b13:36").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/gaia_q.bin?b=20261024-1148").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a && (!gaiaQ || gaiaRange === 100)) {
 				gaiaQ = new Uint8Array(a);
 				attachGaiaQ();
@@ -9660,7 +9664,34 @@ function card(o) {
 		const d = dirForObserver(o, k);
 		if (d) for (const r of observeRows(d)) c.rows.push(r);
 	} catch (_) {}
+	c.rows.push(["Provenance", provOf(o, k)]);
 	return c;
+}
+var PROV = {
+	star: (o) => o.src === "G" ? "Gaia DR3 astrometry (Hipparcos cross-match) + HYG v4.1 photometry" : "HYG v4.1",
+	host: () => "NASA Exoplanet Archive pscomppars (positions J2015.5 → J2000)",
+	gpick: (o) => o.gpick === "gaia" ? "Gaia DR3, Bailer-Jones (2021) distances" : o.gpick === "web" ? "2MRS (Huchra et al. 2012)" : o.gpick === "qso" ? "Milliquas (Flesch 2023)" : "JPL SBDB",
+	user: (o) => `your data (${(USER.sets[o.set] || {}).src || "file"})`,
+	galaxy: () => "Local Volume catalogue (Karachentsev et al.)",
+	dso: () => "curated catalogue (catalog.json)",
+	pulsar: () => "ATNF pulsar catalogue",
+	cluster: () => "curated catalogue (catalog.json)",
+	planet: (o) => o._src === "horizons" ? "JPL Horizons DE441 table (2015–2045)" : "JPL Keplerian elements",
+	dwarf: (o) => o._src === "horizons" ? "JPL Horizons DE441 table" : "JPL Keplerian elements",
+	moon: () => "JPL Horizons (the Moon) / mean elements",
+	sun: () => "at the origin",
+	satellite: () => "CelesTrak elements (live)",
+	cme: () => "NASA DONKI (live)",
+	neo: () => "NASA NEO (live)",
+	probe: () => "JPL Horizons state vectors (pipeline)",
+	tno: () => "JPL SBDB",
+	comet: () => "JPL SBDB",
+	asteroid: () => "JPL SBDB",
+	iso: () => "JPL SBDB"
+};
+function provOf(o, k) {
+	const f = PROV[k];
+	return `${f ? f(o) : "catalogue"} · catalogue build ${META$1.built || "?"} · app 20261024-1148`;
 }
 function dirForObserver(o, k) {
 	if (k === "sun" || k === "planet" || k === "dwarf" || k === "moon" || k === "tno" || k === "probe" || k === "comet" || k === "asteroid" || k === "iso" || k === "neo") {
@@ -10063,7 +10094,7 @@ async function crossmatch(k, opts = {}) {
 }
 //#endregion
 //#region src/lib/export.js
-var esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+var esc$1 = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 var cell = (v) => v === void 0 || v === null || typeof v === "number" && !isFinite(v) ? "" : String(v);
 var quote = (s) => /[",\r\n]/.test(s) ? "\"" + s.replace(/"/g, "\"\"") + "\"" : s;
 function csvOf(rows, cols, head = []) {
@@ -10073,15 +10104,15 @@ function csvOf(rows, cols, head = []) {
 	return out.join("\n") + "\n";
 }
 function votableOf(rows, cols, meta = {}) {
-	const f = cols.map((c) => `   <FIELD name="${esc(c.n)}" datatype="${c.t || "double"}"${c.t === "char" ? " arraysize=\"*\"" : ""}${c.u ? ` unit="${esc(c.u)}"` : ""}${c.ucd ? ` ucd="${esc(c.ucd)}"` : ""}>${c.d ? `<DESCRIPTION>${esc(c.d)}</DESCRIPTION>` : ""}</FIELD>`);
-	const tr = rows.map((r) => "    <TR>" + cols.map((c) => `<TD>${esc(cell(r[c.k]))}</TD>`).join("") + "</TR>");
+	const f = cols.map((c) => `   <FIELD name="${esc$1(c.n)}" datatype="${c.t || "double"}"${c.t === "char" ? " arraysize=\"*\"" : ""}${c.u ? ` unit="${esc$1(c.u)}"` : ""}${c.ucd ? ` ucd="${esc$1(c.ucd)}"` : ""}>${c.d ? `<DESCRIPTION>${esc$1(c.d)}</DESCRIPTION>` : ""}</FIELD>`);
+	const tr = rows.map((r) => "    <TR>" + cols.map((c) => `<TD>${esc$1(cell(r[c.k]))}</TD>`).join("") + "</TR>");
 	return `<?xml version="1.0" encoding="UTF-8"?>
 <VOTABLE version="1.4" xmlns="http://www.ivoa.net/xml/VOTable/v1.3" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
- <DESCRIPTION>${esc(meta.description || "Known Universe export")}</DESCRIPTION>
+ <DESCRIPTION>${esc$1(meta.description || "Known Universe export")}</DESCRIPTION>
  <COOSYS ID="icrs" system="ICRS" epoch="J${(meta.epoch || 2e3).toFixed(1)}"/>
  <RESOURCE type="results">
-${(meta.info || []).map(([n, v]) => `  <INFO name="${esc(n)}" value="${esc(v)}"/>`).join("\n")}
-  <TABLE name="${esc(meta.name || "table")}" nrows="${rows.length}">
+${(meta.info || []).map(([n, v]) => `  <INFO name="${esc$1(n)}" value="${esc$1(v)}"/>`).join("\n")}
+  <TABLE name="${esc$1(meta.name || "table")}" nrows="${rows.length}">
 ${f.join("\n")}
    <DATA><TABLEDATA>
 ${tr.join("\n")}
@@ -15055,6 +15086,402 @@ Object.assign(api, {
 	lcSamples
 });
 //#endregion
+//#region src/engine/svgexport.js
+var esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+var num = (v) => (Math.round(v * 100) / 100).toString();
+var SvgCtx = class {
+	constructor(w, h) {
+		this.w = w;
+		this.h = h;
+		this.out = [];
+		this.path = [];
+		this.defs = /* @__PURE__ */ new Map();
+		this.defList = [];
+		this.defSize = /* @__PURE__ */ new Map();
+		this.nimg = 0;
+		this.st = {
+			fill: "#000",
+			stroke: "#000",
+			lw: 1,
+			alpha: 1,
+			font: "10px monospace",
+			align: "start",
+			base: "alphabetic",
+			dash: [],
+			cap: "butt",
+			join: "miter",
+			m: [
+				1,
+				0,
+				0,
+				1,
+				0,
+				0
+			],
+			clip: null
+		};
+		this.stack = [];
+		this.clips = 0;
+		this.openClip = null;
+		this.canvas = {
+			width: w,
+			height: h
+		};
+	}
+	set fillStyle(v) {
+		this.st.fill = styleOf(v);
+	}
+	get fillStyle() {
+		return this.st.fill;
+	}
+	set strokeStyle(v) {
+		this.st.stroke = styleOf(v);
+	}
+	get strokeStyle() {
+		return this.st.stroke;
+	}
+	set lineWidth(v) {
+		this.st.lw = v;
+	}
+	get lineWidth() {
+		return this.st.lw;
+	}
+	set globalAlpha(v) {
+		this.st.alpha = v;
+	}
+	get globalAlpha() {
+		return this.st.alpha;
+	}
+	set font(v) {
+		this.st.font = v;
+	}
+	get font() {
+		return this.st.font;
+	}
+	set textAlign(v) {
+		this.st.align = v;
+	}
+	get textAlign() {
+		return this.st.align;
+	}
+	set textBaseline(v) {
+		this.st.base = v;
+	}
+	get textBaseline() {
+		return this.st.base;
+	}
+	set lineCap(v) {
+		this.st.cap = v;
+	}
+	get lineCap() {
+		return this.st.cap;
+	}
+	set lineJoin(v) {
+		this.st.join = v;
+	}
+	get lineJoin() {
+		return this.st.join;
+	}
+	set globalCompositeOperation(v) {
+		this.st.gco = v;
+	}
+	get globalCompositeOperation() {
+		return this.st.gco || "source-over";
+	}
+	set imageSmoothingEnabled(v) {
+		this._ise = v;
+	}
+	get imageSmoothingEnabled() {
+		return !!this._ise;
+	}
+	setLineDash(d) {
+		this.st.dash = d ? Array.from(d) : [];
+	}
+	getLineDash() {
+		return this.st.dash.slice();
+	}
+	save() {
+		this.stack.push({
+			...this.st,
+			m: this.st.m.slice(),
+			dash: this.st.dash.slice()
+		});
+	}
+	restore() {
+		const s = this.stack.pop();
+		if (s) {
+			if (this.st.clip !== s.clip && this.openClip) {
+				this.out.push("</g>");
+				this.openClip = null;
+			}
+			this.st = s;
+		}
+	}
+	translate(x, y) {
+		this.st.m = mul(this.st.m, [
+			1,
+			0,
+			0,
+			1,
+			x,
+			y
+		]);
+	}
+	rotate(a) {
+		const c = Math.cos(a), s = Math.sin(a);
+		this.st.m = mul(this.st.m, [
+			c,
+			s,
+			-s,
+			c,
+			0,
+			0
+		]);
+	}
+	scale(x, y) {
+		this.st.m = mul(this.st.m, [
+			x,
+			0,
+			0,
+			y,
+			0,
+			0
+		]);
+	}
+	setTransform(a, b, c, d, e, f) {
+		this.st.m = [
+			a,
+			b,
+			c,
+			d,
+			e,
+			f
+		];
+	}
+	resetTransform() {
+		this.st.m = [
+			1,
+			0,
+			0,
+			1,
+			0,
+			0
+		];
+	}
+	transform(a, b, c, d, e, f) {
+		this.st.m = mul(this.st.m, [
+			a,
+			b,
+			c,
+			d,
+			e,
+			f
+		]);
+	}
+	tr() {
+		const m = this.st.m;
+		return m[0] === 1 && m[1] === 0 && m[2] === 0 && m[3] === 1 && m[4] === 0 && m[5] === 0 ? "" : ` transform="matrix(${m.map(num).join(" ")})"`;
+	}
+	beginPath() {
+		this.path = [];
+	}
+	closePath() {
+		this.path.push("Z");
+	}
+	moveTo(x, y) {
+		this.path.push(`M${num(x)} ${num(y)}`);
+	}
+	lineTo(x, y) {
+		this.path.push(`L${num(x)} ${num(y)}`);
+	}
+	rect(x, y, w, h) {
+		this.path.push(`M${num(x)} ${num(y)}h${num(w)}v${num(h)}h${num(-w)}Z`);
+	}
+	arc(x, y, r, a0, a1, ccw) {
+		if (r <= 0) return;
+		if (Math.abs(a1 - a0) >= 2 * Math.PI - 1e-6) {
+			this.path.push(`M${num(x + r)} ${num(y)}A${num(r)} ${num(r)} 0 1 1 ${num(x - r)} ${num(y)}A${num(r)} ${num(r)} 0 1 1 ${num(x + r)} ${num(y)}`);
+			return;
+		}
+		const sx = x + r * Math.cos(a0), sy = y + r * Math.sin(a0), ex = x + r * Math.cos(a1), ey = y + r * Math.sin(a1);
+		let d = a1 - a0;
+		if (ccw) d = -(2 * Math.PI - (d % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI));
+		const large = Math.abs(d) > Math.PI ? 1 : 0, sweep = d > 0 ? 1 : 0;
+		this.path.push(`${this.path.length ? "L" : "M"}${num(sx)} ${num(sy)}A${num(r)} ${num(r)} 0 ${large} ${sweep} ${num(ex)} ${num(ey)}`);
+	}
+	ellipse(x, y, rx, ry, rot, a0, a1) {
+		if (rx <= 0 || ry <= 0) return;
+		const full = Math.abs(a1 - a0) >= 2 * Math.PI - 1e-6, c = Math.cos(rot), s = Math.sin(rot);
+		const pt = (a) => [x + rx * Math.cos(a) * c - ry * Math.sin(a) * s, y + rx * Math.cos(a) * s + ry * Math.sin(a) * c];
+		if (full) {
+			const p0 = pt(0), p1 = pt(Math.PI);
+			this.path.push(`M${num(p0[0])} ${num(p0[1])}A${num(rx)} ${num(ry)} ${num(rot * 57.2958)} 1 1 ${num(p1[0])} ${num(p1[1])}A${num(rx)} ${num(ry)} ${num(rot * 57.2958)} 1 1 ${num(p0[0])} ${num(p0[1])}`);
+			return;
+		}
+		const p0 = pt(a0), p1 = pt(a1), d = a1 - a0;
+		this.path.push(`${this.path.length ? "L" : "M"}${num(p0[0])} ${num(p0[1])}A${num(rx)} ${num(ry)} ${num(rot * 57.2958)} ${Math.abs(d) > Math.PI ? 1 : 0} ${d > 0 ? 1 : 0} ${num(p1[0])} ${num(p1[1])}`);
+	}
+	quadraticCurveTo(cx, cy, x, y) {
+		this.path.push(`Q${num(cx)} ${num(cy)} ${num(x)} ${num(y)}`);
+	}
+	bezierCurveTo(a, b, c, d, x, y) {
+		this.path.push(`C${num(a)} ${num(b)} ${num(c)} ${num(d)} ${num(x)} ${num(y)}`);
+	}
+	fill() {
+		if (!this.path.length) return;
+		this.out.push(`<path d="${this.path.join("")}" fill="${this.st.fill}"${this.op()}${this.tr()}/>`);
+	}
+	stroke() {
+		if (!this.path.length) return;
+		this.out.push(`<path d="${this.path.join("")}" fill="none" stroke="${this.st.stroke}" stroke-width="${num(this.st.lw)}"${this.st.dash.length ? ` stroke-dasharray="${this.st.dash.map(num).join(" ")}"` : ""}${this.st.cap !== "butt" ? ` stroke-linecap="${this.st.cap}"` : ""}${this.op()}${this.tr()}/>`);
+	}
+	clip() {
+		if (!this.path.length) return;
+		const id = "c" + ++this.clips;
+		this.out.push(`<clipPath id="${id}"><path d="${this.path.join("")}"${this.tr()}/></clipPath><g clip-path="url(#${id})">`);
+		this.openClip = id;
+		this.st.clip = id;
+	}
+	fillRect(x, y, w, h) {
+		this.out.push(`<rect x="${num(x)}" y="${num(y)}" width="${num(w)}" height="${num(h)}" fill="${this.st.fill}"${this.op()}${this.tr()}/>`);
+	}
+	strokeRect(x, y, w, h) {
+		this.out.push(`<rect x="${num(x)}" y="${num(y)}" width="${num(w)}" height="${num(h)}" fill="none" stroke="${this.st.stroke}" stroke-width="${num(this.st.lw)}"${this.op()}${this.tr()}/>`);
+	}
+	clearRect() {}
+	fillText(t, x, y) {
+		if (t === void 0 || t === null || t === "") return;
+		const f = this.st.font.match(/(\d+(?:\.\d+)?)px\s+(.+)/);
+		const size = f ? f[1] : "10", fam = f ? f[2].replace(/"/g, "'") : "monospace", w = /bold|[6-9]00/.test(this.st.font) ? " font-weight=\"bold\"" : "";
+		const anchor = this.st.align === "center" ? "middle" : this.st.align === "right" || this.st.align === "end" ? "end" : "start", base = this.st.base === "middle" ? " dominant-baseline=\"middle\"" : this.st.base === "top" || this.st.base === "hanging" ? " dominant-baseline=\"hanging\"" : "";
+		this.out.push(`<text x="${num(x)}" y="${num(y)}" font-size="${size}" font-family="${esc(fam)}"${w} text-anchor="${anchor}"${base} fill="${this.st.fill}"${this.op()}${this.tr()}>${esc(t)}</text>`);
+	}
+	strokeText(t, x, y) {
+		this.fillText(t, x, y);
+	}
+	measureText(t) {
+		const f = this.st.font.match(/(\d+(?:\.\d+)?)px/);
+		const size = f ? +f[1] : 10;
+		return {
+			width: String(t).length * size * .6,
+			actualBoundingBoxAscent: size * .8,
+			actualBoundingBoxDescent: size * .2
+		};
+	}
+	drawImage(im, ...a) {
+		let sx = 0, sy = 0, sw = im.width, sh = im.height, dx, dy, dw, dh;
+		if (a.length >= 8) [sx, sy, sw, sh, dx, dy, dw, dh] = a;
+		else {
+			[dx, dy, dw, dh] = a;
+			if (dw === void 0) {
+				dw = im.width;
+				dh = im.height;
+			}
+		}
+		try {
+			const key = `${sx},${sy},${sw},${sh}`;
+			let m = this.defs.get(im);
+			if (!m) {
+				m = /* @__PURE__ */ new Map();
+				this.defs.set(im, m);
+			}
+			let id = m.get(key);
+			if (!id) {
+				const c = document.createElement("canvas");
+				c.width = Math.max(1, Math.round(sw));
+				c.height = Math.max(1, Math.round(sh));
+				c.getContext("2d").drawImage(im, sx, sy, sw, sh, 0, 0, c.width, c.height);
+				id = "i" + ++this.nimg;
+				m.set(key, id);
+				this.defList.push(`<image id="${id}" width="${c.width}" height="${c.height}" href="${c.toDataURL("image/png")}"/>`);
+				this.defSize.set(id, [c.width, c.height]);
+			}
+			const [iw, ih] = this.defSize.get(id), sxk = dw / iw, syk = dh / ih;
+			this.out.push(`<use href="#${id}" transform="${this.tr() ? this.tr().slice(12, -1) + " " : ""}translate(${num(dx)} ${num(dy)}) scale(${num(sxk)} ${num(syk)})"${this.op()}/>`);
+		} catch (_) {}
+	}
+	createRadialGradient() {
+		return {
+			addColorStop() {},
+			__grad: true
+		};
+	}
+	createLinearGradient() {
+		return {
+			addColorStop() {},
+			__grad: true
+		};
+	}
+	createPattern() {
+		return null;
+	}
+	getImageData() {
+		return { data: /* @__PURE__ */ new Uint8ClampedArray(4) };
+	}
+	putImageData() {}
+	isPointInPath() {
+		return false;
+	}
+	op() {
+		return this.st.alpha < 1 ? ` opacity="${num(this.st.alpha)}"` : "";
+	}
+	svg(bgPng) {
+		if (this.openClip) {
+			this.out.push("</g>");
+			this.openClip = null;
+		}
+		return `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${this.w}" height="${this.h}" viewBox="0 0 ${this.w} ${this.h}">\n<title>Known Universe — view</title>\n<rect width="100%" height="100%" fill="#000"/>\n${this.defList.length ? `<defs>\n${this.defList.join("\n")}\n</defs>\n` : ""}${bgPng ? `<image x="0" y="0" width="${this.w}" height="${this.h}" href="${bgPng}"/>\n` : ""}<g font-family="ui-monospace, monospace">\n${this.out.join("\n")}\n</g>\n</svg>\n`;
+	}
+};
+function styleOf(v) {
+	if (v && typeof v === "object") return v.__grad ? "rgba(255,255,255,0.08)" : "#fff";
+	return String(v);
+}
+function mul(a, b) {
+	return [
+		a[0] * b[0] + a[2] * b[1],
+		a[1] * b[0] + a[3] * b[1],
+		a[0] * b[2] + a[2] * b[3],
+		a[1] * b[2] + a[3] * b[3],
+		a[0] * b[4] + a[2] * b[5] + a[4],
+		a[1] * b[4] + a[3] * b[5] + a[5]
+	];
+}
+function exportSvg(opts = {}) {
+	const w = Math.round(W), h = Math.round(H);
+	V.dirty = true;
+	render();
+	let bg = null;
+	try {
+		const c = document.createElement("canvas");
+		c.width = w;
+		c.height = h;
+		c.getContext("2d").drawImage(glcv, 0, 0, w, h);
+		bg = c.toDataURL("image/png");
+	} catch (_) {}
+	const rec = new SvgCtx(w, h);
+	rec.setTransform(1, 0, 0, 1, 0, 0);
+	swapContext(rec);
+	try {
+		V.dirty = true;
+		render();
+	} finally {
+		swapContext(null);
+	}
+	V.dirty = true;
+	const text = rec.svg(bg), stats = {
+		paths: (text.match(/<path /g) || []).length,
+		texts: (text.match(/<text /g) || []).length,
+		rects: (text.match(/<rect /g) || []).length,
+		images: (text.match(/<image /g) || []).length,
+		uses: (text.match(/<use /g) || []).length,
+		bytes: text.length
+	};
+	if (!opts.text) download(`known-universe-${(/* @__PURE__ */ new Date()).toISOString().slice(0, 16).replace(/[:T]/g, "-")}.svg`, text, "image/svg+xml");
+	return opts.text ? text : stats;
+}
+api.exportSvg = exportSvg;
+//#endregion
 //#region src/engine/loop.js
 var last = 0;
 var lastGw = 0;
@@ -15240,7 +15667,8 @@ function viewHash() {
 		Math.round(S.tOffsetDays),
 		m.toString(36)
 	];
-	if (S.skyMode) parts.push("s" + V.fovK.toPrecision(4) + "-" + (ST.on ? ST.id : "0") + "-" + (ST.blink ? ST.blinkWith : "0"));
+	parts.push(S.skyMode ? "s" + V.fovK.toPrecision(4) + "-" + (ST.on ? ST.id : "0") + "-" + (ST.blink ? ST.blinkWith : "0") : "x");
+	parts.push("b20261024-1148");
 	return "v1_" + parts.join("_");
 }
 function parse36(s) {
@@ -15281,9 +15709,15 @@ function applyHash() {
 			setSurvey(q[1] && q[1] !== "0" ? q[1] : null);
 			if (q[2] && q[2] !== "0") setBlink(true, q[2]);
 		}
+		const b = p.find((x, i) => i >= 10 && x[0] === "b" && x.length > 6);
+		if (b && b.slice(1) !== "20261024-1148") {
+			linkBuild = b.slice(1);
+			setTimeout(() => msg(`This link was made on data build ${linkBuild}; this is 20261024-1148 — the catalogues may have moved since`), 1500);
+		}
 		V.dirty = true;
 	} catch (e) {}
 }
+var linkBuild = null;
 var lastHash = "";
 if (typeof history !== "undefined" && history.replaceState) setInterval(() => {
 	const h = viewHash();

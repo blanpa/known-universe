@@ -287,13 +287,13 @@ async function open(vp, mobile, hash) {
         if (Math.abs(ra - 217.406) < 0.004 && Math.abs(de + 62.671) < 0.004 && g > 19) best = { i, ra, de, g }; }   // the faint G≈21 star an arcminute from Proxima
       if (!best) return { err: 'faint star not in the cloud' };
       api.skyView(true); api.lookAt(best.ra, best.de); api.setFov(0.3);
-      for (let k = 0; k < 40; k++) { await new Promise(r => setTimeout(r, 250)); const c = window.__ku.fieldCentre(); if (Math.abs(c[0] - best.ra) < 0.002 && Math.abs(c[1] - best.de) < 0.002) break; }   // the telescope turns smoothly
+      for (let k = 0; k < 120; k++) { await new Promise(r => setTimeout(r, 250)); const c = window.__ku.fieldCentre(); if (Math.abs(c[0] - best.ra) < 0.002 && Math.abs(c[1] - best.de) < 0.002) break; }   // the telescope turns smoothly (a long way from the Pleiades: up to 30 s)
       const d = best.de * Math.PI / 180, r = best.ra * Math.PI / 180, p = window.__ku.projDir(Math.cos(d) * Math.cos(r), Math.cos(d) * Math.sin(r), Math.sin(d));
-      return { x: p.x, y: p.y, g: best.g }; });
+      const c = window.__ku.fieldCentre(); return { x: p.x, y: p.y, g: best.g, centre: [+c[0].toFixed(3), +c[1].toFixed(3)], target: [+best.ra.toFixed(3), +best.de.toFixed(3)], band: document.querySelector('#hud-head .ctx-band')?.textContent, where: document.querySelector('#hud-head .ctx-where')?.textContent }; });
     if (pk.err) ok(false, 'Gaia quality record: ' + pk.err);
     else { await page.mouse.click(pk.x, pk.y); await page.waitForTimeout(1200);
       const card = await page.evaluate(() => document.getElementById('info')?.textContent.replace(/\s+/g, ' ') || '');
-      ok(/Gaia DR3/.test(card) && /Bailer-Jones geometric 16–84 %/.test(card) && /Parallax error± /.test(card) && /RUWE/.test(card), `a picked Gaia star shows its Bailer-Jones range, parallax error and RUWE (${card.slice(0, 90)}…)`);
+      ok(/Gaia DR3/.test(card) && /Bailer-Jones geometric 16–84 %/.test(card) && /Parallax error± /.test(card) && /RUWE/.test(card), `a picked Gaia star shows its Bailer-Jones range, parallax error and RUWE (${card.slice(0, 90)}… | clicked ${pk.x.toFixed(0)},${pk.y.toFixed(0)} centre ${pk.centre} target ${pk.target} ${pk.band} ${pk.where})`);
       await page.evaluate(() => { window.__kuapi.deselect?.(); window.__kuapi.skyView(false); }); }
   }
   // the observer: a place on Earth gives alt/az, rise/set and the horizon; the instrument a frame; the finder chart a PNG
@@ -340,6 +340,21 @@ async function open(vp, mobile, hash) {
     if (lc.skip) notes.push('skip light curve (network): ' + lc.skip);
     else { ok(lc.n > 10000 && lc.bls && Math.abs(lc.bls.period - 6.268) < 0.05 && lc.bls.depth > 0.0001 && lc.bls.depth < 0.0006, `TESS sector ${lc.sector}: ${lc.n} points, BLS finds pi Men c at ${lc.bls?.period.toFixed(4)} d, depth ${(lc.bls?.depth * 100).toFixed(3)} % (published 6.2679 d, 0.03 %)`);
       ok(lc.csvRows > 10000, `light curve exports as CSV (${lc.csvRows} lines)`); }
+  }
+  // provenance on the card, the build in the share link, the view as SVG
+  {
+    const pv = await page.evaluate(async () => { const api = window.__kuapi; api.skyView(false); api.doSearch('Sirius'); await new Promise(r => setTimeout(r, 1500));
+      const card = document.getElementById('info')?.textContent.replace(/\s+/g, ' ') || ''; const link = api.share(); api.deselect?.();
+      const svg = api.exportSvg({ text: true }); const d = new DOMParser().parseFromString(svg, 'image/svg+xml');
+      return { prov: card.slice(card.indexOf('Provenance'), card.indexOf('Provenance') + 110), link, svgLen: svg.length, err: d.getElementsByTagName('parsererror').length, texts: d.getElementsByTagName('text').length, paths: d.getElementsByTagName('path').length, images: d.getElementsByTagName('image').length, head: svg.slice(0, 60) }; });
+    ok(/ProvenanceHYG v4\.1 · catalogue build 20\d\d-\d\d-\d\d · app \d{8}-\d{4}/.test(pv.prov), `the card states its provenance (${pv.prov.slice(0, 80)})`);
+    ok(/_b\d{8}-\d{4}$/.test(pv.link.split('#')[1] || ''), `the share link carries the build (${(pv.link.split('#')[1] || '').split('_').pop()})`);
+    ok(pv.err === 0 && pv.texts > 10 && pv.paths > 30 && pv.images >= 1 && pv.svgLen > 20000, `the view exports as SVG: ${pv.texts} texts, ${pv.paths} paths, ${pv.images} raster image(s), ${(pv.svgLen / 1024).toFixed(0)} kB, parses`);
+    // and it renders: load the SVG in a fresh page and count lit pixels
+    const svgText = await page.evaluate(() => window.__kuapi.exportSvg({ text: true }));
+    const p2 = await ctx.newPage(); await p2.setContent(`<html><body style="margin:0;background:#000">${svgText}</body></html>`); await p2.waitForTimeout(800);
+    const lit = litPixels(await p2.screenshot(), 60); await p2.close();
+    ok(lit > 2000, `the SVG renders in a browser (${lit} lit pixels)`);
   }
   // a measurement by name goes into the log with separation and position angle (astropy, J2000: 157.8595° / PA 4.25°; HYG is propagated to today, which moves Sirius 36″)
   const meas = await page.evaluate(() => { const api = window.__kuapi; api.skyView(true); const m = api.measureBetween('Sirius', 'Vega'); api.skyView(false); return m; });   // angles from the Sun, not from the last view centre

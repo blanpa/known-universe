@@ -33,5 +33,5 @@ export default defineConfig({
   publicDir: false,                  // site/data is managed outside the bundle
   build: { outDir: 'dist', emptyOutDir: true, minify: false },  // unminified: testable + diffable
   // build stamp shown in the mobile sheet header — verifies which build a phone runs
-  define: { __BUILD__: JSON.stringify('b' + new Date().toTimeString().slice(0, 5)) },
+  define: { __BUILD__: JSON.stringify(new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '').replace(/^(\d{8})(\d{4})$/, '$1-$2')) },   // 20261024-1430: the build stamp, shown in the Data pane and carried in share links
 });

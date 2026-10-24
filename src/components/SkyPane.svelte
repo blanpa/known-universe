@@ -241,7 +241,10 @@
     <button type="button" class="chip" disabled={!$movers.list.length} onclick={() => api.exportTable?.('movers', 'votable')}>VOTable</button>
     <button type="button" class="chip" disabled={!$measureLog.length} onclick={() => api.exportTable?.('measure', 'csv')}>Measurements ({$measureLog.length}) · CSV</button>
     <button type="button" class="chip" disabled={!$measureLog.length} onclick={() => api.exportTable?.('measure', 'votable')}>VOTable</button>
+    <button type="button" class="chip" onclick={() => api.exportSvg?.()}>View → SVG</button>
   </div>
+  <p class="hint">SVG: the view as a vector drawing — every line, ring, grid, orbit and label stays editable, the point clouds and the sky
+    image sit underneath as one raster. For figures.</p>
   <div class="label lg-sub">SAMP · TOPCAT, Aladin, DS9</div>
   <p class="hint">A hub on this machine (TOPCAT and Aladin start one) links the tools: the telescope's field goes out as
     <span class="mono">coord.pointAt.sky</span>, a set as <span class="mono">table.load.votable</span>, and a point sent by

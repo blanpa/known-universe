@@ -4,7 +4,7 @@ import { icrsOfDate } from '../lib/astro.js';
 import { ephemApparent } from './ephem.js';
 import { uvwOf } from './kinematics.js';
 import { jdNow, observeRows } from './observe.js';
-import { PC2LY } from './data.js';
+import { META, PC2LY } from './data.js';
 import { fmt } from './hud.js';
 import { epochNow, hostPos, hygPos, tNow } from './motion.js';
 import { CLU_T, DSO_T } from './sky-data.js';
@@ -315,8 +315,16 @@ export function card(o){
   }
   // the observer's view of it: apparent place, alt/az, rise and set (observe.js)
   try{ const d=dirForObserver(o,k); if(d) for(const r of observeRows(d)) c.rows.push(r); }catch(_){}
+  // where the numbers come from: the catalogue, its version, the build they were packed in
+  c.rows.push(['Provenance', provOf(o,k)]);
   return c;
 }
+const PROV={ star:o=>o.src==='G'?'Gaia DR3 astrometry (Hipparcos cross-match) + HYG v4.1 photometry':'HYG v4.1', host:()=>'NASA Exoplanet Archive pscomppars (positions J2015.5 → J2000)',
+  gpick:o=>o.gpick==='gaia'?'Gaia DR3, Bailer-Jones (2021) distances':o.gpick==='web'?'2MRS (Huchra et al. 2012)':o.gpick==='qso'?'Milliquas (Flesch 2023)':'JPL SBDB', user:o=>`your data (${(USER.sets[o.set]||{}).src||'file'})`,
+  galaxy:()=>'Local Volume catalogue (Karachentsev et al.)', dso:()=>'curated catalogue (catalog.json)', pulsar:()=>'ATNF pulsar catalogue', cluster:()=>'curated catalogue (catalog.json)',
+  planet:o=>o._src==='horizons'?'JPL Horizons DE441 table (2015–2045)':'JPL Keplerian elements', dwarf:o=>o._src==='horizons'?'JPL Horizons DE441 table':'JPL Keplerian elements', moon:()=>'JPL Horizons (the Moon) / mean elements', sun:()=>'at the origin',
+  satellite:()=>'CelesTrak elements (live)', cme:()=>'NASA DONKI (live)', neo:()=>'NASA NEO (live)', probe:()=>'JPL Horizons state vectors (pipeline)', tno:()=>'JPL SBDB', comet:()=>'JPL SBDB', asteroid:()=>'JPL SBDB', iso:()=>'JPL SBDB' };
+function provOf(o,k){ const f=PROV[k]; const src=f?f(o):'catalogue'; return `${src} · catalogue build ${META.built||'?'} · app ${__BUILD__}`; }
 // geocentric ICRS direction of an object, for the observer rows: stars and deep sky from
 // their position (the Sun's and the Earth's view agree to a parallax), solar-system bodies
 // from the table or the elements relative to the Earth

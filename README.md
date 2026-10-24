@@ -409,6 +409,56 @@ Exoplanet host positions are now stored to 0.04″ and moved from the archive's 
 J2000 with their proper motion (they used to come from x, y, z at two decimals: 1–2′ off at
 20 pc, and pi Mensae sat 17″ from its light curve).
 
+**Provenance, builds, figures**
+
+- Every card ends with a *Provenance* row: the catalogue the numbers come from (Gaia DR3 via
+  the Hipparcos cross-match, HYG v4.1, the Exoplanet Archive, the Horizons table or the
+  Keplerian elements, SBDB, your own file …), the catalogue build date (`data.json` →
+  `meta.built`, with `meta.sources`) and the app build. Share links carry the app build they
+  were made on (`…_b20261024-1430`); opening one on a different build says so, because the
+  catalogues may have moved since.
+- `DATA_CHANGELOG.md` gets one line per catalogue build (the weekly refresh appends it); the
+  Gaia clouds and the Horizons table are static releases, rebuilt by hand. `CITATION.cff`
+  says how to cite the map with its build.
+- *View → SVG* (Sky pane, Export) renders one frame through a recording context: every
+  line, ring, grid, orbit and label is a path or a text, the point clouds and the sky image
+  sit underneath as one raster. Figures for a paper come out of this.
+
+## Accuracy budget
+
+What the app's own numbers are checked against, how far off they are at worst, and where
+that is tested (`npm run test:astro`, `test:ephem`, `test:periodogram`, `test:kinematics`
+run without a browser and in CI; the e2e run drives the built site in Chrome):
+
+| quantity | reference | worst difference | test |
+|---|---|---|---|
+| precession + frame bias (IAU 2006) | ERFA `pmat06` | 0.0000″ | astro |
+| nutation (2000B, 20 of 77 terms) | ERFA `nut00b` | 0.009″ in Δψ, 0.004″ in Δε | astro |
+| bias–precession–nutation (2006/2000A) | ERFA `pnm06a` | 0.009″ | astro |
+| annual aberration | astropy GCRS | 0.025″ | astro |
+| apparent place of a star | astropy TETE | 0.033″ | astro |
+| sidereal time, alt/az | astropy (UT1 unknown here) | 5.5″ (ΔUT1 = 0.36 s on that date; ≤ 13.5″) | astro |
+| the Sun's apparent place (Meeus) | astropy TETE | 27″ (twilight and rise/set only) | astro |
+| planets, Horizons table interpolated | Horizons off-grid samples | 0.02″ (Mercury 0.009″) | ephem |
+| the Moon, interpolated | Horizons off-grid samples | 0.10″ | ephem |
+| planets, apparent (light-time, aberration, PN) | astropy on DE440s | 0.22″ (Moon 0.04″) | astro |
+| U, V, W space velocities | astropy Galactic frame | 0.001 km/s | kinematics |
+| the Sun's Galactic orbit | textbook | 228 Myr, R 8.0–9.2 kpc, \|z\| 110 pc, e 0.066 | kinematics |
+| Lomb–Scargle period, 1 % sinusoid, 0.5 % noise | synthetic | 0.07 % of the period | periodogram |
+| BLS transit period / depth, 0.8 % box | synthetic | 0.1 % / 9 % | periodogram |
+| pi Men c from TESS sector 89 | published 6.2679 d, 0.03 % | 6.283 d, 0.021 % | e2e |
+| FITS WCS pixel → sky / sky → pixel | astropy WCS | 10⁻⁵″ / 3·10⁻⁴ px | scratch + e2e |
+| HYG positions (Gaia-placed) vs J2000 | SIMBAD | 0.03″ Proxima, 0.12″ Barnard (18″ before) | pipeline check |
+| exoplanet host positions | SIMBAD | 0.01–0.5″ (1–2′ before) | pipeline check |
+| Gaia cloud positions | packed | ±20″ (16-bit RA/Dec); the quality file is exact | — |
+| cross-match separations | CDS X-Match | as returned, 0.1″ | e2e |
+| measured separation Sirius–Vega | astropy | 0.007° (HYG propagated to today) | e2e |
+
+Known gaps, stated rather than hidden: no light deflection by the Sun (≤ 0.004″ away from it,
+up to 0.1″ for Mercury near conjunction); UT1 = UTC; refraction is a standard-atmosphere
+formula; the Gaia cloud sits at packed positions, so identities come from the CDS pass, not
+from the cloud; Meeus' Sun is good to 0.01°.
+
 ## Data sources and their state
 
 The map pulls from about fifteen services at run time and from a pipeline at build

@@ -1,0 +1,22 @@
+cff-version: 1.2.0
+title: Known Universe
+message: If this map or its measurements appear in your work, please cite it with the data build you used (shown in the Data pane and carried in every share link).
+type: software
+authors:
+  - name: blanpa
+repository-code: https://github.com/blanpa/known-universe
+url: https://blanpa.github.io/known-universe/
+license: MIT
+abstract: >-
+  A real-data 3D map of the known universe with a telescope view: Gaia DR3 (positions at the
+  Bailer-Jones distances with their errors), HYG placed from DR3 astrometry, the NASA Exoplanet
+  Archive, JPL Horizons ephemerides, CDS sky surveys, and live services; cross-identification,
+  VOTable export, SAMP, FITS overlays, apparent places, an observer, light-curve period and
+  transit search, field diagrams and Galactic orbits. Every astrometric quantity carries its
+  uncertainty where the source has one; the maths is checked against astropy, ERFA and JPL.
+keywords:
+  - astronomy
+  - Gaia
+  - exoplanets
+  - sky survey
+  - visualization

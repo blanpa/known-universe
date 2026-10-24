@@ -8,6 +8,7 @@ import { loadEphem } from './ephem.js';
 import './lightcurve.js';
 import { KIN } from './kinematics.js';
 import { FD } from './fielddiag.js';
+import './svgexport.js';
 import { OBS, OBSSTAT, restoreObserver } from './observe.js';
 import { fieldCentre } from './fieldquery.js';
 import { LIVE, startLive } from '../lib/live.js';

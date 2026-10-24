@@ -7073,7 +7073,8 @@ var root_30 = /* @__PURE__ */ from_html(`<div class="panel" id="hud-sky"><div cl
     layer: positions, parallaxes, proper motions, magnitudes. Gaia returns the brightest 4,000 of the cone, SIMBAD 2,000.</p> <div class="sky-fov"><button type="button" class="chip">Gaia DR3 in this field</button> <button type="button" class="chip">SIMBAD in this field</button></div> <!> <!> <div class="label lg-sub">Observer</div> <p class="hint">A place on Earth turns the telescope into an instrument that knows where up is: altitude, azimuth and airmass for the
     field, the cursor and every card; rise, transit and set; the horizon across the sky. The clock is the timeline's. The maths is
     IAU 2006/2000B, checked against astropy (<span class="mono">npm run test:astro</span>).</p> <div class="obs-grid"><label class="mono">lat <input type="number" step="0.0001" min="-90" max="90" placeholder="48.137"/></label> <label class="mono">lon <input type="number" step="0.0001" min="-180" max="180" placeholder="11.575 (east +)"/></label> <label class="mono">elev <input type="number" step="1" placeholder="m"/></label> <label class="mono">name <input type="text" placeholder="Munich"/></label></div> <div class="sky-fov"><button type="button" class="chip">Use my location</button> <button type="button"> </button> <button type="button"> </button> <button type="button"> </button></div> <!> <!> <div class="label lg-sub">Instrument</div> <p class="hint">Your telescope and camera as a frame on the sky, and a finder chart to take to the eyepiece: the field as drawn,
-    with north, east, centre, scale and time in a strip below.</p> <div class="sky-fov"></div> <div class="obs-grid"><label class="mono">f <input type="number" step="1" min="1"/> mm</label> <label class="mono">sensor <input type="number" step="0.1" min="0.1"/> × <input type="number" step="0.1" min="0.1"/> mm</label> <label class="mono">pixel <input type="number" step="0.01" min="0.1"/> µm</label> <label class="mono">PA <input type="number" step="1"/> °</label></div> <div class="sky-fov"><button type="button"> </button> <!> <button type="button" class="chip">Finder chart · PNG</button></div> <div class="label lg-sub">Export</div> <p class="hint">Tables leave as CSV or VOTable (TOPCAT, Aladin, astropy). Positions are ICRS at the stated epoch.</p> <div class="sky-fov"><button type="button" class="chip">Expected jumps · CSV</button> <button type="button" class="chip">VOTable</button> <button type="button" class="chip"> </button> <button type="button" class="chip">VOTable</button></div> <div class="label lg-sub">SAMP · TOPCAT, Aladin, DS9</div> <p class="hint">A hub on this machine (TOPCAT and Aladin start one) links the tools: the telescope's field goes out as <span class="mono">coord.pointAt.sky</span>, a set as <span class="mono">table.load.votable</span>, and a point sent by
+    with north, east, centre, scale and time in a strip below.</p> <div class="sky-fov"></div> <div class="obs-grid"><label class="mono">f <input type="number" step="1" min="1"/> mm</label> <label class="mono">sensor <input type="number" step="0.1" min="0.1"/> × <input type="number" step="0.1" min="0.1"/> mm</label> <label class="mono">pixel <input type="number" step="0.01" min="0.1"/> µm</label> <label class="mono">PA <input type="number" step="1"/> °</label></div> <div class="sky-fov"><button type="button"> </button> <!> <button type="button" class="chip">Finder chart · PNG</button></div> <div class="label lg-sub">Export</div> <p class="hint">Tables leave as CSV or VOTable (TOPCAT, Aladin, astropy). Positions are ICRS at the stated epoch.</p> <div class="sky-fov"><button type="button" class="chip">Expected jumps · CSV</button> <button type="button" class="chip">VOTable</button> <button type="button" class="chip"> </button> <button type="button" class="chip">VOTable</button> <button type="button" class="chip">View → SVG</button></div> <p class="hint">SVG: the view as a vector drawing — every line, ring, grid, orbit and label stays editable, the point clouds and the sky
+    image sit underneath as one raster. For figures.</p> <div class="label lg-sub">SAMP · TOPCAT, Aladin, DS9</div> <p class="hint">A hub on this machine (TOPCAT and Aladin start one) links the tools: the telescope's field goes out as <span class="mono">coord.pointAt.sky</span>, a set as <span class="mono">table.load.votable</span>, and a point sent by
     another tool turns the telescope. The hub asks for your permission in its own window.</p> <div class="sky-fov"><!></div> <!> <p class="hint src">Tiles: CDS/HiPS (DSS2 © STScI/ROE/AAO/UKSTU, 2MASS/IPAC-Caltech, WISE/NASA-JPL, Pan-STARRS/IfA). Loaded on demand; nothing is stored.</p></div>`);
 function SkyPane($$anchor, $$props) {
 	push($$props, true);
@@ -7828,31 +7829,32 @@ function SkyPane($$anchor, $$props) {
 	var text_45 = child(button_35);
 	reset(button_35);
 	var button_36 = sibling(button_35, 2);
+	var button_37 = sibling(button_36, 2);
 	reset(div_17);
-	var div_18 = sibling(div_17, 6);
+	var div_18 = sibling(div_17, 8);
 	var node_33 = child(div_18);
 	var consequent_26 = ($$anchor) => {
 		var fragment_8 = root_28();
-		var button_37 = first_child(fragment_8);
-		var button_38 = sibling(button_37, 2);
-		each(sibling(button_38, 2), 3, () => $userLayer().sets, (st) => st.src + st.name, ($$anchor, st, k) => {
-			var button_39 = root_2$6();
-			var text_46 = child(button_39);
-			reset(button_39);
+		var button_38 = first_child(fragment_8);
+		var button_39 = sibling(button_38, 2);
+		each(sibling(button_39, 2), 3, () => $userLayer().sets, (st) => st.src + st.name, ($$anchor, st, k) => {
+			var button_40 = root_2$6();
+			var text_46 = child(button_40);
+			reset(button_40);
 			template_effect(($0) => set_text(text_46, `Send “${$0 ?? ""}”`), [() => get(st).name.length > 24 ? get(st).name.slice(0, 24) + "…" : get(st).name]);
-			delegated("click", button_39, () => api.sampSendSet?.(get(k)));
-			append($$anchor, button_39);
+			delegated("click", button_40, () => api.sampSendSet?.(get(k)));
+			append($$anchor, button_40);
 		});
-		template_effect(() => button_38.disabled = !$camera().sky);
-		delegated("click", button_37, () => api.sampDisconnect?.());
-		delegated("click", button_38, () => api.sampPointAt?.());
+		template_effect(() => button_39.disabled = !$camera().sky);
+		delegated("click", button_38, () => api.sampDisconnect?.());
+		delegated("click", button_39, () => api.sampPointAt?.());
 		append($$anchor, fragment_8);
 	};
 	var alternate_2 = ($$anchor) => {
-		var button_40 = root_29();
-		template_effect(() => button_40.disabled = $samp().state === "connecting");
-		delegated("click", button_40, () => api.sampConnect?.());
-		append($$anchor, button_40);
+		var button_41 = root_29();
+		template_effect(() => button_41.disabled = $samp().state === "connecting");
+		delegated("click", button_41, () => api.sampConnect?.());
+		append($$anchor, button_41);
 	};
 	if_block(node_33, ($$render) => {
 		if ($samp().state === "on") $$render(consequent_26);
@@ -7954,6 +7956,7 @@ function SkyPane($$anchor, $$props) {
 	delegated("click", button_34, () => api.exportTable?.("movers", "votable"));
 	delegated("click", button_35, () => api.exportTable?.("measure", "csv"));
 	delegated("click", button_36, () => api.exportTable?.("measure", "votable"));
+	delegated("click", button_37, () => api.exportSvg?.());
 	append($$anchor, div);
 	pop();
 	$$cleanup();
@@ -11822,7 +11825,7 @@ function MobileNav($$anchor, $$props) {
 		}
 		var text_2 = sibling(node_6);
 		var small = sibling(text_2);
-		small.textContent = `· b13:36`;
+		small.textContent = `· 20261024-1148`;
 		reset(span_2);
 		var span_3 = sibling(span_2, 2);
 		var button_6 = child(span_3);
@@ -12428,7 +12431,7 @@ window.addEventListener("error", (e) => showErr("⚠ " + (e.message || e.type) +
 window.addEventListener("unhandledrejection", (e) => showErr("⚠ promise: " + (e.reason && e.reason.message || e.reason)));
 mount(App, { target: document.getElementById("app") });
 function boot() {
-	return __vitePreload(() => import("./engine-DKr3jH_E.js").then(() => {
+	return __vitePreload(() => import("./engine-DJv7jj9w.js").then(() => {
 		try {
 			restore();
 		} catch (e) {}
@@ -12445,7 +12448,7 @@ var fail = (e) => {
 	document.body.innerHTML = "<p style=\"color:#e9edfa;font-family:monospace;padding:2em\">Error loading data: " + e + "</p>";
 };
 if (window.__DATA__) boot().catch(fail);
-else Promise.all([getJSON("data/data.json?b=b13:36", "data-json", "data.json · stars, exoplanets, galaxies"), getJSON("data/catalog.json?b=b13:36", "catalog-json", "catalog.json · solar system, deep sky, pulsars")]).then(([d, c]) => {
+else Promise.all([getJSON("data/data.json?b=20261024-1148", "data-json", "data.json · stars, exoplanets, galaxies"), getJSON("data/catalog.json?b=20261024-1148", "catalog-json", "catalog.json · solar system, deep sky, pulsars")]).then(([d, c]) => {
 	window.__DATA__ = d;
 	window.__CATALOG__ = c;
 	const m = d.meta || {};

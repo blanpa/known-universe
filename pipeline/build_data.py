@@ -335,7 +335,15 @@ if gals:
                  "maxMpc": round(max(g["mpc"] for g in gals), 1),
                  "nFamous": sum(g["f"] for g in gals)})
 if hyg:
-    meta.update({"nHyg": len(hyg), "nHygNamed": sum(1 for s in hyg if s.get("n"))})
+    meta.update({"nHyg": len(hyg), "nHygNamed": sum(1 for s in hyg if s.get("n")), "nHygGaia": sum(1 for s in hyg if s.get("src") == "G")})
+import time as _time
+meta["built"] = _time.strftime("%Y-%m-%d", _time.gmtime())
+meta["sources"] = [
+    {"n": "NASA Exoplanet Archive · pscomppars", "what": "exoplanet systems, host positions (J2015.5 → J2000)", "url": "https://exoplanetarchive.ipac.caltech.edu/"},
+    {"n": "HYG v4.1 (Hipparcos · Yale · Gliese)", "what": "bright and near stars; photometry, names", "url": "https://github.com/astronexus/HYG-Database"},
+    {"n": "Gaia DR3 via hipparcos2_best_neighbour", "what": "astrometry of the HYG stars with a HIP number", "url": "https://gea.esac.esa.int/archive/"},
+    {"n": "Local Volume galaxies", "what": "869 galaxies within 26 Mpc", "url": "https://www.sao.ru/lv/lvgdb/"},
+]
 if cons:
     meta["nCons"] = len(cons)
 meta["nLum"] = sum(1 for s in stars if "lum" in s)

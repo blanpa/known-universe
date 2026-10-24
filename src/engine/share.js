@@ -19,7 +19,8 @@ function viewHash(){
     ctr.x.toExponential(4),ctr.y.toExponential(4),ctr.z.toExponential(4),
     S.realScale?1:0,Math.round(S.tOffsetDays),m.toString(36)];
   // the telescope, appended so older links stay valid: s<zoom>-<survey>-<blink partner or 0>
-  if(S.skyMode) parts.push('s'+V.fovK.toPrecision(4)+'-'+(ST.on?ST.id:'0')+'-'+(ST.blink?ST.blinkWith:'0'));
+  parts.push(S.skyMode ? 's'+V.fovK.toPrecision(4)+'-'+(ST.on?ST.id:'0')+'-'+(ST.blink?ST.blinkWith:'0') : 'x');
+  parts.push('b'+__BUILD__);                              // the data build this view was made on: a link says what it was looking at
   return 'v1_'+parts.join('_');
 }
 function parse36(s){ let m=0n; for(const ch of s){ const d=parseInt(ch,36); if(isNaN(d)) return 0n; m=m*36n+BigInt(d); } return m; }
@@ -40,9 +41,12 @@ export function applyHash(){
       S.skyMode=true; V.fovK=Math.max(1,Math.min(6000,+q[0]||1));
       setSurvey(q[1]&&q[1]!=='0'?q[1]:null); if(q[2]&&q[2]!=='0') setBlink(true,q[2]);
     }
+    const b=p.find((x,i)=>i>=10&&x[0]==='b'&&x.length>6);     // the build the link was made on
+    if(b&&b.slice(1)!==__BUILD__){ linkBuild=b.slice(1); setTimeout(()=>msg(`This link was made on data build ${linkBuild}; this is ${__BUILD__} — the catalogues may have moved since`),1500); }
     V.dirty=true;
   }catch(e){}
 }
+export let linkBuild=null;
 let lastHash='';
 if(typeof history!=='undefined'&&history.replaceState){
   setInterval(()=>{ const h=viewHash();

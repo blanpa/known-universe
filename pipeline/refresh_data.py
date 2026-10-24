@@ -58,6 +58,19 @@ def refresh(work, dst, builders="/app"):
     env2 = dict(os.environ, BELT_SRC=work,
                 BELT_DST=os.path.join(os.path.dirname(dst), "belt.bin"))
     subprocess.run([sys.executable, os.path.join(builders, "build_belt.py")], env=env2, check=True)
+    changelog(dst)
+
+
+def changelog(dst):
+    """One line per refresh in DATA_CHANGELOG.md next to the repo root: the counts and the build date."""
+    import json, time
+    try: meta = json.load(open(dst))["meta"]
+    except Exception: return
+    root = os.path.dirname(os.path.dirname(os.path.abspath(dst))); path = os.path.join(os.path.dirname(root), "DATA_CHANGELOG.md") if os.path.basename(root) == "site" else os.path.join(root, "DATA_CHANGELOG.md")
+    line = f"| {meta.get('built', time.strftime('%Y-%m-%d'))} | {meta.get('nStars', 0):,} | {meta.get('nPlanets', 0):,} | {meta.get('nGal', 0):,} | {meta.get('nHyg', 0):,} ({meta.get('nHygGaia', 0):,} from Gaia) |\n"
+    if os.path.exists(path):
+        if line in open(path).read(): return
+        open(path, "a").write(line)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,23 @@
+name: Checks
+on:
+  push:
+    branches: [main, rework]
+  pull_request:
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npm run test:mount
+      - name: Accuracy against the references (astropy/ERFA, JPL Horizons, synthetic series)
+        run: |
+          npm run test:astro
+          npm run test:ephem
+          npm run test:periodogram
+          npm run test:kinematics
