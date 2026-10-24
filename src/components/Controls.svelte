@@ -24,6 +24,7 @@
       { id: 't-hyg', label: 'Bright stars · HYG', on: true },
       { id: 't-user', label: 'Your data · imported CSV', on: true },
       { id: 't-gaia', label: 'Gaia stars · 100 pc', on: true },
+      { id: 't-ruwe', label: 'Hide suspect astrometry · RUWE > 1.4', on: false },
       { id: 't-ob', label: 'OB stars · spiral-arm tracers', on: true },
       { id: 't-var', label: 'Variable stars', on: true },
       { id: 't-radio', label: 'Our radio bubble', on: true }] },

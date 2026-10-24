@@ -22,6 +22,7 @@ bindToggle('t-hyg','hyg');
 bindToggle('t-user','user');
 bindToggle('t-gpu','gpu');
 bindToggle('t-gaia','gaia');
+bindToggle('t-ruwe','ruwe');
 bindToggle('t-web','web');
 bindToggle('t-ob','ob');
 bindToggle('t-var','vars');

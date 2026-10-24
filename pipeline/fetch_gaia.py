@@ -32,7 +32,7 @@ def sync(query):
     with urllib.request.urlopen(u, timeout=600) as r: return r.read().decode()
 
 def async_job(query, dst):
-    data = urllib.parse.urlencode({"REQUEST": "doQuery", "LANG": "ADQL", "FORMAT": "csv", "PHASE": "RUN", "QUERY": query}).encode()
+    data = urllib.parse.urlencode({"REQUEST": "doQuery", "LANG": "ADQL", "FORMAT": "csv", "PHASE": "RUN", "MAXREC": "1000000", "QUERY": query}).encode()
     req = urllib.request.Request(TAP + "/async", data=data)
     with urllib.request.urlopen(req, timeout=120) as r: job = r.url            # 303 → the job URL
     print("job", job, flush=True)
@@ -53,10 +53,33 @@ def async_job(query, dst):
             if n % (50 << 20) < (1 << 20): print(f"  {n/1e6:.0f} MB", flush=True)
     print("saved", dst, f"{n/1e6:.1f} MB in {time.time()-t0:.0f}s", flush=True)
 
+# The archive drops anonymous jobs that run too long: the neighbourhood is pulled in RA bands
+# (15° → at most ~250k rows each) and the Hipparcos table in HIP-number ranges, then joined.
+def chunked(query_fn, chunks, dst):
+    # one part file per chunk, so an aborted run resumes where it stopped
+    parts = dst + ".parts"; os.makedirs(parts, exist_ok=True)
+    for lo, hi in chunks:
+        part = os.path.join(parts, f"{lo}_{hi}.csv")
+        if os.path.exists(part) and os.path.getsize(part) > 0: continue
+        async_job(query_fn(lo, hi), part + ".tmp"); os.replace(part + ".tmp", part)
+    with open(dst, "w") as out:
+        for i, (lo, hi) in enumerate(chunks):
+            with open(os.path.join(parts, f"{lo}_{hi}.csv")) as f:
+                for j, line in enumerate(f):
+                    if j == 0 and i > 0: continue          # one header
+                    out.write(line)
+    n = sum(1 for _ in open(dst)) - 1
+    print(dst, n, "rows", flush=True)
+
 if __name__ == "__main__":
     if "--count" in sys.argv:
-        print(sync("SELECT COUNT(*) AS n150, SUM(CASE WHEN parallax > 10 THEN 1 ELSE 0 END) AS n100, SUM(CASE WHEN ruwe < 1.4 THEN 1 ELSE 0 END) AS good FROM gaiadr3.gaia_source WHERE parallax > 6.6667 AND parallax_over_error > 3"))
-        print(sync("SELECT COUNT(*) AS nhip FROM gaiadr3.hipparcos2_best_neighbour"))
+        for q in ("SELECT COUNT(*) AS n150 FROM gaiadr3.gaia_source WHERE parallax > 6.6667 AND parallax_over_error > 3",
+                  "SELECT COUNT(*) AS n100 FROM gaiadr3.gaia_source WHERE parallax > 10 AND parallax_over_error > 3",
+                  "SELECT COUNT(*) AS n150_all FROM gaiadr3.gaia_source WHERE parallax > 6.6667",
+                  "SELECT COUNT(*) AS nhip FROM gaiadr3.hipparcos2_best_neighbour"):
+            print(sync(q).strip().replace("\n", " = "), flush=True)
         sys.exit(0)
-    async_job(Q_HIP, os.path.join(RAW, "hip_gaia.csv"))
-    async_job(Q_MAIN, os.path.join(RAW, "gaia_150pc_q.csv"))
+    chunked(lambda lo, hi: Q_HIP + f" WHERE h.original_ext_source_id >= {lo} AND h.original_ext_source_id < {hi}",
+            [(0, 40000), (40000, 80000), (80000, 200000)], os.path.join(RAW, "hip_gaia.csv"))
+    chunked(lambda lo, hi: Q_MAIN + f" AND g.ra >= {lo} AND g.ra < {hi}",
+            [(a, a + 5) for a in range(0, 360, 5)], os.path.join(RAW, "gaia_150pc_q.csv"))   # 5°: the densest band (galactic centre) stays under the job limit

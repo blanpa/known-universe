@@ -12,7 +12,7 @@ export const VIEW_IDS = ['t-real','t-rot','t-freelook','t-veil','t-rings','t-lab
 
 const SOLAR = ['t-moons','t-ast','t-belt','t-tno','t-probes','t-iso','t-helio','t-lag',
                't-cme','t-neo','t-sat','t-sun','t-size'];
-const STARS = ['t-hyg','t-gpu','t-gaia','t-ob','t-var','t-radio'];
+const STARS = ['t-hyg','t-gpu','t-gaia','t-ruwe','t-ob','t-var','t-radio'];
 const DEEP  = ['t-dso','t-oclu','t-psr','t-con','t-met','t-bubble','t-mw','t-mw3d','t-lens','t-hz'];
 const COSMOS= ['t-gal','t-web','t-qso','t-edge'];
 export const CONTENT_IDS = [...SOLAR, ...STARS, ...DEEP, ...COSMOS];

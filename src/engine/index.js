@@ -1,6 +1,7 @@
 // Engine entry: wires the modules together and boots.
 import { api } from '../lib/api.js';
 import './samp.js';
+import { ERRSTAT } from './errors.js';
 import { FITS } from './fitsimg.js';
 import { fieldCentre } from './fieldquery.js';
 import { LIVE, startLive } from '../lib/live.js';
@@ -8,7 +9,7 @@ import { facList as facListStore } from '../lib/stores.js';
 import { facList, objWorld } from './actions.js';
 import { clickToggle } from './controls.js';
 import { STARS } from './data.js';
-import { SKYSTAT, gaiaPm, gaiaRaw, gaiaRange, glClearColor, initGL, loadExtragal, loadGaia } from './gl.js';
+import { SKYSTAT, gaiaPm, gaiaQ, gaiaRaw, gaiaRange, glClearColor, initGL, loadExtragal, loadGaia } from './gl.js';
 import { zoomFactorAt } from './interact.js';
 import { frame } from './loop.js';
 import { suggestList } from './search.js';
@@ -39,7 +40,7 @@ api.liveStats=()=>{ const y=new Date().getFullYear();
 LIVE.onUpdate=()=>{ V.dirty=true; };
 // headless-verify hook: lets the test harness inspect/inject live-layer state
 restoreUser();
-window.__ku={api, live:LIVE, redraw:()=>{V.dirty=true;}, survey:{ST, SKYSTAT, cacheSize}, user:USER, userProj, hyg:HYG, projDir:(x,y,z)=>{ const R=scale(SKY_R_PC), o={}; projectInto(x*R,y*R,z*R,o); return o; }, get gaiaPm(){ return gaiaPm; }, get gaiaRaw(){ return gaiaRaw; }, fieldCentre, get fits(){ return FITS.img; }, get gaiaRange(){ return gaiaRange; }, sunScreen:()=>{ const o={}; projectInto(0,0,0,o); return o; }, clearColor:()=>glClearColor()};
+window.__ku={api, live:LIVE, redraw:()=>{V.dirty=true;}, survey:{ST, SKYSTAT, cacheSize}, user:USER, userProj, hyg:HYG, projDir:(x,y,z)=>{ const R=scale(SKY_R_PC), o={}; projectInto(x*R,y*R,z*R,o); return o; }, get gaiaPm(){ return gaiaPm; }, get gaiaRaw(){ return gaiaRaw; }, get gaiaQ(){ return gaiaQ; }, fieldCentre, get fits(){ return FITS.img; }, errStat:ERRSTAT, get gaiaRange(){ return gaiaRange; }, sunScreen:()=>{ const o={}; projectInto(0,0,0,o); return o; }, clearColor:()=>glClearColor()};
 window.__kuapi=api;
 
 facListStore.set(facList);

@@ -2,7 +2,7 @@
 import { cluProj, dsoProj, pulsarProj } from './deep.js';
 import { SURF } from './earth.js';
 import { galProj } from './galaxies.js';
-import { beltRaw, gaiaPm, gaiaRange, gaiaRaw, glOK, qsoRaw, webRaw } from './gl.js';
+import { beltRaw, gaiaPm, gaiaQ, gaiaRange, gaiaRaw, glOK, qsoRaw, webRaw } from './gl.js';
 import { hygProj } from './hyg.js';
 import { sgraScreen } from './mw.js';
 import { lastSun, order } from './render.js';
@@ -100,7 +100,11 @@ export function gpuPick(mx,my){
   const o={gpick:best.type, _dir:[cd*Math.cos(best.rr),cd*Math.sin(best.rr),Math.sin(best.dr)], d:best.dist};
   if(best.type==='gaia'){ o.n='Gaia DR3 star'; o.mag=b6/255*28-2; o.bprp=b7/255*6-1;
     if(gaiaPm&&(gaiaPm.length/4|0)===(best.bytes.length/8|0)){ const pv=new DataView(gaiaPm.buffer,gaiaPm.byteOffset,gaiaPm.byteLength), i=best.b/8;
-      o.pr=pv.getInt16(i*4,true); o.pd=pv.getInt16(i*4+2,true); } }
+      o.pr=pv.getInt16(i*4,true); o.pd=pv.getInt16(i*4+2,true); }
+    if(gaiaQ&&(gaiaQ.length/12|0)===(best.bytes.length/8|0)){ const qv=new DataView(gaiaQ.buffer,gaiaQ.byteOffset,gaiaQ.byteLength), i=best.b/8*12;
+      o.eplx=qv.getUint16(i,true)/100; o.epm=qv.getUint16(i+2,true)/100; o.ruwe=qv.getUint8(i+4)/20; const fl=qv.getUint8(i+5);
+      o.dlo=qv.getUint16(i+6,true)/65535*gaiaRange; o.dhi=qv.getUint16(i+8,true)/65535*gaiaRange; o.bj=!!(fl&1);
+      if(fl&2) o.rv=qv.getInt16(i+10,true)/10; } }
   else if(best.type==='web'){ o.n='2MRS galaxy'; o.kmag=b6/255*16; }
   else if(best.type==='qso'){ o.n='Quasar'; o.z=b6/20; }
   else { o.n=['Main-belt asteroid','Jupiter trojan','Near-Earth object','Trans-Neptunian object'][b7]||'Asteroid'; o.H=b6/10; o.rAU=best.dist/4.84814e-6; }

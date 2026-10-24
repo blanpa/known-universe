@@ -164,9 +164,11 @@ export function card(o){
       const setName=(USER.sets[o.set]||{}).name||'your data';
       c.title=o.n||`Row ${o.i+1}`; c.kindLabel=`Your data · ${setName}`;
       c.rows.push(['Source',setName],['Position',coordText(o.dx,o.dy,o.dz)],['Galactic',galText(o.dx,o.dy,o.dz)],['Epoch',`J${(o.ep||2000).toFixed(1)}${(o.pr||o.pd)?' · shown at J'+epochNow().toFixed(2):''}`]);
-      c.rows.push(['Distance', o.noDist ? 'not given — placed on the sky' : `${ly(o.d)} · ${o.d<100?o.d.toFixed(2):fmt(o.d)} pc`]);
+      c.rows.push(['Distance', o.noDist ? 'not given — placed on the sky' : `${ly(o.d)} · ${o.d<100?o.d.toFixed(2):fmt(o.d)} pc${o.dlo&&isFinite(o.dhi)?` (${o.dlo.toFixed(o.dlo<100?2:0)} – ${o.dhi.toFixed(o.dhi<100?2:0)})`:''}`]);
+      if(!o.noDist&&o.eplx!==undefined) c.rows.push(['Parallax',`${(1000/o.d).toFixed(3)} ± ${o.eplx.toFixed(3)} mas · ${(1000/o.d/o.eplx).toFixed(0)} σ`]);
       if(o.m!==undefined) c.rows.push(['Magnitude',o.m.toFixed(2)]);
-      if(o.pr||o.pd) c.rows.push(['Proper motion',`${o.pr.toFixed(1)} · ${o.pd.toFixed(1)} mas/yr · ${Math.hypot(o.pr,o.pd).toFixed(0)} total`]);
+      if(o.pr||o.pd) c.rows.push(['Proper motion',`${o.pr.toFixed(1)}${o.epr!==undefined?' ± '+o.epr.toFixed(2):''} · ${o.pd.toFixed(1)}${o.epd!==undefined?' ± '+o.epd.toFixed(2):''} mas/yr · ${Math.hypot(o.pr,o.pd).toFixed(0)} total`]);
+      if(o.ruwe!==undefined) c.rows.push(['RUWE',`${o.ruwe.toFixed(2)}${o.ruwe>1.4?' · astrometry suspect (>1.4: binary or crowded)':' · single-star fit ok'}`]);
       const xst=(USER.sets[o.set]||{}).xm;
       if(xst) c.rows.push(['Counterpart', o.xm ? `${o.xm.id} · ${o.xm.src} · ${o.xm.sep.toFixed(2)}″ away` : `none within ${xst.radius}″ of ${xst.remote||'the loaded catalogues'}`]);
       if(o.xm&&o.xm.plx!==undefined) c.rows.push(['Counterpart ϖ',`${o.xm.plx.toFixed(3)}${o.xm.eplx!==undefined?' ± '+o.xm.eplx.toFixed(3):''} mas${o.xm.plx>0?' · '+(1000/o.xm.plx).toFixed(1)+' pc':''}`]);
@@ -179,8 +181,12 @@ export function card(o){
       c.hint='from your file · the links query the catalogues at this position'; break; }
     case 'gpick': {
       const [ra,dec]=radec(o._dir[0],o._dir[1],o._dir[2]);
-      if(o.gpick==='gaia'){ c.rows.push(['Type','Star · Gaia DR3'],['Position',coordText(o._dir[0],o._dir[1],o._dir[2])+' (±20″, packed)'],['Galactic',galText(o._dir[0],o._dir[1],o._dir[2])],['G magnitude',o.mag.toFixed(1)],['Colour BP−RP',o.bprp.toFixed(2)],['Distance',`${ly(o.d)} · ${o.d.toFixed(1)} pc · ϖ ≈ ${(1000/o.d).toFixed(1)} mas`]);
-        if(o.pr!==undefined) c.rows.push(['Proper motion',pmText(o.pr,o.pd)],['Tangential velocity',`${(KMS_PER_PCYR_MAS*Math.hypot(o.pr,o.pd)/1000*o.d).toFixed(1)} km/s`]); }
+      if(o.gpick==='gaia'){ c.rows.push(['Type','Star · Gaia DR3'],['Position',coordText(o._dir[0],o._dir[1],o._dir[2])+' (±20″, packed)'],['Galactic',galText(o._dir[0],o._dir[1],o._dir[2])],['G magnitude',o.mag.toFixed(1)],['Colour BP−RP',o.bprp.toFixed(2)]);
+        c.rows.push(['Distance',`${ly(o.d)} · ${o.d.toFixed(1)} pc${o.dlo!==undefined?` (${o.dlo.toFixed(1)} – ${o.dhi.toFixed(1)}, ${o.bj?'Bailer-Jones geometric 16–84 %':'1/ϖ ± σ'})`:` · ϖ ≈ ${(1000/o.d).toFixed(1)} mas`}`]);
+        if(o.eplx!==undefined) c.rows.push(['Parallax error',`± ${o.eplx.toFixed(2)} mas (ϖ ≈ ${(1000/o.d).toFixed(1)} mas, packed)`]);
+        if(o.pr!==undefined) c.rows.push(['Proper motion',pmText(o.pr,o.pd)+(o.epm!==undefined?` ± ${o.epm.toFixed(2)}`:'')],['Tangential velocity',`${(KMS_PER_PCYR_MAS*Math.hypot(o.pr,o.pd)/1000*o.d).toFixed(1)} km/s`]);
+        if(o.rv!==undefined) c.rows.push(['Radial velocity',`${o.rv>0?'+':''}${o.rv.toFixed(1)} km/s`]);
+        if(o.ruwe!==undefined) c.rows.push(['RUWE',`${o.ruwe.toFixed(2)}${o.ruwe>1.4?' · astrometry suspect (>1.4: binary or crowded)':' · single-star fit ok'}`]); }
       else if(o.gpick==='web') c.rows.push(['Type','Galaxy · 2MRS survey'],['Mag K',o.kmag.toFixed(1)],['Distance',`${(o.d/1e6).toFixed(1)} Mpc · ${(o.d*PC2LY/1e6).toFixed(0)} Mly`]);
       else if(o.gpick==='qso') c.rows.push(['Type','Quasar · Milliquas'],['Redshift',`z ≈ ${o.z.toFixed(2)}`],['Distance',`${(o.d/1e9).toFixed(2)} Gpc comoving`]);
       else c.rows.push(['Type',`${o.n} · JPL SBDB`],['Abs. mag H',o.H.toFixed(1)],['Distance',`${o.rAU.toFixed(2)} AU from the Sun`]);
@@ -276,14 +282,16 @@ export function card(o){
       const [ra,dec]=radec(o.dx,o.dy,o.dz); c.title=o.n||(o.hip?`HIP ${o.hip}`:'Star');
       const q=hygPos(o,tNow()), L=Math.hypot(q[0],q[1],q[2])||1e-9;
       c.rows.push(['Position', coordText(q[0]/L,q[1]/L,q[2]/L)],['Galactic', galText(q[0]/L,q[1]/L,q[2]/L)],['Epoch',`J${epochNow().toFixed(2)} (J2000 + μ)`]);
-      c.rows.push(['Distance',`${ly(o.d)} · ${o.d} pc · ϖ ${(1000/o.d).toFixed(2)} mas`],['V magnitude',String(o.m)],['Proper motion',pmText(o.pr,o.pd)]);
+      const plx=1000/o.d, rg=(o.ep>0&&plx-o.ep>0)?[1000/(plx+o.ep),1000/(plx-o.ep)]:null;
+      c.rows.push(['Distance',`${ly(o.d)} · ${o.d} pc${rg?` (${rg[0].toFixed(rg[0]<100?2:0)} – ${rg[1].toFixed(rg[1]<100?2:0)})`:''}`],['Parallax',`${plx.toFixed(o.ep?3:2)}${o.ep?' ± '+o.ep.toFixed(3):''} mas${o.ep?' · '+(plx/o.ep).toFixed(0)+' σ':''}`],['V magnitude',String(o.m)],['Proper motion',pmText(o.pr,o.pd)+(o.epm?` ± ${o.epm.toFixed(2)}`:'')]);
+      if(o.ruwe!==undefined) c.rows.push(['RUWE',`${o.ruwe.toFixed(2)}${o.ruwe>1.4?' · astrometry suspect (>1.4: binary or crowded)':' · single-star fit ok'}`]);
       if(o.pr!==undefined){ const vt=KMS_PER_PCYR_MAS*Math.hypot(o.pr||0,o.pd||0)/1000*o.d;
         c.rows.push(['Velocity', o.rv!==undefined ? `v_t ${vt.toFixed(1)} · v_r ${o.rv>0?'+':''}${o.rv.toFixed(1)} · ${Math.hypot(vt,o.rv).toFixed(1)} km/s` : `v_t ${vt.toFixed(1)} km/s · no radial velocity`]); }
       if(o.hip) c.rows.push(['Hipparcos',`HIP ${o.hip}`]);
       if(S.pm){ const q=hygPos(o,tNow()), L=Math.hypot(q[0],q[1],q[2]); c.rows.push(['On the timeline',`${L<0.5?(L*206265).toFixed(0)+' AU':ly(L)} away`]); }
       if(o.con) c.rows.push(['Constellation',o.con]);
       c.links=[{t:'SIMBAD',u:o.n?simbadId(o.n):o.hip?simbadId('HIP '+o.hip):simbadCoo(ra,dec,2)},{t:'Aladin',u:aladin(ra,dec,0.5)}];
-      c.hint='HYG v4.1 (Hipparcos · Yale · Gliese) · ICRS, position propagated to the displayed epoch'; break; }
+      c.hint=(o.src==='G'?'Gaia DR3 astrometry (via Hipparcos cross-match), HYG photometry and names':'HYG v4.1 (Hipparcos · Yale · Gliese), not in Gaia DR3')+' · ICRS, position propagated to the displayed epoch'; break; }
     case 'host': {
       const pls=o.p.filter(p=>p.y<=S.year||p.y===0).sort((a,b)=>(a.y||9999)-(b.y||9999));
       const fc=FAC[o.fac]||FAC.other, [ra,dec]=radec(o.x/o.d,o.y/o.d,o.z/o.d);

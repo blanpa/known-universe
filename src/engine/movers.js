@@ -35,10 +35,11 @@ export function updateMovers(){
   const add=(o,name)=>{ const pm=Math.hypot(o.pr||0,o.pd||0); if(!pm) return;
     if(o.x&&o.x.otype==='Pl') return;                                    // SIMBAD's planets: the star carries the motion
     const jump=pm*Math.abs(dt)/1000, px=jump/3600*pxPerDeg;
+    const epm=(o.epr!==undefined||o.epd!==undefined)?Math.hypot(o.epr||0,o.epd||0):undefined, ejump=epm!==undefined?epm*Math.abs(dt)/1000:undefined;   // σ of the jump, arcsec
     if(jump<0.5) return;
     // one entry per place: SIMBAD lists a star's planets as objects at the star's position
     const k=o.dx.toFixed(5)+','+o.dy.toFixed(5)+','+o.dz.toFixed(5); if(seen.has(k)) return; seen.add(k);
-    out.push({o, name:name.replace(/^NAME /,''), pm, jump, px, usr:!!o.usr, ea, eb, src:o.usr?'your data':o.gpick==='gaia'?'Gaia DR3 cloud':'HYG'}); };
+    out.push({o, name:name.replace(/^NAME /,''), pm, jump, px, ejump, usr:!!o.usr, ea, eb, src:o.usr?'your data':o.gpick==='gaia'?'Gaia DR3 cloud':'HYG'}); };
   for(const o of userProj) add(o, o.n||`Row ${o.i+1}`);
   if(S.hyg) for(const s of hygProj) add(s, s.n||(s.hip?'HIP '+s.hip:'star'));
   // the Gaia cloud: every star within 100 pc with its DR3 proper motion, scanned on the CPU
@@ -61,7 +62,7 @@ export function updateMovers(){
   }
   out.sort((a,b)=>b.jump-a.jump);
   MOVERS=out.slice(0,60);
-  store.set({ list:MOVERS.slice(0,14).map(m=>({ name:m.name, pm:m.pm, jump:m.jump, px:m.px, usr:m.usr, ra:Math.atan2(m.o.dy,m.o.dx)*57.29578, dec:Math.asin(m.o.dz)*57.29578 })),
+  store.set({ list:MOVERS.slice(0,14).map(m=>({ name:m.name, pm:m.pm, jump:m.jump, px:m.px, ejump:m.ejump, usr:m.usr, ra:Math.atan2(m.o.dy,m.o.dx)*57.29578, dec:Math.asin(m.o.dz)*57.29578 })),
     a:surveyName(ia), b:surveyName(ib), ea, eb, dt });
 }
 // arrows from the first epoch to the second, drawn over the images

@@ -202,9 +202,31 @@ def build_galaxies():
 
 
 # ---------- HYG stars ----------
+# HYG v3 positions are good to about an arcsecond for most stars but not all (Proxima
+# Centauri sits 18″ off), its distances are Hipparcos-era and it carries no errors. Where the
+# Gaia DR3 – Hipparcos cross-match (hipparcos2_best_neighbour, from fetch_gaia.py) has the
+# star, its DR3 astrometry is used instead: the J2016.0 position moved back to J2000.0 with
+# the DR3 proper motion, 1/ϖ when the parallax is good (σ < 10 %, RUWE < 1.4), the DR3
+# proper motion and radial velocity, plus the errors. The brightest stars (Sirius, Vega …)
+# are not in DR3 and keep HYG.
+HIPSRC = os.path.join(RAW, "hip_gaia.csv")
+def load_hip_gaia():
+    out = {}
+    if not os.path.exists(HIPSRC): return out
+    with open(HIPSRC) as f:
+        for r in csv.DictReader(f):
+            try: hip = int(float(r["hip"])); ra = float(r["ra"]); dec = float(r["dec"])
+            except (ValueError, KeyError): continue
+            def num(k):
+                try: v = float(r[k]); return v if v == v else None
+                except (ValueError, KeyError): return None
+            out[hip] = {"ra": ra, "dec": dec, "plx": num("parallax"), "eplx": num("parallax_error"), "pmra": num("pmra"), "pmdec": num("pmdec"),
+                        "epmra": num("pmra_error"), "epmdec": num("pmdec_error"), "ruwe": num("ruwe"), "rv": num("radial_velocity")}
+    return out
 def build_hyg():
     out = []
     if not os.path.exists(HSRC): return out
+    hipg = load_hip_gaia(); n_gaia = 0
     with open(HSRC) as f:
         for r in csv.DictReader(f):
             try:
@@ -214,6 +236,19 @@ def build_hyg():
                 continue
             if d <= 0: continue
             if mag > 6.5 and d > 25: continue         # naked eye OR neighbourhood
+            gx = None                                     # (g is the Gliese name below)
+            try: gx = hipg.get(int(float(r["hip"]))) if r.get("hip") else None
+            except ValueError: gx = None
+            if gx and gx["pmra"] is not None and gx["pmdec"] is not None:
+                # J2016.0 → J2000.0 along the proper motion (small angles; a 10″/yr star moves 160″)
+                cd = math.cos(math.radians(gx["dec"])) or 1e-9
+                ra = (gx["ra"] - 16.0 * gx["pmra"] / 3.6e6 / cd) % 360.0
+                dec = gx["dec"] - 16.0 * gx["pmdec"] / 3.6e6
+                r = dict(r); r["pmra"] = gx["pmra"]; r["pmdec"] = gx["pmdec"]
+                if gx["plx"] and gx["plx"] > 0 and gx["eplx"] is not None and gx["eplx"] < 0.1 * gx["plx"] and (gx["ruwe"] or 9) < 1.4:
+                    d = 1000.0 / gx["plx"]
+                if gx["rv"] is not None: r["rv"] = gx["rv"]
+                n_gaia += 1
             rr, dr = math.radians(ra), math.radians(dec)
             dx = math.cos(dr) * math.cos(rr); dy = math.cos(dr) * math.sin(rr); dz = math.sin(dr)
             teff = teff_from_bv(r.get("ci"))
@@ -236,8 +271,14 @@ def build_hyg():
                 rec["n"] = g
                 if r.get("con"): rec["con"] = r["con"]
             if r.get("hip"): rec["hip"] = int(float(r["hip"]))
+            if gx:                                       # DR3 errors travel with the star
+                rec["src"] = "G"
+                if gx["eplx"] is not None: rec["ep"] = round(gx["eplx"], 3)
+                if gx["epmra"] is not None and gx["epmdec"] is not None: rec["epm"] = round(math.hypot(gx["epmra"], gx["epmdec"]), 3)
+                if gx["ruwe"] is not None: rec["ruwe"] = round(gx["ruwe"], 2)
             out.append(rec)
     out.sort(key=lambda s: s["m"])                    # hellste zuerst
+    print(f"HYG: {len(out)} stars, {n_gaia} with Gaia DR3 astrometry via Hipparcos")
     return out
 
 

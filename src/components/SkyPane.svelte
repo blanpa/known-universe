@@ -107,10 +107,10 @@
       not in this list is the find.</p>
     {#if $movers.list.length}
       <ul class="enc mov">
-        {#each $movers.list as m (m.name + m.ra)}
+        {#each $movers.list as m, i (i)}
           <li><button type="button" onclick={() => api.lookAt?.(m.ra, m.dec)}>
             <span class="enc-n" class:usr={m.usr}>{m.name}</span>
-            <span class="enc-t mono">{m.jump >= 60 ? (m.jump / 60).toFixed(1) + '′' : m.jump.toFixed(1) + '″'}</span>
+            <span class="enc-t mono">{m.jump >= 60 ? (m.jump / 60).toFixed(1) + '′' : m.jump.toFixed(1) + '″'}{m.ejump !== undefined ? ` ± ${m.ejump >= 1 ? m.ejump.toFixed(1) : m.ejump.toFixed(2)}″` : ''}</span>
             <span class="enc-d mono">{m.px >= 1 ? m.px.toFixed(0) + ' px' : '< 1 px'}</span>
             <span class="enc-v mono">{m.pm.toFixed(0)} mas/yr</span>
           </button></li>

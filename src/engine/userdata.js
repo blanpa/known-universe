@@ -27,6 +27,12 @@ const COLS={
   name: ['name','id','designation','source_id','main_id','object','star','identifier','label','source','target','ident'],
   pmra: ['pmra','pm_ra','pmra_cosdec','pm_ra_cosdec','pmracosdec'],
   pmdec:['pmdec','pm_dec','pmde','pm_de'],
+  eplx: ['e_plx','parallax_error','plx_err','e_parallax','plx_error','e_plx_value'],
+  epmra:['e_pmra','pmra_error','e_pm_ra','pm_err_maj'],
+  epmdec:['e_pmdec','pmdec_error','e_pm_dec','pm_err_min'],
+  ruwe: ['ruwe'],
+  dlo:  ['b_dist','r_lo_geo','dist_lo','b_rgeo','dist16'],
+  dhi:  ['B_dist','r_hi_geo','dist_hi','B_rgeo','dist84'],
 };
 const norm=h=>h.trim().toLowerCase().replace(/^"|"$/g,'').replace(/[\s]+/g,'').replace(/\[.*?\]$/,'');
 export function splitLine(line,sep){                            // quoted fields, doubled quotes
@@ -62,8 +68,9 @@ export function parseUserText(text){
   const cols=hasHeader?first:['ra','dec','dist','mag','name'].slice(0,first.length);
   const col=k=>{ for(const name of COLS[k]){ const i=cols.indexOf(name); if(i>=0) return i; } return -1; };
   const ira=col('ra'), idec=col('dec'), idist=col('dist'), ily=col('ly'), iplx=col('plx'), imag=col('mag'), iname=col('name'), ipra=col('pmra'), ipde=col('pmdec');
+  const ieplx=col('eplx'), iepr=col('epmra'), iepd=col('epmdec'), iruwe=col('ruwe'), idlo=col('dlo'), idhi=col('dhi');
   if(ira<0||idec<0) return { rows:[], cols, warn:'no RA/Dec columns found (looked for ra, dec, raj2000, dej2000, …)' };
-  const known2=new Set([ira,idec,idist,ily,iplx,imag,iname,ipra,ipde]);
+  const known2=new Set([ira,idec,idist,ily,iplx,imag,iname,ipra,ipde,ieplx,iepr,iepd,iruwe,idlo,idhi]);
   const extra=cols.map((c,i)=>[c,i]).filter(([c,i])=>!known2.has(i)&&c).slice(0,10);
   const rows=[]; let bad=0;
   for(let li=hasHeader?1:0; li<lines.length && rows.length<MAX_ROWS; li++){
@@ -78,6 +85,10 @@ export function parseUserText(text){
     const row={ usr:true, i:rows.length, n:iname>=0?String(f[iname]||'').replace(/^"|"$/g,'').replace(/\s+/g,' '):'', ra, dec, d, noDist,
       m:imag>=0&&isFinite(+f[imag])?+f[imag]:undefined, pr:ipra>=0?+f[ipra]||0:0, pd:ipde>=0?+f[ipde]||0:0,
       dx:cq*Math.cos(r), dy:cq*Math.sin(r), dz:Math.sin(q), x:{} };
+    const num=i=>i>=0&&f[i]!==undefined&&f[i]!==''&&isFinite(+f[i])?+f[i]:undefined;
+    row.eplx=num(ieplx); row.epr=num(iepr); row.epd=num(iepd); row.ruwe=num(iruwe);
+    if(!noDist){ const lo=num(idlo), hi=num(idhi); if(lo>0&&hi>lo){ row.dlo=lo; row.dhi=hi; }
+      else if(row.eplx>0&&iplx>=0&&+f[iplx]>0){ const pl=+f[iplx]; row.dlo=1000/(pl+row.eplx); row.dhi=pl-row.eplx>0?1000/(pl-row.eplx):Infinity; } }   // 1/ϖ bounds: honest only when ϖ/σ is large
     for(const [c,i] of extra) if(f[i]!==undefined&&f[i]!=='') row.x[c]=f[i];
     rows.push(row);
   }

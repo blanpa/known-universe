@@ -15,7 +15,7 @@ let progF=null, progU=null, progT=null, progS=null;   // float layout · raw-byt
 let hdrOK=false, hdrFB=null, hdrTex=null, glMaxPt=64;
 export let glBuf=null, glBufH=null, glBufP=null, glBufC=null;   // float-layout VAO handles {vao,n}
 const CL={G:null,B:null,W:null,Q:null,O:null,V:null};    // raw-byte cloud handles {vao,n,key}
-export let gaiaRaw=null, gaiaPm=null, gaiaRange=100, webRaw=null, qsoRaw=null, beltRaw=null, obRaw=null, varRaw=null, beltEpoch=0;
+export let gaiaRaw=null, gaiaPm=null, gaiaQ=null, gaiaRange=100, webRaw=null, qsoRaw=null, beltRaw=null, obRaw=null, varRaw=null, beltEpoch=0;
 // ---- WebGL star-field renderer (GPU point cloud; auto-falls back to Canvas 2D) ----
 // ---- WebGL 2 renderer: two vertex layouts share one logical point shader ----
 //  · float layout (40 B/vtx): HYG stars, exoplanet hosts, pulsars, clusters
@@ -116,8 +116,9 @@ const GL_VSU=`#version 300 es
 precision highp float;
 in uvec4 a_rec;                                          // one raw 8-byte catalogue record
 in ivec2 a_pm;                                           // Gaia only: pmRA*, pmDec in mas/yr (0 elsewhere)
+in uint a_q;                                             // Gaia only: RUWE × 20 (0 elsewhere)
 ${GL_UNI}
-uniform float u_decDist,u_colMode,u_isBelt,u_beltDt,u_hasPm,u_pmYearsU;
+uniform float u_decDist,u_colMode,u_isBelt,u_beltDt,u_hasPm,u_pmYearsU,u_ruweMax;
 uniform vec2 u_decMag; uniform vec3 u_colFix; uniform vec3 u_decPal[4];
 vec3 gaiaCol(float bprp){                                // bp_rp -> Teff (Ballesteros) -> colour
   float t=4600.0*(1.0/(0.92*bprp+1.7)+1.0/(0.92*bprp+0.62));
@@ -143,6 +144,7 @@ void main(){
     vec3 m=e*(float(a_pm.x)*k) + nn*(float(a_pm.y)*k);
     float th=length(m); if(th>1e-12) dir=normalize(dir*cos(th) + (m/th)*sin(th));
   }
+  if(u_ruweMax>0.0 && float(a_q)>u_ruweMax*20.0){ gl_Position=vec4(2.0,0.0,0.0,1.0); gl_PointSize=0.0; return; }   // RUWE filter
   float dist=u*u_decDist;
   float mg=(b6/255.0)*u_decMag.x + u_decMag.y;
   vec3 col = u_colMode<0.5 ? u_colFix
@@ -314,7 +316,7 @@ function buildCloudBuf(bytes,key){   // raw bytes -> GPU verbatim (uvec4 attribu
 }
 function cloudLabel(id,txt){ labels.update(m => ({ ...m, [id]: txt })); }
 function buildGaia(bytes){ const r=buildCloudBuf(bytes,'gaia'); if(!r) return; count('file-gaia', r.n);
-  CL.G=r; gaiaRaw=bytes; gaiaRange=100; attachGaiaPm();
+  CL.G=r; gaiaRaw=bytes; gaiaRange=100; attachGaiaPm(); attachGaiaQ();
   cloudLabel('t-gaia','Gaia stars ('+(r.n>=1000?((r.n/1000)|0)+'k':r.n)+' <100 pc)'); }
 // gaia_pm.bin: int16 pmRA*, pmDec per star in gaia.bin's order — a second attribute on its VAO
 function attachGaiaPm(){
@@ -326,6 +328,17 @@ function attachGaiaPm(){
   gl.enableVertexAttribArray(a); gl.vertexAttribIPointer(a,2,gl.SHORT,4,0);
   gl.bindVertexArray(null); gl.bindBuffer(gl.ARRAY_BUFFER,null);
   CL.G.pm=true; V.dirty=true;
+}
+// gaia_q.bin: 12-byte quality records in gaia.bin's order; the RUWE byte (offset 4) feeds the shader's filter
+function attachGaiaQ(){
+  if(!glOK||!CL.G||!gaiaQ||CL.G.q) return;
+  const gl=GL, a=progU.attr.a_q; if(a===undefined||a<0) return;
+  if((gaiaQ.length/12|0)!==CL.G.n) return;
+  gl.bindVertexArray(CL.G.vao);
+  const buf=gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER,buf); gl.bufferData(gl.ARRAY_BUFFER,gaiaQ,gl.STATIC_DRAW);
+  gl.enableVertexAttribArray(a); gl.vertexAttribIPointer(a,1,gl.UNSIGNED_BYTE,12,4);
+  gl.bindVertexArray(null); gl.bindBuffer(gl.ARRAY_BUFFER,null);
+  CL.G.q=true; V.dirty=true;
 }
 function buildGaiaBig(bytes){ const r=buildCloudBuf(bytes,'gaiabig'); if(!r) return; count('file-gaiabig', r.n);
   CL.G=r; gaiaRaw=bytes; gaiaRange=150;
@@ -348,7 +361,7 @@ function buildQso(bytes){ if(bytes && CL.Q && (bytes.length/8)<=CL.Q.n) return;
   cloudLabel('t-qso','Quasars ('+((r.n/1000)|0)+'k)'); }
 function glRestoreClouds(){          // re-upload retained raw bytes after a context restore
   if(!glOK) return;
-  if(gaiaRaw){ const r=buildCloudBuf(gaiaRaw,gaiaRange>100?'gaiabig':'gaia'); if(r){ CL.G=r; attachGaiaPm(); } }
+  if(gaiaRaw){ const r=buildCloudBuf(gaiaRaw,gaiaRange>100?'gaiabig':'gaia'); if(r){ CL.G=r; attachGaiaPm(); attachGaiaQ(); } }
   if(beltRaw){ const r=buildCloudBuf(beltRaw,'belt'); if(r) CL.B=r; }
   if(webRaw){ const r=buildCloudBuf(webRaw,'web'); if(r) CL.W=r; }
   if(qsoRaw){ const r=buildCloudBuf(qsoRaw,'qso'); if(r) CL.Q=r; }
@@ -366,7 +379,8 @@ export function loadExtragal(){
     if(typeof window.__BELT_B64__==='string' && window.__BELT_B64__.length){ buildBelt(b64ToBytes(window.__BELT_B64__)); window.__BELT_B64__=null; }
     else tfetch('file-belt',{name:'belt.bin',group:'catalogue'},'data/belt.bin?b='+__BUILD__).then(r=>r.ok?r.arrayBuffer():null).then(a=>{ if(a) buildBelt(new Uint8Array(a)); }).catch(()=>{});
     tfetch('file-gaiabig',{name:'gaiabig.bin',group:'catalogue',optional:true},'data/gaiabig.bin?b='+__BUILD__).then(r=>r.ok?r.arrayBuffer():null).then(a=>{ if(a){ buildGaiaBig(new Uint8Array(a));
-      tfetch('file-gaiabig_pm',{name:'gaiabig_pm.bin',group:'catalogue',optional:true},'data/gaiabig_pm.bin?b='+__BUILD__).then(r=>r.ok?r.arrayBuffer():null).then(p=>{ if(p){ gaiaPm=new Uint8Array(p); if(CL.G) CL.G.pm=false; attachGaiaPm(); } }).catch(()=>{}); } }).catch(()=>{});
+      tfetch('file-gaiabig_pm',{name:'gaiabig_pm.bin',group:'catalogue',optional:true},'data/gaiabig_pm.bin?b='+__BUILD__).then(r=>r.ok?r.arrayBuffer():null).then(p=>{ if(p){ gaiaPm=new Uint8Array(p); if(CL.G) CL.G.pm=false; attachGaiaPm(); } }).catch(()=>{});
+      tfetch('file-gaiabig_q',{name:'gaiabig_q.bin · errors, RUWE, distances',group:'catalogue',optional:true},'data/gaiabig_q.bin?b='+__BUILD__).then(r=>r.ok?r.arrayBuffer():null).then(p=>{ if(p){ gaiaQ=new Uint8Array(p); if(CL.G) CL.G.q=false; attachGaiaQ(); } }).catch(()=>{}); } }).catch(()=>{});
     if(typeof window.__OB_B64__==='string' && window.__OB_B64__.length){ buildOB(b64ToBytes(window.__OB_B64__)); window.__OB_B64__=null; }
     else tfetch('file-obstars',{name:'obstars.bin',group:'catalogue'},'data/obstars.bin?b='+__BUILD__).then(r=>r.ok?r.arrayBuffer():null).then(a=>{ if(a) buildOB(new Uint8Array(a)); }).catch(()=>{});
     if(typeof window.__VAR_B64__==='string' && window.__VAR_B64__.length){ buildVars(b64ToBytes(window.__VAR_B64__)); window.__VAR_B64__=null; }
@@ -384,6 +398,8 @@ export function loadGaia(){
       .then(a=>{ if(a) buildGaia(new Uint8Array(a)); }).catch(()=>{});
     tfetch('file-gaia_pm',{name:'gaia_pm.bin',group:'catalogue',optional:true},'data/gaia_pm.bin?b='+__BUILD__).then(r=>r.ok?r.arrayBuffer():null)
       .then(a=>{ if(a&&(!gaiaPm||gaiaRange===100)){ gaiaPm=new Uint8Array(a); attachGaiaPm(); } }).catch(()=>{});
+    tfetch('file-gaia_q',{name:'gaia_q.bin · errors, RUWE, distances',group:'catalogue',optional:true},'data/gaia_q.bin?b='+__BUILD__).then(r=>r.ok?r.arrayBuffer():null)
+      .then(a=>{ if(a&&(!gaiaQ||gaiaRange===100)){ gaiaQ=new Uint8Array(a); attachGaiaQ(); } }).catch(()=>{});
   }catch(e){}
 }
 function glShared(L){                // per-frame camera/scale uniforms, per program
@@ -506,10 +522,12 @@ export function glRender(){
   // raw-byte catalogue layers (decoded in the vertex shader)
   gl.useProgram(progU.p); glShared(progU.loc);
   gl.uniform1f(progU.loc.u_pmYearsU,tSince(2016));           // Gaia DR3 epoch 2016.0 → the displayed date
+  gl.uniform1f(progU.loc.u_ruweMax,(S.ruwe&&CL.G&&CL.G.q)?1.4:0);   // hide suspect astrometry (RUWE > 1.4) when asked
   // a_pm is an integer attribute that only the Gaia VAO enables. Where it is disabled the
   // shader reads the generic attribute value, and Chrome rejects the whole draw call when
   // that value's type is float (the default): quasars, web, belt, OB and variables vanished.
   const aPm=progU.attr.a_pm; if(aPm>=0) gl.vertexAttribI4i(aPm,0,0,0,0);
+  const aQ=progU.attr.a_q; if(aQ>=0) gl.vertexAttribI4ui(aQ,0,0,0,0);
   if(V.solarA<0.5){
     const far = camDist>1e-9 && invScale(camDist)>3e6;              // out among the galaxies: brighter web
     if(CL.W && S.web) drawCloud(CL.W,0.05,far?1.6:1.1, far?2.4:1);
@@ -528,6 +546,7 @@ export function glRender(){
     if(CL.V && S.vars) drawCloud(CL.V,0.05,1.0);
   }
   if(aPm>=0) gl.vertexAttrib4f(aPm,0,0,0,1);            // back to a float generic for the other programs
+  if(aQ>=0) gl.vertexAttrib4f(aQ,0,0,0,1);
   // float layers: exoplanet hosts (year + facility filters on the GPU), pulsars,
   // open clusters (cosmos view only, matching the 2D gate), HYG stars + halo
   const L=progF.loc;

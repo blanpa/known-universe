@@ -6062,6 +6062,7 @@ var STARS = [
 	"t-hyg",
 	"t-gpu",
 	"t-gaia",
+	"t-ruwe",
 	"t-ob",
 	"t-var",
 	"t-radio"
@@ -6309,6 +6310,11 @@ function Controls($$anchor, $$props) {
 					id: "t-gaia",
 					label: "Gaia stars · 100 pc",
 					on: true
+				},
+				{
+					id: "t-ruwe",
+					label: "Hide suspect astrometry · RUWE > 1.4",
+					on: false
 				},
 				{
 					id: "t-ob",
@@ -7325,7 +7331,7 @@ function SkyPane($$anchor, $$props) {
 		var node_15 = sibling(p_2, 2);
 		var consequent_9 = ($$anchor) => {
 			var ul = root_11$1();
-			each(ul, 5, () => $movers().list, (m) => m.name + m.ra, ($$anchor, m) => {
+			each(ul, 5, () => $movers().list, index, ($$anchor, m) => {
 				var li = root_10$1();
 				var button_15 = child(li);
 				var span_8 = child(button_15);
@@ -7333,7 +7339,7 @@ function SkyPane($$anchor, $$props) {
 				var text_17 = child(span_8, true);
 				reset(span_8);
 				var span_9 = sibling(span_8, 2);
-				var text_18 = child(span_9, true);
+				var text_18 = child(span_9);
 				reset(span_9);
 				var span_10 = sibling(span_9, 2);
 				var text_19 = child(span_10, true);
@@ -7343,14 +7349,15 @@ function SkyPane($$anchor, $$props) {
 				reset(span_11);
 				reset(button_15);
 				reset(li);
-				template_effect(($0, $1, $2) => {
+				template_effect(($0, $1, $2, $3) => {
 					classes_7 = set_class(span_8, 1, "enc-n", null, classes_7, { usr: get(m).usr });
 					set_text(text_17, get(m).name);
-					set_text(text_18, $0);
-					set_text(text_19, $1);
-					set_text(text_20, `${$2 ?? ""} mas/yr`);
+					set_text(text_18, `${$0 ?? ""}${$1 ?? ""}`);
+					set_text(text_19, $2);
+					set_text(text_20, `${$3 ?? ""} mas/yr`);
 				}, [
 					() => get(m).jump >= 60 ? (get(m).jump / 60).toFixed(1) + "′" : get(m).jump.toFixed(1) + "″",
+					() => get(m).ejump !== void 0 ? ` ± ${get(m).ejump >= 1 ? get(m).ejump.toFixed(1) : get(m).ejump.toFixed(2)}″` : "",
 					() => get(m).px >= 1 ? get(m).px.toFixed(0) + " px" : "< 1 px",
 					() => get(m).pm.toFixed(0)
 				]);
@@ -10929,7 +10936,7 @@ function MobileNav($$anchor, $$props) {
 		}
 		var text_2 = sibling(node_6);
 		var small = sibling(text_2);
-		small.textContent = `· b12:34`;
+		small.textContent = `· b13:06`;
 		reset(span_2);
 		var span_3 = sibling(span_2, 2);
 		var button_6 = child(span_3);
@@ -11525,7 +11532,7 @@ window.addEventListener("error", (e) => showErr("⚠ " + (e.message || e.type) +
 window.addEventListener("unhandledrejection", (e) => showErr("⚠ promise: " + (e.reason && e.reason.message || e.reason)));
 mount(App, { target: document.getElementById("app") });
 function boot() {
-	return __vitePreload(() => import("./engine-DOywbNn3.js").then(() => {
+	return __vitePreload(() => import("./engine-Dh0_McYM.js").then(() => {
 		try {
 			restore();
 		} catch (e) {}
@@ -11542,7 +11549,7 @@ var fail = (e) => {
 	document.body.innerHTML = "<p style=\"color:#e9edfa;font-family:monospace;padding:2em\">Error loading data: " + e + "</p>";
 };
 if (window.__DATA__) boot().catch(fail);
-else Promise.all([getJSON("data/data.json?b=b12:34", "data-json", "data.json · stars, exoplanets, galaxies"), getJSON("data/catalog.json?b=b12:34", "catalog-json", "catalog.json · solar system, deep sky, pulsars")]).then(([d, c]) => {
+else Promise.all([getJSON("data/data.json?b=b13:06", "data-json", "data.json · stars, exoplanets, galaxies"), getJSON("data/catalog.json?b=b13:06", "catalog-json", "catalog.json · solar system, deep sky, pulsars")]).then(([d, c]) => {
 	window.__DATA__ = d;
 	window.__CATALOG__ = c;
 	const m = d.meta || {};

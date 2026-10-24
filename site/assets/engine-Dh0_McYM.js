@@ -1,4 +1,4 @@
-import { A as userLayer, C as stats, D as toggleState, E as timeline, F as tally, I as tfetch, L as timg, M as count, N as declare, O as tour, P as mark, S as skyCursor, T as timeBar, _ as movers, a as satEcl, b as searchMsg, c as camera, d as facColor, f as facList$1, g as measureLog, h as measure, i as refreshLive, j as api, k as transit, l as crossmatch$1, m as labels, n as activeShowers, o as startLive, p as fieldQuery, r as groundEcl, s as RESERVED, t as LIVE, u as encounters, v as nav, w as survey, x as selection, y as samp } from "./index-CTJJPxFu.js";
+import { A as userLayer, C as stats, D as toggleState, E as timeline, F as tally, I as tfetch, L as timg, M as count, N as declare, O as tour, P as mark, S as skyCursor, T as timeBar, _ as movers, a as satEcl, b as searchMsg, c as camera, d as facColor, f as facList$1, g as measureLog, h as measure, i as refreshLive, j as api, k as transit, l as crossmatch$1, m as labels, n as activeShowers, o as startLive, p as fieldQuery, r as groundEcl, s as RESERVED, t as LIVE, u as encounters, v as nav, w as survey, x as selection, y as samp } from "./index-DLlNgTzv.js";
 //#region src/lib/export.js
 var esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 var cell = (v) => v === void 0 || v === null || typeof v === "number" && !isFinite(v) ? "" : String(v);
@@ -62,6 +62,7 @@ var S = {
 	user: true,
 	gpu: true,
 	gaia: true,
+	ruwe: false,
 	web: true,
 	qso: true,
 	ob: true,
@@ -229,7 +230,7 @@ function radiusScale(sr) {
 }
 //#endregion
 //#region src/engine/sky-data.js
-function dirOf(raDeg, decDeg) {
+function dirOf$1(raDeg, decDeg) {
 	const r = raDeg * Math.PI / 180, d = decDeg * Math.PI / 180;
 	return [
 		Math.cos(d) * Math.cos(r),
@@ -244,8 +245,8 @@ var SGRA = {
 	d: 8178,
 	desc: "supermassive black hole · 4.3 million solar masses"
 };
-SGRA._dir = dirOf(266.41684, -29.00781);
-var NGP = dirOf(192.85948, 27.12825);
+SGRA._dir = dirOf$1(266.41684, -29.00781);
+var NGP = dirOf$1(192.85948, 27.12825);
 var GC = SGRA._dir;
 var GPv = (function() {
 	const c = [
@@ -1608,12 +1609,12 @@ var DSO = [
 ];
 DSO.forEach((o) => {
 	o.dso = true;
-	o._dir = dirOf(o.ra, o.dec);
+	o._dir = dirOf$1(o.ra, o.dec);
 });
 var PULSARS = CAT.pulsars;
 PULSARS.forEach((q) => {
 	q.psr = true;
-	q._dir = dirOf(q[0], q[1]);
+	q._dir = dirOf$1(q[0], q[1]);
 	q.n = q[3];
 	q.d = q[2];
 });
@@ -1621,7 +1622,7 @@ var CLUSTERS = CAT.clusters;
 CLUSTERS.forEach((c) => {
 	c.oclu = true;
 	c.ct = 0;
-	c._dir = dirOf(c[0], c[1]);
+	c._dir = dirOf$1(c[0], c[1]);
 	c.n = c[3];
 	c.d = c[2];
 });
@@ -1656,7 +1657,7 @@ var CLU_T = [
 GLOBS.concat(FRBS).forEach((c) => {
 	c.oclu = true;
 	c.ct = c[4] || 0;
-	c._dir = dirOf(c[0], c[1]);
+	c._dir = dirOf$1(c[0], c[1]);
 	c.n = c[3];
 	c.d = c[2];
 	CLUSTERS.push(c);
@@ -1665,7 +1666,7 @@ var CONS = DATA.constellations || [];
 CONS.forEach((k) => {
 	k._L = k.L.map((pl) => {
 		const a = [];
-		for (let i = 0; i < pl.length; i += 2) a.push(dirOf(pl[i], pl[i + 1]));
+		for (let i = 0; i < pl.length; i += 2) a.push(dirOf$1(pl[i], pl[i + 1]));
 		return a;
 	});
 });
@@ -3485,6 +3486,41 @@ var COLS = {
 		"pm_dec",
 		"pmde",
 		"pm_de"
+	],
+	eplx: [
+		"e_plx",
+		"parallax_error",
+		"plx_err",
+		"e_parallax",
+		"plx_error",
+		"e_plx_value"
+	],
+	epmra: [
+		"e_pmra",
+		"pmra_error",
+		"e_pm_ra",
+		"pm_err_maj"
+	],
+	epmdec: [
+		"e_pmdec",
+		"pmdec_error",
+		"e_pm_dec",
+		"pm_err_min"
+	],
+	ruwe: ["ruwe"],
+	dlo: [
+		"b_dist",
+		"r_lo_geo",
+		"dist_lo",
+		"b_rgeo",
+		"dist16"
+	],
+	dhi: [
+		"B_dist",
+		"r_hi_geo",
+		"dist_hi",
+		"B_rgeo",
+		"dist84"
 	]
 };
 var norm = (h) => h.trim().toLowerCase().replace(/^"|"$/g, "").replace(/[\s]+/g, "").replace(/\[.*?\]$/, "");
@@ -3557,6 +3593,7 @@ function parseUserText(text) {
 		return -1;
 	};
 	const ira = col("ra"), idec = col("dec"), idist = col("dist"), ily = col("ly"), iplx = col("plx"), imag = col("mag"), iname = col("name"), ipra = col("pmra"), ipde = col("pmdec");
+	const ieplx = col("eplx"), iepr = col("epmra"), iepd = col("epmdec"), iruwe = col("ruwe"), idlo = col("dlo"), idhi = col("dhi");
 	if (ira < 0 || idec < 0) return {
 		rows: [],
 		cols,
@@ -3571,7 +3608,13 @@ function parseUserText(text) {
 		imag,
 		iname,
 		ipra,
-		ipde
+		ipde,
+		ieplx,
+		iepr,
+		iepd,
+		iruwe,
+		idlo,
+		idhi
 	]);
 	const extra = cols.map((c, i) => [c, i]).filter(([c, i]) => !known2.has(i) && c).slice(0, 10);
 	const rows = [];
@@ -3609,6 +3652,22 @@ function parseUserText(text) {
 			dz: Math.sin(q),
 			x: {}
 		};
+		const num = (i) => i >= 0 && f[i] !== void 0 && f[i] !== "" && isFinite(+f[i]) ? +f[i] : void 0;
+		row.eplx = num(ieplx);
+		row.epr = num(iepr);
+		row.epd = num(iepd);
+		row.ruwe = num(iruwe);
+		if (!noDist) {
+			const lo = num(idlo), hi = num(idhi);
+			if (lo > 0 && hi > lo) {
+				row.dlo = lo;
+				row.dhi = hi;
+			} else if (row.eplx > 0 && iplx >= 0 && +f[iplx] > 0) {
+				const pl = +f[iplx];
+				row.dlo = 1e3 / (pl + row.eplx);
+				row.dhi = pl - row.eplx > 0 ? 1e3 / (pl - row.eplx) : Infinity;
+			}
+		}
 		for (const [c, i] of extra) if (f[i] !== void 0 && f[i] !== "") row.x[c] = f[i];
 		rows.push(row);
 	}
@@ -3853,6 +3912,7 @@ function updateMovers() {
 		if (!pm) return;
 		if (o.x && o.x.otype === "Pl") return;
 		const jump = pm * Math.abs(dt) / 1e3, px = jump / 3600 * pxPerDeg;
+		const epm = o.epr !== void 0 || o.epd !== void 0 ? Math.hypot(o.epr || 0, o.epd || 0) : void 0, ejump = epm !== void 0 ? epm * Math.abs(dt) / 1e3 : void 0;
 		if (jump < .5) return;
 		const k = o.dx.toFixed(5) + "," + o.dy.toFixed(5) + "," + o.dz.toFixed(5);
 		if (seen.has(k)) return;
@@ -3863,6 +3923,7 @@ function updateMovers() {
 			pm,
 			jump,
 			px,
+			ejump,
 			usr: !!o.usr,
 			ea,
 			eb,
@@ -3905,6 +3966,7 @@ function updateMovers() {
 			pm: m.pm,
 			jump: m.jump,
 			px: m.px,
+			ejump: m.ejump,
 			usr: m.usr,
 			ra: Math.atan2(m.o.dy, m.o.dx) * 57.29578,
 			dec: Math.asin(m.o.dz) * 57.29578
@@ -6227,9 +6289,11 @@ function card(o) {
 			c.title = o.n || `Row ${o.i + 1}`;
 			c.kindLabel = `Your data · ${setName}`;
 			c.rows.push(["Source", setName], ["Position", coordText(o.dx, o.dy, o.dz)], ["Galactic", galText(o.dx, o.dy, o.dz)], ["Epoch", `J${(o.ep || 2e3).toFixed(1)}${o.pr || o.pd ? " · shown at J" + epochNow().toFixed(2) : ""}`]);
-			c.rows.push(["Distance", o.noDist ? "not given — placed on the sky" : `${ly$1(o.d)} · ${o.d < 100 ? o.d.toFixed(2) : fmt(o.d)} pc`]);
+			c.rows.push(["Distance", o.noDist ? "not given — placed on the sky" : `${ly$1(o.d)} · ${o.d < 100 ? o.d.toFixed(2) : fmt(o.d)} pc${o.dlo && isFinite(o.dhi) ? ` (${o.dlo.toFixed(o.dlo < 100 ? 2 : 0)} – ${o.dhi.toFixed(o.dhi < 100 ? 2 : 0)})` : ""}`]);
+			if (!o.noDist && o.eplx !== void 0) c.rows.push(["Parallax", `${(1e3 / o.d).toFixed(3)} ± ${o.eplx.toFixed(3)} mas · ${(1e3 / o.d / o.eplx).toFixed(0)} σ`]);
 			if (o.m !== void 0) c.rows.push(["Magnitude", o.m.toFixed(2)]);
-			if (o.pr || o.pd) c.rows.push(["Proper motion", `${o.pr.toFixed(1)} · ${o.pd.toFixed(1)} mas/yr · ${Math.hypot(o.pr, o.pd).toFixed(0)} total`]);
+			if (o.pr || o.pd) c.rows.push(["Proper motion", `${o.pr.toFixed(1)}${o.epr !== void 0 ? " ± " + o.epr.toFixed(2) : ""} · ${o.pd.toFixed(1)}${o.epd !== void 0 ? " ± " + o.epd.toFixed(2) : ""} mas/yr · ${Math.hypot(o.pr, o.pd).toFixed(0)} total`]);
+			if (o.ruwe !== void 0) c.rows.push(["RUWE", `${o.ruwe.toFixed(2)}${o.ruwe > 1.4 ? " · astrometry suspect (>1.4: binary or crowded)" : " · single-star fit ok"}`]);
 			const xst = (USER.sets[o.set] || {}).xm;
 			if (xst) c.rows.push(["Counterpart", o.xm ? `${o.xm.id} · ${o.xm.src} · ${o.xm.sep.toFixed(2)}″ away` : `none within ${xst.radius}″ of ${xst.remote || "the loaded catalogues"}`]);
 			if (o.xm && o.xm.plx !== void 0) c.rows.push(["Counterpart ϖ", `${o.xm.plx.toFixed(3)}${o.xm.eplx !== void 0 ? " ± " + o.xm.eplx.toFixed(3) : ""} mas${o.xm.plx > 0 ? " · " + (1e3 / o.xm.plx).toFixed(1) + " pc" : ""}`]);
@@ -6251,8 +6315,12 @@ function card(o) {
 		case "gpick": {
 			const [ra, dec] = radec(o._dir[0], o._dir[1], o._dir[2]);
 			if (o.gpick === "gaia") {
-				c.rows.push(["Type", "Star · Gaia DR3"], ["Position", coordText(o._dir[0], o._dir[1], o._dir[2]) + " (±20″, packed)"], ["Galactic", galText(o._dir[0], o._dir[1], o._dir[2])], ["G magnitude", o.mag.toFixed(1)], ["Colour BP−RP", o.bprp.toFixed(2)], ["Distance", `${ly$1(o.d)} · ${o.d.toFixed(1)} pc · ϖ ≈ ${(1e3 / o.d).toFixed(1)} mas`]);
-				if (o.pr !== void 0) c.rows.push(["Proper motion", pmText(o.pr, o.pd)], ["Tangential velocity", `${(KMS_PER_PCYR_MAS * Math.hypot(o.pr, o.pd) / 1e3 * o.d).toFixed(1)} km/s`]);
+				c.rows.push(["Type", "Star · Gaia DR3"], ["Position", coordText(o._dir[0], o._dir[1], o._dir[2]) + " (±20″, packed)"], ["Galactic", galText(o._dir[0], o._dir[1], o._dir[2])], ["G magnitude", o.mag.toFixed(1)], ["Colour BP−RP", o.bprp.toFixed(2)]);
+				c.rows.push(["Distance", `${ly$1(o.d)} · ${o.d.toFixed(1)} pc${o.dlo !== void 0 ? ` (${o.dlo.toFixed(1)} – ${o.dhi.toFixed(1)}, ${o.bj ? "Bailer-Jones geometric 16–84 %" : "1/ϖ ± σ"})` : ` · ϖ ≈ ${(1e3 / o.d).toFixed(1)} mas`}`]);
+				if (o.eplx !== void 0) c.rows.push(["Parallax error", `± ${o.eplx.toFixed(2)} mas (ϖ ≈ ${(1e3 / o.d).toFixed(1)} mas, packed)`]);
+				if (o.pr !== void 0) c.rows.push(["Proper motion", pmText(o.pr, o.pd) + (o.epm !== void 0 ? ` ± ${o.epm.toFixed(2)}` : "")], ["Tangential velocity", `${(KMS_PER_PCYR_MAS * Math.hypot(o.pr, o.pd) / 1e3 * o.d).toFixed(1)} km/s`]);
+				if (o.rv !== void 0) c.rows.push(["Radial velocity", `${o.rv > 0 ? "+" : ""}${o.rv.toFixed(1)} km/s`]);
+				if (o.ruwe !== void 0) c.rows.push(["RUWE", `${o.ruwe.toFixed(2)}${o.ruwe > 1.4 ? " · astrometry suspect (>1.4: binary or crowded)" : " · single-star fit ok"}`]);
 			} else if (o.gpick === "web") c.rows.push(["Type", "Galaxy · 2MRS survey"], ["Mag K", o.kmag.toFixed(1)], ["Distance", `${(o.d / 1e6).toFixed(1)} Mpc · ${(o.d * PC2LY / 1e6).toFixed(0)} Mly`]);
 			else if (o.gpick === "qso") c.rows.push(["Type", "Quasar · Milliquas"], ["Redshift", `z ≈ ${o.z.toFixed(2)}`], ["Distance", `${(o.d / 1e9).toFixed(2)} Gpc comoving`]);
 			else c.rows.push(["Type", `${o.n} · JPL SBDB`], ["Abs. mag H", o.H.toFixed(1)], ["Distance", `${o.rAU.toFixed(2)} AU from the Sun`]);
@@ -6467,7 +6535,9 @@ function card(o) {
 			c.title = o.n || (o.hip ? `HIP ${o.hip}` : "Star");
 			const q = hygPos(o, tNow()), L = Math.hypot(q[0], q[1], q[2]) || 1e-9;
 			c.rows.push(["Position", coordText(q[0] / L, q[1] / L, q[2] / L)], ["Galactic", galText(q[0] / L, q[1] / L, q[2] / L)], ["Epoch", `J${epochNow().toFixed(2)} (J2000 + μ)`]);
-			c.rows.push(["Distance", `${ly$1(o.d)} · ${o.d} pc · ϖ ${(1e3 / o.d).toFixed(2)} mas`], ["V magnitude", String(o.m)], ["Proper motion", pmText(o.pr, o.pd)]);
+			const plx = 1e3 / o.d, rg = o.ep > 0 && plx - o.ep > 0 ? [1e3 / (plx + o.ep), 1e3 / (plx - o.ep)] : null;
+			c.rows.push(["Distance", `${ly$1(o.d)} · ${o.d} pc${rg ? ` (${rg[0].toFixed(rg[0] < 100 ? 2 : 0)} – ${rg[1].toFixed(rg[1] < 100 ? 2 : 0)})` : ""}`], ["Parallax", `${plx.toFixed(o.ep ? 3 : 2)}${o.ep ? " ± " + o.ep.toFixed(3) : ""} mas${o.ep ? " · " + (plx / o.ep).toFixed(0) + " σ" : ""}`], ["V magnitude", String(o.m)], ["Proper motion", pmText(o.pr, o.pd) + (o.epm ? ` ± ${o.epm.toFixed(2)}` : "")]);
+			if (o.ruwe !== void 0) c.rows.push(["RUWE", `${o.ruwe.toFixed(2)}${o.ruwe > 1.4 ? " · astrometry suspect (>1.4: binary or crowded)" : " · single-star fit ok"}`]);
 			if (o.pr !== void 0) {
 				const vt = KMS_PER_PCYR_MAS * Math.hypot(o.pr || 0, o.pd || 0) / 1e3 * o.d;
 				c.rows.push(["Velocity", o.rv !== void 0 ? `v_t ${vt.toFixed(1)} · v_r ${o.rv > 0 ? "+" : ""}${o.rv.toFixed(1)} · ${Math.hypot(vt, o.rv).toFixed(1)} km/s` : `v_t ${vt.toFixed(1)} km/s · no radial velocity`]);
@@ -6485,7 +6555,7 @@ function card(o) {
 				t: "Aladin",
 				u: aladin(ra, dec, .5)
 			}];
-			c.hint = "HYG v4.1 (Hipparcos · Yale · Gliese) · ICRS, position propagated to the displayed epoch";
+			c.hint = (o.src === "G" ? "Gaia DR3 astrometry (via Hipparcos cross-match), HYG photometry and names" : "HYG v4.1 (Hipparcos · Yale · Gliese), not in Gaia DR3") + " · ICRS, position propagated to the displayed epoch";
 			break;
 		}
 		case "host": {
@@ -7084,6 +7154,7 @@ var CL = {
 };
 var gaiaRaw = null;
 var gaiaPm = null;
+var gaiaQ = null;
 var gaiaRange = 100;
 var webRaw = null;
 var qsoRaw = null;
@@ -7188,8 +7259,9 @@ var GL_VSU = `#version 300 es
 precision highp float;
 in uvec4 a_rec;                                          // one raw 8-byte catalogue record
 in ivec2 a_pm;                                           // Gaia only: pmRA*, pmDec in mas/yr (0 elsewhere)
+in uint a_q;                                             // Gaia only: RUWE × 20 (0 elsewhere)
 ${GL_UNI}
-uniform float u_decDist,u_colMode,u_isBelt,u_beltDt,u_hasPm,u_pmYearsU;
+uniform float u_decDist,u_colMode,u_isBelt,u_beltDt,u_hasPm,u_pmYearsU,u_ruweMax;
 uniform vec2 u_decMag; uniform vec3 u_colFix; uniform vec3 u_decPal[4];
 vec3 gaiaCol(float bprp){                                // bp_rp -> Teff (Ballesteros) -> colour
   float t=4600.0*(1.0/(0.92*bprp+1.7)+1.0/(0.92*bprp+0.62));
@@ -7215,6 +7287,7 @@ void main(){
     vec3 m=e*(float(a_pm.x)*k) + nn*(float(a_pm.y)*k);
     float th=length(m); if(th>1e-12) dir=normalize(dir*cos(th) + (m/th)*sin(th));
   }
+  if(u_ruweMax>0.0 && float(a_q)>u_ruweMax*20.0){ gl_Position=vec4(2.0,0.0,0.0,1.0); gl_PointSize=0.0; return; }   // RUWE filter
   float dist=u*u_decDist;
   float mg=(b6/255.0)*u_decMag.x + u_decMag.y;
   vec3 col = u_colMode<0.5 ? u_colFix
@@ -7615,6 +7688,7 @@ function buildGaia(bytes) {
 	gaiaRaw = bytes;
 	gaiaRange = 100;
 	attachGaiaPm();
+	attachGaiaQ();
 	cloudLabel("t-gaia", "Gaia stars (" + (r.n >= 1e3 ? (r.n / 1e3 | 0) + "k" : r.n) + " <100 pc)");
 }
 function attachGaiaPm() {
@@ -7631,6 +7705,22 @@ function attachGaiaPm() {
 	gl.bindVertexArray(null);
 	gl.bindBuffer(gl.ARRAY_BUFFER, null);
 	CL.G.pm = true;
+	V.dirty = true;
+}
+function attachGaiaQ() {
+	if (!glOK || !CL.G || !gaiaQ || CL.G.q) return;
+	const gl = GL, a = progU.attr.a_q;
+	if (a === void 0 || a < 0) return;
+	if ((gaiaQ.length / 12 | 0) !== CL.G.n) return;
+	gl.bindVertexArray(CL.G.vao);
+	const buf = gl.createBuffer();
+	gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+	gl.bufferData(gl.ARRAY_BUFFER, gaiaQ, gl.STATIC_DRAW);
+	gl.enableVertexAttribArray(a);
+	gl.vertexAttribIPointer(a, 1, gl.UNSIGNED_BYTE, 12, 4);
+	gl.bindVertexArray(null);
+	gl.bindBuffer(gl.ARRAY_BUFFER, null);
+	CL.G.q = true;
 	V.dirty = true;
 }
 function buildGaiaBig(bytes) {
@@ -7693,6 +7783,7 @@ function glRestoreClouds() {
 		if (r) {
 			CL.G = r;
 			attachGaiaPm();
+			attachGaiaQ();
 		}
 	}
 	if (beltRaw) {
@@ -7725,7 +7816,7 @@ function loadExtragal() {
 		} else tfetch("file-cosmicweb", {
 			name: "cosmicweb.bin",
 			group: "catalogue"
-		}, "data/cosmicweb.bin?b=b12:34").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/cosmicweb.bin?b=b13:06").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildWeb(new Uint8Array(a));
 		}).catch(() => {});
 		if (typeof window.__QSO_B64__ === "string" && window.__QSO_B64__.length) {
@@ -7734,14 +7825,14 @@ function loadExtragal() {
 		} else tfetch("file-quasars", {
 			name: "quasars.bin",
 			group: "catalogue"
-		}, "data/quasars.bin?b=b12:34").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/quasars.bin?b=b13:06").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildQso(new Uint8Array(a));
 		}).catch(() => {});
 		tfetch("file-quasarsbig", {
 			name: "quasarsbig.bin",
 			group: "catalogue",
 			optional: true
-		}, "data/quasarsbig.bin?b=b12:34").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/quasarsbig.bin?b=b13:06").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildQso(new Uint8Array(a));
 		}).catch(() => {});
 		if (typeof window.__BELT_B64__ === "string" && window.__BELT_B64__.length) {
@@ -7750,25 +7841,36 @@ function loadExtragal() {
 		} else tfetch("file-belt", {
 			name: "belt.bin",
 			group: "catalogue"
-		}, "data/belt.bin?b=b12:34").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/belt.bin?b=b13:06").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildBelt(new Uint8Array(a));
 		}).catch(() => {});
 		tfetch("file-gaiabig", {
 			name: "gaiabig.bin",
 			group: "catalogue",
 			optional: true
-		}, "data/gaiabig.bin?b=b12:34").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/gaiabig.bin?b=b13:06").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) {
 				buildGaiaBig(new Uint8Array(a));
 				tfetch("file-gaiabig_pm", {
 					name: "gaiabig_pm.bin",
 					group: "catalogue",
 					optional: true
-				}, "data/gaiabig_pm.bin?b=b12:34").then((r) => r.ok ? r.arrayBuffer() : null).then((p) => {
+				}, "data/gaiabig_pm.bin?b=b13:06").then((r) => r.ok ? r.arrayBuffer() : null).then((p) => {
 					if (p) {
 						gaiaPm = new Uint8Array(p);
 						if (CL.G) CL.G.pm = false;
 						attachGaiaPm();
+					}
+				}).catch(() => {});
+				tfetch("file-gaiabig_q", {
+					name: "gaiabig_q.bin · errors, RUWE, distances",
+					group: "catalogue",
+					optional: true
+				}, "data/gaiabig_q.bin?b=b13:06").then((r) => r.ok ? r.arrayBuffer() : null).then((p) => {
+					if (p) {
+						gaiaQ = new Uint8Array(p);
+						if (CL.G) CL.G.q = false;
+						attachGaiaQ();
 					}
 				}).catch(() => {});
 			}
@@ -7779,7 +7881,7 @@ function loadExtragal() {
 		} else tfetch("file-obstars", {
 			name: "obstars.bin",
 			group: "catalogue"
-		}, "data/obstars.bin?b=b12:34").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/obstars.bin?b=b13:06").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildOB(new Uint8Array(a));
 		}).catch(() => {});
 		if (typeof window.__VAR_B64__ === "string" && window.__VAR_B64__.length) {
@@ -7788,7 +7890,7 @@ function loadExtragal() {
 		} else tfetch("file-variables", {
 			name: "variables.bin",
 			group: "catalogue"
-		}, "data/variables.bin?b=b12:34").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/variables.bin?b=b13:06").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildVars(new Uint8Array(a));
 		}).catch(() => {});
 	} catch (e) {}
@@ -7809,17 +7911,27 @@ function loadGaia() {
 		tfetch("file-gaia", {
 			name: "gaia.bin",
 			group: "catalogue"
-		}, "data/gaia.bin?b=b12:34").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/gaia.bin?b=b13:06").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildGaia(new Uint8Array(a));
 		}).catch(() => {});
 		tfetch("file-gaia_pm", {
 			name: "gaia_pm.bin",
 			group: "catalogue",
 			optional: true
-		}, "data/gaia_pm.bin?b=b12:34").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/gaia_pm.bin?b=b13:06").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a && (!gaiaPm || gaiaRange === 100)) {
 				gaiaPm = new Uint8Array(a);
 				attachGaiaPm();
+			}
+		}).catch(() => {});
+		tfetch("file-gaia_q", {
+			name: "gaia_q.bin · errors, RUWE, distances",
+			group: "catalogue",
+			optional: true
+		}, "data/gaia_q.bin?b=b13:06").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+			if (a && (!gaiaQ || gaiaRange === 100)) {
+				gaiaQ = new Uint8Array(a);
+				attachGaiaQ();
 			}
 		}).catch(() => {});
 	} catch (e) {}
@@ -8017,8 +8129,11 @@ function glRender() {
 	gl.useProgram(progU.p);
 	glShared(progU.loc);
 	gl.uniform1f(progU.loc.u_pmYearsU, tSince(2016));
+	gl.uniform1f(progU.loc.u_ruweMax, S.ruwe && CL.G && CL.G.q ? 1.4 : 0);
 	const aPm = progU.attr.a_pm;
 	if (aPm >= 0) gl.vertexAttribI4i(aPm, 0, 0, 0, 0);
+	const aQ = progU.attr.a_q;
+	if (aQ >= 0) gl.vertexAttribI4ui(aQ, 0, 0, 0, 0);
 	if (V.solarA < .5) {
 		const far = camDist > 1e-9 && invScale(camDist) > 3e6;
 		if (CL.W && S.web) drawCloud(CL.W, .05, far ? 1.6 : 1.1, far ? 2.4 : 1);
@@ -8036,6 +8151,7 @@ function glRender() {
 		if (CL.V && S.vars) drawCloud(CL.V, .05, 1);
 	}
 	if (aPm >= 0) gl.vertexAttrib4f(aPm, 0, 0, 0, 1);
+	if (aQ >= 0) gl.vertexAttrib4f(aQ, 0, 0, 0, 1);
 	const L = progF.loc;
 	gl.useProgram(progF.p);
 	glShared(L);
@@ -9026,7 +9142,7 @@ function drawSkyGrid() {
 	]) {
 		pathBegin();
 		for (let k = 0; k <= 96; k++) {
-			const d = dirOf(k / 96 * 360, dec);
+			const d = dirOf$1(k / 96 * 360, dec);
 			pathPt(project(d[0] * R, d[1] * R, d[2] * R));
 		}
 		pathStroke(dec === 0 ? "rgba(150,175,215,.34)" : "rgba(130,150,190,.15)", dec === 0 ? 1.2 : 1, [1, 4]);
@@ -9034,7 +9150,7 @@ function drawSkyGrid() {
 	for (let h = 0; h < 12; h++) {
 		pathBegin();
 		for (let k = 0; k <= 48; k++) {
-			const d = dirOf(h * 30, -90 + k / 48 * 180);
+			const d = dirOf$1(h * 30, -90 + k / 48 * 180);
 			pathPt(project(d[0] * R, d[1] * R, d[2] * R));
 		}
 		pathStroke("rgba(130,150,190,.13)", 1, [1, 4]);
@@ -9042,10 +9158,10 @@ function drawSkyGrid() {
 	ctx.font = "9px ui-monospace,monospace";
 	ctx.fillStyle = "rgba(150,175,215,.6)";
 	for (let h = 0; h < 24; h += 6) {
-		const d = dirOf(h * 15, 2), p = project(d[0] * R, d[1] * R, d[2] * R);
+		const d = dirOf$1(h * 15, 2), p = project(d[0] * R, d[1] * R, d[2] * R);
 		if (p.depth > V.NEAR && !offscr(p)) ctx.fillText(h + "h", p.x + 3, p.y - 4);
 	}
-	const np = dirOf(0, 90), pp = project(np[0] * R, np[1] * R, np[2] * R);
+	const np = dirOf$1(0, 90), pp = project(np[0] * R, np[1] * R, np[2] * R);
 	if (pp.depth > V.NEAR && !offscr(pp)) ctx.fillText("celestial N pole", pp.x + 4, pp.y);
 	ctx.restore();
 }
@@ -9337,6 +9453,91 @@ function angularText(A, B) {
 	return `sep ${sep >= 1 ? `${Math.floor(sep)}°${String(Math.round((sep - Math.floor(sep)) * 60)).padStart(2, "0")}′` : sep * 60 >= 1 ? `${Math.floor(sep * 60)}′${String(Math.round((sep * 60 - Math.floor(sep * 60)) * 60)).padStart(2, "0")}″` : `${(sep * 3600).toFixed(1)}″`} · PA ${pa.toFixed(1)}°`;
 }
 //#endregion
+//#region src/engine/errors.js
+var ERRSTAT = {
+	bars: 0,
+	ellipses: 0
+};
+function dirOf(o) {
+	if (o.dx !== void 0) return [
+		o.dx,
+		o.dy,
+		o.dz
+	];
+	if (o._dir) return o._dir;
+	return null;
+}
+function rangeOf(o) {
+	if (!o) return null;
+	if (o.dlo > 0 && isFinite(o.dhi) && o.dhi > o.dlo) return [o.dlo, o.dhi];
+	if (o.ep > 0 && o.d > 0 && o.dx !== void 0 && !o.usr) {
+		const plx = 1e3 / o.d;
+		if (plx - o.ep > 0) return [1e3 / (plx + o.ep), 1e3 / (plx - o.ep)];
+	}
+	return null;
+}
+function drawErrors() {
+	ERRSTAT.bars = 0;
+	ERRSTAT.ellipses = 0;
+	const sel = S.pinned || S.hover, rg = rangeOf(sel);
+	if (!S.skyMode && rg) {
+		const d = dirOf(sel);
+		if (d) {
+			const a = scale(rg[0]), b = scale(rg[1]), pa = project(d[0] * a, d[1] * a, d[2] * a), pb = project(d[0] * b, d[1] * b, d[2] * b);
+			if (pa.depth > V.NEAR && pb.depth > V.NEAR) {
+				const L = Math.hypot(pb.x - pa.x, pb.y - pa.y);
+				if (L >= 3 && L < 4 * Math.max(W, H)) {
+					const ux = (pb.x - pa.x) / L, tx = -((pb.y - pa.y) / L) * 4, ty = ux * 4;
+					ctx.strokeStyle = "rgba(255,207,107,0.85)";
+					ctx.lineWidth = 1.2;
+					ctx.beginPath();
+					ctx.moveTo(pa.x, pa.y);
+					ctx.lineTo(pb.x, pb.y);
+					ctx.moveTo(pa.x - tx, pa.y - ty);
+					ctx.lineTo(pa.x + tx, pa.y + ty);
+					ctx.moveTo(pb.x - tx, pb.y - ty);
+					ctx.lineTo(pb.x + tx, pb.y + ty);
+					ctx.stroke();
+					ctx.font = "9px ui-monospace,monospace";
+					ctx.fillStyle = "rgba(255,220,140,0.9)";
+					LBL.prio = 92;
+					const f = (v) => v < 100 ? v.toFixed(2) : v < 1e4 ? v.toFixed(0) : v.toExponential(1);
+					ctx.fillText(`${f(rg[0])} – ${f(rg[1])} pc`, (pa.x + pb.x) / 2 + 6, (pa.y + pb.y) / 2 - 5);
+					ERRSTAT.bars++;
+				}
+			}
+		}
+	}
+	if (S.skyMode && camDist < 1e-4) {
+		const pxA = Math.max(W, H) / fovDeg() / 3600;
+		const one = (o, t, sx, sy) => {
+			if (o._sx === void 0) return;
+			const rx = sx * Math.abs(t) / 1e3 * pxA, ry = sy * Math.abs(t) / 1e3 * pxA;
+			if (Math.max(rx, ry) < 1) return;
+			const isSel = o === S.pinned || o === S.hover;
+			ctx.setLineDash([3, 3]);
+			ctx.strokeStyle = isSel ? "rgba(79,214,200,0.9)" : "rgba(255,176,96,0.55)";
+			ctx.lineWidth = 1;
+			ctx.beginPath();
+			ctx.ellipse(o._sx, o._sy, Math.max(rx, .5), Math.max(ry, .5), 0, 0, 6.2832);
+			ctx.stroke();
+			ctx.setLineDash([]);
+			ERRSTAT.ellipses++;
+			if (isSel) {
+				ctx.font = "9px ui-monospace,monospace";
+				ctx.fillStyle = "rgba(79,214,200,0.9)";
+				const s = Math.max(sx, sy) * Math.abs(t) / 1e3;
+				ctx.fillText(`1σ ${s >= 60 ? (s / 60).toFixed(1) + "′" : s >= 1 ? s.toFixed(1) + "″" : s.toFixed(2) + "″"} after ${Math.abs(t).toFixed(0)} yr`, o._sx + Math.max(rx, .5) + 5, o._sy - Math.max(ry, .5) - 3);
+			}
+		};
+		for (const o of userProj) if (o.epr !== void 0 || o.epd !== void 0) one(o, tSince(o.ep || 2e3), o.epr || 0, o.epd || 0);
+		if (S.hyg) {
+			for (const s of hygProj) if (s.epm !== void 0) one(s, tNow(), s.epm, s.epm);
+		}
+		if (sel && sel.gpick === "gaia" && sel.epm !== void 0 && sel._sx !== void 0) one(sel, tSince(2016), sel.epm, sel.epm);
+	}
+}
+//#endregion
 //#region src/engine/sky.js
 function skyAlpha() {
 	if (S.skyMode && camDist > 1e-4) return 0;
@@ -9370,7 +9571,7 @@ function drawShowers() {
 	if (!act.length) return;
 	const R = scale(30);
 	for (const s of act) {
-		const d = dirOf(s.ra, s.dec), p = project(d[0] * R, d[1] * R, d[2] * R);
+		const d = dirOf$1(s.ra, s.dec), p = project(d[0] * R, d[1] * R, d[2] * R);
 		if (p.depth <= V.NEAR) continue;
 		ctx.strokeStyle = "rgba(190,255,200,0.55)";
 		ctx.lineWidth = 1;
@@ -9473,6 +9674,7 @@ function render() {
 		drawUser();
 	});
 	if (S.skyMode) P("movers", drawMovers);
+	P("errors", drawErrors);
 	const sp = project(0, 0, 0);
 	const gpuH = glStars() && glBufH;
 	for (const s of order) {
@@ -10538,6 +10740,17 @@ function gpuPick(mx, my) {
 			o.pr = pv.getInt16(i * 4, true);
 			o.pd = pv.getInt16(i * 4 + 2, true);
 		}
+		if (gaiaQ && (gaiaQ.length / 12 | 0) === (best.bytes.length / 8 | 0)) {
+			const qv = new DataView(gaiaQ.buffer, gaiaQ.byteOffset, gaiaQ.byteLength), i = best.b / 8 * 12;
+			o.eplx = qv.getUint16(i, true) / 100;
+			o.epm = qv.getUint16(i + 2, true) / 100;
+			o.ruwe = qv.getUint8(i + 4) / 20;
+			const fl = qv.getUint8(i + 5);
+			o.dlo = qv.getUint16(i + 6, true) / 65535 * gaiaRange;
+			o.dhi = qv.getUint16(i + 8, true) / 65535 * gaiaRange;
+			o.bj = !!(fl & 1);
+			if (fl & 2) o.rv = qv.getInt16(i + 10, true) / 10;
+		}
 	} else if (best.type === "web") {
 		o.n = "2MRS galaxy";
 		o.kmag = b6 / 255 * 16;
@@ -10920,6 +11133,7 @@ bindToggle("t-hyg", "hyg");
 bindToggle("t-user", "user");
 bindToggle("t-gpu", "gpu");
 bindToggle("t-gaia", "gaia");
+bindToggle("t-ruwe", "ruwe");
 bindToggle("t-web", "web");
 bindToggle("t-ob", "ob");
 bindToggle("t-var", "vars");
@@ -11414,6 +11628,47 @@ var SETCOLS = [
 		ucd: "pos.pm;pos.eq.dec"
 	},
 	{
+		k: "eplx",
+		n: "e_plx_mas",
+		t: "double",
+		u: "mas",
+		ucd: "stat.error;pos.parallax"
+	},
+	{
+		k: "epr",
+		n: "e_pmra",
+		t: "double",
+		u: "mas/yr",
+		ucd: "stat.error;pos.pm;pos.eq.ra"
+	},
+	{
+		k: "epd",
+		n: "e_pmdec",
+		t: "double",
+		u: "mas/yr",
+		ucd: "stat.error;pos.pm;pos.eq.dec"
+	},
+	{
+		k: "ruwe",
+		n: "ruwe",
+		t: "double",
+		ucd: "stat.fit.goodness"
+	},
+	{
+		k: "dlo",
+		n: "dist_lo_pc",
+		t: "double",
+		u: "pc",
+		d: "16th percentile of the distance"
+	},
+	{
+		k: "dhi",
+		n: "dist_hi_pc",
+		t: "double",
+		u: "pc",
+		d: "84th percentile of the distance"
+	},
+	{
 		k: "xm_src",
 		n: "counterpart_catalogue",
 		t: "char",
@@ -11484,7 +11739,13 @@ function setRows(st) {
 			plx: o.noDist ? void 0 : 1e3 / o.d,
 			mag: o.m,
 			pmra: o.pr || void 0,
-			pmdec: o.pd || void 0
+			pmdec: o.pd || void 0,
+			eplx: o.eplx,
+			epr: o.epr,
+			epd: o.epd,
+			ruwe: o.ruwe,
+			dlo: o.dlo,
+			dhi: isFinite(o.dhi) ? o.dhi : void 0
 		};
 		if (st.xm) {
 			r.xm_src = o.xm ? o.xm.src : "none within " + st.xm.radius + "\"";
@@ -11525,6 +11786,13 @@ var MOVCOLS = [
 		t: "double",
 		u: "arcsec",
 		d: "expected displacement between the two blink epochs"
+	},
+	{
+		k: "ejump",
+		n: "jump_sigma_arcsec",
+		t: "double",
+		u: "arcsec",
+		d: "1σ from the proper-motion errors"
 	},
 	{
 		k: "px",
@@ -11635,6 +11903,7 @@ function exportTable(kind, fmt = "csv", k = 0, opts = {}) {
 			dec: Math.asin(m.o.dz) / D2R,
 			pm: m.pm,
 			jump: m.jump,
+			ejump: m.ejump,
 			px: m.px,
 			ea: m.ea,
 			eb: m.eb,
@@ -11728,12 +11997,12 @@ async function tap(id, url, adql) {
 }
 function adql(src, ra, dec, r) {
 	const c = `CIRCLE('ICRS', ${ra.toFixed(5)}, ${dec.toFixed(5)}, ${r.toFixed(4)})`;
-	return `SELECT TOP ${SOURCES.simbad.limit} main_id, ra, dec, plx_value, pmra, pmdec, otype, sp_type FROM basic WHERE 1=CONTAINS(POINT('ICRS', ra, dec), ${c}) AND ra IS NOT NULL`;
+	return `SELECT TOP ${SOURCES.simbad.limit} main_id, ra, dec, plx_value, plx_err, pmra, pmdec, pm_err_maj, pm_err_min, otype, sp_type FROM basic WHERE 1=CONTAINS(POINT('ICRS', ra, dec), ${c}) AND ra IS NOT NULL`;
 }
 async function asuGaia(ra, dec, r) {
 	const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 12e4);
 	try {
-		const u = `${ASU}?-source=I/355/gaiadr3&-c=${encodeURIComponent(ra.toFixed(5) + " " + (dec >= 0 ? "+" : "") + dec.toFixed(5))}&-c.rd=${r.toFixed(4)}&-out=Source,RA_ICRS,DE_ICRS,Plx,pmRA,pmDE,Gmag,BP-RP&-out.max=${SOURCES.gaia.limit}&-sort=Gmag`;
+		const u = `${ASU}?-source=I/355/gaiadr3&-c=${encodeURIComponent(ra.toFixed(5) + " " + (dec >= 0 ? "+" : "") + dec.toFixed(5))}&-c.rd=${r.toFixed(4)}&-out=Source,RA_ICRS,DE_ICRS,Plx,e_Plx,pmRA,e_pmRA,pmDE,e_pmDE,RUWE,Gmag,BP-RP,Dist,b_Dist,B_Dist&-out.max=${SOURCES.gaia.limit}&-sort=Gmag`;
 		const res = await tfetch("q-vizier", QMETA["q-vizier"], u, { signal: ctl.signal });
 		if (!res.ok) throw new Error("HTTP " + res.status);
 		const lines = (await res.text()).split(/\r?\n/).filter((l) => l && !l.startsWith("#"));
@@ -13053,10 +13322,14 @@ window.__ku = {
 	get gaiaRaw() {
 		return gaiaRaw;
 	},
+	get gaiaQ() {
+		return gaiaQ;
+	},
 	fieldCentre,
 	get fits() {
 		return FITS.img;
 	},
+	errStat: ERRSTAT,
 	get gaiaRange() {
 		return gaiaRange;
 	},

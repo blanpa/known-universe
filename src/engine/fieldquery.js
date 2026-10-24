@@ -32,13 +32,13 @@ async function tap(id,url,adql){
 }
 function adql(src,ra,dec,r){                          // SIMBAD
   const c=`CIRCLE('ICRS', ${ra.toFixed(5)}, ${dec.toFixed(5)}, ${r.toFixed(4)})`;
-  return `SELECT TOP ${SOURCES.simbad.limit} main_id, ra, dec, plx_value, pmra, pmdec, otype, sp_type FROM basic WHERE 1=CONTAINS(POINT('ICRS', ra, dec), ${c}) AND ra IS NOT NULL`;
+  return `SELECT TOP ${SOURCES.simbad.limit} main_id, ra, dec, plx_value, plx_err, pmra, pmdec, pm_err_maj, pm_err_min, otype, sp_type FROM basic WHERE 1=CONTAINS(POINT('ICRS', ra, dec), ${c}) AND ra IS NOT NULL`;
 }
 // VizieR's TSV: '#' comments, a header, a units row, a dashes row, then data
 async function asuGaia(ra,dec,r){
   const ctl=new AbortController(), t=setTimeout(()=>ctl.abort(),120000);
   try{
-    const u=`${ASU}?-source=I/355/gaiadr3&-c=${encodeURIComponent(ra.toFixed(5)+' '+(dec>=0?'+':'')+dec.toFixed(5))}&-c.rd=${r.toFixed(4)}&-out=Source,RA_ICRS,DE_ICRS,Plx,pmRA,pmDE,Gmag,BP-RP&-out.max=${SOURCES.gaia.limit}&-sort=Gmag`;
+    const u=`${ASU}?-source=I/355/gaiadr3&-c=${encodeURIComponent(ra.toFixed(5)+' '+(dec>=0?'+':'')+dec.toFixed(5))}&-c.rd=${r.toFixed(4)}&-out=Source,RA_ICRS,DE_ICRS,Plx,e_Plx,pmRA,e_pmRA,pmDE,e_pmDE,RUWE,Gmag,BP-RP,Dist,b_Dist,B_Dist&-out.max=${SOURCES.gaia.limit}&-sort=Gmag`;
     const res=await tfetch('q-vizier',QMETA['q-vizier'],u,{signal:ctl.signal}); if(!res.ok) throw new Error('HTTP '+res.status);
     const lines=(await res.text()).split(/\r?\n/).filter(l=>l&&!l.startsWith('#'));
     const i=lines.findIndex(l=>/^-+(\t-+)*\t?$/.test(l.trim()));

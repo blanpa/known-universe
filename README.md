@@ -322,6 +322,38 @@ expected-jump list. The WCS maths agree with astropy to 10⁻⁵″ (pixel → s
 (sky → pixel) on synthetic frames with rotation, both matrix forms and all three number
 formats; in the telescope the synthetic Pleiades stars land on their HYG counterparts.
 
+**Uncertainties — drawn, not just printed**
+
+Every astrometric number now travels with its error where the source has one
+(`src/engine/errors.js`, the cards, the exports):
+
+- **Gaia cloud** — `gaia_q.bin` (12 bytes per star, same order as `gaia.bin`) carries the
+  parallax error, the proper-motion error, RUWE, the Bailer-Jones geometric distance
+  percentiles (16th/84th; `r_lo_geo`, `r_hi_geo`) and the radial velocity where DR3 has one.
+  The cloud's distances are the Bailer-Jones medians (`r_med_geo`) rather than 1/ϖ, which is
+  biased for faint stars. The sample is every DR3 source within 150 pc with ϖ/σ > 3
+  (2.1 million; the default set is the 100 pc subset) — the earlier pull had an undocumented
+  cut that dropped Proxima Centauri, among others.
+- **HYG stars** — placed from Gaia DR3 astrometry through the Hipparcos cross-match
+  (`gaiadr3.hipparcos2_best_neighbour`) where it exists (10,000 of 11,600): DR3 position moved
+  from J2016.0 to J2000.0 with the DR3 proper motion, 1/ϖ when the parallax is good, DR3
+  proper motion, radial velocity, and the errors. HYG v3 had Proxima Centauri 18″ off; it is
+  now within 0.1″. The brightest stars (Sirius, Vega …) are not in DR3 and keep HYG.
+- **Cards** state ϖ ± σ with the significance, the 16–84 % distance range, μ ± σ, RUWE with a
+  verdict (> 1.4: the single-star astrometric model does not fit — a binary or a crowded
+  field) and the source of the astrometry.
+- **Map**: the pinned object's distance range is a bar along its line of sight (end-on from
+  the Sun's side, side-on once you orbit). **Telescope**: a dashed 1σ ellipse shows how far a
+  propagated position may be off — the proper-motion error times the years since the
+  catalogue epoch — for every row, Gaia star or HYG star that carries one; the
+  expected-jump list prints the same ± on each jump.
+- **Your rows**: `e_plx` / `parallax_error`, `e_pmra`, `e_pmdec`, `ruwe` and distance
+  percentiles (`b_Dist`/`B_Dist`, `r_lo_geo`/`r_hi_geo`) are read on import; the field
+  queries ask VizieR for them (Gaia: `e_Plx`, `e_pmRA`, `e_pmDE`, `RUWE`, `Dist`,
+  `b_Dist`, `B_Dist`; SIMBAD: `plx_err`, `pm_err_maj/min`).
+- **Hide suspect astrometry · RUWE > 1.4** (Layers → Stars) culls those sources from the
+  Gaia cloud in the vertex shader, so a kinematic picture is drawn from clean solutions only.
+
 ## Data sources and their state
 
 The map pulls from about fifteen services at run time and from a pipeline at build
@@ -383,8 +415,8 @@ missing or simplified, honestly:
 
 **Scale / coverage limits**
 
-- **Stars:** 540 k Gaia (browser Artifact) / 1.30 M (Docker, < 150 pc, parallax/error > 5) out of
-  Gaia's **1.8 billion**. No individual stars beyond ~150 pc (they'd need
+- **Stars:** 484 k Gaia within 100 pc (browser Artifact) / 1.61 M within 150 pc (Docker), every
+  DR3 source with ϖ/σ > 3 placed at its Bailer-Jones distance, out of Gaia's **1.8 billion**. No individual stars beyond ~150 pc (they'd need
   photometric, not parallax, distances). HYG adds only the bright/near ~11.6 k.
 - **Galaxies:** 869 Local Volume (< 26 Mpc) + 43.5 k from 2MRS (cosmic web to
   ~430 Mpc). No deeper redshift surveys (SDSS/DESI, ~10⁶–10⁷ galaxies), nothing
@@ -538,13 +570,7 @@ curl -L "https://raw.githubusercontent.com/astronexus/HYG-Database/main/hyg/CURR
 
 python3 pipeline/build_data.py   # -> site/data/data.json
 
-# Gaia DR3 point cloud (< 100 pc) — one-off; Gaia DR3 is a static release
-curl -G "https://gea.esac.esa.int/tap-server/tap/sync" \
-  --data-urlencode "REQUEST=doQuery" --data-urlencode "LANG=ADQL" \
-  --data-urlencode "FORMAT=csv" --data-urlencode "MAXREC=4000000" \
-  --data-urlencode "QUERY=SELECT ra,dec,parallax,phot_g_mean_mag,bp_rp FROM gaiadr3.gaia_source WHERE parallax>10 AND parallax_over_error>5 AND phot_g_mean_mag IS NOT NULL" \
-  -o pipeline/raw/gaia_100pc.csv
-python3 pipeline/build_gaia.py   # -> site/data/gaia.bin
+# Gaia DR3 point clouds: see fetch_gaia.py / build_gaia.py below (one pull serves both sets)
 
 # Complete outer solar system — human probes + TNOs (JPL Horizons + SBDB, live)
 python3 pipeline/build_solar_extra.py   # -> site/data/catalog.json (probes, tnos)
@@ -554,15 +580,13 @@ python3 pipeline/build_solar_extra.py   # -> site/data/catalog.json (probes, tno
 #   raw/twomrs_raw.csv (2MRS), raw/quasars_raw.csv (Milliquas)
 python3 pipeline/build_extragal.py      # -> site/data/cosmicweb.bin, site/data/quasars.bin
 
-# Optional larger catalogue for the Docker deployment (< 150 pc, ~1.30 M, same cuts; with proper motions):
-# Fetched at runtime as data/gaiabig.bin (+ gaiabig_pm.bin) and shown in place of the
-# 540 k set; the browser Artifact keeps the embedded 540 k (it cannot embed a 10 MB binary).
-curl -G "https://gea.esac.esa.int/tap-server/tap/sync" \
-  --data-urlencode "REQUEST=doQuery" --data-urlencode "LANG=ADQL" \
-  --data-urlencode "FORMAT=csv" --data-urlencode "MAXREC=4000000" \
-  --data-urlencode "QUERY=SELECT ra,dec,parallax,phot_g_mean_mag,bp_rp,pmra,pmdec FROM gaiadr3.gaia_source WHERE parallax>6.6666667 AND parallax_over_error>5 AND phot_g_mean_mag IS NOT NULL" \
-  -o pipeline/raw/gaia_150pc_pm.csv
-python3 pipeline/build_gaia.py --big   # -> site/data/gaiabig.bin + gaiabig_pm.bin
+# Gaia DR3 within 150 pc with uncertainties, Bailer-Jones distances and radial velocities, and the
+# Hipparcos cross-match that places the HYG stars: 72 asynchronous TAP jobs in 5° RA bands
+# (the archive drops bigger anonymous jobs), resumable, ~20 min
+python3 pipeline/fetch_gaia.py          # -> raw/gaia_150pc_q.csv (2.10 M rows), raw/hip_gaia.csv (99.5 k)
+python3 pipeline/build_gaia.py          # -> site/data/gaia.bin + gaia_pm.bin + gaia_q.bin (100 pc subset)
+python3 pipeline/build_gaia.py --big    # -> site/data/gaiabig*.bin (150 pc, for the Docker image)
+python3 pipeline/build_data.py          # data.json: HYG stars now placed from DR3 via the HIP match
 ```
 
 **Rendering layers (toggles in the Layers panel, via the icon rail on the right):** GPU stars, Gaia stars,

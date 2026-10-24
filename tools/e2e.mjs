@@ -262,8 +262,42 @@ async function open(vp, mobile, hash) {
     ok(vc > vw + 60 && ve > vw + 60 && /Your image/.test(at.label), `the FITS image is drawn on the sky with east left: Alcyone ${vc}, 2′ east ${ve}, 2′ west ${vw} (${at.label.trim()})`);
     await page.evaluate(() => { const api = window.__kuapi; api.setBlink(false); api.clearFits(); api.setToggle('t-hyg', true); api.setToggle('t-gaia', true); api.setToggle('t-user', true); });
   }
+  // uncertainties: a row with parallax and proper-motion errors gets ± on its card, a RUWE verdict, a distance
+  // range, a distance bar on the map, and in the telescope a 1σ ellipse once the timeline moves it
+  {
+    const u = await page.evaluate(async () => { const api = window.__kuapi; api.skyView(false);
+      api.importUser('name,ra,dec,parallax,parallax_error,pmra,pmdec,pmra_error,pmdec_error,ruwe,mag\nErrStar,56.75,24.12,8.0,0.5,20,-40,0.8,0.6,1.9,9.0\n', 'err.csv', { src: 'e2e-errors' });
+      api.doSearch('ErrStar'); await new Promise(r => setTimeout(r, 3000));
+      return { card: document.getElementById('info')?.textContent.replace(/\s+/g, ' ') || '' }; });
+    // the bar runs along the line of sight; seen from the Sun's side it is end-on, so orbit a quarter turn first
+    await page.mouse.move(700, 450); await page.mouse.down(); await page.mouse.move(1000, 420, { steps: 12 }); await page.mouse.up();
+    let bars = 0; for (let i = 0; i < 20 && !bars; i++) { await page.waitForTimeout(250); bars = await page.evaluate(() => window.__ku.errStat.bars); }
+    const ell = await page.evaluate(async () => { const api = window.__kuapi; api.skyView(true); api.lookAt(56.75, 24.12); api.setFov(2); api.timeline.set(200);
+      let e = 0; for (let i = 0; i < 24 && !e; i++) { await new Promise(r => setTimeout(r, 250)); e = window.__ku.errStat.ellipses; }   // the telescope turns smoothly
+      api.timeline.now(); api.skyView(false); api.deselect?.(); return e; });
+    u.bars = bars; u.ell = ell;
+    ok(/8\.000 ± 0\.500 mas · 16 σ/.test(u.card) && /20\.0 ± 0\.80/.test(u.card) && /RUWE1\.90 · astrometry suspect/.test(u.card) && /125 pc \(118 – 133\)/.test(u.card), 'the card states parallax ± error, 16–84 % distance range, pm ± error and the RUWE verdict');
+    ok(u.bars === 1 && u.ell >= 1, `the map draws the distance bar (${u.bars}) and the telescope the 1σ position ellipse after 16,000 yr (${u.ell})`);
+  }
+  // a Gaia star picked in the telescope carries its quality record: Bailer-Jones distance range, errors, RUWE
+  {
+    const pk = await page.evaluate(async () => { const api = window.__kuapi, raw = window.__ku.gaiaRaw, q = window.__ku.gaiaQ; if (!raw || !q) return { err: 'no gaia_q.bin' };
+      const dv = new DataView(raw.buffer, raw.byteOffset, raw.byteLength), n = raw.length / 8 | 0; let best = null;
+      for (let i = 0; i < n; i++) { const ra = dv.getUint16(i * 8, true) * (360 / 65535), de = dv.getUint16(i * 8 + 2, true) * (180 / 65535) - 90, g = dv.getUint8(i * 8 + 6) / 255 * 28 - 2;
+        if (Math.abs(ra - 217.406) < 0.004 && Math.abs(de + 62.671) < 0.004 && g > 19) best = { i, ra, de, g }; }   // the faint G≈21 star an arcminute from Proxima
+      if (!best) return { err: 'faint star not in the cloud' };
+      api.skyView(true); api.lookAt(best.ra, best.de); api.setFov(0.3);
+      for (let k = 0; k < 40; k++) { await new Promise(r => setTimeout(r, 250)); const c = window.__ku.fieldCentre(); if (Math.abs(c[0] - best.ra) < 0.002 && Math.abs(c[1] - best.de) < 0.002) break; }   // the telescope turns smoothly
+      const d = best.de * Math.PI / 180, r = best.ra * Math.PI / 180, p = window.__ku.projDir(Math.cos(d) * Math.cos(r), Math.cos(d) * Math.sin(r), Math.sin(d));
+      return { x: p.x, y: p.y, g: best.g }; });
+    if (pk.err) ok(false, 'Gaia quality record: ' + pk.err);
+    else { await page.mouse.click(pk.x, pk.y); await page.waitForTimeout(1200);
+      const card = await page.evaluate(() => document.getElementById('info')?.textContent.replace(/\s+/g, ' ') || '');
+      ok(/Gaia DR3/.test(card) && /Bailer-Jones geometric 16–84 %/.test(card) && /Parallax error± /.test(card) && /RUWE/.test(card), `a picked Gaia star shows its Bailer-Jones range, parallax error and RUWE (${card.slice(0, 90)}…)`);
+      await page.evaluate(() => { window.__kuapi.deselect?.(); window.__kuapi.skyView(false); }); }
+  }
   // a measurement by name goes into the log with separation and position angle (astropy, J2000: 157.8595° / PA 4.25°; HYG is propagated to today, which moves Sirius 36″)
-  const meas = await page.evaluate(() => window.__kuapi.measureBetween('Sirius', 'Vega'));
+  const meas = await page.evaluate(() => { const api = window.__kuapi; api.skyView(true); const m = api.measureBetween('Sirius', 'Vega'); api.skyView(false); return m; });   // angles from the Sun, not from the last view centre
   ok(meas && Math.abs(meas.sep - 157.8595) < 0.03 && Math.abs(meas.pa - 4.248) < 0.1, `measureBetween Sirius–Vega: sep ${meas?.sep?.toFixed(4)}° PA ${meas?.pa?.toFixed(2)}° (astropy 157.8595° / 4.25°)`);
   await page.evaluate(() => window.__kuapi.doSearch('my vega'));
   await page.waitForTimeout(800);
