@@ -2,6 +2,7 @@
 import { objWorld } from './actions.js';
 import { icrsOfDate } from '../lib/astro.js';
 import { ephemApparent } from './ephem.js';
+import { uvwOf } from './kinematics.js';
 import { jdNow, observeRows } from './observe.js';
 import { PC2LY } from './data.js';
 import { fmt } from './hud.js';
@@ -291,6 +292,7 @@ export function card(o){
       if(o.ruwe!==undefined) c.rows.push(['RUWE',`${o.ruwe.toFixed(2)}${o.ruwe>1.4?' · astrometry suspect (>1.4: binary or crowded)':' · single-star fit ok'}`]);
       if(o.pr!==undefined){ const vt=KMS_PER_PCYR_MAS*Math.hypot(o.pr||0,o.pd||0)/1000*o.d;
         c.rows.push(['Velocity', o.rv!==undefined ? `v_t ${vt.toFixed(1)} · v_r ${o.rv>0?'+':''}${o.rv.toFixed(1)} · ${Math.hypot(vt,o.rv).toFixed(1)} km/s` : `v_t ${vt.toFixed(1)} km/s · no radial velocity`]); }
+      { const u=uvwOf(o); if(u) c.rows.push(['Space velocity U V W',`${u.U.toFixed(1)} · ${u.V.toFixed(1)} · ${u.W.toFixed(1)} km/s (heliocentric; U toward the centre) · ${Math.hypot(u.U,u.V,u.W).toFixed(1)} total`]); }
       if(o.hip) c.rows.push(['Hipparcos',`HIP ${o.hip}`]);
       if(S.pm){ const q=hygPos(o,tNow()), L=Math.hypot(q[0],q[1],q[2]); c.rows.push(['On the timeline',`${L<0.5?(L*206265).toFixed(0)+' AU':ly(L)} away`]); }
       if(o.con) c.rows.push(['Constellation',o.con]);

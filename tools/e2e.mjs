@@ -311,6 +311,36 @@ async function open(vp, mobile, hash) {
     ok(/apparent · true equator/.test(ob.st) && /alt -?[\d.]+° az [\d.]+°/.test(ob.st) && ob.stat.horizon > 5 && ob.stat.frame === 1, `status line in the frame of date with alt/az, horizon drawn (${ob.stat.horizon} points), instrument frame drawn`);
     ok(ob.chart && ob.chart.w === 1440 && ob.chart.h > 900, `finder chart composed (${ob.chart?.w}×${ob.chart?.h})`);
   }
+  // kinematics: Barnard's Star's U V W on the card (astropy: −141.3, 4.9, 18.5 km/s) and its Galactic orbit drawn
+  {
+    const kin = await page.evaluate(async () => { const api = window.__kuapi; api.skyView(false); api.doSearch("Barnard's Star"); await new Promise(r => setTimeout(r, 1500));
+      const card = document.getElementById('info')?.textContent.replace(/\s+/g, ' ') || ''; const m = card.match(/Space velocity U V W(-?[\d.]+) · (-?[\d.]+) · (-?[\d.]+) km\/s/);
+      const res = api.kinematics(); await new Promise(r => setTimeout(r, 600)); const path = window.__ku.kin.path ? window.__ku.kin.path.length : 0; api.clearKinematics(); api.deselect?.();
+      return { U: m && +m[1], V: m && +m[2], W: m && +m[3], res: res && { Rmin: res.Rmin, Rmax: res.Rmax, zmax: res.zmax, ecc: res.ecc, period: res.period }, path }; });
+    ok(kin.U !== null && Math.abs(kin.U + 141.3) < 0.5 && Math.abs(kin.V - 4.9) < 0.5 && Math.abs(kin.W - 18.5) < 0.5, `Barnard's Star U V W on the card: ${kin.U}, ${kin.V}, ${kin.W} km/s (astropy −141.3, 4.9, 18.5)`);
+    ok(kin.res && kin.res.Rmin > 4 && kin.res.Rmax < 20 && kin.res.ecc > 0.2 && kin.path > 100, `its Galactic orbit integrates: R ${kin.res?.Rmin.toFixed(1)}–${kin.res?.Rmax.toFixed(1)} kpc, e ${kin.res?.ecc.toFixed(2)}, |z| ≤ ${((kin.res?.zmax || 0) * 1000).toFixed(0)} pc, ${kin.path} path points drawn`);
+  }
+  // field diagrams: the Hyades clump in the vector-point diagram (μ ≈ +104, −28 mas/yr) picked by a box
+  {
+    const fd = await page.evaluate(async () => { const api = window.__kuapi; api.skyView(true); api.lookAt(66.75, 15.87); api.setFov(12);
+      for (let k = 0; k < 40; k++) { await new Promise(r => setTimeout(r, 250)); const c = window.__ku.fieldCentre(); if (Math.abs(c[0] - 66.75) < 0.01 && Math.abs(c[1] - 15.87) < 0.01) break; }
+      const n = api.scanField(); const m = api.selectBox({ pr0: 85, pr1: 125, pd0: -45, pd1: -10 }); let md = 0; for (const x of window.__ku.fd.members) md += x.d; md /= m || 1;
+      const set = api.membersAsSet('Hyades e2e'); api.selectBox(null); api.removeSet?.(window.__ku.user.sets.findIndex(s => s.src === 'vpd')); api.skyView(false);
+      return { n, m, md, set }; });
+    ok(fd.n > 1000 && fd.m > 100 && fd.md > 40 && fd.md < 60 && fd.set === fd.m, `field diagrams at the Hyades: ${fd.n} Gaia stars in 12°, ${fd.m} in the VPD box at a mean ${fd.md.toFixed(1)} pc (cluster at 47 pc), handed over as a set`);
+  }
+  // light curves: TESS for pi Mensae from MAST and the public bucket, BLS finds pi Men c (6.27 d); skipped on network failure
+  {
+    const lc = await page.evaluate(async () => { const api = window.__kuapi; api.doSearch('pi Men'); await new Promise(r => setTimeout(r, 1200));
+      try { const n = await api.lcSearch(); if (!n) return { skip: 'no light curves listed' };
+        const chips = [...document.querySelectorAll('#hud-analysis .lc-obs .chip')]; let k = chips.findIndex(c => /TESS s89/.test(c.textContent)); if (k < 0) k = chips.findIndex(c => /TESS/.test(c.textContent));
+        const d = await api.lcLoad(k); if (!d) return { skip: 'load failed: ' + document.querySelector('#hud-analysis .hint')?.textContent };
+        const a = api.lcAnalyse(); const csv = api.lcExport({ text: true }); api.deselect?.();
+        return { n: d.n, sector: d.sector, bls: a && a.bls, ls: a && a.ls, csvRows: csv.split('\n').length }; } catch (e) { return { skip: String(e) }; } });
+    if (lc.skip) notes.push('skip light curve (network): ' + lc.skip);
+    else { ok(lc.n > 10000 && lc.bls && Math.abs(lc.bls.period - 6.268) < 0.05 && lc.bls.depth > 0.0001 && lc.bls.depth < 0.0006, `TESS sector ${lc.sector}: ${lc.n} points, BLS finds pi Men c at ${lc.bls?.period.toFixed(4)} d, depth ${(lc.bls?.depth * 100).toFixed(3)} % (published 6.2679 d, 0.03 %)`);
+      ok(lc.csvRows > 10000, `light curve exports as CSV (${lc.csvRows} lines)`); }
+  }
   // a measurement by name goes into the log with separation and position angle (astropy, J2000: 157.8595° / PA 4.25°; HYG is propagated to today, which moves Sirius 36″)
   const meas = await page.evaluate(() => { const api = window.__kuapi; api.skyView(true); const m = api.measureBetween('Sirius', 'Vega'); api.skyView(false); return m; });   // angles from the Sun, not from the last view centre
   ok(meas && Math.abs(meas.sep - 157.8595) < 0.03 && Math.abs(meas.pa - 4.248) < 0.1, `measureBetween Sirius–Vega: sep ${meas?.sep?.toFixed(4)}° PA ${meas?.pa?.toFixed(2)}° (astropy 157.8595° / 4.25°)`);

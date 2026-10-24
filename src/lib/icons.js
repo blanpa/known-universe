@@ -36,6 +36,7 @@ export const ICONS = {
   star:     '<path d="m12 3.4 2.5 5.6 6.1.6-4.6 4 1.4 6-5.4-3.2-5.4 3.2 1.4-6-4.6-4 6.1-.6z"/>',
   system:   '<circle cx="12" cy="12" r="2.4"/><ellipse cx="12" cy="12" rx="9" ry="4.4" transform="rotate(-20 12 12)"/><circle cx="20" cy="9.6" r="1.5"/>',
   blackhole:'<circle cx="12" cy="12" r="3.6"/><ellipse cx="12" cy="12" rx="9.4" ry="3" transform="rotate(-14 12 12)" opacity=".8"/>',
+  chart: '<path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/>',
   galaxy:   '<circle cx="12" cy="12" r="1.7"/><path d="M13.4 10.4c3.4-1.4 6.6.4 6.6 3 0 3.2-4.2 6-8 6-4.6 0-8-2.4-8-5.4"/><path d="M10.6 13.6c-3.4 1.4-6.6-.4-6.6-3 0-3.2 4.2-6 8-6 4.6 0 8 2.4 8 5.4"/>',
   };
 // engine-side helper: the same glyph as an HTML string

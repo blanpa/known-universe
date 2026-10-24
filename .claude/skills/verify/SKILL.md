@@ -134,7 +134,9 @@ while desktop ANGLE silently accepted it).
   tools/reference/astro.json) and `npm run test:ephem` (the Horizons table vs off-grid samples).
   Regenerate the references with the scratch venv that has astropy (`pipeline/make_reference.py`,
   `pipeline/fetch_horizons.py --check`). Counters for the e2e run: `__ku.errStat` (bars, ellipses),
-  `__ku.obsStat` (horizon points, frame), `__ku.obs` (observer state), `__ku.fits`, `__ku.fieldCentre()`.
+  `__ku.obsStat` (horizon points, frame), `__ku.obs` (observer state), `__ku.fits`, `__ku.fieldCentre()`,
+  `__ku.kin` (orbit path), `__ku.fd` (field-diagram rows/members). Light-curve checks hit MAST + the STScI
+  bucket (~30 s search, 2 MB file): the e2e skips them on network failure, never fails on it.
 - External live APIs 429 on repeated headless runs; GIBS tiles 404 on day-offset fallback — noise,
   not failures.
 - Views inside the Gaia point cloud (e.g. flown to a nearby star) run ~4 s/frame in SwiftShader —

@@ -45,5 +45,13 @@ for ds in dates:
             e["altaz"][sn] = {"alt": float(aa.alt.deg), "az": float(aa.az.deg)}
         rec["stars"][n] = e
     out["dates"].append(rec)
+# Galactic space velocities U, V, W (heliocentric, right-handed: U toward the centre) for the kinematics check
+uvw_stars = {"Barnard": (269.452075, 4.693391, 546.9759, -801.551, 10362.394, -110.51), "Proxima": (217.428942, -62.679489, 768.0665, -3781.741, 769.465, -21.9),
+             "Sirius": (101.287155, -16.716116, 379.21, -546.01, -1223.07, -5.5), "Vega": (279.234735, 38.783689, 130.23, 200.94, 286.23, -20.6)}
+out["uvw"] = {}
+for n, (ra, dec, plx, pmra, pmdec, rv) in uvw_stars.items():
+    c = SkyCoord(ra=ra * u.deg, dec=dec * u.deg, distance=(1000.0 / plx) * u.pc, pm_ra_cosdec=pmra * u.mas / u.yr, pm_dec=pmdec * u.mas / u.yr, radial_velocity=rv * u.km / u.s, frame="icrs")
+    g = c.galactic; v = g.velocity
+    out["uvw"][n] = {"ra": ra, "dec": dec, "plx": plx, "pmra": pmra, "pmdec": pmdec, "rv": rv, "U": float(v.d_x.to(u.km / u.s).value), "V": float(v.d_y.to(u.km / u.s).value), "W": float(v.d_z.to(u.km / u.s).value)}
 json.dump(out, open(OUT, "w"), indent=1)
 print("wrote", OUT, "with", len(dates), "dates ×", len(stars), "stars ×", len(sites), "sites")

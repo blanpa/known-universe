@@ -100,3 +100,33 @@ export function stretch(data,{lo=0.5,hi=99.7,asinhK=10}={}){
   const vlo=s[Math.floor(s.length*lo/100)], vhi=s[Math.min(s.length-1,Math.floor(s.length*hi/100))], span=(vhi-vlo)||1, K=Math.asinh(asinhK);
   return { lo:vlo, hi:vhi, map:v=>{ if(v!==v) return 0; const t=Math.max(0,Math.min(1,(v-vlo)/span)); return Math.round(255*Math.asinh(t*asinhK)/K); } };
 }
+// ---- binary tables (BINTABLE extensions): light curves, catalogues ----
+// Every HDU after the primary is read; a table comes back as { name, header, nrows, cols:
+// { NAME: TypedArray|string[] } }. TFORM codes D, E, J, I, K, B, L, A (with repeat counts;
+// a repeat > 1 of a number keeps the first element — enough for TIME/FLUX columns).
+export function parseFITSTables(buf){
+  const bytes=new Uint8Array(buf); let off=0; const out=[];
+  const hdr=()=>{ const h=parseHeader(buf.slice(off)); return h; };
+  // primary HDU: skip header and any data
+  let h=hdr(); let dataBytes=0; const naxis=+h.cards.NAXIS||0; if(naxis>0){ let n=Math.abs(+h.cards.BITPIX)/8; for(let i=1;i<=naxis;i++) n*=+h.cards['NAXIS'+i]; dataBytes=Math.ceil(n/2880)*2880; }
+  off+=h.dataStart+dataBytes;
+  while(off+2880<=bytes.length){
+    h=hdr(); const c=h.cards; const xt=String(c.XTENSION||'').trim();
+    const nrows=+c.NAXIS2||0, rowLen=+c.NAXIS1||0, nf=+c.TFIELDS||0, dataLen=Math.ceil(rowLen*nrows/2880)*2880;
+    if(xt==='BINTABLE'&&nrows>0){
+      const dv=new DataView(buf, off+h.dataStart, rowLen*nrows); const cols={}; let pos=0; const fields=[];
+      for(let i=1;i<=nf;i++){ const tf=String(c['TFORM'+i]||'').trim(), m=tf.match(/^(\d*)([LXBIJKAEDCMPQ])/); if(!m){ fields.push(null); continue; }
+        const rep=m[1]===''?1:+m[1], code=m[2], size={L:1,X:1,B:1,I:2,J:4,K:8,A:1,E:4,D:8,C:8,M:16,P:8,Q:16}[code];
+        fields.push({ name:String(c['TTYPE'+i]||('col'+i)).trim(), rep, code, pos, size, unit:c['TUNIT'+i] }); pos+=rep*size; }
+      for(const f of fields){ if(!f) continue;
+        if(f.code==='A'){ const a=new Array(nrows); for(let r=0;r<nrows;r++){ let s=''; for(let k=0;k<f.rep;k++) s+=String.fromCharCode(dv.getUint8(r*rowLen+f.pos+k)); a[r]=s.trim(); } cols[f.name]=a; continue; }
+        const a=(f.code==='D'||f.code==='K')?new Float64Array(nrows):f.code==='E'?new Float32Array(nrows):f.code==='J'?new Int32Array(nrows):f.code==='I'?new Int16Array(nrows):new Uint8Array(nrows);
+        for(let r=0;r<nrows;r++){ const o=r*rowLen+f.pos;
+          switch(f.code){ case 'D': a[r]=dv.getFloat64(o); break; case 'E': a[r]=dv.getFloat32(o); break; case 'J': a[r]=dv.getInt32(o); break; case 'I': a[r]=dv.getInt16(o); break; case 'K': a[r]=Number(dv.getBigInt64(o)); break; default: a[r]=dv.getUint8(o); } }
+        cols[f.name]=a; }
+      out.push({ name:String(c.EXTNAME||xt).trim(), header:c, nrows, cols, fields:fields.filter(Boolean) });
+    }
+    off+=h.dataStart+dataLen;
+  }
+  return out;
+}

@@ -27,3 +27,6 @@ export const crossmatch = writable({ busy: null, msg: '', set: -1, radius: 3, re
 export const measureLog = writable([]);     // every completed measurement, for export
 export const samp = writable({ state: 'off', msg: '', hub: null, clients: 0, sent: 0, received: 0 });   // SAMP hub connection (TOPCAT, Aladin)
 export const observer = writable({ on: false, lat: 0, lon: 0, elev: 0, name: '', frame: 'icrs', refract: true, frameOn: false, fl: 1000, sw: 23.5, sh: 15.6, px: 3.76, pa: 0, instr: '', fov: null, msg: '' });   // observer + instrument (observe.js)
+export const lightcurve = writable({ busy: null, msg: '', target: '', obs: [], data: null, analysis: null });   // archive light curves (lightcurve.js)
+export const kinematics = writable({ star: null, msg: '' });   // U V W and the Galactic orbit of the pinned star (kinematics.js)
+export const fielddiag = writable({ n: 0, msg: '', cmd: [], vpd: [], box: null, members: 0 });   // CMD + VPD of the field (fielddiag.js)

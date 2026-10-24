@@ -14,6 +14,8 @@ import { drawMeasure, measureMode } from './measure.js';
 import { hostPos, tNow } from './motion.js';
 import { drawErrors } from './errors.js';
 import { drawMovers } from './movers.js';
+import { drawMembers } from './fielddiag.js';
+import { drawOrbit } from './kinematics.js';
 import { drawObserver } from './observe.js';
 import { LENS_EXAG, calcLens, drawGalaxyModel, drawMW, lensPar } from './mw.js';
 import { drawConstellations, drawShowers } from './sky.js';
@@ -88,6 +90,8 @@ export function render(){
   if(S.skyMode) P('movers',drawMovers);                        // predicted jumps between the blink epochs
   P('errors',drawErrors);                                      // distance bars and position-error ellipses
   if(S.skyMode) P('observer',drawObserver);                    // horizon, zenith, the instrument's frame
+  P('orbit',drawOrbit);                                        // the pinned star's Galactic orbit
+  if(S.skyMode) P('members',drawMembers);                      // VPD-selected cluster members
 
   // draw sun at origin
   const sp=project(0,0,0);

@@ -12,6 +12,7 @@
   import SkyPane from './components/SkyPane.svelte';
   import SkyStatus from './components/SkyStatus.svelte';
   import DataPane from './components/DataPane.svelte';
+  import AnalysisPane from './components/AnalysisPane.svelte';
   import { sources } from './lib/sources.js';
   import TransitCard from './components/TransitCard.svelte';
   import MobileNav from './components/MobileNav.svelte';
@@ -32,6 +33,7 @@
     { k: 'time',   icon: 'clock',  label: 'Time' },
     { k: 'sky',    icon: 'scope',  label: 'Sky' },
     { k: 'data',   icon: 'db',     label: 'Data' },
+    { k: 'analysis', icon: 'chart', label: 'Analyse' },
   ];
   let srcErr = $derived(Object.values($sources).some(r => r.state === 'error'));
   let srcBusy = $derived(Object.values($sources).some(r => r.state === 'busy'));
@@ -74,6 +76,7 @@
     <div class="rp-pane" class:on={panel === 'time'}><TimePane /></div>
     <div class="rp-pane" class:on={panel === 'sky'}><SkyPane /></div>
     <div class="rp-pane" class:on={panel === 'data'}><DataPane /></div>
+    <div class="rp-pane" class:on={panel === 'analysis'}><AnalysisPane /></div>
   </div>
 
   <nav id="rail" aria-label="Panels and tools" use:reserve={'rail'}>

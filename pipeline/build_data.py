@@ -110,7 +110,14 @@ def build_stars():
                         lum = rad * rad * (teff / 5772.0) ** 4 if teff else None
                     except (ValueError, KeyError, TypeError):
                         lum = None
-                stars[host] = {"h": host, "x": round(x, 2), "y": round(y, 2),
+                # the archive's host positions are Gaia-based, epoch J2015.5; the app propagates from J2000 with
+                # the proper motion, so move them back 15.5 years first (pi Men would otherwise sit 17″ off)
+                try:
+                    pmr, pmd = float(row["sy_pmra"]), float(row["sy_pmdec"])
+                    cdx = math.cos(math.radians(dec)) or 1e-9
+                    ra = (ra - 15.5 * pmr / 3.6e6 / cdx) % 360.0; dec = dec - 15.5 * pmd / 3.6e6
+                except (ValueError, KeyError, TypeError): pass
+                stars[host] = {"h": host, "ra": round(ra, 5), "dec": round(dec, 5), "x": round(x, 2), "y": round(y, 2),
                                "z": round(z, 2), "d": round(d, 2), "t": teff,
                                "sp": row["st_spectype"], "p": []}
                 if lum:

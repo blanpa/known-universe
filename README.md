@@ -381,6 +381,34 @@ telescope the *Sky* pane adds (`src/lib/astro.js`, `src/engine/observe.js`):
   camera's field as a frame on the sky with its size and scale; *Finder chart · PNG* saves the
   field as drawn with north, east, centre (ICRS and of date), scale and time in a strip.
 
+**Analysis — light curves, field diagrams, kinematics**
+
+The *Analyse* pane works on what is pinned or in the field (`src/engine/lightcurve.js`,
+`fielddiag.js`, `kinematics.js`; the maths in `src/lib/periodogram.js` and `kinematics.js`):
+
+- **Light curves.** MAST's observation search lists the TESS 2-minute SPOC sectors and the
+  Kepler quarters at the pinned star; the FITS files come from the public STScI bucket and
+  are parsed in the browser (PDCSAP flux, quality 0, normalised per file). A generalised
+  Lomb–Scargle periodogram finds periodic signals (with a false-alarm probability), a box
+  least-squares search finds transits, and the fold at the BLS period shows the event. On
+  pi Mensae, sector 89, BLS finds pi Men c at 6.283 d with a depth of 0.021 % (published
+  6.2679 d, 0.03 %); on synthetic series the recovery is checked by
+  `npm run test:periodogram`. The curve exports as CSV.
+- **Field diagrams.** The Gaia stars on screen as a colour–magnitude diagram (absolute G
+  from the Bailer-Jones distance against BP−RP) and a vector-point diagram of proper
+  motions. A box dragged on the VPD picks members — ringed on the sky, drawn in the CMD —
+  and *Members → set* hands them to the data layer for export or identification.
+- **Kinematics.** U, V, W from parallax, proper motion and radial velocity (Johnson &
+  Soderblom 1987 in the Hipparcos Galactic frame; agrees with astropy to 1 m/s,
+  `npm run test:kinematics`) on every star card that has all three, and the star's orbit
+  for ±500 Myr in a Miyamoto–Nagai disc + Hernquist bulge + NFW halo tuned to 232.8 km/s at
+  R₀ = 8.122 kpc, leapfrog-integrated and drawn on the map (dashed past, solid future). The
+  Sun on that potential: R 8.0–9.2 kpc, |z| ≤ 110 pc, e 0.07, 228 Myr.
+
+Exoplanet host positions are now stored to 0.04″ and moved from the archive's J2015.5 to
+J2000 with their proper motion (they used to come from x, y, z at two decimals: 1–2′ off at
+20 pc, and pi Mensae sat 17″ from its light curve).
+
 ## Data sources and their state
 
 The map pulls from about fifteen services at run time and from a pipeline at build
