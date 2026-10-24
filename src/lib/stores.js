@@ -25,3 +25,4 @@ export const skyCursor = writable(null);     // sky view: the sky position under
 export const movers = writable({ list: [], a: '', b: '', ea: 0, eb: 0, dt: 0 });   // predicted jumps between the blink epochs
 export const crossmatch = writable({ busy: null, msg: '', set: -1, radius: 3, remote: null, known: 0, unknown: 0, n: 0, rows: [] });   // cross-identification of a set
 export const measureLog = writable([]);     // every completed measurement, for export
+export const samp = writable({ state: 'off', msg: '', hub: null, clients: 0, sent: 0, received: 0 });   // SAMP hub connection (TOPCAT, Aladin)

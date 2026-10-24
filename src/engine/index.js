@@ -1,5 +1,7 @@
 // Engine entry: wires the modules together and boots.
 import { api } from '../lib/api.js';
+import './samp.js';
+import { fieldCentre } from './fieldquery.js';
 import { LIVE, startLive } from '../lib/live.js';
 import { facList as facListStore } from '../lib/stores.js';
 import { facList, objWorld } from './actions.js';
@@ -36,7 +38,7 @@ api.liveStats=()=>{ const y=new Date().getFullYear();
 LIVE.onUpdate=()=>{ V.dirty=true; };
 // headless-verify hook: lets the test harness inspect/inject live-layer state
 restoreUser();
-window.__ku={api, live:LIVE, redraw:()=>{V.dirty=true;}, survey:{ST, SKYSTAT, cacheSize}, user:USER, userProj, hyg:HYG, projDir:(x,y,z)=>{ const R=scale(SKY_R_PC), o={}; projectInto(x*R,y*R,z*R,o); return o; }, get gaiaPm(){ return gaiaPm; }, get gaiaRaw(){ return gaiaRaw; }, get gaiaRange(){ return gaiaRange; }, sunScreen:()=>{ const o={}; projectInto(0,0,0,o); return o; }, clearColor:()=>glClearColor()};
+window.__ku={api, live:LIVE, redraw:()=>{V.dirty=true;}, survey:{ST, SKYSTAT, cacheSize}, user:USER, userProj, hyg:HYG, projDir:(x,y,z)=>{ const R=scale(SKY_R_PC), o={}; projectInto(x*R,y*R,z*R,o); return o; }, get gaiaPm(){ return gaiaPm; }, get gaiaRaw(){ return gaiaRaw; }, fieldCentre, get gaiaRange(){ return gaiaRange; }, sunScreen:()=>{ const o={}; projectInto(0,0,0,o); return o; }, clearColor:()=>glClearColor()};
 window.__kuapi=api;
 
 facListStore.set(facList);

@@ -5367,6 +5367,14 @@ var crossmatch = writable({
 	rows: []
 });
 var measureLog = writable([]);
+var samp = writable({
+	state: "off",
+	msg: "",
+	hub: null,
+	clients: 0,
+	sent: 0,
+	received: 0
+});
 //#endregion
 //#region src/lib/icons.js
 var ICONS = {
@@ -7002,13 +7010,16 @@ var root_18$1 = /* @__PURE__ */ from_html(`<div class="sky-ro mono xm-sum"><span
 var root_19 = /* @__PURE__ */ from_html(`<p class="hint warn">Not kept after a reload: too large for this browser's storage.</p>`);
 var root_20 = /* @__PURE__ */ from_html(`<p class="hint warn"> </p>`);
 var root_21 = /* @__PURE__ */ from_html(`<p class="hint">Switch the telescope on to ask for a field.</p>`);
-var root_22 = /* @__PURE__ */ from_html(`<div class="panel" id="hud-sky"><div class="label">Sky</div> <p class="hint">The sky as the surveys photographed it, under the catalogue. From the Sun the view
+var root_22 = /* @__PURE__ */ from_html(`<button type="button" class="chip on">Disconnect</button> <button type="button" class="chip">Point hub clients here</button> <!>`, 1);
+var root_23 = /* @__PURE__ */ from_html(`<button type="button" class="chip">Connect to the hub</button>`);
+var root_24 = /* @__PURE__ */ from_html(`<div class="panel" id="hud-sky"><div class="label">Sky</div> <p class="hint">The sky as the surveys photographed it, under the catalogue. From the Sun the view
     direction is the sky direction. Catalogue positions are propagated to the displayed epoch
     (HYG from J2000, Gaia from 2016, your rows from their own), the photographs keep theirs —
     so a fast star stands off its plate by its motion since. The arrows say how far.</p> <button type="button" role="switch"><span class="tg-l">Telescope view</span><span class="sw" aria-hidden="true"></span></button> <!> <!> <!> <div class="label lg-sub">Survey</div> <div class="sky-list"><button type="button"><span class="sv-n">None</span><span class="sv-s">catalogue only</span></button> <!></div> <div class="label lg-sub">Blink</div> <p class="hint">Alternate two epochs. A star that jumps between them has a large proper motion:
     close, or fast, or both. Nearby brown dwarfs and white dwarfs still turn up this way.</p> <button type="button" role="switch"><span class="tg-l"> </span><span class="sw" aria-hidden="true"></span></button> <div class="sky-fov"></div> <!> <!> <div class="label lg-sub">Your data</div> <p class="hint">Drop a CSV or TSV anywhere on the map, or pick a file. Columns by name: <span class="mono">ra, dec</span> (degrees or 03:47:24 / +24 07 00), a distance (<span class="mono">dist</span> pc, <span class="mono">plx</span> mas or <span class="mono">ly</span>), <span class="mono">mag</span>, <span class="mono">name</span>, <span class="mono">pmra, pmdec</span>.
     Rows become amber rings you can click, search and point the telescope at; the file stays in this browser only.</p> <!> <!> <!> <!> <!> <!> <div class="sky-fov"><input type="file" accept=".csv,.tsv,.txt,text/csv,text/plain" hidden=""/> <button type="button" class="chip">Import a file…</button> <a class="chip" href="./data/sample-stars.csv" download="">Example CSV</a></div> <div class="label lg-sub">Ask the catalogues</div> <p class="hint">Fetch what Gaia DR3 or SIMBAD hold in the field the telescope shows, straight from the CDS into this
-    layer: positions, parallaxes, proper motions, magnitudes. Gaia returns the brightest 4,000 of the cone, SIMBAD 2,000.</p> <div class="sky-fov"><button type="button" class="chip">Gaia DR3 in this field</button> <button type="button" class="chip">SIMBAD in this field</button></div> <!> <!> <div class="label lg-sub">Export</div> <p class="hint">Tables leave as CSV or VOTable (TOPCAT, Aladin, astropy). Positions are ICRS at the stated epoch.</p> <div class="sky-fov"><button type="button" class="chip">Expected jumps · CSV</button> <button type="button" class="chip">VOTable</button> <button type="button" class="chip"> </button> <button type="button" class="chip">VOTable</button></div> <p class="hint src">Tiles: CDS/HiPS (DSS2 © STScI/ROE/AAO/UKSTU, 2MASS/IPAC-Caltech, WISE/NASA-JPL, Pan-STARRS/IfA). Loaded on demand; nothing is stored.</p></div>`);
+    layer: positions, parallaxes, proper motions, magnitudes. Gaia returns the brightest 4,000 of the cone, SIMBAD 2,000.</p> <div class="sky-fov"><button type="button" class="chip">Gaia DR3 in this field</button> <button type="button" class="chip">SIMBAD in this field</button></div> <!> <!> <div class="label lg-sub">Export</div> <p class="hint">Tables leave as CSV or VOTable (TOPCAT, Aladin, astropy). Positions are ICRS at the stated epoch.</p> <div class="sky-fov"><button type="button" class="chip">Expected jumps · CSV</button> <button type="button" class="chip">VOTable</button> <button type="button" class="chip"> </button> <button type="button" class="chip">VOTable</button></div> <div class="label lg-sub">SAMP · TOPCAT, Aladin, DS9</div> <p class="hint">A hub on this machine (TOPCAT and Aladin start one) links the tools: the telescope's field goes out as <span class="mono">coord.pointAt.sky</span>, a set as <span class="mono">table.load.votable</span>, and a point sent by
+    another tool turns the telescope. The hub asks for your permission in its own window.</p> <div class="sky-fov"><!></div> <!> <p class="hint src">Tiles: CDS/HiPS (DSS2 © STScI/ROE/AAO/UKSTU, 2MASS/IPAC-Caltech, WISE/NASA-JPL, Pan-STARRS/IfA). Loaded on demand; nothing is stored.</p></div>`);
 function SkyPane($$anchor, $$props) {
 	push($$props, true);
 	const $survey = () => store_get(survey, "$survey", $$stores);
@@ -7019,6 +7030,7 @@ function SkyPane($$anchor, $$props) {
 	const $crossmatch = () => store_get(crossmatch, "$crossmatch", $$stores);
 	const $fieldQuery = () => store_get(fieldQuery, "$fieldQuery", $$stores);
 	const $measureLog = () => store_get(measureLog, "$measureLog", $$stores);
+	const $samp = () => store_get(samp, "$samp", $$stores);
 	const [$$stores, $$cleanup] = setup_stores();
 	const SURVEYS = [
 		{
@@ -7066,7 +7078,7 @@ function SkyPane($$anchor, $$props) {
 		e.target.value = "";
 	}
 	const aladin = () => `https://aladin.cds.unistra.fr/AladinLite/?target=${$camera().ra.toFixed(4)}%20${$camera().dec.toFixed(4)}&fov=${Math.max(.01, $camera().fov).toFixed(3)}&survey=P%2FDSS2%2Fcolor`;
-	var div = root_22();
+	var div = root_24();
 	var button = sibling(child(div), 4);
 	let classes;
 	var node = sibling(button, 2);
@@ -7523,6 +7535,51 @@ function SkyPane($$anchor, $$props) {
 	reset(button_23);
 	var button_24 = sibling(button_23, 2);
 	reset(div_10);
+	var div_11 = sibling(div_10, 6);
+	var node_24 = child(div_11);
+	var consequent_18 = ($$anchor) => {
+		var fragment_7 = root_22();
+		var button_25 = first_child(fragment_7);
+		var button_26 = sibling(button_25, 2);
+		each(sibling(button_26, 2), 3, () => $userLayer().sets, (st) => st.src + st.name, ($$anchor, st, k) => {
+			var button_27 = root_2$4();
+			var text_33 = child(button_27);
+			reset(button_27);
+			template_effect(($0) => set_text(text_33, `Send “${$0 ?? ""}”`), [() => get(st).name.length > 24 ? get(st).name.slice(0, 24) + "…" : get(st).name]);
+			delegated("click", button_27, () => api.sampSendSet?.(get(k)));
+			append($$anchor, button_27);
+		});
+		template_effect(() => button_26.disabled = !$camera().sky);
+		delegated("click", button_25, () => api.sampDisconnect?.());
+		delegated("click", button_26, () => api.sampPointAt?.());
+		append($$anchor, fragment_7);
+	};
+	var alternate_1 = ($$anchor) => {
+		var button_28 = root_23();
+		template_effect(() => button_28.disabled = $samp().state === "connecting");
+		delegated("click", button_28, () => api.sampConnect?.());
+		append($$anchor, button_28);
+	};
+	if_block(node_24, ($$render) => {
+		if ($samp().state === "on") $$render(consequent_18);
+		else $$render(alternate_1, -1);
+	});
+	reset(div_11);
+	var node_26 = sibling(div_11, 2);
+	var consequent_19 = ($$anchor) => {
+		var p_9 = root_13$1();
+		let classes_10;
+		var text_34 = child(p_9, true);
+		reset(p_9);
+		template_effect(() => {
+			classes_10 = set_class(p_9, 1, `hint samp-${$samp().state ?? ""}`, null, classes_10, { busy: $samp().state === "connecting" });
+			set_text(text_34, $samp().msg);
+		});
+		append($$anchor, p_9);
+	};
+	if_block(node_26, ($$render) => {
+		if ($samp().msg) $$render(consequent_19);
+	});
 	next(2);
 	reset(div);
 	template_effect(($0, $1) => {
@@ -10796,7 +10853,7 @@ function MobileNav($$anchor, $$props) {
 		}
 		var text_2 = sibling(node_6);
 		var small = sibling(text_2);
-		small.textContent = `· b12:20`;
+		small.textContent = `· b12:26`;
 		reset(span_2);
 		var span_3 = sibling(span_2, 2);
 		var button_6 = child(span_3);
@@ -11391,7 +11448,7 @@ window.addEventListener("error", (e) => showErr("⚠ " + (e.message || e.type) +
 window.addEventListener("unhandledrejection", (e) => showErr("⚠ promise: " + (e.reason && e.reason.message || e.reason)));
 mount(App, { target: document.getElementById("app") });
 function boot() {
-	return __vitePreload(() => import("./engine-BIJDrHC0.js").then(() => {
+	return __vitePreload(() => import("./engine-Co-ZfEu7.js").then(() => {
 		try {
 			restore();
 		} catch (e) {}
@@ -11408,7 +11465,7 @@ var fail = (e) => {
 	document.body.innerHTML = "<p style=\"color:#e9edfa;font-family:monospace;padding:2em\">Error loading data: " + e + "</p>";
 };
 if (window.__DATA__) boot().catch(fail);
-else Promise.all([getJSON("data/data.json?b=b12:20", "data-json", "data.json · stars, exoplanets, galaxies"), getJSON("data/catalog.json?b=b12:20", "catalog-json", "catalog.json · solar system, deep sky, pulsars")]).then(([d, c]) => {
+else Promise.all([getJSON("data/data.json?b=b12:26", "data-json", "data.json · stars, exoplanets, galaxies"), getJSON("data/catalog.json?b=b12:26", "catalog-json", "catalog.json · solar system, deep sky, pulsars")]).then(([d, c]) => {
 	window.__DATA__ = d;
 	window.__CATALOG__ = c;
 	const m = d.meta || {};
@@ -11416,4 +11473,4 @@ else Promise.all([getJSON("data/data.json?b=b12:20", "data-json", "data.json · 
 	return boot();
 }).catch(fail);
 //#endregion
-export { api as A, survey as C, tour as D, toggleState as E, tfetch as F, timg as I, declare as M, mark as N, transit as O, tally as P, stats as S, timeline as T, movers as _, satEcl as a, selection as b, camera as c, facColor as d, facList as f, measureLog as g, measure as h, refreshLive as i, count as j, userLayer as k, crossmatch as l, labels as m, activeShowers as n, startLive as o, fieldQuery as p, groundEcl as r, RESERVED as s, LIVE as t, encounters as u, nav as v, timeBar as w, skyCursor as x, searchMsg as y };
+export { userLayer as A, stats as C, toggleState as D, timeline as E, tally as F, tfetch as I, timg as L, count as M, declare as N, tour as O, mark as P, skyCursor as S, timeBar as T, movers as _, satEcl as a, searchMsg as b, camera as c, facColor as d, facList as f, measureLog as g, measure as h, refreshLive as i, api as j, transit as k, crossmatch as l, labels as m, activeShowers as n, startLive as o, fieldQuery as p, groundEcl as r, RESERVED as s, LIVE as t, encounters as u, nav as v, survey as w, selection as x, samp as y };

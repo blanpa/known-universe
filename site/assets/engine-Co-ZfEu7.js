@@ -1,4 +1,46 @@
-import { A as api, C as survey, D as tour, E as toggleState, F as tfetch, I as timg, M as declare, N as mark, O as transit, P as tally, S as stats, T as timeline, _ as movers, a as satEcl, b as selection, c as camera, d as facColor, f as facList$1, g as measureLog, h as measure, i as refreshLive, j as count, k as userLayer, l as crossmatch$1, m as labels, n as activeShowers, o as startLive, p as fieldQuery, r as groundEcl, s as RESERVED, t as LIVE, u as encounters, v as nav, w as timeBar, x as skyCursor, y as searchMsg } from "./index-CSTz2h-u.js";
+import { A as userLayer, C as stats, D as toggleState, E as timeline, F as tally, I as tfetch, L as timg, M as count, N as declare, O as tour, P as mark, S as skyCursor, T as timeBar, _ as movers, a as satEcl, b as searchMsg, c as camera, d as facColor, f as facList$1, g as measureLog, h as measure, i as refreshLive, j as api, k as transit, l as crossmatch$1, m as labels, n as activeShowers, o as startLive, p as fieldQuery, r as groundEcl, s as RESERVED, t as LIVE, u as encounters, v as nav, w as survey, x as selection, y as samp } from "./index-D5YYfrge.js";
+//#region src/lib/export.js
+var esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+var cell = (v) => v === void 0 || v === null || typeof v === "number" && !isFinite(v) ? "" : String(v);
+var quote = (s) => /[",\r\n]/.test(s) ? "\"" + s.replace(/"/g, "\"\"") + "\"" : s;
+function csvOf(rows, cols, head = []) {
+	const out = head.map((h) => "# " + h);
+	out.push(cols.map((c) => quote(c.n)).join(","));
+	for (const r of rows) out.push(cols.map((c) => quote(cell(r[c.k]))).join(","));
+	return out.join("\n") + "\n";
+}
+function votableOf(rows, cols, meta = {}) {
+	const f = cols.map((c) => `   <FIELD name="${esc(c.n)}" datatype="${c.t || "double"}"${c.t === "char" ? " arraysize=\"*\"" : ""}${c.u ? ` unit="${esc(c.u)}"` : ""}${c.ucd ? ` ucd="${esc(c.ucd)}"` : ""}>${c.d ? `<DESCRIPTION>${esc(c.d)}</DESCRIPTION>` : ""}</FIELD>`);
+	const tr = rows.map((r) => "    <TR>" + cols.map((c) => `<TD>${esc(cell(r[c.k]))}</TD>`).join("") + "</TR>");
+	return `<?xml version="1.0" encoding="UTF-8"?>
+<VOTABLE version="1.4" xmlns="http://www.ivoa.net/xml/VOTable/v1.3" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+ <DESCRIPTION>${esc(meta.description || "Known Universe export")}</DESCRIPTION>
+ <COOSYS ID="icrs" system="ICRS" epoch="J${(meta.epoch || 2e3).toFixed(1)}"/>
+ <RESOURCE type="results">
+${(meta.info || []).map(([n, v]) => `  <INFO name="${esc(n)}" value="${esc(v)}"/>`).join("\n")}
+  <TABLE name="${esc(meta.name || "table")}" nrows="${rows.length}">
+${f.join("\n")}
+   <DATA><TABLEDATA>
+${tr.join("\n")}
+   </TABLEDATA></DATA>
+  </TABLE>
+ </RESOURCE>
+</VOTABLE>
+`;
+}
+function download(name, text, mime = "text/plain") {
+	const a = document.createElement("a");
+	a.href = URL.createObjectURL(new Blob([text], { type: mime + ";charset=utf-8" }));
+	a.download = name;
+	document.body.appendChild(a);
+	a.click();
+	setTimeout(() => {
+		URL.revokeObjectURL(a.href);
+		a.remove();
+	}, 1500);
+}
+var safeName = (s) => String(s || "table").replace(/[^\w.-]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 60) || "table";
+//#endregion
 //#region src/engine/canvas.js
 var cv = document.getElementById("sky");
 var ctx = cv.getContext("2d");
@@ -3178,7 +3220,7 @@ var _blinkPhase = 0;
 function setSurvey(id) {
 	ST.id = id;
 	ST.on = !!SURVEYS.find((s) => s.id === id);
-	publish$3();
+	publish$4();
 	V.dirty = true;
 }
 function setBlink(on, withId) {
@@ -3192,17 +3234,17 @@ function setBlink(on, withId) {
 		_blinkPhase ^= 1;
 		V.dirty = true;
 	}, 700);
-	publish$3();
+	publish$4();
 	V.dirty = true;
 }
-function publish$3() {
+function publish$4() {
 	survey.set({
 		id: ST.on ? ST.id : null,
 		blink: ST.blink,
 		blinkWith: ST.blinkWith
 	});
 }
-publish$3();
+publish$4();
 function activeSurvey() {
 	if (!ST.on) return null;
 	const id = ST.blink && _blinkPhase ? ST.blinkWith : ST.id;
@@ -3582,7 +3624,7 @@ function rebuild() {
 	}
 	USER.warn = USER.sets.map((st) => st.warn).filter(Boolean).join(" · ");
 }
-function publish$2(saved) {
+function publish$3(saved) {
 	userLayer.set({
 		sets: USER.sets.map((st) => ({
 			name: st.name,
@@ -3641,7 +3683,7 @@ function importUser(text, name, opts = {}) {
 	const saved = persist();
 	if (S.pinned && S.pinned.usr) S.pinned = null;
 	if (S.hover && S.hover.usr) S.hover = null;
-	publish$2(saved);
+	publish$3(saved);
 	V.dirty = true;
 	return st.rows.length;
 }
@@ -3651,7 +3693,7 @@ function removeSet(k) {
 	const saved = persist();
 	if (S.pinned && S.pinned.usr) S.pinned = null;
 	if (S.hover && S.hover.usr) S.hover = null;
-	publish$2(saved);
+	publish$3(saved);
 	V.dirty = true;
 }
 function clearUser() {
@@ -3662,7 +3704,7 @@ function clearUser() {
 	} catch (e) {}
 	if (S.pinned && S.pinned.usr) S.pinned = null;
 	if (S.hover && S.hover.usr) S.hover = null;
-	publish$2(false);
+	publish$3(false);
 	V.dirty = true;
 }
 function restoreUser() {
@@ -3680,7 +3722,7 @@ function restoreUser() {
 		}));
 		for (const st of USER.sets) parseSet(st);
 		rebuild();
-		publish$2(true);
+		publish$3(true);
 	} catch (e) {}
 }
 var MAS$2 = 4.84813681e-9;
@@ -7388,7 +7430,7 @@ function loadExtragal() {
 		} else tfetch("file-cosmicweb", {
 			name: "cosmicweb.bin",
 			group: "catalogue"
-		}, "data/cosmicweb.bin?b=b12:20").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/cosmicweb.bin?b=b12:26").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildWeb(new Uint8Array(a));
 		}).catch(() => {});
 		if (typeof window.__QSO_B64__ === "string" && window.__QSO_B64__.length) {
@@ -7397,14 +7439,14 @@ function loadExtragal() {
 		} else tfetch("file-quasars", {
 			name: "quasars.bin",
 			group: "catalogue"
-		}, "data/quasars.bin?b=b12:20").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/quasars.bin?b=b12:26").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildQso(new Uint8Array(a));
 		}).catch(() => {});
 		tfetch("file-quasarsbig", {
 			name: "quasarsbig.bin",
 			group: "catalogue",
 			optional: true
-		}, "data/quasarsbig.bin?b=b12:20").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/quasarsbig.bin?b=b12:26").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildQso(new Uint8Array(a));
 		}).catch(() => {});
 		if (typeof window.__BELT_B64__ === "string" && window.__BELT_B64__.length) {
@@ -7413,21 +7455,21 @@ function loadExtragal() {
 		} else tfetch("file-belt", {
 			name: "belt.bin",
 			group: "catalogue"
-		}, "data/belt.bin?b=b12:20").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/belt.bin?b=b12:26").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildBelt(new Uint8Array(a));
 		}).catch(() => {});
 		tfetch("file-gaiabig", {
 			name: "gaiabig.bin",
 			group: "catalogue",
 			optional: true
-		}, "data/gaiabig.bin?b=b12:20").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/gaiabig.bin?b=b12:26").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) {
 				buildGaiaBig(new Uint8Array(a));
 				tfetch("file-gaiabig_pm", {
 					name: "gaiabig_pm.bin",
 					group: "catalogue",
 					optional: true
-				}, "data/gaiabig_pm.bin?b=b12:20").then((r) => r.ok ? r.arrayBuffer() : null).then((p) => {
+				}, "data/gaiabig_pm.bin?b=b12:26").then((r) => r.ok ? r.arrayBuffer() : null).then((p) => {
 					if (p) {
 						gaiaPm = new Uint8Array(p);
 						if (CL.G) CL.G.pm = false;
@@ -7442,7 +7484,7 @@ function loadExtragal() {
 		} else tfetch("file-obstars", {
 			name: "obstars.bin",
 			group: "catalogue"
-		}, "data/obstars.bin?b=b12:20").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/obstars.bin?b=b12:26").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildOB(new Uint8Array(a));
 		}).catch(() => {});
 		if (typeof window.__VAR_B64__ === "string" && window.__VAR_B64__.length) {
@@ -7451,7 +7493,7 @@ function loadExtragal() {
 		} else tfetch("file-variables", {
 			name: "variables.bin",
 			group: "catalogue"
-		}, "data/variables.bin?b=b12:20").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/variables.bin?b=b12:26").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildVars(new Uint8Array(a));
 		}).catch(() => {});
 	} catch (e) {}
@@ -7472,14 +7514,14 @@ function loadGaia() {
 		tfetch("file-gaia", {
 			name: "gaia.bin",
 			group: "catalogue"
-		}, "data/gaia.bin?b=b12:20").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/gaia.bin?b=b12:26").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildGaia(new Uint8Array(a));
 		}).catch(() => {});
 		tfetch("file-gaia_pm", {
 			name: "gaia_pm.bin",
 			group: "catalogue",
 			optional: true
-		}, "data/gaia_pm.bin?b=b12:20").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/gaia_pm.bin?b=b12:26").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a && (!gaiaPm || gaiaRange === 100)) {
 				gaiaPm = new Uint8Array(a);
 				attachGaiaPm();
@@ -10816,7 +10858,7 @@ function matchLocal(k, radius) {
 		remote: null,
 		at: Date.now()
 	};
-	publish$1(k, `${known} of ${st.rows.length} rows have a counterpart in the loaded catalogues: HYG within ${radius}″${gg ? `, the Gaia ${gaiaRange} pc cloud within ${Math.max(radius, COARSE)}″ (${coarse} coarse: its positions are packed to ±20″ — identify to confirm)` : ""}`);
+	publish$2(k, `${known} of ${st.rows.length} rows have a counterpart in the loaded catalogues: HYG within ${radius}″${gg ? `, the Gaia ${gaiaRange} pc cloud within ${Math.max(radius, COARSE)}″ (${coarse} coarse: its positions are packed to ±20″ — identify to confirm)` : ""}`);
 	V.dirty = true;
 	return st.xm;
 }
@@ -10922,7 +10964,7 @@ async function matchRemote(k, which, radius) {
 			at: Date.now()
 		};
 		count("q-xmatch", known);
-		publish$1(k, `${known} of ${rows.length} rows identified in ${R.n} within ${radius}″ (positions compared at J${R.epoch.toFixed(1)})`);
+		publish$2(k, `${known} of ${rows.length} rows identified in ${R.n} within ${radius}″ (positions compared at J${R.epoch.toFixed(1)})`);
 		V.dirty = true;
 		return st.xm;
 	} catch (e) {
@@ -10945,7 +10987,7 @@ function doubtOf(o, m) {
 	if (o.m !== void 0 && m.mag !== void 0 && Math.abs(o.m - m.mag) > 3) out.push(`brightness disagrees (row ${o.m.toFixed(1)}, counterpart ${m.mag.toFixed(1)} mag)`);
 	return out.length ? out.join(" · ") : void 0;
 }
-function publish$1(k, msg) {
+function publish$2(k, msg) {
 	const st = USER.sets[k];
 	if (!st) return;
 	const list = st.rows.map((o) => ({
@@ -10983,48 +11025,6 @@ async function crossmatch(k, opts = {}) {
 	if (!USER.sets[k].xm) matchLocal(k, radius);
 	return matchRemote(k, opts.remote, radius);
 }
-//#endregion
-//#region src/lib/export.js
-var esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-var cell = (v) => v === void 0 || v === null || typeof v === "number" && !isFinite(v) ? "" : String(v);
-var quote = (s) => /[",\r\n]/.test(s) ? "\"" + s.replace(/"/g, "\"\"") + "\"" : s;
-function csvOf(rows, cols, head = []) {
-	const out = head.map((h) => "# " + h);
-	out.push(cols.map((c) => quote(c.n)).join(","));
-	for (const r of rows) out.push(cols.map((c) => quote(cell(r[c.k]))).join(","));
-	return out.join("\n") + "\n";
-}
-function votableOf(rows, cols, meta = {}) {
-	const f = cols.map((c) => `   <FIELD name="${esc(c.n)}" datatype="${c.t || "double"}"${c.t === "char" ? " arraysize=\"*\"" : ""}${c.u ? ` unit="${esc(c.u)}"` : ""}${c.ucd ? ` ucd="${esc(c.ucd)}"` : ""}>${c.d ? `<DESCRIPTION>${esc(c.d)}</DESCRIPTION>` : ""}</FIELD>`);
-	const tr = rows.map((r) => "    <TR>" + cols.map((c) => `<TD>${esc(cell(r[c.k]))}</TD>`).join("") + "</TR>");
-	return `<?xml version="1.0" encoding="UTF-8"?>
-<VOTABLE version="1.4" xmlns="http://www.ivoa.net/xml/VOTable/v1.3" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
- <DESCRIPTION>${esc(meta.description || "Known Universe export")}</DESCRIPTION>
- <COOSYS ID="icrs" system="ICRS" epoch="J${(meta.epoch || 2e3).toFixed(1)}"/>
- <RESOURCE type="results">
-${(meta.info || []).map(([n, v]) => `  <INFO name="${esc(n)}" value="${esc(v)}"/>`).join("\n")}
-  <TABLE name="${esc(meta.name || "table")}" nrows="${rows.length}">
-${f.join("\n")}
-   <DATA><TABLEDATA>
-${tr.join("\n")}
-   </TABLEDATA></DATA>
-  </TABLE>
- </RESOURCE>
-</VOTABLE>
-`;
-}
-function download(name, text, mime = "text/plain") {
-	const a = document.createElement("a");
-	a.href = URL.createObjectURL(new Blob([text], { type: mime + ";charset=utf-8" }));
-	a.download = name;
-	document.body.appendChild(a);
-	a.click();
-	setTimeout(() => {
-		URL.revokeObjectURL(a.href);
-		a.remove();
-	}, 1500);
-}
-var safeName = (s) => String(s || "table").replace(/[^\w.-]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 60) || "table";
 //#endregion
 //#region src/engine/exports.js
 var D2R = Math.PI / 180;
@@ -11479,7 +11479,7 @@ function label(v, t) {
 	const yr = (/* @__PURE__ */ new Date()).getFullYear() + t;
 	return sg + Math.round(a).toLocaleString("en-US") + " yr (" + Math.round(yr) + ")";
 }
-function publish() {
+function publish$1() {
 	const t = yearsOf(_v);
 	timeline.set({
 		v: _v,
@@ -11493,14 +11493,14 @@ function setTime(v) {
 	S.pmYears = Math.round(t);
 	S.pm = _v !== 0;
 	S.tOffsetDays = Math.max(-36525, Math.min(36525, t * 365.25));
-	publish();
+	publish$1();
 	V.dirty = true;
 }
 function play() {
 	if (_timer) {
 		clearInterval(_timer);
 		_timer = null;
-		publish();
+		publish$1();
 		return;
 	}
 	_timer = setInterval(() => {
@@ -11508,7 +11508,7 @@ function play() {
 		if (v > 1e3) v = -1e3;
 		setTime(v);
 	}, 120);
-	publish();
+	publish$1();
 }
 function now() {
 	if (_timer) {
@@ -12089,6 +12089,206 @@ Object.assign(api, {
 	msgText
 });
 //#endregion
+//#region src/engine/samp.js
+var HUB = "http://localhost:21012/";
+var SAMP = {
+	key: null,
+	self: null,
+	hub: null,
+	clients: 0,
+	polling: false,
+	sent: 0,
+	received: 0
+};
+var xesc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+function enc(v) {
+	if (Array.isArray(v)) return `<value><array><data>${v.map(enc).join("")}</data></array></value>`;
+	if (v && typeof v === "object") return `<value><struct>${Object.entries(v).map(([k, x]) => `<member><name>${xesc(k)}</name>${enc(x)}</member>`).join("")}</struct></value>`;
+	return `<value><string>${xesc(v)}</string></value>`;
+}
+function dec(el) {
+	if (!el) return null;
+	const v = el.tagName === "value" ? el.firstElementChild || el : el;
+	if (v === el && el.tagName === "value") return el.textContent;
+	switch (v.tagName) {
+		case "string":
+		case "int":
+		case "i4":
+		case "double":
+		case "boolean": return v.textContent;
+		case "array": return [...v.querySelectorAll(":scope > data > value")].map(dec);
+		case "struct": {
+			const o = {};
+			for (const m of v.querySelectorAll(":scope > member")) o[m.querySelector(":scope > name").textContent] = dec(m.querySelector(":scope > value"));
+			return o;
+		}
+		default: return v.textContent;
+	}
+}
+async function call(method, params, timeoutMs = 8e3) {
+	const body = `<?xml version="1.0"?><methodCall><methodName>${xesc(method)}</methodName><params>${params.map((p) => `<param>${enc(p)}</param>`).join("")}</params></methodCall>`;
+	const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), timeoutMs);
+	try {
+		const r = await fetch(HUB, {
+			method: "POST",
+			headers: { "Content-Type": "text/xml" },
+			body,
+			signal: ctl.signal
+		});
+		if (!r.ok) throw new Error("hub answered HTTP " + r.status);
+		const d = new DOMParser().parseFromString(await r.text(), "application/xml");
+		const fault = d.querySelector("fault");
+		if (fault) throw new Error("hub fault: " + (dec(fault.querySelector("value"))?.faultString || "?"));
+		return dec(d.querySelector("methodResponse > params > param > value"));
+	} finally {
+		clearTimeout(t);
+	}
+}
+function publish(state, msg) {
+	samp.set({
+		state,
+		msg: msg || "",
+		hub: SAMP.hub,
+		clients: SAMP.clients,
+		sent: SAMP.sent,
+		received: SAMP.received
+	});
+}
+async function sampConnect() {
+	if (SAMP.key) return true;
+	publish("connecting", "asking the hub on localhost:21012 — allow this page in the hub's window");
+	try {
+		const reg = await call("samp.webhub.register", [{
+			"samp.name": "Known Universe",
+			"samp.description.text": "3D map and telescope view of the known universe",
+			"samp.description.html": "<b>Known Universe</b>"
+		}], 6e4);
+		SAMP.key = reg["samp.private-key"];
+		SAMP.self = reg["samp.self-id"];
+		SAMP.hub = reg["samp.hub-id"];
+		await call("samp.webhub.declareMetadata", [SAMP.key, {
+			"samp.name": "Known Universe",
+			"samp.description.text": "3D map and telescope view of the known universe",
+			"author.name": "Known Universe"
+		}]);
+		await call("samp.webhub.declareSubscriptions", [SAMP.key, {
+			"coord.pointAt.sky": {},
+			"samp.hub.event.shutdown": {},
+			"samp.hub.disconnect": {},
+			"samp.app.ping": {}
+		}]);
+		await call("samp.webhub.allowReverseCallbacks", [SAMP.key, "1"]);
+		try {
+			const cl = await call("samp.webhub.getRegisteredClients", [SAMP.key]);
+			SAMP.clients = Array.isArray(cl) ? cl.filter((c) => c !== SAMP.self && c !== SAMP.hub).length : 0;
+		} catch (_) {}
+		publish("on", `connected · ${SAMP.clients} other client${SAMP.clients === 1 ? "" : "s"} on the hub`);
+		poll();
+		return true;
+	} catch (e) {
+		SAMP.key = null;
+		publish("error", e.name === "AbortError" ? "no hub answered on localhost:21012 (start TOPCAT or Aladin first)" : "SAMP: " + (e.message || e));
+		return false;
+	}
+}
+async function sampDisconnect() {
+	const k = SAMP.key;
+	SAMP.key = null;
+	SAMP.polling = false;
+	if (k) try {
+		await call("samp.webhub.unregister", [k]);
+	} catch (_) {}
+	publish("off", "disconnected");
+}
+async function poll() {
+	if (SAMP.polling) return;
+	SAMP.polling = true;
+	while (SAMP.key) {
+		let cbs = null;
+		try {
+			cbs = await call("samp.webhub.pullCallbacks", [SAMP.key, "10"], 15e3);
+		} catch (e) {
+			if (!SAMP.key) break;
+			if (e.name !== "AbortError") {
+				SAMP.key = null;
+				publish("error", "hub went away: " + (e.message || e));
+				break;
+			}
+			continue;
+		}
+		if (!Array.isArray(cbs)) continue;
+		for (const cb of cbs) try {
+			await handle(cb);
+		} catch (_) {}
+	}
+	SAMP.polling = false;
+}
+async function handle(cb) {
+	const m = cb["samp.methodName"], p = cb["samp.params"] || [];
+	if (m !== "receiveNotification" && m !== "receiveCall") return;
+	const msg = m === "receiveCall" ? p[2] : p[1], msgId = m === "receiveCall" ? p[1] : null, mt = msg && msg["samp.mtype"], prm = msg && msg["samp.params"] || {};
+	let result = {};
+	if (mt === "coord.pointAt.sky") {
+		const ra = +prm.ra, dec = +prm.dec;
+		if (isFinite(ra) && isFinite(dec)) {
+			if (!S.skyMode) api.skyView?.(true);
+			lookAt(ra, dec);
+			SAMP.received++;
+			publish("on", `hub client pointed us at RA ${ra.toFixed(4)}° Dec ${dec.toFixed(4)}°`);
+		}
+	} else if (mt === "samp.hub.event.shutdown" || mt === "samp.hub.disconnect") {
+		SAMP.key = null;
+		publish("off", "the hub shut down");
+		return;
+	} else if (mt === "samp.app.ping") {}
+	if (msgId) await call("samp.webhub.reply", [
+		SAMP.key,
+		msgId,
+		{
+			"samp.status": "samp.ok",
+			"samp.result": result
+		}
+	]);
+}
+async function sampPointAt() {
+	if (!SAMP.key) return false;
+	const [ra, dec] = fieldCentre();
+	await call("samp.webhub.notifyAll", [SAMP.key, {
+		"samp.mtype": "coord.pointAt.sky",
+		"samp.params": {
+			ra: ra.toFixed(6),
+			dec: dec.toFixed(6)
+		}
+	}]);
+	SAMP.sent++;
+	publish("on", `sent coord.pointAt.sky RA ${ra.toFixed(4)}° Dec ${dec.toFixed(4)}°`);
+	return true;
+}
+async function sampSendSet(k) {
+	if (!SAMP.key) return false;
+	const st = USER.sets[k];
+	if (!st) return false;
+	const text = exportTable("set", "votable", k, { text: true });
+	const url = "data:application/x-votable+xml;base64," + btoa(unescape(encodeURIComponent(text)));
+	await call("samp.webhub.notifyAll", [SAMP.key, {
+		"samp.mtype": "table.load.votable",
+		"samp.params": {
+			url,
+			"table-id": "ku-set-" + k + "-" + Date.now(),
+			name: st.name
+		}
+	}]);
+	SAMP.sent++;
+	publish("on", `sent "${st.name}" (${st.rows.length} rows) as table.load.votable`);
+	return true;
+}
+Object.assign(api, {
+	sampConnect,
+	sampDisconnect,
+	sampPointAt,
+	sampSendSet
+});
+//#endregion
 //#region src/engine/loop.js
 var last = 0;
 var lastGw = 0;
@@ -12535,6 +12735,7 @@ window.__ku = {
 	get gaiaRaw() {
 		return gaiaRaw;
 	},
+	fieldCentre,
 	get gaiaRange() {
 		return gaiaRange;
 	},

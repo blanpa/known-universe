@@ -10,6 +10,7 @@ import { createReadStream, existsSync, mkdirSync, statSync } from 'node:fs';
 import { join, extname, resolve } from 'node:path';
 import { homedir } from 'node:os';
 import { inflateSync } from 'node:zlib';
+import { startMockHub } from './samp-mockhub.mjs';
 
 const ROOT = resolve(import.meta.dirname, '..'), SITE = join(ROOT, 'site'), OUT = join(ROOT, 'tools', 'e2e-out');
 mkdirSync(OUT, { recursive: true });
@@ -190,6 +191,32 @@ async function open(vp, mobile, hash) {
   const rem = await page.evaluate(async () => { try { const r = await window.__kuapi.crossmatch(0, { radius: 3, remote: 'simbad' }); const rows = window.__ku.user.sets[0].rows; return { r, sir: rows[0].xm && rows[0].xm.id, ghost: rows[2].xm, msg: document.querySelector('#hud-sky .hint.busy')?.textContent }; } catch (e) { return { err: String(e) }; } });
   if (rem.r) ok(rem.sir === '* alf CMa' && rem.ghost === null, `CDS X-Match identifies My Sirius as ${rem.sir}; the ghost stays unknown`);
   else notes.push('skip CDS X-Match (network): ' + (rem.err || rem.msg || 'no answer'));
+  // SAMP against the mock Web Profile hub in tools/samp-mockhub.mjs (no Java here, so no TOPCAT):
+  // register + subscriptions, the field out as coord.pointAt.sky, a set out as table.load.votable,
+  // an incoming pointAt turns the telescope, a call gets its reply, unregister on disconnect
+  let hub = null; try { hub = startMockHub({ port: 21012 }); await new Promise(r => setTimeout(r, 200)); } catch (e) { notes.push('skip SAMP (port 21012 busy): ' + e.message); }
+  if (hub) {
+    const con = await page.evaluate(() => window.__kuapi.sampConnect());
+    await page.evaluate(() => { window.__kuapi.skyView(true); window.__kuapi.lookAt(56.75, 24.12); }); await page.waitForTimeout(2500);
+    const sentAt = await page.evaluate(async () => { const c = window.__ku.fieldCentre(); await window.__kuapi.sampPointAt(); await window.__kuapi.sampSendSet(0); return c; });
+    await page.waitForTimeout(300);
+    const out = hub.calls.filter(x => x.method === 'samp.webhub.notifyAll').map(x => x.params[1]);
+    const pa = out.find(m => m['samp.mtype'] === 'coord.pointAt.sky'), tl = out.find(m => m['samp.mtype'] === 'table.load.votable');
+    const vot = tl ? Buffer.from(tl['samp.params'].url.split(',')[1], 'base64').toString('utf8') : '';
+    hub.notify({ 'samp.mtype': 'coord.pointAt.sky', 'samp.params': { ra: '83.8221', dec: '-5.3911' } });
+    hub.call({ 'samp.mtype': 'samp.app.ping', 'samp.params': {} }, 'msg-7');
+    await page.waitForTimeout(3000);
+    const turned = await page.evaluate(() => window.__ku.fieldCentre());
+    await page.evaluate(() => window.__kuapi.sampDisconnect()); await page.waitForTimeout(300);
+    const names = hub.calls.map(x => x.method), bad = hub.calls.filter(x => x.method === 'PARSE-ERROR').length;
+    ok(con && names.includes('samp.webhub.register') && names.includes('samp.webhub.declareSubscriptions') && names.includes('samp.webhub.allowReverseCallbacks') && bad === 0, `SAMP registers with the hub (${names.filter(n => n !== 'samp.webhub.pullCallbacks').length} calls, ${bad} malformed)`);
+    ok(pa && Math.abs(+pa['samp.params'].ra - sentAt[0]) < 1e-4 && Math.abs(+pa['samp.params'].dec - sentAt[1]) < 1e-4, `SAMP sends the field as coord.pointAt.sky (${pa ? pa['samp.params'].ra + ', ' + pa['samp.params'].dec : 'nothing'})`);
+    ok(tl && /^data:application\/x-votable\+xml;base64,/.test(tl['samp.params'].url) && (vot.match(/<TR>/g) || []).length === 3, `SAMP sends the set as table.load.votable (${(vot.match(/<TR>/g) || []).length} rows in the VOTable)`);
+    ok(Math.abs(turned[0] - 83.8221) < 0.05 && Math.abs(turned[1] + 5.3911) < 0.05, `an incoming coord.pointAt.sky turns the telescope (now ${turned[0].toFixed(3)}, ${turned[1].toFixed(3)})`);
+    const rep = hub.calls.find(x => x.method === 'samp.webhub.reply');
+    ok(rep && rep.params[1] === 'msg-7' && rep.params[2]['samp.status'] === 'samp.ok' && names.includes('samp.webhub.unregister'), 'SAMP answers a call with samp.ok and unregisters on disconnect');
+    hub.close();
+  }
   // a measurement by name goes into the log with separation and position angle (astropy, J2000: 157.8595° / PA 4.25°; HYG is propagated to today, which moves Sirius 36″)
   const meas = await page.evaluate(() => window.__kuapi.measureBetween('Sirius', 'Vega'));
   ok(meas && Math.abs(meas.sep - 157.8595) < 0.03 && Math.abs(meas.pa - 4.248) < 0.1, `measureBetween Sirius–Vega: sep ${meas?.sep?.toFixed(4)}° PA ${meas?.pa?.toFixed(2)}° (astropy 157.8595° / 4.25°)`);

@@ -294,6 +294,20 @@ run). A measurement can also be typed instead of clicked: `measureBetween('Siriu
 'Vega')` logs the physical distance, the angular separation and the position angle from
 the current vantage point.
 
+**SAMP — talking to TOPCAT, Aladin, DS9**
+
+`src/engine/samp.js` is a SAMP Web Profile client: *Connect to the hub* registers this
+page with the hub on `localhost:21012` (TOPCAT and Aladin start one; the hub asks you to
+allow the page in its own window), declares its metadata and subscriptions and long-polls
+the hub for callbacks. Out: the telescope's field as `coord.pointAt.sky`, a set as
+`table.load.votable`. In: a `coord.pointAt.sky` from any other client turns the telescope
+there; calls are answered with `samp.ok`. The Web Profile has no upload, and this page
+has no server, so a table travels as a `data:` URL — hubs built on JSAMP resolve those;
+if yours does not, the export buttons give the same VOTable to load by hand. The protocol
+exchange is checked in the e2e run against a mock hub (`tools/samp-mockhub.mjs`, also
+runnable by hand to watch the calls); it has not been exercised against a real TOPCAT
+here, which needs Java.
+
 ## Data sources and their state
 
 The map pulls from about fifteen services at run time and from a pipeline at build

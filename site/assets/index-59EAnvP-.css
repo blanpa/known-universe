@@ -368,5 +368,7 @@ a.chip { text-decoration: none; }
 .xm-sum { gap: 4px 14px; }
 .xm-list { max-height: 36vh; }
 .xm-doubt { color: #f0b36a; }
+.samp-error { color: #ff8a8a; }
+.samp-on { color: var(--sel); }
 
   .ic.svelte-13so817 { flex: 0 0 auto; display: block; }

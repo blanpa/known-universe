@@ -3,7 +3,7 @@
   // of view with the wheel. Blink two epochs and whatever hops between them is a star that
   // moves — the way Pluto and most brown dwarfs were found.
   import { api } from '../lib/api.js';
-  import { camera, crossmatch, fieldQuery, measureLog, movers, selection, survey, userLayer } from '../lib/stores.js';
+  import { camera, crossmatch, fieldQuery, measureLog, movers, samp, selection, survey, userLayer } from '../lib/stores.js';
   import Icon from './Icon.svelte';
   const SURVEYS = [
     { id: 'dss',   n: 'DSS2',       sub: 'photographic plates, 1983–1999', band: 'visible' },
@@ -176,5 +176,21 @@
     <button type="button" class="chip" disabled={!$measureLog.length} onclick={() => api.exportTable?.('measure', 'csv')}>Measurements ({$measureLog.length}) · CSV</button>
     <button type="button" class="chip" disabled={!$measureLog.length} onclick={() => api.exportTable?.('measure', 'votable')}>VOTable</button>
   </div>
+  <div class="label lg-sub">SAMP · TOPCAT, Aladin, DS9</div>
+  <p class="hint">A hub on this machine (TOPCAT and Aladin start one) links the tools: the telescope's field goes out as
+    <span class="mono">coord.pointAt.sky</span>, a set as <span class="mono">table.load.votable</span>, and a point sent by
+    another tool turns the telescope. The hub asks for your permission in its own window.</p>
+  <div class="sky-fov">
+    {#if $samp.state === 'on'}
+      <button type="button" class="chip on" onclick={() => api.sampDisconnect?.()}>Disconnect</button>
+      <button type="button" class="chip" disabled={!$camera.sky} onclick={() => api.sampPointAt?.()}>Point hub clients here</button>
+      {#each $userLayer.sets as st, k (st.src + st.name)}
+        <button type="button" class="chip" onclick={() => api.sampSendSet?.(k)}>Send “{st.name.length > 24 ? st.name.slice(0, 24) + '…' : st.name}”</button>
+      {/each}
+    {:else}
+      <button type="button" class="chip" disabled={$samp.state === 'connecting'} onclick={() => api.sampConnect?.()}>Connect to the hub</button>
+    {/if}
+  </div>
+  {#if $samp.msg}<p class="hint samp-{$samp.state}" class:busy={$samp.state === 'connecting'}>{$samp.msg}</p>{/if}
   <p class="hint src">Tiles: CDS/HiPS (DSS2 © STScI/ROE/AAO/UKSTU, 2MASS/IPAC-Caltech, WISE/NASA-JPL, Pan-STARRS/IfA). Loaded on demand; nothing is stored.</p>
 </div>
