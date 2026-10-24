@@ -14,14 +14,24 @@
   <div id="skystatus" class="mono" aria-live="off">
     {#if $skyCursor}
       <span class="ss-k">Cursor</span>
-      <span>α {hms($skyCursor.ra)}</span><span>δ {dms($skyCursor.dec)}</span>
+      {#if $camera.frame === 'date'}
+        <span>α {hms($skyCursor.raDate ?? $skyCursor.ra)}</span><span>δ {dms($skyCursor.decDate ?? $skyCursor.dec)}</span>
+      {:else}
+        <span>α {hms($skyCursor.ra)}</span><span>δ {dms($skyCursor.dec)}</span>
+      {/if}
       <span class="ss-dim">l {$skyCursor.l.toFixed(3)}° b {$skyCursor.b >= 0 ? '+' : '−'}{Math.abs($skyCursor.b).toFixed(3)}°</span>
+      {#if $camera.obs && $skyCursor.alt !== undefined}
+        <span class="ss-dim" class:ss-down={$skyCursor.alt < 0}>alt {$skyCursor.alt.toFixed(1)}° az {$skyCursor.az.toFixed(1)}°{$skyCursor.alt > 0 ? ` X ${$skyCursor.airmass.toFixed(2)}` : ' · below the horizon'}</span>
+      {/if}
       <span class="ss-sep" aria-hidden="true"></span>
     {/if}
     <span class="ss-k">Field</span>
     <span>{fovText($camera.fov)}</span><span>{scaleText($camera.pxScale)}</span>
+    {#if $camera.obs && $camera.alt !== null && $camera.alt !== undefined}
+      <span class="ss-dim" class:ss-down={$camera.alt < 0}>alt {$camera.alt.toFixed(1)}° az {$camera.az.toFixed(1)}°{$camera.alt > 0 ? ` · airmass ${$camera.airmass.toFixed(2)}` : ' · below the horizon'}</span>
+    {/if}
     <span class="ss-sep" aria-hidden="true"></span>
     <span class="ss-k">Epoch</span><span>J{$camera.epoch.toFixed(2)}</span>
-    <span class="ss-dim">ICRS · J2000 axes{$camera.skyFrom ? ` · from ${$camera.skyFrom}` : ' · from the Sun'}</span>
+    <span class="ss-dim">{$camera.frame === 'date' ? 'apparent · true equator & equinox of date' : 'ICRS · J2000 axes'}{$camera.skyFrom ? ` · from ${$camera.skyFrom}` : $camera.obs ? ` · ${$camera.obsName}` : ' · from the Sun'}</span>
   </div>
 {/if}

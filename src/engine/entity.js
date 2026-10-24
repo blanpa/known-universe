@@ -1,5 +1,8 @@
 // One place that knows what an object IS.
 import { objWorld } from './actions.js';
+import { icrsOfDate } from '../lib/astro.js';
+import { ephemApparent } from './ephem.js';
+import { jdNow, observeRows } from './observe.js';
 import { PC2LY } from './data.js';
 import { fmt } from './hud.js';
 import { epochNow, hostPos, hygPos, tNow } from './motion.js';
@@ -240,6 +243,7 @@ export function card(o){
       c.links=[{t:'CNEOS',u:'https://cneos.jpl.nasa.gov/fireballs/'}];
       c.hint='a small asteroid burning up — most are never seen by anyone'; break; }
     case 'sun': case 'planet': case 'dwarf': case 'moon': case 'tno': case 'probe': case 'comet': case 'asteroid': case 'iso': case 'neo': {
+      if(o._src) c.rows.push(['Position from', o._src==='horizons'?'JPL Horizons table (DE441), interpolated · 0.02″':'Keplerian elements (JPL) · arcminutes']);
       const er=o.rk/6371;
       const dist = o.am!==undefined ? `${fmt(o.am*1000)} km from ${o.parent}`
                  : o._r!==undefined ? `${o._r.toFixed(2)} AU from the Sun`
@@ -307,5 +311,18 @@ export function card(o){
       c.links=[{t:'NASA archive',u:`https://exoplanetarchive.ipac.caltech.edu/overview/${encodeURIComponent(o.h)}`},{t:'SIMBAD',u:simbadId(o.h)},{t:'Aladin',u:aladin(ra,dec,0.4)}];
       c.hint='Click → fly into the system and see the orbits'; break; }
   }
+  // the observer's view of it: apparent place, alt/az, rise and set (observe.js)
+  try{ const d=dirForObserver(o,k); if(d) for(const r of observeRows(d)) c.rows.push(r); }catch(_){}
   return c;
+}
+// geocentric ICRS direction of an object, for the observer rows: stars and deep sky from
+// their position (the Sun's and the Earth's view agree to a parallax), solar-system bodies
+// from the table or the elements relative to the Earth
+function dirForObserver(o,k){
+  if(k==='sun'||k==='planet'||k==='dwarf'||k==='moon'||k==='tno'||k==='probe'||k==='comet'||k==='asteroid'||k==='iso'||k==='neo'){
+    if(k==='planet'||k==='dwarf'){ const a=ephemApparent(o.n, jdNow()); if(a) return icrsOfDate(a.dir, jdNow()); }   // light-time included; apparentOf is applied again downstream, so undo its frame here
+    const E=SOLAR_BODIES.find(b=>b.n==='Earth'); if(!E||!E._e) return null;
+    const P=k==='sun'?[0,0,0]:k==='moon'?(SOLAR_BODIES.find(b=>b.n===o.parent)||{})._e:o._e; if(!P) return null;
+    const q=eclDir(P[0]-E._e[0],P[1]-E._e[1],P[2]-E._e[2]), l=Math.hypot(q[0],q[1],q[2])||1; return [q[0]/l,q[1]/l,q[2]/l]; }
+  const p=physPos(o); if(!p) return o._dir||(o.dx!==undefined?[o.dx,o.dy,o.dz]:null); const l=Math.hypot(p[0],p[1],p[2])||1; return [p[0]/l,p[1]/l,p[2]/l];
 }

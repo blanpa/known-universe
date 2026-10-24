@@ -296,6 +296,21 @@ async function open(vp, mobile, hash) {
       ok(/Gaia DR3/.test(card) && /Bailer-Jones geometric 16–84 %/.test(card) && /Parallax error± /.test(card) && /RUWE/.test(card), `a picked Gaia star shows its Bailer-Jones range, parallax error and RUWE (${card.slice(0, 90)}…)`);
       await page.evaluate(() => { window.__kuapi.deselect?.(); window.__kuapi.skyView(false); }); }
   }
+  // the observer: a place on Earth gives alt/az, rise/set and the horizon; the instrument a frame; the finder chart a PNG
+  {
+    const ob = await page.evaluate(async () => { const api = window.__kuapi; api.skyView(false); api.setObserver({ lat: 48.137, lon: 11.575, elev: 520, name: 'Munich' });
+      api.doSearch('Polaris'); await new Promise(r => setTimeout(r, 2000)); const pol = document.getElementById('info')?.textContent.replace(/\s+/g, ' ') || '';
+      api.doSearch('Mars'); await new Promise(r => setTimeout(r, 2000)); const mars = document.getElementById('info')?.textContent.replace(/\s+/g, ' ') || '';
+      api.skyView(true); api.lookAt(0, 48); api.setFov(60); api.setInstrument({ preset: 2 }); api.setObserver({ frame: 'date' }); await new Promise(r => setTimeout(r, 2500));
+      const st = document.getElementById('skystatus')?.textContent.replace(/\s+/g, ' ') || '', stat = { ...window.__ku.obsStat }, chart = api.finderChart('e2e');
+      api.setObserver({ on: false, frame: 'icrs' }); api.setInstrument({ frameOn: false }); api.skyView(false); api.deselect?.();
+      const alt = +(pol.match(/alt (-?[\d.]+)°/) || [])[1], az = +(pol.match(/az ([\d.]+)°/) || [])[1];
+      return { pol: pol.slice(pol.indexOf('From Munich'), pol.indexOf('From Munich') + 120), alt, az, circum: /circumpolar/.test(pol), mars: /Position fromJPL Horizons table/.test(mars) && /From Munich/.test(mars), st, stat, chart }; });
+    ok(Math.abs(ob.alt - 48.137) < 0.8 && (ob.az < 1.5 || ob.az > 358.5) && ob.circum, `Polaris from Munich: alt ${ob.alt}° az ${ob.az}°, circumpolar (latitude 48.137°)`);
+    ok(ob.mars, 'Mars is placed from the Horizons table and the card has the observer rows');
+    ok(/apparent · true equator/.test(ob.st) && /alt -?[\d.]+° az [\d.]+°/.test(ob.st) && ob.stat.horizon > 5 && ob.stat.frame === 1, `status line in the frame of date with alt/az, horizon drawn (${ob.stat.horizon} points), instrument frame drawn`);
+    ok(ob.chart && ob.chart.w === 1440 && ob.chart.h > 900, `finder chart composed (${ob.chart?.w}×${ob.chart?.h})`);
+  }
   // a measurement by name goes into the log with separation and position angle (astropy, J2000: 157.8595° / PA 4.25°; HYG is propagated to today, which moves Sirius 36″)
   const meas = await page.evaluate(() => { const api = window.__kuapi; api.skyView(true); const m = api.measureBetween('Sirius', 'Vega'); api.skyView(false); return m; });   // angles from the Sun, not from the last view centre
   ok(meas && Math.abs(meas.sep - 157.8595) < 0.03 && Math.abs(meas.pa - 4.248) < 0.1, `measureBetween Sirius–Vega: sep ${meas?.sep?.toFixed(4)}° PA ${meas?.pa?.toFixed(2)}° (astropy 157.8595° / 4.25°)`);

@@ -370,5 +370,10 @@ a.chip { text-decoration: none; }
 .xm-doubt { color: #f0b36a; }
 .samp-error { color: #ff8a8a; }
 .samp-on { color: var(--sel); }
+.obs-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 8px; margin: 6px 0 2px; font-size: 11px; color: var(--txt-2); }
+.obs-grid label { display: flex; align-items: center; gap: 4px; }
+.obs-grid input { width: 100%; min-width: 0; padding: 2px 6px; border-radius: 6px; border: 1px solid var(--line-strong); background: var(--bg-2); color: var(--txt); font: inherit; }
+.obs-fov { align-self: center; color: var(--txt-2); font-size: 11px; }
+.ss-down { color: #ff8a8a; }
 
   .ic.svelte-13so817 { flex: 0 0 auto; display: block; }

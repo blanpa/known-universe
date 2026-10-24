@@ -130,6 +130,11 @@ while desktop ANGLE silently accepted it).
   simply vanishes (the integer `a_pm` attribute did this to quasars/web/belt). The e2e run now fails on
   any `GL_INVALID` console message and counts lit pixels per far view; when probing by hand, listen to
   every console type, not only `error`.
+- **Reference checks without a browser**: `npm run test:astro` (src/lib/astro.js vs astropy/ERFA,
+  tools/reference/astro.json) and `npm run test:ephem` (the Horizons table vs off-grid samples).
+  Regenerate the references with the scratch venv that has astropy (`pipeline/make_reference.py`,
+  `pipeline/fetch_horizons.py --check`). Counters for the e2e run: `__ku.errStat` (bars, ellipses),
+  `__ku.obsStat` (horizon points, frame), `__ku.obs` (observer state), `__ku.fits`, `__ku.fieldCentre()`.
 - External live APIs 429 on repeated headless runs; GIBS tiles 404 on day-offset fallback — noise,
   not failures.
 - Views inside the Gaia point cloud (e.g. flown to a nearby star) run ~4 s/frame in SwiftShader —

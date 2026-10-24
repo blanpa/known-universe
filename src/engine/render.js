@@ -14,6 +14,7 @@ import { drawMeasure, measureMode } from './measure.js';
 import { hostPos, tNow } from './motion.js';
 import { drawErrors } from './errors.js';
 import { drawMovers } from './movers.js';
+import { drawObserver } from './observe.js';
 import { LENS_EXAG, calcLens, drawGalaxyModel, drawMW, lensPar } from './mw.js';
 import { drawConstellations, drawShowers } from './sky.js';
 import { FAC } from './solar-data.js';
@@ -86,6 +87,7 @@ export function render(){
   if(S.user) P('user',()=>{ projectUser(); drawUser(); });   // your imported rows, over the catalogue
   if(S.skyMode) P('movers',drawMovers);                        // predicted jumps between the blink epochs
   P('errors',drawErrors);                                      // distance bars and position-error ellipses
+  if(S.skyMode) P('observer',drawObserver);                    // horizon, zenith, the instrument's frame
 
   // draw sun at origin
   const sp=project(0,0,0);

@@ -1,5 +1,6 @@
 // Solar-system bodies and their orbital mechanics (Standish planets, JPL small bodies, moon ephemerides).
 import { CAT, DATA } from './data.js';
+import { ephemPos } from './ephem.js';
 import { S } from './state.js';
 import { AU_PC, scale } from './view.js';
 // ---- our solar system (real radii in km, semi-major axis in AU) ----
@@ -153,6 +154,8 @@ export function updateSolarPositions(jd){
   for(const b of SOLAR_BODIES){
     b._el = elementsAt(b,jd);
     b._e  = b._el ? orbPoint(b._el,b._el.E) : null;
+    const q=ephemPos(b.n,jd);                    // the Horizons table wins while the date is inside it
+    if(q){ b._e=q; b._src='horizons'; } else b._src='elements';
     if(b._e) b._r = Math.hypot(b._e[0],b._e[1],b._e[2]);
   }
   for(const p of PROBES){ const dt=jd-p.ep;

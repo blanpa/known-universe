@@ -1,5 +1,6 @@
 // HUD: scale readout, course reticle, stats, nav panel.
 import { camera, nav, selection, stats } from '../lib/stores.js';
+import { OBS, skyOf } from './observe.js';
 import { ctx } from './canvas.js';
 import { PC2LY } from './data.js';
 import { abilities, card, nameOf } from './entity.js';
@@ -131,10 +132,14 @@ export function updateHUD(){
   const here = camDist>1e-9 ? invScale(camDist) : 0, inSolar=V.solarA>0.5;
   const fov=S.skyMode?fovDeg():0;
   let ra=0, dec=0; if(S.skyMode){ ra=Math.atan2(camFwd[1],camFwd[0])*57.29578; if(ra<0) ra+=360; dec=Math.asin(Math.max(-1,Math.min(1,camFwd[2])))*57.29578; }
-  const ck=here.toPrecision(3)+'|'+S.realScale+'|'+inSolar+'|'+S.skyMode+'|'+fov.toPrecision(3)+'|'+ra.toFixed(2)+'|'+dec.toFixed(2)+'|'+(V.skyFrom||'')+'|'+(S.pm?S.pmYears:0);
+  const obsTick=OBS.on?Math.floor(Date.now()/5000):0;      // alt/az drift: refresh every 5 s
+  const ck=here.toPrecision(3)+'|'+S.realScale+'|'+inSolar+'|'+S.skyMode+'|'+fov.toPrecision(3)+'|'+ra.toFixed(2)+'|'+dec.toFixed(2)+'|'+(V.skyFrom||'')+'|'+(S.pm?S.pmYears:0)+'|'+OBS.on+OBS.frame+obsTick+'|'+(S.tOffsetDays|0);
   if(ck!==_cam){ _cam=ck;
+    const sk=S.skyMode?skyOf(camFwd):null;
     camera.set({distPc:here, distText:here>0?fmtDist(here):'at the Sun', band:S.skyMode?(V.skyFrom?'Sky from '+V.skyFrom:'Sky view'):bandOf(here), real:S.realScale, inSolar, camZ:S.camZ,
-      sky:S.skyMode, skyFrom:V.skyFrom||null, fov, ra, dec, order:SKYSTAT.order, epoch:epochNow(), pxScale:S.skyMode?fov*3600/Math.max(W,H):0}); }
+      sky:S.skyMode, skyFrom:V.skyFrom||null, fov, ra, dec, order:SKYSTAT.order, epoch:epochNow(), pxScale:S.skyMode?fov*3600/Math.max(W,H):0,
+      obs:OBS.on, obsName:OBS.name||(OBS.on?`${OBS.lat.toFixed(2)}°, ${OBS.lon.toFixed(2)}°`:''), frame:OBS.frame, raDate:sk?sk.ra:ra, decDate:sk?sk.dec:dec,
+      alt:sk&&sk.alt!==undefined?sk.altRef:null, az:sk&&sk.az!==undefined?sk.az:null, airmass:sk&&sk.airmass!==undefined?sk.airmass:null}); }
 
   if(!V.navTarget){ if(_nav){ _nav=''; nav.set(null); } return; }
   const dpc=navDistPc(), w=navWorld(V.navTarget); let head='–';

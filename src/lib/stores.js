@@ -26,3 +26,4 @@ export const movers = writable({ list: [], a: '', b: '', ea: 0, eb: 0, dt: 0 });
 export const crossmatch = writable({ busy: null, msg: '', set: -1, radius: 3, remote: null, known: 0, unknown: 0, n: 0, rows: [] });   // cross-identification of a set
 export const measureLog = writable([]);     // every completed measurement, for export
 export const samp = writable({ state: 'off', msg: '', hub: null, clients: 0, sent: 0, received: 0 });   // SAMP hub connection (TOPCAT, Aladin)
+export const observer = writable({ on: false, lat: 0, lon: 0, elev: 0, name: '', frame: 'icrs', refract: true, frameOn: false, fl: 1000, sw: 23.5, sh: 15.6, px: 3.76, pa: 0, instr: '', fov: null, msg: '' });   // observer + instrument (observe.js)

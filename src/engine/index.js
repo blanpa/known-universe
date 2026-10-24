@@ -1,8 +1,11 @@
 // Engine entry: wires the modules together and boots.
 import { api } from '../lib/api.js';
+import { render } from './render.js';
 import './samp.js';
 import { ERRSTAT } from './errors.js';
 import { FITS } from './fitsimg.js';
+import { loadEphem } from './ephem.js';
+import { OBS, OBSSTAT, restoreObserver } from './observe.js';
 import { fieldCentre } from './fieldquery.js';
 import { LIVE, startLive } from '../lib/live.js';
 import { facList as facListStore } from '../lib/stores.js';
@@ -40,7 +43,9 @@ api.liveStats=()=>{ const y=new Date().getFullYear();
 LIVE.onUpdate=()=>{ V.dirty=true; };
 // headless-verify hook: lets the test harness inspect/inject live-layer state
 restoreUser();
-window.__ku={api, live:LIVE, redraw:()=>{V.dirty=true;}, survey:{ST, SKYSTAT, cacheSize}, user:USER, userProj, hyg:HYG, projDir:(x,y,z)=>{ const R=scale(SKY_R_PC), o={}; projectInto(x*R,y*R,z*R,o); return o; }, get gaiaPm(){ return gaiaPm; }, get gaiaRaw(){ return gaiaRaw; }, get gaiaQ(){ return gaiaQ; }, fieldCentre, get fits(){ return FITS.img; }, errStat:ERRSTAT, get gaiaRange(){ return gaiaRange; }, sunScreen:()=>{ const o={}; projectInto(0,0,0,o); return o; }, clearColor:()=>glClearColor()};
+restoreObserver();
+window.__ku={api, live:LIVE, redraw:()=>{V.dirty=true;}, survey:{ST, SKYSTAT, cacheSize}, user:USER, userProj, hyg:HYG, projDir:(x,y,z)=>{ const R=scale(SKY_R_PC), o={}; projectInto(x*R,y*R,z*R,o); return o; }, get gaiaPm(){ return gaiaPm; }, get gaiaRaw(){ return gaiaRaw; }, get gaiaQ(){ return gaiaQ; }, fieldCentre, get fits(){ return FITS.img; }, errStat:ERRSTAT, obsStat:OBSSTAT, obs:OBS, get gaiaRange(){ return gaiaRange; }, sunScreen:()=>{ const o={}; projectInto(0,0,0,o); return o; }, clearColor:()=>glClearColor()};
+api.renderNow=()=>{ V.dirty=true; render(); };          // one frame now (the finder chart reads the GL buffer right after)
 window.__kuapi=api;
 
 facListStore.set(facList);
@@ -50,6 +55,7 @@ startLive();
 if(!(location.hash||'').includes('v1_')) clickToggle('t-real');
 applyHash();
 initGL();
+loadEphem();
 loadGaia();
 loadExtragal();
 requestAnimationFrame(frame);

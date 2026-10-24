@@ -1,5 +1,6 @@
 // Our solar system: Sun, planets, moons, probes, interstellar visitors, small bodies.
 import { declare, timg } from '../lib/sources.js';
+import { ephemMoon } from './ephem.js';
 import { ctx } from './canvas.js';
 import { drawHalo, haloSprite, offscr, pathBegin, pathBreak, pathPt, pathStroke } from './draw.js';
 import { PTEX, _gbl, bodyGlobe, earthGlobe, earthImage } from './earth.js';
@@ -245,7 +246,7 @@ export function drawSolar(alpha){ LBL.prio=P_SOLAR;
         const eph=MOON_EPH[m.n];
         let mx,my;
         if(eph&&eph.a){                            // real orbit: phase, plane and eccentricity
-          const mp=moonAt(eph,jdM);
+          const mp=(m.n==='Moon'&&ephemMoon(jdM))||moonAt(eph,jdM);   // the Moon from Horizons when the table covers the date
           // screen separation per km: true angular size in real scale, the exploded
           // (log) spacing otherwise — in both, the eccentric orbit keeps its true shape
           const kmPx = S.realScale ? V.foc*3.2408e-14/p.depth : sepPx/(m.am*1000||eph.a);

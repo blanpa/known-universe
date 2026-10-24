@@ -354,6 +354,33 @@ Every astrometric number now travels with its error where the source has one
 - **Hide suspect astrometry · RUWE > 1.4** (Layers → Stars) culls those sources from the
   Gaia cloud in the vertex shader, so a kinematic picture is drawn from clean solutions only.
 
+**Apparent places, the observer, the instrument**
+
+Everything is stored in ICRS, and that stays the frame of the catalogue. For pointing a
+telescope the *Sky* pane adds (`src/lib/astro.js`, `src/engine/observe.js`):
+
+- **Coordinates of date** — a switch turns every readout (status line, cursor, cards) into
+  apparent places: IAU 2006 precession, IAU 2000B nutation (its 20 largest terms, 0.01″ from
+  the full series), frame bias and annual aberration. Checked against astropy/ERFA on five
+  dates and six stars: 0.03″ in the apparent place, 0.009″ in the nutation
+  (`npm run test:astro`, references from `pipeline/make_reference.py`).
+- **Observer** — latitude, longitude, height (or *Use my location*): altitude, azimuth,
+  airmass (Kasten–Young) and hour angle for the field, the cursor and every card; rise,
+  transit and set; sunset, sunrise and astronomical night; the horizon and the zenith drawn
+  across the sky, with refraction (Bennett) on by default. Alt/az agree with astropy to the
+  ΔUT1 the app does not know (UT1 = UTC, up to 13″ of hour angle). The clock is the
+  timeline's.
+- **Planets from JPL Horizons** — `site/data/ephem.bin` holds DE441 positions for the planets,
+  Pluto (daily, Mercury twice a day) and the Moon (6-hourly) for 2015–2045
+  (`pipeline/fetch_horizons.py`); while the date is inside, the solar system is placed from
+  it, otherwise from the Keplerian elements as before, and the card says which. Interpolation
+  error against off-grid Horizons samples: 0.02″ for the planets, 0.1″ for the Moon
+  (`npm run test:ephem`). Apparent planet positions — light-time, aberration, precession,
+  nutation — agree with astropy on the DE440s kernel to 0.2″ (Moon 1″).
+- **Instrument** — focal length, sensor, pixel size and position angle (or a preset) draw the
+  camera's field as a frame on the sky with its size and scale; *Finder chart · PNG* saves the
+  field as drawn with north, east, centre (ICRS and of date), scale and time in a strip.
+
 ## Data sources and their state
 
 The map pulls from about fifteen services at run time and from a pipeline at build

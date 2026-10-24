@@ -3,7 +3,7 @@
   // of view with the wheel. Blink two epochs and whatever hops between them is a star that
   // moves — the way Pluto and most brown dwarfs were found.
   import { api } from '../lib/api.js';
-  import { camera, crossmatch, fieldQuery, measureLog, movers, samp, selection, survey, userLayer } from '../lib/stores.js';
+  import { camera, crossmatch, fieldQuery, measureLog, movers, observer, samp, selection, survey, userLayer } from '../lib/stores.js';
   import Icon from './Icon.svelte';
   const SURVEYS = [
     { id: 'dss',   n: 'DSS2',       sub: 'photographic plates, 1983–1999', band: 'visible' },
@@ -21,7 +21,14 @@
   let fitsEl = $state(null);
   async function pickFits(e) { const f = e.target.files?.[0]; if (!f) return; api.importFits?.(await f.arrayBuffer(), f.name); e.target.value = ''; }
   let fileEl = $state(null);
-  let xmRadius = $state(3);                                   // cross-match radius, arcsec
+  let xmRadius = $state(3);
+  // observer + instrument inputs (committed on change)
+  let oLat = $state(''), oLon = $state(''), oElev = $state(''), oName = $state('');
+  let iFl = $state(''), iSw = $state(''), iSh = $state(''), iPx = $state(''), iPa = $state('');
+  $effect(() => { const o = $observer; oLat = o.on ? String(o.lat) : oLat; oLon = o.on ? String(o.lon) : oLon; oElev = String(o.elev); oName = o.name; iFl = String(o.fl); iSw = String(o.sw); iSh = String(o.sh); iPx = String(o.px); iPa = String(o.pa); });
+  const PRESETS = [
+    { n: 'APS-C DSLR · 200 mm' }, { n: 'APS-C · 80 mm refractor (f/6)' }, { n: 'ASI533MC · 8″ SCT (f/10)' }, { n: 'ASI294MC · 8″ Newton (f/5)' }, { n: 'Full frame · 135 mm' }, { n: '1.2 m Schmidt plate (6.4°)' } ];
+  const fovT = v => v >= 1 ? `${v.toFixed(2)}°` : `${(v * 60).toFixed(1)}′`;                                   // cross-match radius, arcsec
   const sepText = v => v === null || v === undefined ? '' : v >= 60 ? (v / 60).toFixed(1) + '′' : v.toFixed(2) + '″';
   async function pickFile(e) { const f = e.target.files?.[0]; if (!f) return; api.importUser?.(await f.text(), f.name); e.target.value = ''; }
   const aladin = () => `https://aladin.cds.unistra.fr/AladinLite/?target=${$camera.ra.toFixed(4)}%20${$camera.dec.toFixed(4)}&fov=${Math.max(0.01, $camera.fov).toFixed(3)}&survey=P%2FDSS2%2Fcolor`;
@@ -188,6 +195,45 @@
   </div>
   {#if $fieldQuery.msg}<p class="hint" class:busy={$fieldQuery.busy}>{$fieldQuery.msg}</p>{/if}
   {#if !$camera.sky}<p class="hint">Switch the telescope on to ask for a field.</p>{/if}
+  <div class="label lg-sub">Observer</div>
+  <p class="hint">A place on Earth turns the telescope into an instrument that knows where up is: altitude, azimuth and airmass for the
+    field, the cursor and every card; rise, transit and set; the horizon across the sky. The clock is the timeline's. The maths is
+    IAU 2006/2000B, checked against astropy (<span class="mono">npm run test:astro</span>).</p>
+  <div class="obs-grid">
+    <label class="mono">lat <input type="number" step="0.0001" min="-90" max="90" placeholder="48.137" bind:value={oLat} onchange={() => api.setObserver?.({ lat: +oLat, lon: +oLon || 0 })} /></label>
+    <label class="mono">lon <input type="number" step="0.0001" min="-180" max="180" placeholder="11.575 (east +)" bind:value={oLon} onchange={() => api.setObserver?.({ lat: +oLat || 0, lon: +oLon })} /></label>
+    <label class="mono">elev <input type="number" step="1" placeholder="m" bind:value={oElev} onchange={() => api.setObserver?.({ elev: +oElev })} /></label>
+    <label class="mono">name <input type="text" placeholder="Munich" bind:value={oName} onchange={() => api.setObserver?.({ name: oName })} /></label>
+  </div>
+  <div class="sky-fov">
+    <button type="button" class="chip" onclick={() => api.observerHere?.()}>Use my location</button>
+    <button type="button" class="chip" class:on={$observer.on} onclick={() => api.setObserver?.({ on: !$observer.on })}>{$observer.on ? 'Observer on' : 'Observer off'}</button>
+    <button type="button" class="chip" class:on={$observer.frame === 'date'} onclick={() => api.setObserver?.({ frame: $observer.frame === 'date' ? 'icrs' : 'date' })}>Coordinates {$observer.frame === 'date' ? 'of date (apparent)' : 'ICRS J2000'}</button>
+    <button type="button" class="chip" class:on={$observer.refract} onclick={() => api.setObserver?.({ refract: !$observer.refract })}>Refraction {$observer.refract ? 'on' : 'off'}</button>
+  </div>
+  {#if $observer.msg}<p class="hint warn">{$observer.msg}</p>{/if}
+  {#if $camera.sky && $observer.on && $camera.alt !== null && $camera.alt !== undefined}
+    <div class="sky-ro mono"><span>alt {$camera.alt.toFixed(1)}°</span><span>az {$camera.az.toFixed(1)}°</span>{#if $camera.alt > 0}<span>airmass {$camera.airmass.toFixed(2)}</span>{:else}<span class="xm-unk">below the horizon</span>{/if}</div>
+  {/if}
+
+  <div class="label lg-sub">Instrument</div>
+  <p class="hint">Your telescope and camera as a frame on the sky, and a finder chart to take to the eyepiece: the field as drawn,
+    with north, east, centre, scale and time in a strip below.</p>
+  <div class="sky-fov">
+    {#each PRESETS as p, i (p.n)}<button type="button" class="chip" class:on={$observer.instr === p.n} onclick={() => api.setInstrument?.({ preset: i })}>{p.n}</button>{/each}
+  </div>
+  <div class="obs-grid">
+    <label class="mono">f <input type="number" step="1" min="1" bind:value={iFl} onchange={() => api.setInstrument?.({ fl: +iFl, instr: '' })} /> mm</label>
+    <label class="mono">sensor <input type="number" step="0.1" min="0.1" bind:value={iSw} onchange={() => api.setInstrument?.({ sw: +iSw, instr: '' })} /> × <input type="number" step="0.1" min="0.1" bind:value={iSh} onchange={() => api.setInstrument?.({ sh: +iSh, instr: '' })} /> mm</label>
+    <label class="mono">pixel <input type="number" step="0.01" min="0.1" bind:value={iPx} onchange={() => api.setInstrument?.({ px: +iPx })} /> µm</label>
+    <label class="mono">PA <input type="number" step="1" bind:value={iPa} onchange={() => api.setInstrument?.({ pa: +iPa })} /> °</label>
+  </div>
+  <div class="sky-fov">
+    <button type="button" class="chip" class:on={$observer.frameOn} onclick={() => api.setInstrument?.({ frameOn: !$observer.frameOn })}>Frame {$observer.frameOn ? 'shown' : 'hidden'}</button>
+    {#if $observer.fov}<span class="mono obs-fov">{fovT($observer.fov.w)} × {fovT($observer.fov.h)} · {$observer.fov.scale.toFixed(2)}″/px</span>{/if}
+    <button type="button" class="chip" disabled={!$camera.sky} onclick={() => api.finderChart?.($selection?.card?.title)}>Finder chart · PNG</button>
+  </div>
+
   <div class="label lg-sub">Export</div>
   <p class="hint">Tables leave as CSV or VOTable (TOPCAT, Aladin, astropy). Positions are ICRS at the stated epoch.</p>
   <div class="sky-fov">

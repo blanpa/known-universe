@@ -1,5 +1,6 @@
 // Pointer, wheel, touch and keyboard interaction.
 import { skyCursor } from '../lib/stores.js';
+import { skyOf } from './observe.js';
 import { aim, enterSolar, flyTo, objWorld, resetView } from './actions.js';
 import { cv } from './canvas.js';
 import { clickToggle, syncToggle } from './controls.js';
@@ -77,7 +78,7 @@ cv.addEventListener('pointermove',e=>{
     const h=pick(e.clientX,e.clientY);
     S.hover = (h===SUNHIT)?null:h;
     cv.style.cursor=h?'pointer':'grab';
-    if(S.skyMode){ const d=screenDir(e.clientX,e.clientY), [ra,dec]=radec(d[0],d[1],d[2]), [l,b]=galactic(d[0],d[1],d[2]); skyCursor.set({ra,dec,l,b}); }
+    if(S.skyMode){ const d=screenDir(e.clientX,e.clientY), [ra,dec]=radec(d[0],d[1],d[2]), [l,b]=galactic(d[0],d[1],d[2]); const sk=skyOf(d); skyCursor.set({ra,dec,l,b, raDate:sk.ra, decDate:sk.dec, alt:sk.altRef, az:sk.az, airmass:sk.airmass}); }
   }
 });
 let lastTap={t:0,x:0,y:0}, lastTapFocusT=0;   // touch double-tap (dblclick is unreliable on mobile)
