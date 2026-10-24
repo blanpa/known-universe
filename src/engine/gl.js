@@ -7,7 +7,8 @@ import { lensPar } from './mw.js';
 import { CLUSTERS, CLU_T, PULSARS } from './sky-data.js';
 import { FAC, HYG, solarJD } from './solar-data.js';
 import { S, V } from './state.js';
-import { SKY_R_PC, activeSurvey, bestTile, chooseOrder, surveyAlpha, tileGrid, uvOf, visibleTiles } from './survey.js';
+import { FITS, fitsMesh } from './fitsimg.js';
+import { SKY_R_PC, activeId, activeSurvey, bestTile, chooseOrder, surveyAlpha, tileGrid, uvOf, visibleTiles } from './survey.js';
 import { AU_PC, H, KDEC, LOG0, REALK, W, camDist, ctr, exactPx, invScale, scale } from './view.js';
 export let glOK=false, GL=null, glcv=null;
 let progF=null, progU=null, progT=null, progS=null;   // float layout · raw-byte layout · tonemap · sky tiles
@@ -453,9 +454,9 @@ function tileTexture(gl,t){
   t.tex=tex; t.gl=gl; return tex;
 }
 function drawSurveyTiles(){
-  const sv=activeSurvey(), a=surveyAlpha(); if(!sv||a<=0.01||!progS) return;
+  const sv=activeSurvey(), a=surveyAlpha(), fits=activeId()==='fits'?FITS.img:null; if((!sv&&!fits)||a<=0.01||!progS) return;
   const gl=GL, L=progS.loc, A=progS.attr;
-  const order=chooseOrder(sv), tiles=visibleTiles(order);
+  const order=fits?0:chooseOrder(sv), tiles=fits?[]:visibleTiles(order);
   gl.useProgram(progS.p); gl.disable(gl.BLEND);
   gl.uniform1f(L.u_yaw,S.yaw); gl.uniform1f(L.u_pitch,S.pitch); gl.uniform1f(L.u_camZ,S.camZ);
   gl.uniform1f(L.u_foc,Math.min(W,H)*0.62*V.GLDPR); gl.uniform1f(L.u_fovK,V.fovK); gl.uniform1f(L.u_roll,V.roll);
@@ -468,6 +469,17 @@ function drawSurveyTiles(){
   for(let j=0;j<N;j++) for(let i=0;i<N;i++){ const k=j*(N+1)+i; idx.push(k,k+1,k+N+1, k+1,k+N+2,k+N+1); }
   const ib=new Uint16Array(idx); const ibuf=gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,ibuf); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,ib,gl.STREAM_DRAW);
   let drawn=0;
+  if(fits){                                               // your image: one mesh over the whole frame
+    const M=24, m=fitsMesh(M), fidx=[];
+    for(let j=0;j<M;j++) for(let i=0;i<M;i++){ const k=j*(M+1)+i; fidx.push(k,k+1,k+M+1, k+1,k+M+2,k+M+1); }
+    const fib=new Uint16Array(fidx); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,fib,gl.STREAM_DRAW);
+    if(!fits.tex){ fits.tex=gl.createTexture(); fits.gl=gl; gl.bindTexture(gl.TEXTURE_2D,fits.tex);
+      gl.texImage2D(gl.TEXTURE_2D,0,gl.RGB,gl.RGB,gl.UNSIGNED_BYTE,fits.canvas);
+      gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE); }
+    gl.bufferData(gl.ARRAY_BUFFER,m.verts,gl.STREAM_DRAW); gl.bindTexture(gl.TEXTURE_2D,fits.tex);
+    gl.drawElements(gl.TRIANGLES,fib.length,gl.UNSIGNED_SHORT,0); drawn=1;
+  }
   for(const pix of tiles){
     const best=bestTile(sv,order,pix); if(!best) continue;
     const dirs=tileGrid(order,pix,N);

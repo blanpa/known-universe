@@ -308,6 +308,20 @@ exchange is checked in the e2e run against a mock hub (`tools/samp-mockhub.mjs`,
 runnable by hand to watch the calls); it has not been exercised against a real TOPCAT
 here, which needs Java.
 
+**Your image — a FITS exposure in the telescope**
+
+A FITS image with a TAN WCS (any plate-solved exposure: astrometry.net, PixInsight, a
+survey cutout) becomes a survey of its own (`src/lib/fits.js`, `src/engine/fitsimg.js`):
+dropped on the map or picked in the *Sky* pane, it is read (BITPIX 8…64, −32, −64,
+BZERO/BSCALE, BLANK), stretched (asinh between the 0.5 and 99.7 percentiles), textured
+onto the sky sphere through its WCS (CD matrix, PC + CDELT, or CDELT + CROTA2; SIP terms
+are ignored with a warning; other projections are refused, not guessed) and drawn under
+the catalogue like DSS2 — so the catalogue stars sit on *your* exposure and it can be
+blinked against the surveys. Its epoch comes from DATE-OBS or MJD-OBS and feeds the
+expected-jump list. The WCS maths agree with astropy to 10⁻⁵″ (pixel → sky) and 3×10⁻⁴ px
+(sky → pixel) on synthetic frames with rotation, both matrix forms and all three number
+formats; in the telescope the synthetic Pleiades stars land on their HYG counterparts.
+
 ## Data sources and their state
 
 The map pulls from about fifteen services at run time and from a pipeline at build

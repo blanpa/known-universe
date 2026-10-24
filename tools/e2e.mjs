@@ -6,7 +6,7 @@
 // its frame times are software rasterisation, see .claude/skills/verify/SKILL.md).
 import { chromium } from 'playwright-core';
 import { createServer } from 'node:http';
-import { createReadStream, existsSync, mkdirSync, statSync } from 'node:fs';
+import { createReadStream, existsSync, mkdirSync, readFileSync, statSync } from 'node:fs';
 import { join, extname, resolve } from 'node:path';
 import { homedir } from 'node:os';
 import { inflateSync } from 'node:zlib';
@@ -50,6 +50,23 @@ function litPixels(png, thr = 90) {
     for (let x = 0; x < stride; x += ch) if (Math.max(cur[x], cur[x + 1], cur[x + 2]) > thr) lit++;
     [prev, cur] = [cur, prev]; }
   return lit;
+}
+
+// the brightest channel in a (2r+1)² box of a screenshot
+function pixelAt(png, x, y, r = 2) {
+  let i = 8, w = 0, h = 0, ch = 0; const idat = [];
+  while (i < png.length) { const len = png.readUInt32BE(i), type = png.toString('ascii', i + 4, i + 8), d = png.subarray(i + 8, i + 8 + len);
+    if (type === 'IHDR') { w = d.readUInt32BE(0); h = d.readUInt32BE(4); ch = d[9] === 6 ? 4 : d[9] === 2 ? 3 : 0; } else if (type === 'IDAT') idat.push(d); i += 12 + len; }
+  if (!ch) return -1;
+  const raw = inflateSync(Buffer.concat(idat)), stride = w * ch, rows = []; let prev = Buffer.alloc(stride);
+  for (let yy = 0; yy < h; yy++) { const f = raw[yy * (stride + 1)], o = yy * (stride + 1) + 1, cur = Buffer.alloc(stride);
+    for (let xx = 0; xx < stride; xx++) { const a = xx >= ch ? cur[xx - ch] : 0, b = prev[xx], c = xx >= ch ? prev[xx - ch] : 0; let v = raw[o + xx];
+      if (f === 1) v += a; else if (f === 2) v += b; else if (f === 3) v += (a + b) >> 1;
+      else if (f === 4) { const p = a + b - c, pa = Math.abs(p - a), pb = Math.abs(p - b), pc = Math.abs(p - c); v += (pa <= pb && pa <= pc) ? a : (pb <= pc) ? b : c; }
+      cur[xx] = v & 255; }
+    rows.push(cur); prev = cur; }
+  let m = 0; for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) { const yy = Math.round(y) + dy, xx = Math.round(x) + dx; if (yy < 0 || yy >= h || xx < 0 || xx >= w) continue; const o = xx * ch; m = Math.max(m, rows[yy][o], rows[yy][o + 1], rows[yy][o + 2]); }
+  return m;
 }
 
 const fails = [], notes = [];
@@ -216,6 +233,34 @@ async function open(vp, mobile, hash) {
     const rep = hub.calls.find(x => x.method === 'samp.webhub.reply');
     ok(rep && rep.params[1] === 'msg-7' && rep.params[2]['samp.status'] === 'samp.ok' && names.includes('samp.webhub.unregister'), 'SAMP answers a call with samp.ok and unregisters on disconnect');
     hub.close();
+  }
+  // your image: a FITS with a TAN WCS made here — Alcyone at the reference pixel, a second star 2′ east —
+  // must land on the catalogue star in the telescope, with east to the left; the WCS inverse is checked analytically
+  {
+    const hyg = JSON.parse(readFileSync(join(SITE, 'data/data.json'), 'utf8')).hyg, alc = hyg.find(s => s.n === 'Alcyone');
+    const ra0 = (Math.atan2(alc.dy, alc.dx) * 180 / Math.PI + 360) % 360, de0 = Math.asin(alc.dz) * 180 / Math.PI;
+    const nx = 96, ny = 72, sc = 10 / 3600, crpix = [48, 36];
+    const cards = [['SIMPLE', 'T'], ['BITPIX', '-32'], ['NAXIS', '2'], ['NAXIS1', String(nx)], ['NAXIS2', String(ny)], ['CTYPE1', "'RA---TAN'"], ['CTYPE2', "'DEC--TAN'"],
+      ['CRPIX1', String(crpix[0])], ['CRPIX2', String(crpix[1])], ['CRVAL1', ra0.toFixed(8)], ['CRVAL2', de0.toFixed(8)], ['CD1_1', (-sc).toExponential(10)], ['CD1_2', '0'], ['CD2_1', '0'], ['CD2_2', sc.toExponential(10)],
+      ['DATE-OBS', "'2010-01-01T00:00:00'"], ['OBJECT', "'e2e Alcyone'"]];
+    let head = cards.map(([k, v]) => (k.padEnd(8) + '= ' + v.padStart(20)).padEnd(80)).join('') + 'END'.padEnd(80); head = head.padEnd(Math.ceil(head.length / 2880) * 2880);
+    const data = new Float32Array(nx * ny); for (let y = 0; y < ny; y++) for (let x = 0; x < nx; x++) { const p1 = x + 1, p2 = y + 1;   // FITS pixel coordinates
+      let v = 100; for (const [sx, sy] of [[crpix[0], crpix[1]], [crpix[0] - 12, crpix[1]]]) v += 2000 * Math.exp(-((p1 - sx) ** 2 + (p2 - sy) ** 2) / 4.5); data[y * nx + x] = v; }
+    const buf = Buffer.alloc(head.length + Math.ceil(nx * ny * 4 / 2880) * 2880); buf.write(head, 0, 'latin1'); for (let i = 0; i < data.length; i++) buf.writeFloatBE(data[i], head.length + i * 4);
+    const fits = await page.evaluate(async ({ b64, ra0, de0, crpix }) => { const bin = atob(b64), u8 = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+      const api = window.__kuapi, r = api.importFits(u8.buffer, 'e2e.fits'); if (!r) return { err: 'import failed' };
+      const w = window.__ku.fits.wcs, east = w.pix2world(crpix[0] - 12, crpix[1]), centre = w.pix2world(crpix[0], crpix[1]);
+      api.setToggle('t-hyg', false); api.setToggle('t-gaia', false); api.setToggle('t-user', false); api.lookAt(ra0, de0); api.setFov(0.25);
+      return { r, east, centre, eastErr: Math.hypot((east[0] - ra0 - 120 / 3600 / Math.cos(de0 * Math.PI / 180)) * Math.cos(de0 * Math.PI / 180), east[1] - de0) * 3600, centreErr: Math.hypot((centre[0] - ra0) * Math.cos(de0 * Math.PI / 180), centre[1] - de0) * 3600 }; }, { b64: buf.toString('base64'), ra0, de0, crpix });
+    await page.waitForTimeout(2500);
+    const shot = await page.screenshot({ path: join(OUT, 'desktop-fits.png') });
+    const px = (x, y) => pixelAt(shot, x, y, 3);
+    const at = await page.evaluate(({ ra0, de0 }) => { const P = (ra, de) => { const r = ra * Math.PI / 180, d = de * Math.PI / 180; return window.__ku.projDir(Math.cos(d) * Math.cos(r), Math.cos(d) * Math.sin(r), Math.sin(d)); };
+      const c = Math.cos(de0 * Math.PI / 180); return { c: P(ra0, de0), e: P(ra0 + 120 / 3600 / c, de0), w: P(ra0 - 120 / 3600 / c, de0), label: [...document.querySelectorAll('#hud-sky .sky-sv.on .sv-n')].map(e => e.textContent).join('') }; }, { ra0, de0 });
+    const vc = px(at.c.x, at.c.y), ve = px(at.e.x, at.e.y), vw = px(at.w.x, at.w.y);
+    ok(!fits.err && fits.centreErr < 0.01 && fits.eastErr < 0.05, `FITS WCS: the reference pixel maps to CRVAL (${fits.centreErr?.toFixed(4)}″) and 12 px east to 2′ east (${fits.eastErr?.toFixed(4)}″)`);
+    ok(vc > vw + 60 && ve > vw + 60 && /Your image/.test(at.label), `the FITS image is drawn on the sky with east left: Alcyone ${vc}, 2′ east ${ve}, 2′ west ${vw} (${at.label.trim()})`);
+    await page.evaluate(() => { const api = window.__kuapi; api.setBlink(false); api.clearFits(); api.setToggle('t-hyg', true); api.setToggle('t-gaia', true); api.setToggle('t-user', true); });
   }
   // a measurement by name goes into the log with separation and position angle (astropy, J2000: 157.8595° / PA 4.25°; HYG is propagated to today, which moves Sirius 36″)
   const meas = await page.evaluate(() => window.__kuapi.measureBetween('Sirius', 'Vega'));

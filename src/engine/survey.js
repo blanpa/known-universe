@@ -17,18 +17,22 @@ export const SURVEYS=[
   { id:'ps1',   n:'Pan-STARRS', epoch:'2010–2014', ep:2012,   base:'https://alasky.cds.unistra.fr/Pan-STARRS/DR1/color-z-zg-g', ext:'jpg', maxOrder:11 },
 ];
 export const SKY_R_PC=1e4;                                  // the backdrop sphere, far beyond the local stars
-export const ST={ id:'dss', on:false, blink:false, blinkWith:'ps1' };
+export const ST={ id:'dss', on:false, blink:false, blinkWith:'ps1', fits:null, fitsMsg:'' };   // fits: your own image, see fitsimg.js
 let _blinkTimer=null, _blinkPhase=0;
 
-export function setSurvey(id){ ST.id=id; ST.on=!!SURVEYS.find(s=>s.id===id); publish(); V.dirty=true; }
+export function setSurvey(id){ ST.id=id; ST.on=!!SURVEYS.find(s=>s.id===id)||(id==='fits'&&!!ST.fits); publish(); V.dirty=true; }
+export const surveyName=id=>{ const s=SURVEYS.find(x=>x.id===id); return s?s.n:id==='fits'?'your image':'…'; };
 export function setBlink(on, withId){
   ST.blink=!!on; if(withId) ST.blinkWith=withId;
   if(_blinkTimer){ clearInterval(_blinkTimer); _blinkTimer=null; }
   if(ST.blink) _blinkTimer=setInterval(()=>{ _blinkPhase^=1; V.dirty=true; },700);
   publish(); V.dirty=true;
 }
-function publish(){ surveyStore.set({ id:ST.on?ST.id:null, blink:ST.blink, blinkWith:ST.blinkWith }); }
+function publish(){ surveyStore.set({ id:ST.on?ST.id:null, blink:ST.blink, blinkWith:ST.blinkWith, fits:ST.fits, fitsMsg:ST.fitsMsg }); }
 publish();
+export { publish as publishSurvey };
+// the id that is on screen now (a survey, or 'fits' for your image)
+export function activeId(){ if(!ST.on) return null; return (ST.blink&&_blinkPhase)?ST.blinkWith:ST.id; }
 export function activeSurvey(){
   if(!ST.on) return null;
   const id=(ST.blink&&_blinkPhase)?ST.blinkWith:ST.id;

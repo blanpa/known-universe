@@ -6990,33 +6990,37 @@ var root_1$8 = /* @__PURE__ */ from_html(`<button type="button" class="sky-aim">
 var root_2$4 = /* @__PURE__ */ from_html(`<button type="button" class="chip"> </button>`);
 var root_3$3 = /* @__PURE__ */ from_html(`<div class="sky-ro mono"><span> </span> <span> </span> <span> </span></div> <div class="sky-fov"></div> <!>`, 1);
 var root_4$2 = /* @__PURE__ */ from_html(`<button type="button"><span class="sv-n"> <span class="sv-b mono"> </span></span><span class="sv-s"> </span></button>`);
-var root_5$1 = /* @__PURE__ */ from_html(`<button type="button"> </button>`);
-var root_6$1 = /* @__PURE__ */ from_html(`<li><button type="button"><span> </span> <span class="enc-t mono"> </span> <span class="enc-d mono"> </span> <span class="enc-v mono"> </span></button></li>`);
-var root_7$1 = /* @__PURE__ */ from_html(`<ul class="enc mov"></ul>`);
-var root_8$1 = /* @__PURE__ */ from_html(`<p class="hint">Nothing in this field moves by half an arcsecond or more — or zoom in: only stars on screen are listed.</p>`);
-var root_9$1 = /* @__PURE__ */ from_html(`<div class="label lg-sub">Expected jumps</div> <p class="hint"> </p> <!>`, 1);
-var root_10$1 = /* @__PURE__ */ from_html(`<div class="label lg-sub">Go deeper</div> <p class="hint"><a target="_blank" rel="noopener">Open this field in Aladin Lite</a> for every survey and catalogue the CDS holds.
+var root_5$1 = /* @__PURE__ */ from_html(`<button type="button"><span class="sv-n">Your image<span class="sv-b mono">FITS</span></span> <span class="sv-s"> </span></button>`);
+var root_6$1 = /* @__PURE__ */ from_html(`<button type="button" class="chip">Remove</button> <button type="button" class="chip">Point at it</button>`, 1);
+var root_7$1 = /* @__PURE__ */ from_html(`<p class="hint warn"> </p>`);
+var root_8$1 = /* @__PURE__ */ from_html(`<button type="button"> </button>`);
+var root_9$1 = /* @__PURE__ */ from_html(`<button type="button">Your image</button>`);
+var root_10$1 = /* @__PURE__ */ from_html(`<li><button type="button"><span> </span> <span class="enc-t mono"> </span> <span class="enc-d mono"> </span> <span class="enc-v mono"> </span></button></li>`);
+var root_11$1 = /* @__PURE__ */ from_html(`<ul class="enc mov"></ul>`);
+var root_12$1 = /* @__PURE__ */ from_html(`<p class="hint">Nothing in this field moves by half an arcsecond or more — or zoom in: only stars on screen are listed.</p>`);
+var root_13$1 = /* @__PURE__ */ from_html(`<div class="label lg-sub">Expected jumps</div> <p class="hint"> </p> <!>`, 1);
+var root_14$1 = /* @__PURE__ */ from_html(`<div class="label lg-sub">Go deeper</div> <p class="hint"><a target="_blank" rel="noopener">Open this field in Aladin Lite</a> for every survey and catalogue the CDS holds.
       Hunt for moving objects with real data at <a href="https://www.zooniverse.org/projects/marckuchner/backyard-worlds-planet-9" target="_blank" rel="noopener">Backyard Worlds</a> (WISE blinks) or transits at <a href="https://www.zooniverse.org/projects/nora-dot-eisner/planet-hunters-tess" target="_blank" rel="noopener">Planet Hunters TESS</a>.</p>`, 1);
-var root_11$1 = /* @__PURE__ */ from_html(`<div class="usr-row"><span class="usr-n"> </span> <span class="usr-c mono"> </span> <button type="button" class="usr-x"><!></button></div> <div class="sky-fov xm-tools"><button type="button" class="chip">CSV</button> <button type="button" class="chip">VOTable</button> <button type="button" class="chip">Check against loaded catalogues</button> <button type="button" class="chip">Identify · Gaia DR3</button> <button type="button" class="chip">Identify · SIMBAD</button></div>`, 1);
-var root_12$1 = /* @__PURE__ */ from_html(`<label class="xm-r mono">radius <input type="number" min="0.1" max="60" step="0.5"/> ″</label> <p class="hint">Cross-identification: each row is compared with the loaded HYG and Gaia clouds at once, or sent to the CDS X-Match
+var root_15$1 = /* @__PURE__ */ from_html(`<div class="usr-row"><span class="usr-n"> </span> <span class="usr-c mono"> </span> <button type="button" class="usr-x"><!></button></div> <div class="sky-fov xm-tools"><button type="button" class="chip">CSV</button> <button type="button" class="chip">VOTable</button> <button type="button" class="chip">Check against loaded catalogues</button> <button type="button" class="chip">Identify · Gaia DR3</button> <button type="button" class="chip">Identify · SIMBAD</button></div>`, 1);
+var root_16$1 = /* @__PURE__ */ from_html(`<label class="xm-r mono">radius <input type="number" min="0.1" max="60" step="0.5"/> ″</label> <p class="hint">Cross-identification: each row is compared with the loaded HYG and Gaia clouds at once, or sent to the CDS X-Match
       service for Gaia DR3 (J2016.0) or SIMBAD (J2000.0) identifiers. Rows with proper motion are moved to the catalogue's epoch
       first; rows without one need a radius that covers their motion. A row with no counterpart is drawn <span class="xm-unk">red</span>.</p>`, 1);
-var root_13$1 = /* @__PURE__ */ from_html(`<p> </p>`);
-var root_14$1 = /* @__PURE__ */ from_html(`<span> </span>`);
-var root_15$1 = /* @__PURE__ */ from_html(`<span class="xm-doubt"> </span>`);
-var root_16$1 = /* @__PURE__ */ from_html(`<li><button type="button"><span> </span> <span class="enc-t mono"> </span> <span> </span> <span class="enc-v mono"> </span></button></li>`);
-var root_17$1 = /* @__PURE__ */ from_html(`<ul class="enc mov xm-list"></ul>`);
-var root_18$1 = /* @__PURE__ */ from_html(`<div class="sky-ro mono xm-sum"><span class="xm-unk"> </span><span> </span><!><!><span> </span></div> <!>`, 1);
-var root_19 = /* @__PURE__ */ from_html(`<p class="hint warn">Not kept after a reload: too large for this browser's storage.</p>`);
-var root_20 = /* @__PURE__ */ from_html(`<p class="hint warn"> </p>`);
-var root_21 = /* @__PURE__ */ from_html(`<p class="hint">Switch the telescope on to ask for a field.</p>`);
-var root_22 = /* @__PURE__ */ from_html(`<button type="button" class="chip on">Disconnect</button> <button type="button" class="chip">Point hub clients here</button> <!>`, 1);
-var root_23 = /* @__PURE__ */ from_html(`<button type="button" class="chip">Connect to the hub</button>`);
-var root_24 = /* @__PURE__ */ from_html(`<div class="panel" id="hud-sky"><div class="label">Sky</div> <p class="hint">The sky as the surveys photographed it, under the catalogue. From the Sun the view
+var root_17$1 = /* @__PURE__ */ from_html(`<p> </p>`);
+var root_18$1 = /* @__PURE__ */ from_html(`<span> </span>`);
+var root_19 = /* @__PURE__ */ from_html(`<span class="xm-doubt"> </span>`);
+var root_20 = /* @__PURE__ */ from_html(`<li><button type="button"><span> </span> <span class="enc-t mono"> </span> <span> </span> <span class="enc-v mono"> </span></button></li>`);
+var root_21 = /* @__PURE__ */ from_html(`<ul class="enc mov xm-list"></ul>`);
+var root_22 = /* @__PURE__ */ from_html(`<div class="sky-ro mono xm-sum"><span class="xm-unk"> </span><span> </span><!><!><span> </span></div> <!>`, 1);
+var root_23 = /* @__PURE__ */ from_html(`<p class="hint warn">Not kept after a reload: too large for this browser's storage.</p>`);
+var root_24 = /* @__PURE__ */ from_html(`<p class="hint">Switch the telescope on to ask for a field.</p>`);
+var root_25 = /* @__PURE__ */ from_html(`<button type="button" class="chip on">Disconnect</button> <button type="button" class="chip">Point hub clients here</button> <!>`, 1);
+var root_26 = /* @__PURE__ */ from_html(`<button type="button" class="chip">Connect to the hub</button>`);
+var root_27 = /* @__PURE__ */ from_html(`<div class="panel" id="hud-sky"><div class="label">Sky</div> <p class="hint">The sky as the surveys photographed it, under the catalogue. From the Sun the view
     direction is the sky direction. Catalogue positions are propagated to the displayed epoch
     (HYG from J2000, Gaia from 2016, your rows from their own), the photographs keep theirs —
-    so a fast star stands off its plate by its motion since. The arrows say how far.</p> <button type="button" role="switch"><span class="tg-l">Telescope view</span><span class="sw" aria-hidden="true"></span></button> <!> <!> <!> <div class="label lg-sub">Survey</div> <div class="sky-list"><button type="button"><span class="sv-n">None</span><span class="sv-s">catalogue only</span></button> <!></div> <div class="label lg-sub">Blink</div> <p class="hint">Alternate two epochs. A star that jumps between them has a large proper motion:
-    close, or fast, or both. Nearby brown dwarfs and white dwarfs still turn up this way.</p> <button type="button" role="switch"><span class="tg-l"> </span><span class="sw" aria-hidden="true"></span></button> <div class="sky-fov"></div> <!> <!> <div class="label lg-sub">Your data</div> <p class="hint">Drop a CSV or TSV anywhere on the map, or pick a file. Columns by name: <span class="mono">ra, dec</span> (degrees or 03:47:24 / +24 07 00), a distance (<span class="mono">dist</span> pc, <span class="mono">plx</span> mas or <span class="mono">ly</span>), <span class="mono">mag</span>, <span class="mono">name</span>, <span class="mono">pmra, pmdec</span>.
+    so a fast star stands off its plate by its motion since. The arrows say how far.</p> <button type="button" role="switch"><span class="tg-l">Telescope view</span><span class="sw" aria-hidden="true"></span></button> <!> <!> <!> <div class="label lg-sub">Survey</div> <div class="sky-list"><button type="button"><span class="sv-n">None</span><span class="sv-s">catalogue only</span></button> <!> <!></div> <div class="sky-fov"><input type="file" accept=".fits,.fit,.fts,application/fits" hidden=""/> <button type="button" class="chip"> </button> <!></div> <!> <p class="hint">A FITS image with a TAN WCS (any plate-solved exposure: astrometry.net, PixInsight, a survey cutout) is drawn on the
+    sky like a survey and can be blinked against one. Your exposure's epoch comes from DATE-OBS, so the expected jumps are computed against it.</p> <div class="label lg-sub">Blink</div> <p class="hint">Alternate two epochs. A star that jumps between them has a large proper motion:
+    close, or fast, or both. Nearby brown dwarfs and white dwarfs still turn up this way.</p> <button type="button" role="switch"><span class="tg-l"> </span><span class="sw" aria-hidden="true"></span></button> <div class="sky-fov"><!> <!></div> <!> <!> <div class="label lg-sub">Your data</div> <p class="hint">Drop a CSV or TSV anywhere on the map, or pick a file. Columns by name: <span class="mono">ra, dec</span> (degrees or 03:47:24 / +24 07 00), a distance (<span class="mono">dist</span> pc, <span class="mono">plx</span> mas or <span class="mono">ly</span>), <span class="mono">mag</span>, <span class="mono">name</span>, <span class="mono">pmra, pmdec</span>.
     Rows become amber rings you can click, search and point the telescope at; the file stays in this browser only.</p> <!> <!> <!> <!> <!> <!> <div class="sky-fov"><input type="file" accept=".csv,.tsv,.txt,text/csv,text/plain" hidden=""/> <button type="button" class="chip">Import a file…</button> <a class="chip" href="./data/sample-stars.csv" download="">Example CSV</a></div> <div class="label lg-sub">Ask the catalogues</div> <p class="hint">Fetch what Gaia DR3 or SIMBAD hold in the field the telescope shows, straight from the CDS into this
     layer: positions, parallaxes, proper motions, magnitudes. Gaia returns the brightest 4,000 of the cone, SIMBAD 2,000.</p> <div class="sky-fov"><button type="button" class="chip">Gaia DR3 in this field</button> <button type="button" class="chip">SIMBAD in this field</button></div> <!> <!> <div class="label lg-sub">Export</div> <p class="hint">Tables leave as CSV or VOTable (TOPCAT, Aladin, astropy). Positions are ICRS at the stated epoch.</p> <div class="sky-fov"><button type="button" class="chip">Expected jumps · CSV</button> <button type="button" class="chip">VOTable</button> <button type="button" class="chip"> </button> <button type="button" class="chip">VOTable</button></div> <div class="label lg-sub">SAMP · TOPCAT, Aladin, DS9</div> <p class="hint">A hub on this machine (TOPCAT and Aladin start one) links the tools: the telescope's field goes out as <span class="mono">coord.pointAt.sky</span>, a set as <span class="mono">table.load.votable</span>, and a point sent by
     another tool turns the telescope. The hub asks for your permission in its own window.</p> <div class="sky-fov"><!></div> <!> <p class="hint src">Tiles: CDS/HiPS (DSS2 © STScI/ROE/AAO/UKSTU, 2MASS/IPAC-Caltech, WISE/NASA-JPL, Pan-STARRS/IfA). Loaded on demand; nothing is stored.</p></div>`);
@@ -7068,6 +7072,14 @@ function SkyPane($$anchor, $$props) {
 		return `${s}${dd}° ${String(Math.floor(m)).padStart(2, "0")}′`;
 	};
 	let other = /* @__PURE__ */ user_derived(() => $survey().blinkWith === $survey().id ? $survey().id === "dss" ? "ps1" : "dss" : $survey().blinkWith);
+	const svName = (id) => SURVEYS.find((s) => s.id === id)?.n ?? (id === "fits" ? "your image" : "…");
+	let fitsEl = /* @__PURE__ */ state(null);
+	async function pickFits(e) {
+		const f = e.target.files?.[0];
+		if (!f) return;
+		api.importFits?.(await f.arrayBuffer(), f.name);
+		e.target.value = "";
+	}
 	let fileEl = /* @__PURE__ */ state(null);
 	let xmRadius = /* @__PURE__ */ state(3);
 	const sepText = (v) => v === null || v === void 0 ? "" : v >= 60 ? (v / 60).toFixed(1) + "′" : v.toFixed(2) + "″";
@@ -7078,7 +7090,7 @@ function SkyPane($$anchor, $$props) {
 		e.target.value = "";
 	}
 	const aladin = () => `https://aladin.cds.unistra.fr/AladinLite/?target=${$camera().ra.toFixed(4)}%20${$camera().dec.toFixed(4)}&fov=${Math.max(.01, $camera().fov).toFixed(3)}&survey=P%2FDSS2%2Fcolor`;
-	var div = root_24();
+	var div = root_27();
 	var button = sibling(child(div), 4);
 	let classes;
 	var node = sibling(button, 2);
@@ -7199,7 +7211,8 @@ function SkyPane($$anchor, $$props) {
 	var div_3 = sibling(node_4, 4);
 	var button_6 = child(div_3);
 	let classes_1;
-	each(sibling(button_6, 2), 17, () => SURVEYS, (s) => s.id, ($$anchor, s) => {
+	var node_8 = sibling(button_6, 2);
+	each(node_8, 17, () => SURVEYS, (s) => s.id, ($$anchor, s) => {
 		var button_7 = root_4$2();
 		let classes_2;
 		var span_3 = child(button_7);
@@ -7221,364 +7234,424 @@ function SkyPane($$anchor, $$props) {
 		delegated("click", button_7, () => api.setSurvey?.(get(s).id));
 		append($$anchor, button_7);
 	});
+	var node_9 = sibling(node_8, 2);
+	var consequent_5 = ($$anchor) => {
+		var button_8 = root_5$1();
+		let classes_3;
+		var span_6 = sibling(child(button_8), 2);
+		var text_11 = child(span_6);
+		reset(span_6);
+		reset(button_8);
+		template_effect(($0, $1) => {
+			classes_3 = set_class(button_8, 1, "sky-sv", null, classes_3, { on: $survey().id === "fits" });
+			set_text(text_11, `${$survey().fits.name ?? ""} · ${$survey().fits.nx ?? ""}×${$survey().fits.ny ?? ""} px · ${$0 ?? ""}″/px${$1 ?? ""}`);
+		}, [() => $survey().fits.scale.toFixed(2), () => $survey().fits.epoch ? ` · ${$survey().fits.epoch.toFixed(2)}` : ""]);
+		delegated("click", button_8, () => api.setSurvey?.("fits"));
+		append($$anchor, button_8);
+	};
+	if_block(node_9, ($$render) => {
+		if ($survey().fits) $$render(consequent_5);
+	});
 	reset(div_3);
-	var button_8 = sibling(div_3, 6);
-	let classes_3;
-	var span_6 = child(button_8);
-	var text_11 = child(span_6);
-	reset(span_6);
-	next();
-	reset(button_8);
-	var div_4 = sibling(button_8, 2);
-	each(div_4, 21, () => SURVEYS.filter((s) => s.id !== $survey().id), (s) => s.id, ($$anchor, s) => {
-		var button_9 = root_5$1();
-		let classes_4;
-		var text_12 = child(button_9, true);
-		reset(button_9);
-		template_effect(() => {
-			classes_4 = set_class(button_9, 1, "chip", null, classes_4, { on: get(other) === get(s).id });
-			set_text(text_12, get(s).n);
-		});
-		delegated("click", button_9, () => api.setBlink?.($survey().blink, get(s).id));
-		append($$anchor, button_9);
+	var div_4 = sibling(div_3, 2);
+	var input = child(div_4);
+	bind_this(input, ($$value) => set(fitsEl, $$value), () => get(fitsEl));
+	var button_9 = sibling(input, 2);
+	var text_12 = child(button_9, true);
+	reset(button_9);
+	var node_10 = sibling(button_9, 2);
+	var consequent_6 = ($$anchor) => {
+		var fragment_2 = root_6$1();
+		var button_10 = first_child(fragment_2);
+		var button_11 = sibling(button_10, 2);
+		delegated("click", button_10, () => api.clearFits?.());
+		delegated("click", button_11, () => api.lookAt?.($survey().fits.ra, $survey().fits.dec));
+		append($$anchor, fragment_2);
+	};
+	if_block(node_10, ($$render) => {
+		if ($survey().fits) $$render(consequent_6);
 	});
 	reset(div_4);
-	var node_9 = sibling(div_4, 2);
-	var consequent_6 = ($$anchor) => {
-		var fragment_2 = root_9$1();
-		var p_1 = sibling(first_child(fragment_2), 2);
-		var text_13 = child(p_1);
+	var node_11 = sibling(div_4, 2);
+	var consequent_7 = ($$anchor) => {
+		var p_1 = root_7$1();
+		var text_13 = child(p_1, true);
 		reset(p_1);
-		var node_10 = sibling(p_1, 2);
-		var consequent_5 = ($$anchor) => {
-			var ul = root_7$1();
+		template_effect(() => set_text(text_13, $survey().fitsMsg));
+		append($$anchor, p_1);
+	};
+	if_block(node_11, ($$render) => {
+		if ($survey().fitsMsg) $$render(consequent_7);
+	});
+	var button_12 = sibling(node_11, 8);
+	let classes_4;
+	var span_7 = child(button_12);
+	var text_14 = child(span_7);
+	reset(span_7);
+	next();
+	reset(button_12);
+	var div_5 = sibling(button_12, 2);
+	var node_12 = child(div_5);
+	each(node_12, 17, () => SURVEYS.filter((s) => s.id !== $survey().id), (s) => s.id, ($$anchor, s) => {
+		var button_13 = root_8$1();
+		let classes_5;
+		var text_15 = child(button_13, true);
+		reset(button_13);
+		template_effect(() => {
+			classes_5 = set_class(button_13, 1, "chip", null, classes_5, { on: get(other) === get(s).id });
+			set_text(text_15, get(s).n);
+		});
+		delegated("click", button_13, () => api.setBlink?.($survey().blink, get(s).id));
+		append($$anchor, button_13);
+	});
+	var node_13 = sibling(node_12, 2);
+	var consequent_8 = ($$anchor) => {
+		var button_14 = root_9$1();
+		let classes_6;
+		template_effect(() => classes_6 = set_class(button_14, 1, "chip", null, classes_6, { on: get(other) === "fits" }));
+		delegated("click", button_14, () => api.setBlink?.($survey().blink, "fits"));
+		append($$anchor, button_14);
+	};
+	if_block(node_13, ($$render) => {
+		if ($survey().fits && $survey().id !== "fits") $$render(consequent_8);
+	});
+	reset(div_5);
+	var node_14 = sibling(div_5, 2);
+	var consequent_10 = ($$anchor) => {
+		var fragment_3 = root_13$1();
+		var p_2 = sibling(first_child(fragment_3), 2);
+		var text_16 = child(p_2);
+		reset(p_2);
+		var node_15 = sibling(p_2, 2);
+		var consequent_9 = ($$anchor) => {
+			var ul = root_11$1();
 			each(ul, 5, () => $movers().list, (m) => m.name + m.ra, ($$anchor, m) => {
-				var li = root_6$1();
-				var button_10 = child(li);
-				var span_7 = child(button_10);
-				let classes_5;
-				var text_14 = child(span_7, true);
-				reset(span_7);
-				var span_8 = sibling(span_7, 2);
-				var text_15 = child(span_8, true);
+				var li = root_10$1();
+				var button_15 = child(li);
+				var span_8 = child(button_15);
+				let classes_7;
+				var text_17 = child(span_8, true);
 				reset(span_8);
 				var span_9 = sibling(span_8, 2);
-				var text_16 = child(span_9, true);
+				var text_18 = child(span_9, true);
 				reset(span_9);
 				var span_10 = sibling(span_9, 2);
-				var text_17 = child(span_10);
+				var text_19 = child(span_10, true);
 				reset(span_10);
-				reset(button_10);
+				var span_11 = sibling(span_10, 2);
+				var text_20 = child(span_11);
+				reset(span_11);
+				reset(button_15);
 				reset(li);
 				template_effect(($0, $1, $2) => {
-					classes_5 = set_class(span_7, 1, "enc-n", null, classes_5, { usr: get(m).usr });
-					set_text(text_14, get(m).name);
-					set_text(text_15, $0);
-					set_text(text_16, $1);
-					set_text(text_17, `${$2 ?? ""} mas/yr`);
+					classes_7 = set_class(span_8, 1, "enc-n", null, classes_7, { usr: get(m).usr });
+					set_text(text_17, get(m).name);
+					set_text(text_18, $0);
+					set_text(text_19, $1);
+					set_text(text_20, `${$2 ?? ""} mas/yr`);
 				}, [
 					() => get(m).jump >= 60 ? (get(m).jump / 60).toFixed(1) + "′" : get(m).jump.toFixed(1) + "″",
 					() => get(m).px >= 1 ? get(m).px.toFixed(0) + " px" : "< 1 px",
 					() => get(m).pm.toFixed(0)
 				]);
-				delegated("click", button_10, () => api.lookAt?.(get(m).ra, get(m).dec));
+				delegated("click", button_15, () => api.lookAt?.(get(m).ra, get(m).dec));
 				append($$anchor, li);
 			});
 			reset(ul);
 			append($$anchor, ul);
 		};
 		var alternate = ($$anchor) => {
-			append($$anchor, root_8$1());
+			append($$anchor, root_12$1());
 		};
-		if_block(node_10, ($$render) => {
-			if ($movers().list.length) $$render(consequent_5);
+		if_block(node_15, ($$render) => {
+			if ($movers().list.length) $$render(consequent_9);
 			else $$render(alternate, -1);
 		});
-		template_effect(($0) => set_text(text_13, `Where a catalogued star must hop between ${$movers().a ?? ""} (${$movers().ea ?? ""}) and ${$movers().b ?? ""} (${$movers().eb ?? ""}): proper
+		template_effect(($0) => set_text(text_16, `Where a catalogued star must hop between ${$movers().a ?? ""} (${$movers().ea ?? ""}) and ${$movers().b ?? ""} (${$movers().eb ?? ""}): proper
       motion × ${$0 ?? ""} years. Arrows on the sky run from the first epoch to the second. A hop that is
       not in this list is the find.`), [() => Math.abs($movers().dt).toFixed(0)]);
-		append($$anchor, fragment_2);
-	};
-	if_block(node_9, ($$render) => {
-		if ($camera().sky && $survey().id && !$camera().skyFrom) $$render(consequent_6);
-	});
-	var node_11 = sibling(node_9, 2);
-	var consequent_7 = ($$anchor) => {
-		var fragment_3 = root_10$1();
-		var p_3 = sibling(first_child(fragment_3), 2);
-		var a_1 = child(p_3);
-		next(5);
-		reset(p_3);
-		template_effect(($0) => set_attribute(a_1, "href", $0), [() => aladin()]);
 		append($$anchor, fragment_3);
 	};
-	if_block(node_11, ($$render) => {
-		if ($camera().sky) $$render(consequent_7);
+	if_block(node_14, ($$render) => {
+		if ($camera().sky && $survey().id && !$camera().skyFrom) $$render(consequent_10);
 	});
-	var node_12 = sibling(node_11, 6);
-	each(node_12, 3, () => $userLayer().sets, (st) => st.src + st.name, ($$anchor, st, k) => {
-		var fragment_4 = root_11$1();
-		var div_5 = first_child(fragment_4);
-		var span_11 = child(div_5);
-		var text_18 = child(span_11, true);
-		reset(span_11);
-		var span_12 = sibling(span_11, 2);
-		var text_19 = child(span_12);
+	var node_16 = sibling(node_14, 2);
+	var consequent_11 = ($$anchor) => {
+		var fragment_4 = root_14$1();
+		var p_4 = sibling(first_child(fragment_4), 2);
+		var a_1 = child(p_4);
+		next(5);
+		reset(p_4);
+		template_effect(($0) => set_attribute(a_1, "href", $0), [() => aladin()]);
+		append($$anchor, fragment_4);
+	};
+	if_block(node_16, ($$render) => {
+		if ($camera().sky) $$render(consequent_11);
+	});
+	var node_17 = sibling(node_16, 6);
+	each(node_17, 3, () => $userLayer().sets, (st) => st.src + st.name, ($$anchor, st, k) => {
+		var fragment_5 = root_15$1();
+		var div_6 = first_child(fragment_5);
+		var span_12 = child(div_6);
+		var text_21 = child(span_12, true);
 		reset(span_12);
-		var button_11 = sibling(span_12, 2);
-		Icon(child(button_11), {
+		var span_13 = sibling(span_12, 2);
+		var text_22 = child(span_13);
+		reset(span_13);
+		var button_16 = sibling(span_13, 2);
+		Icon(child(button_16), {
 			name: "close",
 			size: 12
 		});
-		reset(button_11);
-		reset(div_5);
-		var div_6 = sibling(div_5, 2);
-		var button_12 = child(div_6);
-		var button_13 = sibling(button_12, 2);
-		var button_14 = sibling(button_13, 2);
-		var button_15 = sibling(button_14, 2);
-		var button_16 = sibling(button_15, 2);
+		reset(button_16);
 		reset(div_6);
+		var div_7 = sibling(div_6, 2);
+		var button_17 = child(div_7);
+		var button_18 = sibling(button_17, 2);
+		var button_19 = sibling(button_18, 2);
+		var button_20 = sibling(button_19, 2);
+		var button_21 = sibling(button_20, 2);
+		reset(div_7);
 		template_effect(() => {
-			set_attribute(span_11, "title", get(st).name);
-			set_text(text_18, get(st).name);
-			set_text(text_19, `${get(st).n ?? ""} rows${get(st).noDist ? ` · ${get(st).noDist} no dist` : ""}`);
-			set_attribute(button_11, "aria-label", `Remove ${get(st).name ?? ""}`);
-			button_14.disabled = !!$crossmatch().busy;
-			button_15.disabled = !!$crossmatch().busy;
-			button_16.disabled = !!$crossmatch().busy;
+			set_attribute(span_12, "title", get(st).name);
+			set_text(text_21, get(st).name);
+			set_text(text_22, `${get(st).n ?? ""} rows${get(st).noDist ? ` · ${get(st).noDist} no dist` : ""}`);
+			set_attribute(button_16, "aria-label", `Remove ${get(st).name ?? ""}`);
+			button_19.disabled = !!$crossmatch().busy;
+			button_20.disabled = !!$crossmatch().busy;
+			button_21.disabled = !!$crossmatch().busy;
 		});
-		delegated("click", button_11, () => api.removeSet?.(get(k)));
-		delegated("click", button_12, () => api.exportTable?.("set", "csv", get(k)));
-		delegated("click", button_13, () => api.exportTable?.("set", "votable", get(k)));
-		delegated("click", button_14, () => api.crossmatch?.(get(k), { radius: get(xmRadius) }));
-		delegated("click", button_15, () => api.crossmatch?.(get(k), {
+		delegated("click", button_16, () => api.removeSet?.(get(k)));
+		delegated("click", button_17, () => api.exportTable?.("set", "csv", get(k)));
+		delegated("click", button_18, () => api.exportTable?.("set", "votable", get(k)));
+		delegated("click", button_19, () => api.crossmatch?.(get(k), { radius: get(xmRadius) }));
+		delegated("click", button_20, () => api.crossmatch?.(get(k), {
 			radius: get(xmRadius),
 			remote: "gaia"
 		}));
-		delegated("click", button_16, () => api.crossmatch?.(get(k), {
+		delegated("click", button_21, () => api.crossmatch?.(get(k), {
 			radius: get(xmRadius),
 			remote: "simbad"
 		}));
-		append($$anchor, fragment_4);
+		append($$anchor, fragment_5);
 	});
-	var node_14 = sibling(node_12, 2);
-	var consequent_8 = ($$anchor) => {
-		var fragment_5 = root_12$1();
-		var label = first_child(fragment_5);
-		var input = sibling(child(label));
-		remove_input_defaults(input);
+	var node_19 = sibling(node_17, 2);
+	var consequent_12 = ($$anchor) => {
+		var fragment_6 = root_16$1();
+		var label = first_child(fragment_6);
+		var input_1 = sibling(child(label));
+		remove_input_defaults(input_1);
 		next();
 		reset(label);
 		next(2);
-		bind_value(input, () => get(xmRadius), ($$value) => set(xmRadius, $$value));
-		append($$anchor, fragment_5);
+		bind_value(input_1, () => get(xmRadius), ($$value) => set(xmRadius, $$value));
+		append($$anchor, fragment_6);
 	};
-	if_block(node_14, ($$render) => {
-		if ($userLayer().sets.length) $$render(consequent_8);
+	if_block(node_19, ($$render) => {
+		if ($userLayer().sets.length) $$render(consequent_12);
 	});
-	var node_15 = sibling(node_14, 2);
-	var consequent_9 = ($$anchor) => {
-		var p_4 = root_13$1();
-		let classes_6;
-		var text_20 = child(p_4, true);
-		reset(p_4);
-		template_effect(() => {
-			classes_6 = set_class(p_4, 1, "hint", null, classes_6, { busy: $crossmatch().busy });
-			set_text(text_20, $crossmatch().msg);
-		});
-		append($$anchor, p_4);
-	};
-	if_block(node_15, ($$render) => {
-		if ($crossmatch().msg) $$render(consequent_9);
-	});
-	var node_16 = sibling(node_15, 2);
+	var node_20 = sibling(node_19, 2);
 	var consequent_13 = ($$anchor) => {
-		var fragment_6 = root_18$1();
-		var div_7 = first_child(fragment_6);
-		var span_13 = child(div_7);
-		var text_21 = child(span_13);
-		reset(span_13);
-		var span_14 = sibling(span_13);
-		var text_22 = child(span_14);
-		reset(span_14);
-		var node_17 = sibling(span_14);
-		var consequent_10 = ($$anchor) => {
-			var span_15 = root_14$1();
-			var text_23 = child(span_15);
-			reset(span_15);
-			template_effect(() => set_text(text_23, `${$crossmatch().coarse ?? ""} coarse`));
-			append($$anchor, span_15);
-		};
-		if_block(node_17, ($$render) => {
-			if ($crossmatch().coarse) $$render(consequent_10);
+		var p_5 = root_17$1();
+		let classes_8;
+		var text_23 = child(p_5, true);
+		reset(p_5);
+		template_effect(() => {
+			classes_8 = set_class(p_5, 1, "hint", null, classes_8, { busy: $crossmatch().busy });
+			set_text(text_23, $crossmatch().msg);
 		});
-		var node_18 = sibling(node_17);
-		var consequent_11 = ($$anchor) => {
-			var span_16 = root_15$1();
-			var text_24 = child(span_16);
+		append($$anchor, p_5);
+	};
+	if_block(node_20, ($$render) => {
+		if ($crossmatch().msg) $$render(consequent_13);
+	});
+	var node_21 = sibling(node_20, 2);
+	var consequent_17 = ($$anchor) => {
+		var fragment_7 = root_22();
+		var div_8 = first_child(fragment_7);
+		var span_14 = child(div_8);
+		var text_24 = child(span_14);
+		reset(span_14);
+		var span_15 = sibling(span_14);
+		var text_25 = child(span_15);
+		reset(span_15);
+		var node_22 = sibling(span_15);
+		var consequent_14 = ($$anchor) => {
+			var span_16 = root_18$1();
+			var text_26 = child(span_16);
 			reset(span_16);
-			template_effect(() => set_text(text_24, `${$crossmatch().doubt ?? ""} doubtful`));
+			template_effect(() => set_text(text_26, `${$crossmatch().coarse ?? ""} coarse`));
 			append($$anchor, span_16);
 		};
-		if_block(node_18, ($$render) => {
-			if ($crossmatch().doubt) $$render(consequent_11);
+		if_block(node_22, ($$render) => {
+			if ($crossmatch().coarse) $$render(consequent_14);
 		});
-		var span_17 = sibling(node_18);
-		var text_25 = child(span_17);
-		reset(span_17);
-		reset(div_7);
-		var node_19 = sibling(div_7, 2);
-		var consequent_12 = ($$anchor) => {
-			var ul_1 = root_17$1();
+		var node_23 = sibling(node_22);
+		var consequent_15 = ($$anchor) => {
+			var span_17 = root_19();
+			var text_27 = child(span_17);
+			reset(span_17);
+			template_effect(() => set_text(text_27, `${$crossmatch().doubt ?? ""} doubtful`));
+			append($$anchor, span_17);
+		};
+		if_block(node_23, ($$render) => {
+			if ($crossmatch().doubt) $$render(consequent_15);
+		});
+		var span_18 = sibling(node_23);
+		var text_28 = child(span_18);
+		reset(span_18);
+		reset(div_8);
+		var node_24 = sibling(div_8, 2);
+		var consequent_16 = ($$anchor) => {
+			var ul_1 = root_21();
 			each(ul_1, 5, () => $crossmatch().rows.slice(0, 60), (r) => r.i, ($$anchor, r) => {
-				var li_1 = root_16$1();
-				var button_17 = child(li_1);
-				var span_18 = child(button_17);
-				let classes_7;
-				var text_26 = child(span_18, true);
-				reset(span_18);
-				var span_19 = sibling(span_18, 2);
-				var text_27 = child(span_19, true);
+				var li_1 = root_20();
+				var button_22 = child(li_1);
+				var span_19 = child(button_22);
+				let classes_9;
+				var text_29 = child(span_19, true);
 				reset(span_19);
 				var span_20 = sibling(span_19, 2);
-				let classes_8;
-				var text_28 = child(span_20, true);
+				var text_30 = child(span_20, true);
 				reset(span_20);
 				var span_21 = sibling(span_20, 2);
-				var text_29 = child(span_21, true);
+				let classes_10;
+				var text_31 = child(span_21, true);
 				reset(span_21);
-				reset(button_17);
+				var span_22 = sibling(span_21, 2);
+				var text_32 = child(span_22, true);
+				reset(span_22);
+				reset(button_22);
 				reset(li_1);
 				template_effect(($0) => {
-					classes_7 = set_class(span_18, 1, "enc-n", null, classes_7, { "xm-unk": !get(r).src });
-					set_text(text_26, get(r).n);
-					set_text(text_27, $0);
-					classes_8 = set_class(span_20, 1, "enc-d mono", null, classes_8, { "xm-doubt": get(r).doubt });
-					set_text(text_28, get(r).src ? get(r).id + (get(r).doubt ? " · " + get(r).doubt : "") : `nothing within ${$crossmatch().radius}″`);
-					set_text(text_29, get(r).src ?? "");
+					classes_9 = set_class(span_19, 1, "enc-n", null, classes_9, { "xm-unk": !get(r).src });
+					set_text(text_29, get(r).n);
+					set_text(text_30, $0);
+					classes_10 = set_class(span_21, 1, "enc-d mono", null, classes_10, { "xm-doubt": get(r).doubt });
+					set_text(text_31, get(r).src ? get(r).id + (get(r).doubt ? " · " + get(r).doubt : "") : `nothing within ${$crossmatch().radius}″`);
+					set_text(text_32, get(r).src ?? "");
 				}, [() => get(r).src ? sepText(get(r).sep) : "no match"]);
-				delegated("click", button_17, () => api.lookAt?.(get(r).ra, get(r).dec));
+				delegated("click", button_22, () => api.lookAt?.(get(r).ra, get(r).dec));
 				append($$anchor, li_1);
 			});
 			reset(ul_1);
 			append($$anchor, ul_1);
 		};
-		if_block(node_19, ($$render) => {
-			if ($crossmatch().rows.length) $$render(consequent_12);
+		if_block(node_24, ($$render) => {
+			if ($crossmatch().rows.length) $$render(consequent_16);
 		});
 		template_effect(() => {
-			set_text(text_21, `${$crossmatch().unknown ?? ""} without counterpart`);
-			set_text(text_22, `${$crossmatch().known - ($crossmatch().coarse || 0)} ${$crossmatch().remote ? "identified in " + $crossmatch().remote : "known"}`);
-			set_text(text_25, `r ${$crossmatch().radius ?? ""}″`);
+			set_text(text_24, `${$crossmatch().unknown ?? ""} without counterpart`);
+			set_text(text_25, `${$crossmatch().known - ($crossmatch().coarse || 0)} ${$crossmatch().remote ? "identified in " + $crossmatch().remote : "known"}`);
+			set_text(text_28, `r ${$crossmatch().radius ?? ""}″`);
 		});
-		append($$anchor, fragment_6);
-	};
-	if_block(node_16, ($$render) => {
-		if ($crossmatch().set >= 0 && $crossmatch().n && !$crossmatch().busy) $$render(consequent_13);
-	});
-	var node_20 = sibling(node_16, 2);
-	var consequent_14 = ($$anchor) => {
-		append($$anchor, root_19());
-	};
-	if_block(node_20, ($$render) => {
-		if ($userLayer().n && !$userLayer().saved) $$render(consequent_14);
-	});
-	var node_21 = sibling(node_20, 2);
-	var consequent_15 = ($$anchor) => {
-		var p_6 = root_20();
-		var text_30 = child(p_6, true);
-		reset(p_6);
-		template_effect(() => set_text(text_30, $userLayer().warn));
-		append($$anchor, p_6);
-	};
-	if_block(node_21, ($$render) => {
-		if ($userLayer().warn) $$render(consequent_15);
-	});
-	var div_8 = sibling(node_21, 2);
-	var input_1 = child(div_8);
-	bind_this(input_1, ($$value) => set(fileEl, $$value), () => get(fileEl));
-	var button_18 = sibling(input_1, 2);
-	next(2);
-	reset(div_8);
-	var div_9 = sibling(div_8, 6);
-	var button_19 = child(div_9);
-	var button_20 = sibling(button_19, 2);
-	reset(div_9);
-	var node_22 = sibling(div_9, 2);
-	var consequent_16 = ($$anchor) => {
-		var p_7 = root_13$1();
-		let classes_9;
-		var text_31 = child(p_7, true);
-		reset(p_7);
-		template_effect(() => {
-			classes_9 = set_class(p_7, 1, "hint", null, classes_9, { busy: $fieldQuery().busy });
-			set_text(text_31, $fieldQuery().msg);
-		});
-		append($$anchor, p_7);
-	};
-	if_block(node_22, ($$render) => {
-		if ($fieldQuery().msg) $$render(consequent_16);
-	});
-	var node_23 = sibling(node_22, 2);
-	var consequent_17 = ($$anchor) => {
-		append($$anchor, root_21());
-	};
-	if_block(node_23, ($$render) => {
-		if (!$camera().sky) $$render(consequent_17);
-	});
-	var div_10 = sibling(node_23, 6);
-	var button_21 = child(div_10);
-	var button_22 = sibling(button_21, 2);
-	var button_23 = sibling(button_22, 2);
-	var text_32 = child(button_23);
-	reset(button_23);
-	var button_24 = sibling(button_23, 2);
-	reset(div_10);
-	var div_11 = sibling(div_10, 6);
-	var node_24 = child(div_11);
-	var consequent_18 = ($$anchor) => {
-		var fragment_7 = root_22();
-		var button_25 = first_child(fragment_7);
-		var button_26 = sibling(button_25, 2);
-		each(sibling(button_26, 2), 3, () => $userLayer().sets, (st) => st.src + st.name, ($$anchor, st, k) => {
-			var button_27 = root_2$4();
-			var text_33 = child(button_27);
-			reset(button_27);
-			template_effect(($0) => set_text(text_33, `Send “${$0 ?? ""}”`), [() => get(st).name.length > 24 ? get(st).name.slice(0, 24) + "…" : get(st).name]);
-			delegated("click", button_27, () => api.sampSendSet?.(get(k)));
-			append($$anchor, button_27);
-		});
-		template_effect(() => button_26.disabled = !$camera().sky);
-		delegated("click", button_25, () => api.sampDisconnect?.());
-		delegated("click", button_26, () => api.sampPointAt?.());
 		append($$anchor, fragment_7);
 	};
-	var alternate_1 = ($$anchor) => {
-		var button_28 = root_23();
-		template_effect(() => button_28.disabled = $samp().state === "connecting");
-		delegated("click", button_28, () => api.sampConnect?.());
-		append($$anchor, button_28);
-	};
-	if_block(node_24, ($$render) => {
-		if ($samp().state === "on") $$render(consequent_18);
-		else $$render(alternate_1, -1);
+	if_block(node_21, ($$render) => {
+		if ($crossmatch().set >= 0 && $crossmatch().n && !$crossmatch().busy) $$render(consequent_17);
 	});
-	reset(div_11);
-	var node_26 = sibling(div_11, 2);
+	var node_25 = sibling(node_21, 2);
+	var consequent_18 = ($$anchor) => {
+		append($$anchor, root_23());
+	};
+	if_block(node_25, ($$render) => {
+		if ($userLayer().n && !$userLayer().saved) $$render(consequent_18);
+	});
+	var node_26 = sibling(node_25, 2);
 	var consequent_19 = ($$anchor) => {
-		var p_9 = root_13$1();
-		let classes_10;
-		var text_34 = child(p_9, true);
-		reset(p_9);
-		template_effect(() => {
-			classes_10 = set_class(p_9, 1, `hint samp-${$samp().state ?? ""}`, null, classes_10, { busy: $samp().state === "connecting" });
-			set_text(text_34, $samp().msg);
-		});
-		append($$anchor, p_9);
+		var p_7 = root_7$1();
+		var text_33 = child(p_7, true);
+		reset(p_7);
+		template_effect(() => set_text(text_33, $userLayer().warn));
+		append($$anchor, p_7);
 	};
 	if_block(node_26, ($$render) => {
-		if ($samp().msg) $$render(consequent_19);
+		if ($userLayer().warn) $$render(consequent_19);
+	});
+	var div_9 = sibling(node_26, 2);
+	var input_2 = child(div_9);
+	bind_this(input_2, ($$value) => set(fileEl, $$value), () => get(fileEl));
+	var button_23 = sibling(input_2, 2);
+	next(2);
+	reset(div_9);
+	var div_10 = sibling(div_9, 6);
+	var button_24 = child(div_10);
+	var button_25 = sibling(button_24, 2);
+	reset(div_10);
+	var node_27 = sibling(div_10, 2);
+	var consequent_20 = ($$anchor) => {
+		var p_8 = root_17$1();
+		let classes_11;
+		var text_34 = child(p_8, true);
+		reset(p_8);
+		template_effect(() => {
+			classes_11 = set_class(p_8, 1, "hint", null, classes_11, { busy: $fieldQuery().busy });
+			set_text(text_34, $fieldQuery().msg);
+		});
+		append($$anchor, p_8);
+	};
+	if_block(node_27, ($$render) => {
+		if ($fieldQuery().msg) $$render(consequent_20);
+	});
+	var node_28 = sibling(node_27, 2);
+	var consequent_21 = ($$anchor) => {
+		append($$anchor, root_24());
+	};
+	if_block(node_28, ($$render) => {
+		if (!$camera().sky) $$render(consequent_21);
+	});
+	var div_11 = sibling(node_28, 6);
+	var button_26 = child(div_11);
+	var button_27 = sibling(button_26, 2);
+	var button_28 = sibling(button_27, 2);
+	var text_35 = child(button_28);
+	reset(button_28);
+	var button_29 = sibling(button_28, 2);
+	reset(div_11);
+	var div_12 = sibling(div_11, 6);
+	var node_29 = child(div_12);
+	var consequent_22 = ($$anchor) => {
+		var fragment_8 = root_25();
+		var button_30 = first_child(fragment_8);
+		var button_31 = sibling(button_30, 2);
+		each(sibling(button_31, 2), 3, () => $userLayer().sets, (st) => st.src + st.name, ($$anchor, st, k) => {
+			var button_32 = root_2$4();
+			var text_36 = child(button_32);
+			reset(button_32);
+			template_effect(($0) => set_text(text_36, `Send “${$0 ?? ""}”`), [() => get(st).name.length > 24 ? get(st).name.slice(0, 24) + "…" : get(st).name]);
+			delegated("click", button_32, () => api.sampSendSet?.(get(k)));
+			append($$anchor, button_32);
+		});
+		template_effect(() => button_31.disabled = !$camera().sky);
+		delegated("click", button_30, () => api.sampDisconnect?.());
+		delegated("click", button_31, () => api.sampPointAt?.());
+		append($$anchor, fragment_8);
+	};
+	var alternate_1 = ($$anchor) => {
+		var button_33 = root_26();
+		template_effect(() => button_33.disabled = $samp().state === "connecting");
+		delegated("click", button_33, () => api.sampConnect?.());
+		append($$anchor, button_33);
+	};
+	if_block(node_29, ($$render) => {
+		if ($samp().state === "on") $$render(consequent_22);
+		else $$render(alternate_1, -1);
+	});
+	reset(div_12);
+	var node_31 = sibling(div_12, 2);
+	var consequent_23 = ($$anchor) => {
+		var p_10 = root_17$1();
+		let classes_12;
+		var text_37 = child(p_10, true);
+		reset(p_10);
+		template_effect(() => {
+			classes_12 = set_class(p_10, 1, `hint samp-${$samp().state ?? ""}`, null, classes_12, { busy: $samp().state === "connecting" });
+			set_text(text_37, $samp().msg);
+		});
+		append($$anchor, p_10);
+	};
+	if_block(node_31, ($$render) => {
+		if ($samp().msg) $$render(consequent_23);
 	});
 	next(2);
 	reset(div);
@@ -7586,29 +7659,32 @@ function SkyPane($$anchor, $$props) {
 		classes = set_class(button, 1, "toggle", null, classes, { on: $camera().sky });
 		set_attribute(button, "aria-checked", $camera().sky);
 		classes_1 = set_class(button_6, 1, "sky-sv", null, classes_1, { on: !$survey().id });
-		classes_3 = set_class(button_8, 1, "toggle", null, classes_3, { on: $survey().blink });
-		set_attribute(button_8, "aria-checked", $survey().blink);
-		button_8.disabled = !$survey().id;
-		set_text(text_11, `Blink ${$0 ?? ""} ↔ ${$1 ?? ""}`);
-		button_19.disabled = !$camera().sky || !!$camera().skyFrom || !!$fieldQuery().busy;
-		button_20.disabled = !$camera().sky || !!$camera().skyFrom || !!$fieldQuery().busy;
-		button_21.disabled = !$movers().list.length;
-		button_22.disabled = !$movers().list.length;
-		button_23.disabled = !$measureLog().length;
-		set_text(text_32, `Measurements (${$measureLog().length ?? ""}) · CSV`);
-		button_24.disabled = !$measureLog().length;
-	}, [() => SURVEYS.find((s) => s.id === $survey().id)?.n ?? "…", () => SURVEYS.find((s) => s.id === get(other))?.n]);
+		set_text(text_12, $survey().fits ? "Replace your image…" : "Your image (FITS with WCS)…");
+		classes_4 = set_class(button_12, 1, "toggle", null, classes_4, { on: $survey().blink });
+		set_attribute(button_12, "aria-checked", $survey().blink);
+		button_12.disabled = !$survey().id;
+		set_text(text_14, `Blink ${$0 ?? ""} ↔ ${$1 ?? ""}`);
+		button_24.disabled = !$camera().sky || !!$camera().skyFrom || !!$fieldQuery().busy;
+		button_25.disabled = !$camera().sky || !!$camera().skyFrom || !!$fieldQuery().busy;
+		button_26.disabled = !$movers().list.length;
+		button_27.disabled = !$movers().list.length;
+		button_28.disabled = !$measureLog().length;
+		set_text(text_35, `Measurements (${$measureLog().length ?? ""}) · CSV`);
+		button_29.disabled = !$measureLog().length;
+	}, [() => svName($survey().id), () => svName(get(other))]);
 	delegated("click", button, () => api.skyView?.());
 	delegated("click", button_6, () => api.setSurvey?.(null));
-	delegated("click", button_8, () => api.setBlink?.(!$survey().blink, get(other)));
-	delegated("change", input_1, pickFile);
-	delegated("click", button_18, () => get(fileEl)?.click());
-	delegated("click", button_19, () => api.queryField?.("gaia"));
-	delegated("click", button_20, () => api.queryField?.("simbad"));
-	delegated("click", button_21, () => api.exportTable?.("movers", "csv"));
-	delegated("click", button_22, () => api.exportTable?.("movers", "votable"));
-	delegated("click", button_23, () => api.exportTable?.("measure", "csv"));
-	delegated("click", button_24, () => api.exportTable?.("measure", "votable"));
+	delegated("change", input, pickFits);
+	delegated("click", button_9, () => get(fitsEl)?.click());
+	delegated("click", button_12, () => api.setBlink?.(!$survey().blink, get(other)));
+	delegated("change", input_2, pickFile);
+	delegated("click", button_23, () => get(fileEl)?.click());
+	delegated("click", button_24, () => api.queryField?.("gaia"));
+	delegated("click", button_25, () => api.queryField?.("simbad"));
+	delegated("click", button_26, () => api.exportTable?.("movers", "csv"));
+	delegated("click", button_27, () => api.exportTable?.("movers", "votable"));
+	delegated("click", button_28, () => api.exportTable?.("measure", "csv"));
+	delegated("click", button_29, () => api.exportTable?.("measure", "votable"));
 	append($$anchor, div);
 	pop();
 	$$cleanup();
@@ -10853,7 +10929,7 @@ function MobileNav($$anchor, $$props) {
 		}
 		var text_2 = sibling(node_6);
 		var small = sibling(text_2);
-		small.textContent = `· b12:26`;
+		small.textContent = `· b12:34`;
 		reset(span_2);
 		var span_3 = sibling(span_2, 2);
 		var button_6 = child(span_3);
@@ -11197,7 +11273,8 @@ function App($$anchor, $$props) {
 		const f = e.dataTransfer?.files?.[0];
 		if (!f) return;
 		e.preventDefault();
-		api.importUser?.(await f.text(), f.name);
+		if (/\.(fits?|fts)$/i.test(f.name)) api.importFits?.(await f.arrayBuffer(), f.name);
+		else api.importUser?.(await f.text(), f.name);
 		set(panel, "sky");
 	}
 	var fragment = root_3();
@@ -11448,7 +11525,7 @@ window.addEventListener("error", (e) => showErr("⚠ " + (e.message || e.type) +
 window.addEventListener("unhandledrejection", (e) => showErr("⚠ promise: " + (e.reason && e.reason.message || e.reason)));
 mount(App, { target: document.getElementById("app") });
 function boot() {
-	return __vitePreload(() => import("./engine-Co-ZfEu7.js").then(() => {
+	return __vitePreload(() => import("./engine-DOywbNn3.js").then(() => {
 		try {
 			restore();
 		} catch (e) {}
@@ -11465,7 +11542,7 @@ var fail = (e) => {
 	document.body.innerHTML = "<p style=\"color:#e9edfa;font-family:monospace;padding:2em\">Error loading data: " + e + "</p>";
 };
 if (window.__DATA__) boot().catch(fail);
-else Promise.all([getJSON("data/data.json?b=b12:26", "data-json", "data.json · stars, exoplanets, galaxies"), getJSON("data/catalog.json?b=b12:26", "catalog-json", "catalog.json · solar system, deep sky, pulsars")]).then(([d, c]) => {
+else Promise.all([getJSON("data/data.json?b=b12:34", "data-json", "data.json · stars, exoplanets, galaxies"), getJSON("data/catalog.json?b=b12:34", "catalog-json", "catalog.json · solar system, deep sky, pulsars")]).then(([d, c]) => {
 	window.__DATA__ = d;
 	window.__CATALOG__ = c;
 	const m = d.meta || {};

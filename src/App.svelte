@@ -45,7 +45,7 @@
   // drop a CSV anywhere: it becomes the "Your data" layer (see SkyPane)
   function dragover(e) { if (e.dataTransfer?.types?.includes('Files')) e.preventDefault(); }
   async function drop(e) { const f = e.dataTransfer?.files?.[0]; if (!f) return; e.preventDefault();
-    api.importUser?.(await f.text(), f.name); panel = 'sky'; }
+    if (/\.(fits?|fts)$/i.test(f.name)) api.importFits?.(await f.arrayBuffer(), f.name); else api.importUser?.(await f.text(), f.name); panel = 'sky'; }
 </script>
 
 <svelte:window onkeydown={esc} ondragover={dragover} ondrop={drop} />

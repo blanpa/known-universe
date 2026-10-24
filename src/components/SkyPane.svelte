@@ -17,6 +17,9 @@
   const dms = d => { const s = d < 0 ? '−' : '+', a = Math.abs(d), dd = Math.floor(a), m = (a - dd) * 60;
     return `${s}${dd}° ${String(Math.floor(m)).padStart(2, '0')}′`; };
   let other = $derived($survey.blinkWith === $survey.id ? ($survey.id === 'dss' ? 'ps1' : 'dss') : $survey.blinkWith);
+  const svName = id => SURVEYS.find(s => s.id === id)?.n ?? (id === 'fits' ? 'your image' : '…');
+  let fitsEl = $state(null);
+  async function pickFits(e) { const f = e.target.files?.[0]; if (!f) return; api.importFits?.(await f.arrayBuffer(), f.name); e.target.value = ''; }
   let fileEl = $state(null);
   let xmRadius = $state(3);                                   // cross-match radius, arcsec
   const sepText = v => v === null || v === undefined ? '' : v >= 60 ? (v / 60).toFixed(1) + '′' : v.toFixed(2) + '″';
@@ -67,18 +70,35 @@
       <button type="button" class="sky-sv" class:on={$survey.id === s.id} onclick={() => api.setSurvey?.(s.id)}>
         <span class="sv-n">{s.n}<span class="sv-b mono">{s.band}</span></span><span class="sv-s">{s.sub}</span></button>
     {/each}
+    {#if $survey.fits}
+      <button type="button" class="sky-sv" class:on={$survey.id === 'fits'} onclick={() => api.setSurvey?.('fits')}>
+        <span class="sv-n">Your image<span class="sv-b mono">FITS</span></span>
+        <span class="sv-s">{$survey.fits.name} · {$survey.fits.nx}×{$survey.fits.ny} px · {$survey.fits.scale.toFixed(2)}″/px{$survey.fits.epoch ? ` · ${$survey.fits.epoch.toFixed(2)}` : ''}</span></button>
+    {/if}
   </div>
+  <div class="sky-fov">
+    <input type="file" accept=".fits,.fit,.fts,application/fits" bind:this={fitsEl} onchange={pickFits} hidden />
+    <button type="button" class="chip" onclick={() => fitsEl?.click()}>{$survey.fits ? 'Replace your image…' : 'Your image (FITS with WCS)…'}</button>
+    {#if $survey.fits}<button type="button" class="chip" onclick={() => api.clearFits?.()}>Remove</button>
+      <button type="button" class="chip" onclick={() => api.lookAt?.($survey.fits.ra, $survey.fits.dec)}>Point at it</button>{/if}
+  </div>
+  {#if $survey.fitsMsg}<p class="hint warn">{$survey.fitsMsg}</p>{/if}
+  <p class="hint">A FITS image with a TAN WCS (any plate-solved exposure: astrometry.net, PixInsight, a survey cutout) is drawn on the
+    sky like a survey and can be blinked against one. Your exposure's epoch comes from DATE-OBS, so the expected jumps are computed against it.</p>
 
   <div class="label lg-sub">Blink</div>
   <p class="hint">Alternate two epochs. A star that jumps between them has a large proper motion:
     close, or fast, or both. Nearby brown dwarfs and white dwarfs still turn up this way.</p>
   <button type="button" class="toggle" class:on={$survey.blink} role="switch" aria-checked={$survey.blink}
           disabled={!$survey.id} onclick={() => api.setBlink?.(!$survey.blink, other)}>
-    <span class="tg-l">Blink {SURVEYS.find(s => s.id === $survey.id)?.n ?? '…'} ↔ {SURVEYS.find(s => s.id === other)?.n}</span><span class="sw" aria-hidden="true"></span></button>
+    <span class="tg-l">Blink {svName($survey.id)} ↔ {svName(other)}</span><span class="sw" aria-hidden="true"></span></button>
   <div class="sky-fov">
     {#each SURVEYS.filter(s => s.id !== $survey.id) as s (s.id)}
       <button type="button" class="chip" class:on={other === s.id} onclick={() => api.setBlink?.($survey.blink, s.id)}>{s.n}</button>
     {/each}
+    {#if $survey.fits && $survey.id !== 'fits'}
+      <button type="button" class="chip" class:on={other === 'fits'} onclick={() => api.setBlink?.($survey.blink, 'fits')}>Your image</button>
+    {/if}
   </div>
   {#if $camera.sky && $survey.id && !$camera.skyFrom}
     <div class="label lg-sub">Expected jumps</div>

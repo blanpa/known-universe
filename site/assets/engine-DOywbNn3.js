@@ -1,4 +1,4 @@
-import { A as userLayer, C as stats, D as toggleState, E as timeline, F as tally, I as tfetch, L as timg, M as count, N as declare, O as tour, P as mark, S as skyCursor, T as timeBar, _ as movers, a as satEcl, b as searchMsg, c as camera, d as facColor, f as facList$1, g as measureLog, h as measure, i as refreshLive, j as api, k as transit, l as crossmatch$1, m as labels, n as activeShowers, o as startLive, p as fieldQuery, r as groundEcl, s as RESERVED, t as LIVE, u as encounters, v as nav, w as survey, x as selection, y as samp } from "./index-D5YYfrge.js";
+import { A as userLayer, C as stats, D as toggleState, E as timeline, F as tally, I as tfetch, L as timg, M as count, N as declare, O as tour, P as mark, S as skyCursor, T as timeBar, _ as movers, a as satEcl, b as searchMsg, c as camera, d as facColor, f as facList$1, g as measureLog, h as measure, i as refreshLive, j as api, k as transit, l as crossmatch$1, m as labels, n as activeShowers, o as startLive, p as fieldQuery, r as groundEcl, s as RESERVED, t as LIVE, u as encounters, v as nav, w as survey, x as selection, y as samp } from "./index-CTJJPxFu.js";
 //#region src/lib/export.js
 var esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 var cell = (v) => v === void 0 || v === null || typeof v === "number" && !isFinite(v) ? "" : String(v);
@@ -2538,9 +2538,9 @@ function moonOrbitPoint(kd, E) {
 	const q = orbPoint({
 		a: kd.a,
 		e: kd.e,
-		I: kd.i * D2R$2,
-		om: kd.w * D2R$2,
-		O: kd.om * D2R$2,
+		I: kd.i * D2R$4,
+		om: kd.w * D2R$4,
+		O: kd.om * D2R$4,
 		E
 	}, E);
 	return eclDir(q[0], q[1], q[2]);
@@ -2582,7 +2582,7 @@ var SOLAR_BODIES = [
 	...DWARFS,
 	...TNOS
 ];
-var D2R$2 = Math.PI / 180;
+var D2R$4 = Math.PI / 180;
 var EPOCH_JD = (/* @__PURE__ */ new Date()).getTime() / 864e5 + 2440587.5;
 function solarJD() {
 	return EPOCH_JD + S.tOffsetDays;
@@ -2598,10 +2598,10 @@ function dateStr(jd) {
 	});
 }
 function keplerEcl(k, T, E0) {
-	const a = k[0] + k[1] * T, e = k[2] + k[3] * T, I = (k[4] + k[5] * T) * D2R$2;
-	const L = k[6] + k[7] * T, wb = k[8] + k[9] * T, O = (k[10] + k[11] * T) * D2R$2;
-	const om = wb * D2R$2 - O;
-	let M = (L - wb) * D2R$2;
+	const a = k[0] + k[1] * T, e = k[2] + k[3] * T, I = (k[4] + k[5] * T) * D2R$4;
+	const L = k[6] + k[7] * T, wb = k[8] + k[9] * T, O = (k[10] + k[11] * T) * D2R$4;
+	const om = wb * D2R$4 - O;
+	let M = (L - wb) * D2R$4;
 	M = Math.atan2(Math.sin(M), Math.cos(M));
 	let E = E0 !== void 0 ? E0 : M;
 	for (let i = 0; i < 6; i++) E = E - (E - e * Math.sin(E) - M) / (1 - e * Math.cos(E));
@@ -2625,7 +2625,7 @@ function orbPoint(el, E) {
 	];
 }
 function keplerSB(kd, jd) {
-	let M = (kd.ma + kd.n * (jd - kd.ep)) * D2R$2;
+	let M = (kd.ma + kd.n * (jd - kd.ep)) * D2R$4;
 	M = Math.atan2(Math.sin(M), Math.cos(M));
 	const e = kd.e;
 	let E = M + e * Math.sin(M) * (1 + e * Math.cos(M));
@@ -2637,13 +2637,13 @@ function keplerSB(kd, jd) {
 	return {
 		a: kd.a,
 		e: kd.e,
-		I: kd.i * D2R$2,
-		om: kd.w * D2R$2,
-		O: kd.om * D2R$2,
+		I: kd.i * D2R$4,
+		om: kd.w * D2R$4,
+		O: kd.om * D2R$4,
 		E
 	};
 }
-var OBLQ = 23.4392911 * D2R$2;
+var OBLQ = 23.4392911 * D2R$4;
 var cOB = Math.cos(OBLQ);
 var sOB = Math.sin(OBLQ);
 function eclDir(xe, ye, ze) {
@@ -3213,16 +3213,22 @@ var ST = {
 	id: "dss",
 	on: false,
 	blink: false,
-	blinkWith: "ps1"
+	blinkWith: "ps1",
+	fits: null,
+	fitsMsg: ""
 };
 var _blinkTimer = null;
 var _blinkPhase = 0;
 function setSurvey(id) {
 	ST.id = id;
-	ST.on = !!SURVEYS.find((s) => s.id === id);
+	ST.on = !!SURVEYS.find((s) => s.id === id) || id === "fits" && !!ST.fits;
 	publish$4();
 	V.dirty = true;
 }
+var surveyName = (id) => {
+	const s = SURVEYS.find((x) => x.id === id);
+	return s ? s.n : id === "fits" ? "your image" : "…";
+};
 function setBlink(on, withId) {
 	ST.blink = !!on;
 	if (withId) ST.blinkWith = withId;
@@ -3241,10 +3247,16 @@ function publish$4() {
 	survey.set({
 		id: ST.on ? ST.id : null,
 		blink: ST.blink,
-		blinkWith: ST.blinkWith
+		blinkWith: ST.blinkWith,
+		fits: ST.fits,
+		fitsMsg: ST.fitsMsg
 	});
 }
 publish$4();
+function activeId() {
+	if (!ST.on) return null;
+	return ST.blink && _blinkPhase ? ST.blinkWith : ST.id;
+}
 function activeSurvey() {
 	if (!ST.on) return null;
 	const id = ST.blink && _blinkPhase ? ST.blinkWith : ST.id;
@@ -3787,7 +3799,8 @@ function drawUser() {
 var MAS$1 = 4.84813681e-9;
 var MOVERS = [];
 var _key = "";
-function epochOf(id) {
+function epochOf$1(id) {
+	if (id === "fits") return ST.fits && ST.fits.epoch || 2e3;
 	const s = SURVEYS.find((x) => x.id === id);
 	return s ? s.ep : 2e3;
 }
@@ -3833,7 +3846,7 @@ function updateMovers() {
 	].join();
 	if (key === _key) return;
 	_key = key;
-	const ea = epochOf(ia), eb = epochOf(ib), dt = eb - ea, pxPerDeg = Math.max(W, H) / fovDeg();
+	const ea = epochOf$1(ia), eb = epochOf$1(ib), dt = eb - ea, pxPerDeg = Math.max(W, H) / fovDeg();
 	const out = [], seen = /* @__PURE__ */ new Set();
 	const add = (o, name) => {
 		const pm = Math.hypot(o.pr || 0, o.pd || 0);
@@ -3886,7 +3899,6 @@ function updateMovers() {
 	}
 	out.sort((a, b) => b.jump - a.jump);
 	MOVERS = out.slice(0, 60);
-	const sa = SURVEYS.find((x) => x.id === ia), sb = SURVEYS.find((x) => x.id === ib);
 	movers.set({
 		list: MOVERS.slice(0, 14).map((m) => ({
 			name: m.name,
@@ -3897,8 +3909,8 @@ function updateMovers() {
 			ra: Math.atan2(m.o.dy, m.o.dx) * 57.29578,
 			dec: Math.asin(m.o.dz) * 57.29578
 		})),
-		a: sa ? sa.n : "",
-		b: sb ? sb.n : "",
+		a: surveyName(ia),
+		b: surveyName(ib),
 		ea,
 		eb,
 		dt
@@ -3906,7 +3918,7 @@ function updateMovers() {
 }
 function drawMovers() {
 	if (!S.skyMode || !ST.on || !MOVERS.length) return;
-	const ea = epochOf(ST.id), eb = epochOf(ST.blinkWith === ST.id ? ST.id === "dss" ? "ps1" : "dss" : ST.blinkWith);
+	const ea = epochOf$1(ST.id), eb = epochOf$1(ST.blinkWith === ST.id ? ST.id === "dss" ? "ps1" : "dss" : ST.blinkWith);
 	compress(1e4);
 	ctx.lineWidth = 1.3;
 	ctx.strokeStyle = "rgba(255,176,96,0.9)";
@@ -4549,7 +4561,7 @@ function drawCME(A) {
 		const rAU = .1 + c.v * dt / 1496e5;
 		if (rAU > 2.6) continue;
 		const fade = Math.max(0, Math.min(1, (2.6 - rAU) / .7));
-		const la = c.lat * D2R$2, lo = c.lon * D2R$2, cb = Math.cos(la);
+		const la = c.lat * D2R$4, lo = c.lon * D2R$4, cb = Math.cos(la);
 		const hx = cb * Math.cos(lo), hy = cb * Math.sin(lo), hz = Math.sin(la);
 		const d = [
 			hx * cE - hy * sE,
@@ -4585,7 +4597,7 @@ function drawCME(A) {
 			200,
 			110
 		];
-		const H = Math.min(1.2, c.half * D2R$2), cH = Math.cos(H), sH = Math.sin(H);
+		const H = Math.min(1.2, c.half * D2R$4), cH = Math.cos(H), sH = Math.sin(H);
 		if (rAU < .11) continue;
 		const sunp = project(0, 0, 0);
 		const fw = eclToWorld(rAU * d[0], rAU * d[1], rAU * d[2]), fp = project(fw[0], fw[1], fw[2]);
@@ -4751,7 +4763,7 @@ function dirScreen(u) {
 	];
 }
 function stonyhurstEcl(latDeg, lonDeg, lamE) {
-	const la = latDeg * D2R$2, lo = lonDeg * D2R$2, cb = Math.cos(la);
+	const la = latDeg * D2R$4, lo = lonDeg * D2R$4, cb = Math.cos(la);
 	const hx = cb * Math.cos(lo), hy = cb * Math.sin(lo), hz = Math.sin(la);
 	const cE = Math.cos(lamE), sE = Math.sin(lamE);
 	return [
@@ -5473,7 +5485,7 @@ function isoEcl(o, jd) {
 	}
 	const nu = 2 * Math.atan(Math.sqrt((o.e + 1) / (o.e - 1)) * Math.tanh(H / 2)), r = a * (1 - o.e * Math.cosh(H));
 	const xw = r * Math.cos(nu), yw = r * Math.sin(nu);
-	const cw = Math.cos(o.w * D2R$2), sw = Math.sin(o.w * D2R$2), ci = Math.cos(o.i * D2R$2), si = Math.sin(o.i * D2R$2), cO = Math.cos(o.om * D2R$2), sO = Math.sin(o.om * D2R$2);
+	const cw = Math.cos(o.w * D2R$4), sw = Math.sin(o.w * D2R$4), ci = Math.cos(o.i * D2R$4), si = Math.sin(o.i * D2R$4), cO = Math.cos(o.om * D2R$4), sO = Math.sin(o.om * D2R$4);
 	return [
 		(cO * cw - sO * sw * ci) * xw + (-cO * sw - sO * cw * ci) * yw,
 		(sO * cw + cO * sw * ci) * xw + (-sO * sw + cO * cw * ci) * yw,
@@ -6763,6 +6775,289 @@ function drawMW() {
 	}
 }
 //#endregion
+//#region src/lib/fits.js
+var D2R$3 = Math.PI / 180;
+var R2D = 180 / Math.PI;
+function parseHeader(buf) {
+	const bytes = new Uint8Array(buf);
+	const cards = {};
+	let i = 0, end = false, order = [];
+	while (!end) {
+		if (i + 80 > bytes.length) throw new Error("FITS header has no END card");
+		let line = "";
+		for (let k = 0; k < 80; k++) line += String.fromCharCode(bytes[i + k]);
+		i += 80;
+		const key = line.slice(0, 8).trim();
+		if (key === "END") {
+			end = true;
+			break;
+		}
+		if (!key || key === "COMMENT" || key === "HISTORY" || line[8] !== "=") continue;
+		let v = line.slice(10);
+		const q = v.match(/^\s*'((?:[^']|'')*)'/);
+		if (q) cards[key] = q[1].replace(/''/g, "'").trimEnd();
+		else {
+			v = v.split("/")[0].trim();
+			cards[key] = v === "T" ? true : v === "F" ? false : isFinite(+v) && v !== "" ? +v : v;
+		}
+		order.push(key);
+	}
+	return {
+		cards,
+		order,
+		dataStart: Math.ceil(i / 2880) * 2880
+	};
+}
+function parseFITS(buf) {
+	const { cards: h, dataStart } = parseHeader(buf);
+	if (h.SIMPLE !== true && h.SIMPLE !== "T") throw new Error("not a standard FITS file (SIMPLE != T)");
+	const bitpix = +h.BITPIX, naxis = +h.NAXIS;
+	if (naxis < 2) throw new Error(`not an image (NAXIS = ${naxis}); tables are not supported here`);
+	const nx = +h.NAXIS1, ny = +h.NAXIS2, n = nx * ny, bz = +h.BZERO || 0, bs = h.BSCALE !== void 0 ? +h.BSCALE : 1, blank = h.BLANK !== void 0 ? +h.BLANK : null;
+	const size = Math.abs(bitpix) / 8;
+	if (dataStart + n * size > buf.byteLength) throw new Error("file is shorter than its header says");
+	const dv = new DataView(buf, dataStart), out = new Float32Array(n);
+	for (let k = 0; k < n; k++) {
+		const o = k * size;
+		let v;
+		switch (bitpix) {
+			case 8:
+				v = dv.getUint8(o);
+				break;
+			case 16:
+				v = dv.getInt16(o);
+				break;
+			case 32:
+				v = dv.getInt32(o);
+				break;
+			case 64:
+				v = Number(dv.getBigInt64(o));
+				break;
+			case -32:
+				v = dv.getFloat32(o);
+				break;
+			case -64:
+				v = dv.getFloat64(o);
+				break;
+			default: throw new Error("BITPIX " + bitpix + " not supported");
+		}
+		out[k] = blank !== null && v === blank ? NaN : v * bs + bz;
+	}
+	return {
+		header: h,
+		nx,
+		ny,
+		data: out,
+		bitpix
+	};
+}
+function wcsOf(h) {
+	const c1 = String(h.CTYPE1 || ""), c2 = String(h.CTYPE2 || "");
+	if (!c1 || !c2) return { error: "no CTYPE keywords: the image carries no world coordinates" };
+	const proj = c1.slice(5, 8), proj2 = c2.slice(5, 8);
+	const lonFirst = /^RA/.test(c1), latFirst = /^DEC/.test(c1);
+	if (!(lonFirst && /^DEC/.test(c2)) && !(latFirst && /^RA/.test(c2))) return { error: `axes ${c1} / ${c2}: only RA/Dec images are supported` };
+	if (proj !== "TAN" || proj2 !== "TAN") return { error: `projection ${proj}: only TAN (gnomonic) is supported here` };
+	const sip = /-SIP/.test(c1);
+	const crpix = [+h.CRPIX1, +h.CRPIX2], crval = [+h.CRVAL1, +h.CRVAL2];
+	if (!crpix.every(isFinite) || !crval.every(isFinite)) return { error: "CRPIX/CRVAL missing" };
+	let cd;
+	if (h.CD1_1 !== void 0 || h.CD2_2 !== void 0) cd = [[+h.CD1_1 || 0, +h.CD1_2 || 0], [+h.CD2_1 || 0, +h.CD2_2 || 0]];
+	else {
+		const d1 = +h.CDELT1, d2 = +h.CDELT2;
+		if (!isFinite(d1) || !isFinite(d2)) return { error: "no CD matrix and no CDELT" };
+		let pc;
+		if (h.PC1_1 !== void 0 || h.PC2_2 !== void 0) pc = [[h.PC1_1 !== void 0 ? +h.PC1_1 : 1, +h.PC1_2 || 0], [+h.PC2_1 || 0, h.PC2_2 !== void 0 ? +h.PC2_2 : 1]];
+		else {
+			const rho = (+h.CROTA2 || +h.CROTA1 || 0) * D2R$3;
+			pc = [[Math.cos(rho), -(d2 / d1) * Math.sin(rho)], [d1 / d2 * Math.sin(rho), Math.cos(rho)]];
+		}
+		cd = [[d1 * pc[0][0], d1 * pc[0][1]], [d2 * pc[1][0], d2 * pc[1][1]]];
+	}
+	const lonpole = h.LONPOLE !== void 0 ? +h.LONPOLE : 180;
+	const det = cd[0][0] * cd[1][1] - cd[0][1] * cd[1][0];
+	if (!det) return { error: "singular CD matrix" };
+	const inv = [[cd[1][1] / det, -cd[0][1] / det], [-cd[1][0] / det, cd[0][0] / det]];
+	const w = {
+		crpix,
+		crval: lonFirst ? crval : [crval[1], crval[0]],
+		cd,
+		inv,
+		lonpole,
+		lonFirst,
+		sip,
+		scale: Math.sqrt(Math.abs(det)) * 3600,
+		ctype: [c1, c2],
+		equinox: h.EQUINOX !== void 0 ? +h.EQUINOX : h.RADESYS ? void 0 : 2e3,
+		radesys: h.RADESYS || "ICRS"
+	};
+	w.pix2world = (p1, p2) => pix2world(w, p1, p2);
+	w.world2pix = (ra, dec) => world2pix(w, ra, dec);
+	return w;
+}
+function pix2world(w, p1, p2) {
+	const u = p1 - w.crpix[0], v = p2 - w.crpix[1];
+	let x = w.cd[0][0] * u + w.cd[0][1] * v, y = w.cd[1][0] * u + w.cd[1][1] * v;
+	if (!w.lonFirst) {
+		const t = x;
+		x = y;
+		y = t;
+	}
+	const phi = Math.atan2(x, -y), r = Math.hypot(x, y) * D2R$3, theta = Math.atan2(1, r);
+	const a0 = w.crval[0] * D2R$3, d0 = w.crval[1] * D2R$3, phip = w.lonpole * D2R$3;
+	const st = Math.sin(theta), ct = Math.cos(theta), dphi = phi - phip, sd0 = Math.sin(d0), cd0 = Math.cos(d0);
+	const dec = Math.asin(Math.max(-1, Math.min(1, st * sd0 + ct * cd0 * Math.cos(dphi))));
+	return [((a0 + Math.atan2(-ct * Math.sin(dphi), st * cd0 - ct * sd0 * Math.cos(dphi))) * R2D % 360 + 360) % 360, dec * R2D];
+}
+function world2pix(w, ra, dec) {
+	const a0 = w.crval[0] * D2R$3, d0 = w.crval[1] * D2R$3, phip = w.lonpole * D2R$3, a = ra * D2R$3, d = dec * D2R$3;
+	const sd = Math.sin(d), cdd = Math.cos(d), sd0 = Math.sin(d0), cd0 = Math.cos(d0), da = a - a0;
+	const theta = Math.asin(Math.max(-1, Math.min(1, sd * sd0 + cdd * cd0 * Math.cos(da))));
+	const phi = phip + Math.atan2(-cdd * Math.sin(da), sd * cd0 - cdd * sd0 * Math.cos(da));
+	if (theta <= 0) return null;
+	const r = R2D / Math.tan(theta);
+	let x = r * Math.sin(phi), y = -r * Math.cos(phi);
+	if (!w.lonFirst) {
+		const t = x;
+		x = y;
+		y = t;
+	}
+	return [w.crpix[0] + w.inv[0][0] * x + w.inv[0][1] * y, w.crpix[1] + w.inv[1][0] * x + w.inv[1][1] * y];
+}
+function epochOf(h) {
+	if (h["MJD-OBS"] !== void 0 && isFinite(+h["MJD-OBS"])) return 2e3 + (+h["MJD-OBS"] - 51544.5) / 365.25;
+	const d = String(h["DATE-OBS"] || "");
+	const m = d.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2}(?:\.\d*)?))?)?/);
+	if (m) return 2e3 + (Date.UTC(+m[1], +m[2] - 1, +m[3], +(m[4] || 0), +(m[5] || 0), +(m[6] || 0)) / 864e5 + 2440587.5 - 2451545) / 365.25;
+	const m2 = d.match(/^(\d{2})\/(\d{2})\/(\d{2})$/);
+	if (m2) return 2e3 + (Date.UTC(1900 + +m2[3], +m2[2] - 1, +m2[1]) / 864e5 + 2440587.5 - 2451545) / 365.25;
+	return null;
+}
+function stretch(data, { lo = .5, hi = 99.7, asinhK = 10 } = {}) {
+	const n = data.length, step = Math.max(1, Math.floor(n / 2e5)), s = [];
+	for (let i = 0; i < n; i += step) {
+		const v = data[i];
+		if (v === v) s.push(v);
+	}
+	s.sort((a, b) => a - b);
+	if (!s.length) return {
+		lo: 0,
+		hi: 1,
+		map: () => 0
+	};
+	const vlo = s[Math.floor(s.length * lo / 100)], vhi = s[Math.min(s.length - 1, Math.floor(s.length * hi / 100))], span = vhi - vlo || 1, K = Math.asinh(asinhK);
+	return {
+		lo: vlo,
+		hi: vhi,
+		map: (v) => {
+			if (v !== v) return 0;
+			const t = Math.max(0, Math.min(1, (v - vlo) / span));
+			return Math.round(255 * Math.asinh(t * asinhK) / K);
+		}
+	};
+}
+//#endregion
+//#region src/engine/fitsimg.js
+var FITS = { img: null };
+var D2R$2 = Math.PI / 180;
+function importFits(buf, name = "image.fits") {
+	let f, w;
+	try {
+		f = parseFITS(buf);
+	} catch (e) {
+		ST.fits = null;
+		ST.fitsMsg = `${name}: ${e.message}`;
+		publish$4();
+		return null;
+	}
+	w = wcsOf(f.header);
+	if (w.error) {
+		ST.fits = null;
+		ST.fitsMsg = `${name}: ${w.error}`;
+		publish$4();
+		return null;
+	}
+	const st = stretch(f.data), cv = document.createElement("canvas");
+	cv.width = f.nx;
+	cv.height = f.ny;
+	const c2 = cv.getContext("2d"), im = c2.createImageData(f.nx, f.ny), px = im.data;
+	for (let y = 0; y < f.ny; y++) {
+		const row = (f.ny - 1 - y) * f.nx;
+		for (let x = 0; x < f.nx; x++) {
+			const g = st.map(f.data[row + x]), o = (y * f.nx + x) * 4;
+			px[o] = px[o + 1] = px[o + 2] = g;
+			px[o + 3] = 255;
+		}
+	}
+	c2.putImageData(im, 0, 0);
+	if (FITS.img && FITS.img.tex && FITS.img.gl) FITS.img.gl.deleteTexture(FITS.img.tex);
+	const epoch = epochOf(f.header);
+	FITS.img = {
+		name,
+		nx: f.nx,
+		ny: f.ny,
+		wcs: w,
+		epoch,
+		canvas: cv,
+		tex: null,
+		gl: null,
+		header: f.header,
+		lo: st.lo,
+		hi: st.hi,
+		bitpix: f.bitpix,
+		mesh: null
+	};
+	const c = w.pix2world((f.nx + 1) / 2, (f.ny + 1) / 2);
+	ST.fits = {
+		name,
+		nx: f.nx,
+		ny: f.ny,
+		epoch,
+		scale: w.scale,
+		ra: c[0],
+		dec: c[1],
+		object: f.header.OBJECT || "",
+		date: f.header["DATE-OBS"] || "",
+		sip: w.sip
+	};
+	ST.fitsMsg = w.sip ? "SIP distortion terms ignored: positions near the edges may be off by a few pixels" : "";
+	setSurvey("fits");
+	V.dirty = true;
+	return ST.fits;
+}
+function clearFits() {
+	if (FITS.img && FITS.img.tex && FITS.img.gl) FITS.img.gl.deleteTexture(FITS.img.tex);
+	FITS.img = null;
+	ST.fits = null;
+	ST.fitsMsg = "";
+	if (ST.id === "fits") setSurvey("dss");
+	if (ST.blinkWith === "fits") setBlink(ST.blink, "ps1");
+	publish$4();
+	V.dirty = true;
+}
+function fitsMesh(N) {
+	const im = FITS.img;
+	if (!im) return null;
+	if (im.mesh && im.mesh.N === N) return im.mesh;
+	const verts = new Float32Array((N + 1) * (N + 1) * 5);
+	for (let j = 0; j <= N; j++) for (let i = 0; i <= N; i++) {
+		const p1 = .5 + i / N * im.nx, p2 = .5 + j / N * im.ny, [ra, dec] = im.wcs.pix2world(p1, p2), r = ra * D2R$2, d = dec * D2R$2, cd = Math.cos(d), o = (j * (N + 1) + i) * 5;
+		verts[o] = cd * Math.cos(r);
+		verts[o + 1] = cd * Math.sin(r);
+		verts[o + 2] = Math.sin(d);
+		verts[o + 3] = i / N;
+		verts[o + 4] = 1 - j / N;
+	}
+	return im.mesh = {
+		N,
+		verts
+	};
+}
+Object.assign(api, {
+	importFits,
+	clearFits
+});
+//#endregion
 //#region src/engine/gl.js
 var glOK = false;
 var GL = null;
@@ -7430,7 +7725,7 @@ function loadExtragal() {
 		} else tfetch("file-cosmicweb", {
 			name: "cosmicweb.bin",
 			group: "catalogue"
-		}, "data/cosmicweb.bin?b=b12:26").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/cosmicweb.bin?b=b12:34").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildWeb(new Uint8Array(a));
 		}).catch(() => {});
 		if (typeof window.__QSO_B64__ === "string" && window.__QSO_B64__.length) {
@@ -7439,14 +7734,14 @@ function loadExtragal() {
 		} else tfetch("file-quasars", {
 			name: "quasars.bin",
 			group: "catalogue"
-		}, "data/quasars.bin?b=b12:26").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/quasars.bin?b=b12:34").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildQso(new Uint8Array(a));
 		}).catch(() => {});
 		tfetch("file-quasarsbig", {
 			name: "quasarsbig.bin",
 			group: "catalogue",
 			optional: true
-		}, "data/quasarsbig.bin?b=b12:26").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/quasarsbig.bin?b=b12:34").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildQso(new Uint8Array(a));
 		}).catch(() => {});
 		if (typeof window.__BELT_B64__ === "string" && window.__BELT_B64__.length) {
@@ -7455,21 +7750,21 @@ function loadExtragal() {
 		} else tfetch("file-belt", {
 			name: "belt.bin",
 			group: "catalogue"
-		}, "data/belt.bin?b=b12:26").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/belt.bin?b=b12:34").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildBelt(new Uint8Array(a));
 		}).catch(() => {});
 		tfetch("file-gaiabig", {
 			name: "gaiabig.bin",
 			group: "catalogue",
 			optional: true
-		}, "data/gaiabig.bin?b=b12:26").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/gaiabig.bin?b=b12:34").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) {
 				buildGaiaBig(new Uint8Array(a));
 				tfetch("file-gaiabig_pm", {
 					name: "gaiabig_pm.bin",
 					group: "catalogue",
 					optional: true
-				}, "data/gaiabig_pm.bin?b=b12:26").then((r) => r.ok ? r.arrayBuffer() : null).then((p) => {
+				}, "data/gaiabig_pm.bin?b=b12:34").then((r) => r.ok ? r.arrayBuffer() : null).then((p) => {
 					if (p) {
 						gaiaPm = new Uint8Array(p);
 						if (CL.G) CL.G.pm = false;
@@ -7484,7 +7779,7 @@ function loadExtragal() {
 		} else tfetch("file-obstars", {
 			name: "obstars.bin",
 			group: "catalogue"
-		}, "data/obstars.bin?b=b12:26").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/obstars.bin?b=b12:34").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildOB(new Uint8Array(a));
 		}).catch(() => {});
 		if (typeof window.__VAR_B64__ === "string" && window.__VAR_B64__.length) {
@@ -7493,7 +7788,7 @@ function loadExtragal() {
 		} else tfetch("file-variables", {
 			name: "variables.bin",
 			group: "catalogue"
-		}, "data/variables.bin?b=b12:26").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/variables.bin?b=b12:34").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildVars(new Uint8Array(a));
 		}).catch(() => {});
 	} catch (e) {}
@@ -7514,14 +7809,14 @@ function loadGaia() {
 		tfetch("file-gaia", {
 			name: "gaia.bin",
 			group: "catalogue"
-		}, "data/gaia.bin?b=b12:26").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/gaia.bin?b=b12:34").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildGaia(new Uint8Array(a));
 		}).catch(() => {});
 		tfetch("file-gaia_pm", {
 			name: "gaia_pm.bin",
 			group: "catalogue",
 			optional: true
-		}, "data/gaia_pm.bin?b=b12:26").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/gaia_pm.bin?b=b12:34").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a && (!gaiaPm || gaiaRange === 100)) {
 				gaiaPm = new Uint8Array(a);
 				attachGaiaPm();
@@ -7623,10 +7918,10 @@ function tileTexture(gl, t) {
 	return tex;
 }
 function drawSurveyTiles() {
-	const sv = activeSurvey(), a = surveyAlpha();
-	if (!sv || a <= .01 || !progS) return;
+	const sv = activeSurvey(), a = surveyAlpha(), fits = activeId() === "fits" ? FITS.img : null;
+	if (!sv && !fits || a <= .01 || !progS) return;
 	const gl = GL, L = progS.loc, A = progS.attr;
-	const order = chooseOrder(sv), tiles = visibleTiles(order);
+	const order = fits ? 0 : chooseOrder(sv), tiles = fits ? [] : visibleTiles(order);
 	gl.useProgram(progS.p);
 	gl.disable(gl.BLEND);
 	gl.uniform1f(L.u_yaw, S.yaw);
@@ -7656,6 +7951,29 @@ function drawSurveyTiles() {
 	gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibuf);
 	gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, ib, gl.STREAM_DRAW);
 	let drawn = 0;
+	if (fits) {
+		const M = 24, m = fitsMesh(M), fidx = [];
+		for (let j = 0; j < M; j++) for (let i = 0; i < M; i++) {
+			const k = j * 25 + i;
+			fidx.push(k, k + 1, k + M + 1, k + 1, k + M + 2, k + M + 1);
+		}
+		const fib = new Uint16Array(fidx);
+		gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, fib, gl.STREAM_DRAW);
+		if (!fits.tex) {
+			fits.tex = gl.createTexture();
+			fits.gl = gl;
+			gl.bindTexture(gl.TEXTURE_2D, fits.tex);
+			gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, fits.canvas);
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+		}
+		gl.bufferData(gl.ARRAY_BUFFER, m.verts, gl.STREAM_DRAW);
+		gl.bindTexture(gl.TEXTURE_2D, fits.tex);
+		gl.drawElements(gl.TRIANGLES, fib.length, gl.UNSIGNED_SHORT, 0);
+		drawn = 1;
+	}
 	for (const pix of tiles) {
 		const best = bestTile(sv, order, pix);
 		if (!best) continue;
@@ -8757,7 +9075,7 @@ function drawGalGrid() {
 	]) {
 		pathBegin();
 		for (let k = 0; k <= 96; k++) {
-			const d = dir(k / 96 * 6.2832, b * D2R$2);
+			const d = dir(k / 96 * 6.2832, b * D2R$4);
 			pathPt(project(d[0] * R, d[1] * R, d[2] * R));
 		}
 		pathStroke(b === 0 ? "rgba(235,200,150,.32)" : "rgba(215,180,135,.14)", b === 0 ? 1.2 : 1, [1, 4]);
@@ -8765,7 +9083,7 @@ function drawGalGrid() {
 	for (let i = 0; i < 12; i++) {
 		pathBegin();
 		for (let k = 0; k <= 48; k++) {
-			const d = dir(i / 12 * 6.2832, (-90 + k / 48 * 180) * D2R$2);
+			const d = dir(i / 12 * 6.2832, (-90 + k / 48 * 180) * D2R$4);
 			pathPt(project(d[0] * R, d[1] * R, d[2] * R));
 		}
 		pathStroke("rgba(215,180,135,.12)", 1, [1, 4]);
@@ -8778,7 +9096,7 @@ function drawGalGrid() {
 		180,
 		270
 	]) {
-		const d = dir(l * D2R$2, .03), p = project(d[0] * R, d[1] * R, d[2] * R);
+		const d = dir(l * D2R$4, .03), p = project(d[0] * R, d[1] * R, d[2] * R);
 		if (p.depth > V.NEAR && !offscr(p)) ctx.fillText("l=" + l + "°", p.x + 3, p.y - 4);
 	}
 	const np = dir(0, Math.PI / 2), pp = project(np[0] * R, np[1] * R, np[2] * R);
@@ -9526,7 +9844,7 @@ var _gbl = null;
 function gmstRad(jd) {
 	let g = (280.46061837 + 360.98564736629 * (jd - 2451545)) % 360;
 	if (g < 0) g += 360;
-	return g * D2R$2;
+	return g * D2R$4;
 }
 function globeViewRows() {
 	const cy = Math.cos(S.yaw), sy = Math.sin(S.yaw), cp = Math.cos(S.pitch), sp = Math.sin(S.pitch);
@@ -9952,7 +10270,7 @@ function globeInverse(u, v) {
 		M[0][1] * wrl[0] + M[1][1] * wrl[1] + M[2][1] * wrl[2],
 		M[0][2] * wrl[0] + M[1][2] * wrl[1] + M[2][2] * wrl[2]
 	];
-	return [Math.asin(Math.max(-1, Math.min(1, geo[2]))) / D2R$2, Math.atan2(geo[1], geo[0]) / D2R$2];
+	return [Math.asin(Math.max(-1, Math.min(1, geo[2]))) / D2R$4, Math.atan2(geo[1], geo[0]) / D2R$4];
 }
 var SURF = {
 	on: false,
@@ -9989,8 +10307,8 @@ function surfUpdate() {
 					SURF.lon = gi[1];
 				} else {
 					const c = Math.asin(Math.min(1, rho));
-					SURF.lat = rho < 1e-6 ? 0 : Math.asin(-v * Math.sin(c) / rho) / D2R$2;
-					SURF.lon = GOES_LON + (rho < 1e-6 ? 0 : Math.atan2(u * Math.sin(c), rho * Math.cos(c)) / D2R$2);
+					SURF.lat = rho < 1e-6 ? 0 : Math.asin(-v * Math.sin(c) / rho) / D2R$4;
+					SURF.lon = GOES_LON + (rho < 1e-6 ? 0 : Math.atan2(u * Math.sin(c), rho * Math.cos(c)) / D2R$4);
 				}
 				SURF.on = true;
 			} else S.camZ = V.tgtCamZ = enterZ;
@@ -10034,7 +10352,7 @@ function surfTile(z, x, y) {
 }
 function drawSurface() {
 	LBL.prio = 100;
-	const mpp = surfMpp(), latR = SURF.lat * D2R$2;
+	const mpp = surfMpp(), latR = SURF.lat * D2R$4;
 	const zf = Math.log2(156543.034 * Math.cos(latR) / mpp);
 	const zt = Math.max(2, Math.min(9, Math.round(zf)));
 	const ts = 256 * Math.pow(2, zf - zt);
@@ -10059,7 +10377,7 @@ function drawSurface() {
 	V.dirty = SURF.cache.size < 4 ? true : V.dirty;
 }
 function surfPan(dx, dy) {
-	const mpp = surfMpp(), latR = SURF.lat * D2R$2;
+	const mpp = surfMpp(), latR = SURF.lat * D2R$4;
 	SURF.lon -= dx * mpp / (111320 * Math.cos(latR));
 	SURF.lat += dy * mpp / 110540;
 	SURF.lat = Math.max(-84, Math.min(84, SURF.lat));
@@ -12736,6 +13054,9 @@ window.__ku = {
 		return gaiaRaw;
 	},
 	fieldCentre,
+	get fits() {
+		return FITS.img;
+	},
 	get gaiaRange() {
 		return gaiaRange;
 	},

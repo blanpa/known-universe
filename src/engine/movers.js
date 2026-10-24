@@ -9,14 +9,14 @@ import { ctx } from './canvas.js';
 import { gaiaPm, gaiaRange, gaiaRaw } from './gl.js';
 import { hygProj } from './hyg.js';
 import { S, V } from './state.js';
-import { ST, SURVEYS, fovDeg } from './survey.js';
+import { ST, SURVEYS, fovDeg, surveyName } from './survey.js';
 import { userProj } from './userdata.js';
 import { H, W, _pj, camDist, camFwd, compress, projectInto } from './view.js';
 
 const MAS=4.84813681e-9;
 export let MOVERS=[];
 let _key='';
-function epochOf(id){ const s=SURVEYS.find(x=>x.id===id); return s?s.ep:2000; }
+function epochOf(id){ if(id==='fits') return (ST.fits&&ST.fits.epoch)||2000; const s=SURVEYS.find(x=>x.id===id); return s?s.ep:2000; }
 // sky position of a row at `epoch`, given its catalogue epoch and proper motion (small angles)
 function shifted(o,epoch){
   const t=epoch-(o.ep||2000), a=(o.pr||0)*t*MAS, b=(o.pd||0)*t*MAS;
@@ -61,9 +61,8 @@ export function updateMovers(){
   }
   out.sort((a,b)=>b.jump-a.jump);
   MOVERS=out.slice(0,60);
-  const sa=SURVEYS.find(x=>x.id===ia), sb=SURVEYS.find(x=>x.id===ib);
   store.set({ list:MOVERS.slice(0,14).map(m=>({ name:m.name, pm:m.pm, jump:m.jump, px:m.px, usr:m.usr, ra:Math.atan2(m.o.dy,m.o.dx)*57.29578, dec:Math.asin(m.o.dz)*57.29578 })),
-    a:sa?sa.n:'', b:sb?sb.n:'', ea, eb, dt });
+    a:surveyName(ia), b:surveyName(ib), ea, eb, dt });
 }
 // arrows from the first epoch to the second, drawn over the images
 export function drawMovers(){
