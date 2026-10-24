@@ -1,4 +1,4 @@
-import { A as declare, C as timeline, D as userLayer, E as transit, M as tally, N as tfetch, O as api, P as timg, S as timeBar, T as tour, _ as searchMsg, a as satEcl, b as stats, c as camera, d as facList$1, f as fieldQuery, g as nav, h as movers, i as refreshLive, j as mark, k as count, l as encounters, m as measure, n as activeShowers, o as startLive, p as labels, r as groundEcl, s as RESERVED, t as LIVE, u as facColor, v as selection, w as toggleState, x as survey, y as skyCursor } from "./index-QfziEsEO.js";
+import { A as api, C as survey, D as tour, E as toggleState, F as tfetch, I as timg, M as declare, N as mark, O as transit, P as tally, S as stats, T as timeline, _ as movers, a as satEcl, b as selection, c as camera, d as facColor, f as facList$1, g as measureLog, h as measure, i as refreshLive, j as count, k as userLayer, l as crossmatch$1, m as labels, n as activeShowers, o as startLive, p as fieldQuery, r as groundEcl, s as RESERVED, t as LIVE, u as encounters, v as nav, w as timeBar, x as skyCursor, y as searchMsg } from "./index-CSTz2h-u.js";
 //#region src/engine/canvas.js
 var cv = document.getElementById("sky");
 var ctx = cv.getContext("2d");
@@ -95,12 +95,12 @@ var V = {
 //#endregion
 //#region src/engine/data.js
 var DATA = window.__DATA__;
-var META = DATA.meta;
+var META$1 = DATA.meta;
 var STARS = DATA.stars;
 var CAT = window.__CATALOG__ || {};
 var PC2LY = 3.261564;
 var dists = STARS.map((s) => s.d).slice().sort((a, b) => a - b);
-var R0 = dists[Math.floor(dists.length * .9)] || META.maxDist;
+var R0 = dists[Math.floor(dists.length * .9)] || META$1.maxDist;
 STARS.forEach((s) => {
 	const r = s.d || 1e-6;
 	s._dx = s.x / r;
@@ -2496,9 +2496,9 @@ function moonOrbitPoint(kd, E) {
 	const q = orbPoint({
 		a: kd.a,
 		e: kd.e,
-		I: kd.i * D2R,
-		om: kd.w * D2R,
-		O: kd.om * D2R,
+		I: kd.i * D2R$2,
+		om: kd.w * D2R$2,
+		O: kd.om * D2R$2,
 		E
 	}, E);
 	return eclDir(q[0], q[1], q[2]);
@@ -2540,7 +2540,7 @@ var SOLAR_BODIES = [
 	...DWARFS,
 	...TNOS
 ];
-var D2R = Math.PI / 180;
+var D2R$2 = Math.PI / 180;
 var EPOCH_JD = (/* @__PURE__ */ new Date()).getTime() / 864e5 + 2440587.5;
 function solarJD() {
 	return EPOCH_JD + S.tOffsetDays;
@@ -2556,10 +2556,10 @@ function dateStr(jd) {
 	});
 }
 function keplerEcl(k, T, E0) {
-	const a = k[0] + k[1] * T, e = k[2] + k[3] * T, I = (k[4] + k[5] * T) * D2R;
-	const L = k[6] + k[7] * T, wb = k[8] + k[9] * T, O = (k[10] + k[11] * T) * D2R;
-	const om = wb * D2R - O;
-	let M = (L - wb) * D2R;
+	const a = k[0] + k[1] * T, e = k[2] + k[3] * T, I = (k[4] + k[5] * T) * D2R$2;
+	const L = k[6] + k[7] * T, wb = k[8] + k[9] * T, O = (k[10] + k[11] * T) * D2R$2;
+	const om = wb * D2R$2 - O;
+	let M = (L - wb) * D2R$2;
 	M = Math.atan2(Math.sin(M), Math.cos(M));
 	let E = E0 !== void 0 ? E0 : M;
 	for (let i = 0; i < 6; i++) E = E - (E - e * Math.sin(E) - M) / (1 - e * Math.cos(E));
@@ -2583,7 +2583,7 @@ function orbPoint(el, E) {
 	];
 }
 function keplerSB(kd, jd) {
-	let M = (kd.ma + kd.n * (jd - kd.ep)) * D2R;
+	let M = (kd.ma + kd.n * (jd - kd.ep)) * D2R$2;
 	M = Math.atan2(Math.sin(M), Math.cos(M));
 	const e = kd.e;
 	let E = M + e * Math.sin(M) * (1 + e * Math.cos(M));
@@ -2595,13 +2595,13 @@ function keplerSB(kd, jd) {
 	return {
 		a: kd.a,
 		e: kd.e,
-		I: kd.i * D2R,
-		om: kd.w * D2R,
-		O: kd.om * D2R,
+		I: kd.i * D2R$2,
+		om: kd.w * D2R$2,
+		O: kd.om * D2R$2,
 		E
 	};
 }
-var OBLQ = 23.4392911 * D2R;
+var OBLQ = 23.4392911 * D2R$2;
 var cOB = Math.cos(OBLQ);
 var sOB = Math.sin(OBLQ);
 function eclDir(xe, ye, ze) {
@@ -3178,7 +3178,7 @@ var _blinkPhase = 0;
 function setSurvey(id) {
 	ST.id = id;
 	ST.on = !!SURVEYS.find((s) => s.id === id);
-	publish$2();
+	publish$3();
 	V.dirty = true;
 }
 function setBlink(on, withId) {
@@ -3192,17 +3192,17 @@ function setBlink(on, withId) {
 		_blinkPhase ^= 1;
 		V.dirty = true;
 	}, 700);
-	publish$2();
+	publish$3();
 	V.dirty = true;
 }
-function publish$2() {
+function publish$3() {
 	survey.set({
 		id: ST.on ? ST.id : null,
 		blink: ST.blink,
 		blinkWith: ST.blinkWith
 	});
 }
-publish$2();
+publish$3();
 function activeSurvey() {
 	if (!ST.on) return null;
 	const id = ST.blink && _blinkPhase ? ST.blinkWith : ST.id;
@@ -3582,7 +3582,7 @@ function rebuild() {
 	}
 	USER.warn = USER.sets.map((st) => st.warn).filter(Boolean).join(" · ");
 }
-function publish$1(saved) {
+function publish$2(saved) {
 	userLayer.set({
 		sets: USER.sets.map((st) => ({
 			name: st.name,
@@ -3622,6 +3622,7 @@ function parseSet(st) {
 	st.rows = r.rows;
 	st.warn = r.warn;
 	st.n = r.rows.length;
+	st.xm = null;
 }
 function importUser(text, name, opts = {}) {
 	const src = opts.src || "file";
@@ -3640,7 +3641,7 @@ function importUser(text, name, opts = {}) {
 	const saved = persist();
 	if (S.pinned && S.pinned.usr) S.pinned = null;
 	if (S.hover && S.hover.usr) S.hover = null;
-	publish$1(saved);
+	publish$2(saved);
 	V.dirty = true;
 	return st.rows.length;
 }
@@ -3650,7 +3651,7 @@ function removeSet(k) {
 	const saved = persist();
 	if (S.pinned && S.pinned.usr) S.pinned = null;
 	if (S.hover && S.hover.usr) S.hover = null;
-	publish$1(saved);
+	publish$2(saved);
 	V.dirty = true;
 }
 function clearUser() {
@@ -3661,7 +3662,7 @@ function clearUser() {
 	} catch (e) {}
 	if (S.pinned && S.pinned.usr) S.pinned = null;
 	if (S.hover && S.hover.usr) S.hover = null;
-	publish$1(false);
+	publish$2(false);
 	V.dirty = true;
 }
 function restoreUser() {
@@ -3679,10 +3680,10 @@ function restoreUser() {
 		}));
 		for (const st of USER.sets) parseSet(st);
 		rebuild();
-		publish$1(true);
+		publish$2(true);
 	} catch (e) {}
 }
-var MAS$1 = 4.84813681e-9;
+var MAS$2 = 4.84813681e-9;
 function projectUser() {
 	userProj.length = 0;
 	if (!S.user || !USER.rows.length) return;
@@ -3692,7 +3693,7 @@ function projectUser() {
 		if (t && (o.pr || o.pd)) {
 			const cq = Math.hypot(dx, dy) || 1e-9, ex = -dy / cq, ey = dx / cq;
 			const nx = -dz * dx / cq, ny = -dz * dy / cq, nz = cq;
-			const a = o.pr * t * MAS$1, b = o.pd * t * MAS$1;
+			const a = o.pr * t * MAS$2, b = o.pd * t * MAS$2;
 			dx += ex * a + nx * b;
 			dy += ey * a + ny * b;
 			dz += nz * b;
@@ -3718,20 +3719,21 @@ function drawUser() {
 	ctx.lineWidth = 1.4;
 	for (const o of userProj) {
 		const sel = o === S.hover || o === S.pinned;
+		const unk = o.xm === null && USER.sets[o.set] && USER.sets[o.set].xm;
 		const r = sel ? 8 : many ? 3.5 : 5.5;
 		ctx.beginPath();
 		ctx.arc(o._sx, o._sy, r, 0, 6.2832);
-		ctx.strokeStyle = sel ? "rgba(79,214,200,0.95)" : "rgba(255,176,96,0.85)";
+		ctx.strokeStyle = sel ? "rgba(79,214,200,0.95)" : unk ? "rgba(255,96,96,0.95)" : "rgba(255,176,96,0.85)";
 		ctx.stroke();
-		if (!many || sel) {
+		if (!many || sel || unk) {
 			ctx.beginPath();
 			ctx.arc(o._sx, o._sy, 1.3, 0, 6.2832);
-			ctx.fillStyle = sel ? "rgba(79,214,200,1)" : "rgba(255,176,96,0.9)";
+			ctx.fillStyle = sel ? "rgba(79,214,200,1)" : unk ? "rgba(255,120,120,1)" : "rgba(255,176,96,0.9)";
 			ctx.fill();
 		}
-		if (o.n && (sel || label)) {
+		if (o.n && (sel || label || unk)) {
 			ctx.font = (sel ? "11px" : "9.5px") + " ui-monospace,monospace";
-			ctx.fillStyle = sel ? "rgba(79,214,200,1)" : "rgba(255,196,130,0.8)";
+			ctx.fillStyle = sel ? "rgba(79,214,200,1)" : unk ? "rgba(255,150,150,0.9)" : "rgba(255,196,130,0.8)";
 			LBL.prio = sel ? 92 : 52;
 			ctx.fillText(o.n, o._sx + r + 4, o._sy + 3);
 			LBL.prio = 52;
@@ -3740,7 +3742,7 @@ function drawUser() {
 }
 //#endregion
 //#region src/engine/movers.js
-var MAS = 4.84813681e-9;
+var MAS$1 = 4.84813681e-9;
 var MOVERS = [];
 var _key = "";
 function epochOf(id) {
@@ -3748,7 +3750,7 @@ function epochOf(id) {
 	return s ? s.ep : 2e3;
 }
 function shifted(o, epoch) {
-	const t = epoch - (o.ep || 2e3), a = (o.pr || 0) * t * MAS, b = (o.pd || 0) * t * MAS;
+	const t = epoch - (o.ep || 2e3), a = (o.pr || 0) * t * MAS$1, b = (o.pd || 0) * t * MAS$1;
 	let dx = o.dx, dy = o.dy, dz = o.dz;
 	const cq = Math.hypot(dx, dy) || 1e-9, ex = -dy / cq, ey = dx / cq, nx = -dz * dx / cq, ny = -dz * dy / cq, nz = cq;
 	dx += ex * a + nx * b;
@@ -3806,7 +3808,10 @@ function updateMovers() {
 			pm,
 			jump,
 			px,
-			usr: !!o.usr
+			usr: !!o.usr,
+			ea,
+			eb,
+			src: o.usr ? "your data" : o.gpick === "gaia" ? "Gaia DR3 cloud" : "HYG"
 		});
 	};
 	for (const o of userProj) add(o, o.n || `Row ${o.i + 1}`);
@@ -4502,7 +4507,7 @@ function drawCME(A) {
 		const rAU = .1 + c.v * dt / 1496e5;
 		if (rAU > 2.6) continue;
 		const fade = Math.max(0, Math.min(1, (2.6 - rAU) / .7));
-		const la = c.lat * D2R, lo = c.lon * D2R, cb = Math.cos(la);
+		const la = c.lat * D2R$2, lo = c.lon * D2R$2, cb = Math.cos(la);
 		const hx = cb * Math.cos(lo), hy = cb * Math.sin(lo), hz = Math.sin(la);
 		const d = [
 			hx * cE - hy * sE,
@@ -4538,7 +4543,7 @@ function drawCME(A) {
 			200,
 			110
 		];
-		const H = Math.min(1.2, c.half * D2R), cH = Math.cos(H), sH = Math.sin(H);
+		const H = Math.min(1.2, c.half * D2R$2), cH = Math.cos(H), sH = Math.sin(H);
 		if (rAU < .11) continue;
 		const sunp = project(0, 0, 0);
 		const fw = eclToWorld(rAU * d[0], rAU * d[1], rAU * d[2]), fp = project(fw[0], fw[1], fw[2]);
@@ -4704,7 +4709,7 @@ function dirScreen(u) {
 	];
 }
 function stonyhurstEcl(latDeg, lonDeg, lamE) {
-	const la = latDeg * D2R, lo = lonDeg * D2R, cb = Math.cos(la);
+	const la = latDeg * D2R$2, lo = lonDeg * D2R$2, cb = Math.cos(la);
 	const hx = cb * Math.cos(lo), hy = cb * Math.sin(lo), hz = Math.sin(la);
 	const cE = Math.cos(lamE), sE = Math.sin(lamE);
 	return [
@@ -5426,7 +5431,7 @@ function isoEcl(o, jd) {
 	}
 	const nu = 2 * Math.atan(Math.sqrt((o.e + 1) / (o.e - 1)) * Math.tanh(H / 2)), r = a * (1 - o.e * Math.cosh(H));
 	const xw = r * Math.cos(nu), yw = r * Math.sin(nu);
-	const cw = Math.cos(o.w * D2R), sw = Math.sin(o.w * D2R), ci = Math.cos(o.i * D2R), si = Math.sin(o.i * D2R), cO = Math.cos(o.om * D2R), sO = Math.sin(o.om * D2R);
+	const cw = Math.cos(o.w * D2R$2), sw = Math.sin(o.w * D2R$2), ci = Math.cos(o.i * D2R$2), si = Math.sin(o.i * D2R$2), cO = Math.cos(o.om * D2R$2), sO = Math.sin(o.om * D2R$2);
 	return [
 		(cO * cw - sO * sw * ci) * xw + (-cO * sw - sO * cw * ci) * yw,
 		(sO * cw + cO * sw * ci) * xw + (-sO * sw + cO * cw * ci) * yw,
@@ -6171,6 +6176,13 @@ function card(o) {
 			c.rows.push(["Distance", o.noDist ? "not given — placed on the sky" : `${ly$1(o.d)} · ${o.d < 100 ? o.d.toFixed(2) : fmt(o.d)} pc`]);
 			if (o.m !== void 0) c.rows.push(["Magnitude", o.m.toFixed(2)]);
 			if (o.pr || o.pd) c.rows.push(["Proper motion", `${o.pr.toFixed(1)} · ${o.pd.toFixed(1)} mas/yr · ${Math.hypot(o.pr, o.pd).toFixed(0)} total`]);
+			const xst = (USER.sets[o.set] || {}).xm;
+			if (xst) c.rows.push(["Counterpart", o.xm ? `${o.xm.id} · ${o.xm.src} · ${o.xm.sep.toFixed(2)}″ away` : `none within ${xst.radius}″ of ${xst.remote || "the loaded catalogues"}`]);
+			if (o.xm && o.xm.plx !== void 0) c.rows.push(["Counterpart ϖ", `${o.xm.plx.toFixed(3)}${o.xm.eplx !== void 0 ? " ± " + o.xm.eplx.toFixed(3) : ""} mas${o.xm.plx > 0 ? " · " + (1e3 / o.xm.plx).toFixed(1) + " pc" : ""}`]);
+			if (o.xm && (o.xm.pr !== void 0 || o.xm.pd !== void 0)) c.rows.push(["Counterpart μ", `${(o.xm.pr || 0).toFixed(2)}${o.xm.epr !== void 0 ? " ± " + o.xm.epr.toFixed(2) : ""} · ${(o.xm.pd || 0).toFixed(2)}${o.xm.epd !== void 0 ? " ± " + o.xm.epd.toFixed(2) : ""} mas/yr`]);
+			if (o.xm && o.xm.ruwe !== void 0) c.rows.push(["Counterpart RUWE", `${o.xm.ruwe.toFixed(2)}${o.xm.ruwe > 1.4 ? " · astrometry suspect (>1.4)" : ""}`]);
+			if (o.xm && o.xm.otype) c.rows.push(["Counterpart type", `${o.xm.otype}${o.xm.sp ? " · " + o.xm.sp : ""}`]);
+			if (o.xm && o.xm.doubt) c.rows.push(["Doubt", o.xm.doubt]);
 			for (const [kx, vx] of Object.entries(o.x || {}).slice(0, 8)) c.rows.push([kx, String(vx).slice(0, 60)]);
 			c.links = [{
 				t: "SIMBAD",
@@ -7376,7 +7388,7 @@ function loadExtragal() {
 		} else tfetch("file-cosmicweb", {
 			name: "cosmicweb.bin",
 			group: "catalogue"
-		}, "data/cosmicweb.bin?b=b11:51").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/cosmicweb.bin?b=b12:20").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildWeb(new Uint8Array(a));
 		}).catch(() => {});
 		if (typeof window.__QSO_B64__ === "string" && window.__QSO_B64__.length) {
@@ -7385,14 +7397,14 @@ function loadExtragal() {
 		} else tfetch("file-quasars", {
 			name: "quasars.bin",
 			group: "catalogue"
-		}, "data/quasars.bin?b=b11:51").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/quasars.bin?b=b12:20").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildQso(new Uint8Array(a));
 		}).catch(() => {});
 		tfetch("file-quasarsbig", {
 			name: "quasarsbig.bin",
 			group: "catalogue",
 			optional: true
-		}, "data/quasarsbig.bin?b=b11:51").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/quasarsbig.bin?b=b12:20").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildQso(new Uint8Array(a));
 		}).catch(() => {});
 		if (typeof window.__BELT_B64__ === "string" && window.__BELT_B64__.length) {
@@ -7401,21 +7413,21 @@ function loadExtragal() {
 		} else tfetch("file-belt", {
 			name: "belt.bin",
 			group: "catalogue"
-		}, "data/belt.bin?b=b11:51").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/belt.bin?b=b12:20").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildBelt(new Uint8Array(a));
 		}).catch(() => {});
 		tfetch("file-gaiabig", {
 			name: "gaiabig.bin",
 			group: "catalogue",
 			optional: true
-		}, "data/gaiabig.bin?b=b11:51").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/gaiabig.bin?b=b12:20").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) {
 				buildGaiaBig(new Uint8Array(a));
 				tfetch("file-gaiabig_pm", {
 					name: "gaiabig_pm.bin",
 					group: "catalogue",
 					optional: true
-				}, "data/gaiabig_pm.bin?b=b11:51").then((r) => r.ok ? r.arrayBuffer() : null).then((p) => {
+				}, "data/gaiabig_pm.bin?b=b12:20").then((r) => r.ok ? r.arrayBuffer() : null).then((p) => {
 					if (p) {
 						gaiaPm = new Uint8Array(p);
 						if (CL.G) CL.G.pm = false;
@@ -7430,7 +7442,7 @@ function loadExtragal() {
 		} else tfetch("file-obstars", {
 			name: "obstars.bin",
 			group: "catalogue"
-		}, "data/obstars.bin?b=b11:51").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/obstars.bin?b=b12:20").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildOB(new Uint8Array(a));
 		}).catch(() => {});
 		if (typeof window.__VAR_B64__ === "string" && window.__VAR_B64__.length) {
@@ -7439,7 +7451,7 @@ function loadExtragal() {
 		} else tfetch("file-variables", {
 			name: "variables.bin",
 			group: "catalogue"
-		}, "data/variables.bin?b=b11:51").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/variables.bin?b=b12:20").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildVars(new Uint8Array(a));
 		}).catch(() => {});
 	} catch (e) {}
@@ -7460,14 +7472,14 @@ function loadGaia() {
 		tfetch("file-gaia", {
 			name: "gaia.bin",
 			group: "catalogue"
-		}, "data/gaia.bin?b=b11:51").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/gaia.bin?b=b12:20").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildGaia(new Uint8Array(a));
 		}).catch(() => {});
 		tfetch("file-gaia_pm", {
 			name: "gaia_pm.bin",
 			group: "catalogue",
 			optional: true
-		}, "data/gaia_pm.bin?b=b11:51").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/gaia_pm.bin?b=b12:20").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a && (!gaiaPm || gaiaRange === 100)) {
 				gaiaPm = new Uint8Array(a);
 				attachGaiaPm();
@@ -8703,7 +8715,7 @@ function drawGalGrid() {
 	]) {
 		pathBegin();
 		for (let k = 0; k <= 96; k++) {
-			const d = dir(k / 96 * 6.2832, b * D2R);
+			const d = dir(k / 96 * 6.2832, b * D2R$2);
 			pathPt(project(d[0] * R, d[1] * R, d[2] * R));
 		}
 		pathStroke(b === 0 ? "rgba(235,200,150,.32)" : "rgba(215,180,135,.14)", b === 0 ? 1.2 : 1, [1, 4]);
@@ -8711,7 +8723,7 @@ function drawGalGrid() {
 	for (let i = 0; i < 12; i++) {
 		pathBegin();
 		for (let k = 0; k <= 48; k++) {
-			const d = dir(i / 12 * 6.2832, (-90 + k / 48 * 180) * D2R);
+			const d = dir(i / 12 * 6.2832, (-90 + k / 48 * 180) * D2R$2);
 			pathPt(project(d[0] * R, d[1] * R, d[2] * R));
 		}
 		pathStroke("rgba(215,180,135,.12)", 1, [1, 4]);
@@ -8724,7 +8736,7 @@ function drawGalGrid() {
 		180,
 		270
 	]) {
-		const d = dir(l * D2R, .03), p = project(d[0] * R, d[1] * R, d[2] * R);
+		const d = dir(l * D2R$2, .03), p = project(d[0] * R, d[1] * R, d[2] * R);
 		if (p.depth > V.NEAR && !offscr(p)) ctx.fillText("l=" + l + "°", p.x + 3, p.y - 4);
 	}
 	const np = dir(0, Math.PI / 2), pp = project(np[0] * R, np[1] * R, np[2] * R);
@@ -8844,6 +8856,7 @@ function drawVeilSphere() {
 var measureMode = false;
 var measA = null;
 var measB = null;
+var MEAS = { log: [] };
 function measWorld(P) {
 	const r = Math.hypot(P[0], P[1], P[2]);
 	if (r < 1e-15) return [
@@ -8899,11 +8912,34 @@ function measurePick(hit) {
 			o: hit,
 			P
 		};
-		const dpc = Math.hypot(measA.P[0] - P[0], measA.P[1] - P[1], measA.P[2] - P[2]);
+		const dpc = Math.hypot(measA.P[0] - P[0], measA.P[1] - P[1], measA.P[2] - P[2]), ang = angular(measA.P, P);
+		MEAS.log.push({
+			a: measName(measA.o),
+			b: measName(hit),
+			dist_pc: +dpc.toPrecision(8),
+			dist_au: +(dpc / AU_PC).toPrecision(8),
+			dist_ly: +(dpc * PC2LY).toPrecision(8),
+			sep: +ang.sep.toPrecision(8),
+			pa: +ang.pa.toFixed(3),
+			vantage: vantageText(),
+			epoch: +epochNow().toFixed(4),
+			at: (/* @__PURE__ */ new Date()).toISOString()
+		});
+		measureLog.set(MEAS.log.slice());
 		msg(measName(measA.o) + " ↔ " + measName(hit) + " = " + (dpc < .001 ? (dpc / AU_PC).toFixed(2) + " AU" : fmt(dpc * PC2LY) + " ly") + " · " + angularText(measA.P, P));
 	}
 	V.dirty = true;
 }
+function measureBetween(a, b) {
+	const A = findByName(a), B = findByName(b);
+	if (!A || !B) return null;
+	measA = null;
+	measB = null;
+	measurePick(A[1]);
+	measurePick(B[1]);
+	return MEAS.log[MEAS.log.length - 1] || null;
+}
+api.measureBetween = measureBetween;
 function measureToggle() {
 	measureMode = !measureMode;
 	measA = measB = null;
@@ -8912,7 +8948,7 @@ function measureToggle() {
 	V.dirty = true;
 }
 api.measure = measureToggle;
-function angularText(A, B) {
+function angular(A, B) {
 	const a = [
 		A[0] - ctr.x,
 		A[1] - ctr.y,
@@ -8929,8 +8965,16 @@ function angularText(A, B) {
 	}
 	const chord = Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]), sep = 2 * Math.asin(Math.min(1, chord / 2)) * 57.29577951;
 	const [ra1, de1] = radec(a[0], a[1], a[2]), [ra2, de2] = radec(b[0], b[1], b[2]), D = Math.PI / 180;
-	const dA = (ra2 - ra1) * D, pa = Math.atan2(Math.sin(dA) * Math.cos(de2 * D), Math.cos(de1 * D) * Math.sin(de2 * D) - Math.sin(de1 * D) * Math.cos(de2 * D) * Math.cos(dA)) * 57.29577951;
-	return `sep ${sep >= 1 ? `${Math.floor(sep)}°${String(Math.round((sep - Math.floor(sep)) * 60)).padStart(2, "0")}′` : sep * 60 >= 1 ? `${Math.floor(sep * 60)}′${String(Math.round((sep * 60 - Math.floor(sep * 60)) * 60)).padStart(2, "0")}″` : `${(sep * 3600).toFixed(1)}″`} · PA ${((pa + 360) % 360).toFixed(1)}°`;
+	const dA = (ra2 - ra1) * D;
+	return {
+		sep,
+		pa: (Math.atan2(Math.sin(dA) * Math.cos(de2 * D), Math.cos(de1 * D) * Math.sin(de2 * D) - Math.sin(de1 * D) * Math.cos(de2 * D) * Math.cos(dA)) * 57.29577951 + 360) % 360
+	};
+}
+var vantageText = () => Math.hypot(ctr.x, ctr.y, ctr.z) < 1e-9 ? "Sun" : `view centre (${ctr.x.toPrecision(4)}, ${ctr.y.toPrecision(4)}, ${ctr.z.toPrecision(4)} world)`;
+function angularText(A, B) {
+	const { sep, pa } = angular(A, B);
+	return `sep ${sep >= 1 ? `${Math.floor(sep)}°${String(Math.round((sep - Math.floor(sep)) * 60)).padStart(2, "0")}′` : sep * 60 >= 1 ? `${Math.floor(sep * 60)}′${String(Math.round((sep * 60 - Math.floor(sep * 60)) * 60)).padStart(2, "0")}″` : `${(sep * 3600).toFixed(1)}″`} · PA ${pa.toFixed(1)}°`;
 }
 //#endregion
 //#region src/engine/sky.js
@@ -9440,7 +9484,7 @@ var _gbl = null;
 function gmstRad(jd) {
 	let g = (280.46061837 + 360.98564736629 * (jd - 2451545)) % 360;
 	if (g < 0) g += 360;
-	return g * D2R;
+	return g * D2R$2;
 }
 function globeViewRows() {
 	const cy = Math.cos(S.yaw), sy = Math.sin(S.yaw), cp = Math.cos(S.pitch), sp = Math.sin(S.pitch);
@@ -9866,7 +9910,7 @@ function globeInverse(u, v) {
 		M[0][1] * wrl[0] + M[1][1] * wrl[1] + M[2][1] * wrl[2],
 		M[0][2] * wrl[0] + M[1][2] * wrl[1] + M[2][2] * wrl[2]
 	];
-	return [Math.asin(Math.max(-1, Math.min(1, geo[2]))) / D2R, Math.atan2(geo[1], geo[0]) / D2R];
+	return [Math.asin(Math.max(-1, Math.min(1, geo[2]))) / D2R$2, Math.atan2(geo[1], geo[0]) / D2R$2];
 }
 var SURF = {
 	on: false,
@@ -9903,8 +9947,8 @@ function surfUpdate() {
 					SURF.lon = gi[1];
 				} else {
 					const c = Math.asin(Math.min(1, rho));
-					SURF.lat = rho < 1e-6 ? 0 : Math.asin(-v * Math.sin(c) / rho) / D2R;
-					SURF.lon = GOES_LON + (rho < 1e-6 ? 0 : Math.atan2(u * Math.sin(c), rho * Math.cos(c)) / D2R);
+					SURF.lat = rho < 1e-6 ? 0 : Math.asin(-v * Math.sin(c) / rho) / D2R$2;
+					SURF.lon = GOES_LON + (rho < 1e-6 ? 0 : Math.atan2(u * Math.sin(c), rho * Math.cos(c)) / D2R$2);
 				}
 				SURF.on = true;
 			} else S.camZ = V.tgtCamZ = enterZ;
@@ -9948,7 +9992,7 @@ function surfTile(z, x, y) {
 }
 function drawSurface() {
 	LBL.prio = 100;
-	const mpp = surfMpp(), latR = SURF.lat * D2R;
+	const mpp = surfMpp(), latR = SURF.lat * D2R$2;
 	const zf = Math.log2(156543.034 * Math.cos(latR) / mpp);
 	const zt = Math.max(2, Math.min(9, Math.round(zf)));
 	const ts = 256 * Math.pow(2, zf - zt);
@@ -9973,7 +10017,7 @@ function drawSurface() {
 	V.dirty = SURF.cache.size < 4 ? true : V.dirty;
 }
 function surfPan(dx, dy) {
-	const mpp = surfMpp(), latR = SURF.lat * D2R;
+	const mpp = surfMpp(), latR = SURF.lat * D2R$2;
 	SURF.lon -= dx * mpp / (111320 * Math.cos(latR));
 	SURF.lat += dy * mpp / 110540;
 	SURF.lat = Math.max(-84, Math.min(84, SURF.lat));
@@ -10575,6 +10619,730 @@ bindToggle("t-pm", "pm", () => {
 });
 bindToggle("t-mw", "mw");
 //#endregion
+//#region src/engine/crossmatch.js
+var XM = "https://cdsxmatch.u-strasbg.fr/xmatch/api/v1/sync";
+var META = {
+	name: "CDS X-Match · cross-identification",
+	host: "cdsxmatch.u-strasbg.fr",
+	group: "query"
+};
+var REMOTE = {
+	gaia: {
+		n: "Gaia DR3",
+		cat: "vizier:I/355/gaiadr3",
+		epoch: 2016
+	},
+	simbad: {
+		n: "SIMBAD",
+		cat: "simbad",
+		epoch: 2e3
+	}
+};
+var D2R$1 = Math.PI / 180;
+var MAS = 4.84813681e-9;
+var COARSE = 40;
+function dirAt(o, epoch) {
+	let dx = o.dx, dy = o.dy, dz = o.dz;
+	const t = epoch - (o.ep || 2e3);
+	if (t && (o.pr || o.pd)) {
+		const cq = Math.hypot(dx, dy) || 1e-9, ex = -dy / cq, ey = dx / cq, nx = -dz * dx / cq, ny = -dz * dy / cq, nz = cq, a = o.pr * t * MAS, b = o.pd * t * MAS;
+		dx += ex * a + nx * b;
+		dy += ey * a + ny * b;
+		dz += nz * b;
+		const L = Math.hypot(dx, dy, dz) || 1;
+		dx /= L;
+		dy /= L;
+		dz /= L;
+	}
+	return [
+		dx,
+		dy,
+		dz
+	];
+}
+var sepArcsec = (a, b) => {
+	const c = Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+	return 2 * Math.asin(Math.min(1, c / 2)) * 206264.806;
+};
+function gridOf(n, raOf, decOf) {
+	const cellOf = (i) => {
+		const d = Math.min(179, Math.max(0, Math.floor(decOf(i) + 90))), r = (Math.floor(raOf(i)) % 360 + 360) % 360;
+		return d * 360 + r;
+	};
+	const cnt = /* @__PURE__ */ new Int32Array(64801);
+	for (let i = 0; i < n; i++) cnt[cellOf(i) + 1]++;
+	for (let c = 0; c < 180 * 360; c++) cnt[c + 1] += cnt[c];
+	const idx = new Int32Array(n), fill = cnt.slice(0, 180 * 360);
+	for (let i = 0; i < n; i++) {
+		const c = cellOf(i);
+		idx[fill[c]++] = i;
+	}
+	return {
+		off: cnt,
+		idx,
+		each(ra, dec, fn) {
+			const d0 = Math.floor(dec + 90), r0 = Math.floor(ra);
+			for (let d = d0 - 1; d <= d0 + 1; d++) {
+				if (d < 0 || d > 179) continue;
+				for (let r = r0 - 1; r <= r0 + 1; r++) {
+					const c = d * 360 + (r % 360 + 360) % 360;
+					for (let k = cnt[c]; k < cnt[c + 1]; k++) fn(idx[k]);
+				}
+			}
+		}
+	};
+}
+var _hygGrid = null;
+var _gaiaGrid = null;
+var _gaiaN = 0;
+var _gRa = null;
+var _gDec = null;
+function hygGrid() {
+	if (_hygGrid) return _hygGrid;
+	return _hygGrid = gridOf(HYG.length, (i) => Math.atan2(HYG[i].dy, HYG[i].dx) / D2R$1, (i) => Math.asin(HYG[i].dz) / D2R$1);
+}
+function gaiaGrid() {
+	if (!gaiaRaw) return null;
+	const n = gaiaRaw.length / 8 | 0;
+	if (_gaiaGrid && _gaiaN === n) return _gaiaGrid;
+	const dv = new DataView(gaiaRaw.buffer, gaiaRaw.byteOffset, gaiaRaw.byteLength);
+	_gRa = new Float32Array(n);
+	_gDec = new Float32Array(n);
+	for (let i = 0; i < n; i++) {
+		_gRa[i] = dv.getUint16(i * 8, true) * (360 / 65535);
+		_gDec[i] = dv.getUint16(i * 8 + 2, true) * (180 / 65535) - 90;
+	}
+	_gaiaN = n;
+	return _gaiaGrid = gridOf(n, (i) => _gRa[i], (i) => _gDec[i]);
+}
+function gaiaStar(i, epoch) {
+	const dv = new DataView(gaiaRaw.buffer, gaiaRaw.byteOffset, gaiaRaw.byteLength), b = i * 8;
+	const rr = _gRa[i] * D2R$1, dr = _gDec[i] * D2R$1, cd = Math.cos(dr);
+	let dx = cd * Math.cos(rr), dy = cd * Math.sin(rr), dz = Math.sin(dr);
+	let pr = 0, pd = 0;
+	if (gaiaPm && (gaiaPm.length / 4 | 0) === _gaiaN) {
+		const pv = new DataView(gaiaPm.buffer, gaiaPm.byteOffset, gaiaPm.byteLength);
+		pr = pv.getInt16(i * 4, true);
+		pd = pv.getInt16(i * 4 + 2, true);
+	}
+	const t = epoch - 2016;
+	if (t && (pr || pd)) {
+		const cq = Math.hypot(dx, dy) || 1e-9, a = pr * t * MAS, b2 = pd * t * MAS;
+		dx += -dy / cq * a + -dz * dx / cq * b2;
+		dy += dx / cq * a + -dz * dy / cq * b2;
+		dz += cq * b2;
+		const L = Math.hypot(dx, dy, dz) || 1;
+		dx /= L;
+		dy /= L;
+		dz /= L;
+	}
+	return {
+		dir: [
+			dx,
+			dy,
+			dz
+		],
+		g: dv.getUint8(b + 6) / 255 * 28 - 2,
+		d: dv.getUint16(b + 4, true) / 65535 * gaiaRange,
+		pr,
+		pd
+	};
+}
+function matchLocal(k, radius) {
+	const st = USER.sets[k];
+	if (!st) return null;
+	const hg = hygGrid(), gg = gaiaGrid();
+	let known = 0;
+	for (const o of st.rows) {
+		let best = null;
+		const dH = dirAt(o, 2e3), raH = Math.atan2(dH[1], dH[0]) / D2R$1, deH = Math.asin(dH[2]) / D2R$1;
+		hg.each(raH, deH, (i) => {
+			const s = HYG[i], q = hygPos(s, (o.ep || 2e3) - 2e3 + 0), L = Math.hypot(q[0], q[1], q[2]) || 1;
+			const sep = sepArcsec(o.pr || o.pd ? dH : [
+				o.dx,
+				o.dy,
+				o.dz
+			], o.pr || o.pd ? [
+				s.dx,
+				s.dy,
+				s.dz
+			] : [
+				q[0] / L,
+				q[1] / L,
+				q[2] / L
+			]);
+			if (sep <= radius && (!best || sep < best.sep)) best = {
+				src: "HYG",
+				id: s.n || "HIP " + s.hip,
+				sep,
+				mag: s.m,
+				d: s.d,
+				pr: s.pr,
+				pd: s.pd,
+				local: true
+			};
+		});
+		if (gg && !best) {
+			const dG = dirAt(o, 2016), raG = Math.atan2(dG[1], dG[0]) / D2R$1, deG = Math.asin(dG[2]) / D2R$1, rc = Math.max(radius, COARSE);
+			gg.each(raG, deG, (i) => {
+				const g = gaiaStar(i, o.pr || o.pd ? 2016 : o.ep || 2e3);
+				const sep = sepArcsec(o.pr || o.pd ? dG : [
+					o.dx,
+					o.dy,
+					o.dz
+				], g.dir);
+				if (sep <= rc && (!best || sep < best.sep)) best = {
+					src: "Gaia cloud",
+					id: `G ${g.g.toFixed(1)} · ${g.d.toFixed(1)} pc (packed, ±20″)`,
+					sep,
+					mag: g.g,
+					d: g.d,
+					pr: g.pr,
+					pd: g.pd,
+					local: true,
+					coarse: true
+				};
+			});
+		}
+		o.xm = best;
+		if (best) known++;
+	}
+	const coarse = st.rows.filter((o) => o.xm && o.xm.coarse).length;
+	st.xm = {
+		radius,
+		known,
+		unknown: st.rows.length - known,
+		coarse,
+		remote: null,
+		at: Date.now()
+	};
+	publish$1(k, `${known} of ${st.rows.length} rows have a counterpart in the loaded catalogues: HYG within ${radius}″${gg ? `, the Gaia ${gaiaRange} pc cloud within ${Math.max(radius, COARSE)}″ (${coarse} coarse: its positions are packed to ±20″ — identify to confirm)` : ""}`);
+	V.dirty = true;
+	return st.xm;
+}
+var _busy$1 = false;
+async function matchRemote(k, which, radius) {
+	const st = USER.sets[k], R = REMOTE[which];
+	if (!st || !R || _busy$1) return null;
+	_busy$1 = true;
+	crossmatch$1.update((s) => ({
+		...s,
+		busy: which,
+		msg: `asking the CDS X-Match service for ${R.n} counterparts of ${st.rows.length} rows…`
+	}));
+	try {
+		const rows = st.rows;
+		let done = 0, known = 0;
+		for (const o of rows) if (o.xm && !o.xm.local) o.xm = null;
+		for (let c = 0; c < rows.length; c += 5e3) {
+			const part = rows.slice(c, c + 5e3);
+			const csv = ["id,ra,dec"].concat(part.map((o) => {
+				const d = dirAt(o, R.epoch);
+				return `${o.i},${(Math.atan2(d[1], d[0]) / D2R$1 + 360) % 360},${Math.asin(d[2]) / D2R$1}`;
+			})).join("\n");
+			const fd = new FormData();
+			fd.append("request", "xmatch");
+			fd.append("distMaxArcsec", String(radius));
+			fd.append("RESPONSEFORMAT", "csv");
+			fd.append("cat1", new Blob([csv], { type: "text/csv" }), "cat1.csv");
+			fd.append("colRA1", "ra");
+			fd.append("colDec1", "dec");
+			fd.append("cat2", R.cat);
+			const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 12e4);
+			let text;
+			try {
+				const res = await tfetch("q-xmatch", META, XM, {
+					method: "POST",
+					body: fd,
+					signal: ctl.signal
+				});
+				if (!res.ok) throw new Error("HTTP " + res.status);
+				text = await res.text();
+			} finally {
+				clearTimeout(t);
+			}
+			const lines = text.split(/\r?\n/).filter((l) => l.trim());
+			if (!lines.length) continue;
+			const head = splitLine(lines[0], ","), col = (n) => head.indexOf(n);
+			const iD = col("angDist"), iId = col("id"), iN = which === "gaia" ? col("DR3Name") : col("main_id");
+			const iPlx = which === "gaia" ? col("Plx") : col("plx"), iEPlx = which === "gaia" ? col("e_Plx") : col("plx_err"), iPr = which === "gaia" ? col("pmRA") : col("pmra"), iPd = which === "gaia" ? col("pmDE") : col("pmdec");
+			const iEPr = col("e_pmRA"), iEPd = col("e_pmDE"), iG = col("Gmag"), iRuwe = col("RUWE"), iBR = col("BP-RP"), iOt = col("main_type"), iSp = col("sp_type"), iV = col("V");
+			const byId = /* @__PURE__ */ new Map();
+			for (const r of rows) byId.set(String(r.i), r);
+			const num = (f, i) => i >= 0 && f[i] !== "" && isFinite(+f[i]) ? +f[i] : void 0;
+			for (let li = 1; li < lines.length; li++) {
+				const f = splitLine(lines[li], ",");
+				const o = byId.get(f[iId]);
+				if (!o) continue;
+				const sep = +f[iD];
+				if (!(sep >= 0)) continue;
+				const pl = iOt >= 0 && /^Planet/.test(f[iOt] || "");
+				if (o.xm && !o.xm.local) {
+					const oldPl = /^Planet/.test(o.xm.otype || "");
+					if (o.xm.sep <= sep && !(oldPl && !pl && sep <= o.xm.sep + .05)) continue;
+					if (pl && !oldPl && o.xm.sep <= sep + .05) continue;
+				}
+				o.xm = {
+					src: R.n,
+					id: f[iN],
+					sep,
+					plx: num(f, iPlx),
+					eplx: num(f, iEPlx),
+					pr: num(f, iPr),
+					pd: num(f, iPd),
+					epr: num(f, iEPr),
+					epd: num(f, iEPd),
+					g: num(f, iG),
+					ruwe: num(f, iRuwe),
+					bprp: num(f, iBR),
+					mag: num(f, iG) ?? num(f, iV),
+					otype: iOt >= 0 ? f[iOt] : void 0,
+					sp: iSp >= 0 ? f[iSp] : void 0,
+					local: false
+				};
+			}
+			done += part.length;
+			crossmatch$1.update((s) => ({
+				...s,
+				msg: `${R.n}: ${done} of ${rows.length} rows sent…`
+			}));
+		}
+		for (const o of rows) {
+			if (o.xm && o.xm.local) o.xm = null;
+			if (o.xm) {
+				known++;
+				o.xm.doubt = doubtOf(o, o.xm);
+			}
+		}
+		st.xm = {
+			radius,
+			known,
+			unknown: rows.length - known,
+			remote: R.n,
+			at: Date.now()
+		};
+		count("q-xmatch", known);
+		publish$1(k, `${known} of ${rows.length} rows identified in ${R.n} within ${radius}″ (positions compared at J${R.epoch.toFixed(1)})`);
+		V.dirty = true;
+		return st.xm;
+	} catch (e) {
+		crossmatch$1.update((s) => ({
+			...s,
+			busy: null,
+			msg: `${R.n} cross-match failed: ${e.name === "AbortError" ? "timeout" : e.message}`
+		}));
+		return null;
+	} finally {
+		_busy$1 = false;
+	}
+}
+function doubtOf(o, m) {
+	const out = [];
+	if (!o.noDist && m.plx > 0 && o.d > 0) {
+		const rp = 1e3 / o.d, e = Math.max(m.eplx || 0, .05 * rp, .1);
+		if (Math.abs(rp - m.plx) > 5 * e && Math.max(rp, m.plx) / Math.min(rp, m.plx) > 1.5) out.push(`parallax disagrees (row ${rp.toFixed(2)} mas, counterpart ${m.plx.toFixed(2)} mas)`);
+	}
+	if (o.m !== void 0 && m.mag !== void 0 && Math.abs(o.m - m.mag) > 3) out.push(`brightness disagrees (row ${o.m.toFixed(1)}, counterpart ${m.mag.toFixed(1)} mag)`);
+	return out.length ? out.join(" · ") : void 0;
+}
+function publish$1(k, msg) {
+	const st = USER.sets[k];
+	if (!st) return;
+	const list = st.rows.map((o) => ({
+		i: o.i,
+		n: o.n || `Row ${o.i + 1}`,
+		ra: o.ra,
+		dec: o.dec,
+		src: o.xm ? o.xm.src : null,
+		id: o.xm ? o.xm.id : null,
+		sep: o.xm ? o.xm.sep : null,
+		coarse: !!(o.xm && o.xm.coarse),
+		doubt: o.xm ? o.xm.doubt : void 0,
+		mag: o.m
+	}));
+	list.sort((a, b) => (a.src ? 1 : 0) - (b.src ? 1 : 0) || (a.doubt ? 0 : 1) - (b.doubt ? 0 : 1) || (a.coarse ? 1 : 0) - (b.coarse ? 1 : 0) || (a.sep || 0) - (b.sep || 0));
+	const doubt = list.filter((r) => r.doubt).length;
+	crossmatch$1.set({
+		busy: null,
+		msg,
+		set: k,
+		radius: st.xm.radius,
+		remote: st.xm.remote,
+		known: st.xm.known,
+		unknown: st.xm.unknown,
+		coarse: st.xm.coarse || 0,
+		doubt,
+		n: st.rows.length,
+		rows: list.slice(0, 300)
+	});
+}
+async function crossmatch(k, opts = {}) {
+	const radius = Math.max(.1, Math.min(60, +opts.radius || 3));
+	if (!opts.remote) return matchLocal(k, radius);
+	if (!USER.sets[k]) return null;
+	if (!USER.sets[k].xm) matchLocal(k, radius);
+	return matchRemote(k, opts.remote, radius);
+}
+//#endregion
+//#region src/lib/export.js
+var esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+var cell = (v) => v === void 0 || v === null || typeof v === "number" && !isFinite(v) ? "" : String(v);
+var quote = (s) => /[",\r\n]/.test(s) ? "\"" + s.replace(/"/g, "\"\"") + "\"" : s;
+function csvOf(rows, cols, head = []) {
+	const out = head.map((h) => "# " + h);
+	out.push(cols.map((c) => quote(c.n)).join(","));
+	for (const r of rows) out.push(cols.map((c) => quote(cell(r[c.k]))).join(","));
+	return out.join("\n") + "\n";
+}
+function votableOf(rows, cols, meta = {}) {
+	const f = cols.map((c) => `   <FIELD name="${esc(c.n)}" datatype="${c.t || "double"}"${c.t === "char" ? " arraysize=\"*\"" : ""}${c.u ? ` unit="${esc(c.u)}"` : ""}${c.ucd ? ` ucd="${esc(c.ucd)}"` : ""}>${c.d ? `<DESCRIPTION>${esc(c.d)}</DESCRIPTION>` : ""}</FIELD>`);
+	const tr = rows.map((r) => "    <TR>" + cols.map((c) => `<TD>${esc(cell(r[c.k]))}</TD>`).join("") + "</TR>");
+	return `<?xml version="1.0" encoding="UTF-8"?>
+<VOTABLE version="1.4" xmlns="http://www.ivoa.net/xml/VOTable/v1.3" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+ <DESCRIPTION>${esc(meta.description || "Known Universe export")}</DESCRIPTION>
+ <COOSYS ID="icrs" system="ICRS" epoch="J${(meta.epoch || 2e3).toFixed(1)}"/>
+ <RESOURCE type="results">
+${(meta.info || []).map(([n, v]) => `  <INFO name="${esc(n)}" value="${esc(v)}"/>`).join("\n")}
+  <TABLE name="${esc(meta.name || "table")}" nrows="${rows.length}">
+${f.join("\n")}
+   <DATA><TABLEDATA>
+${tr.join("\n")}
+   </TABLEDATA></DATA>
+  </TABLE>
+ </RESOURCE>
+</VOTABLE>
+`;
+}
+function download(name, text, mime = "text/plain") {
+	const a = document.createElement("a");
+	a.href = URL.createObjectURL(new Blob([text], { type: mime + ";charset=utf-8" }));
+	a.download = name;
+	document.body.appendChild(a);
+	a.click();
+	setTimeout(() => {
+		URL.revokeObjectURL(a.href);
+		a.remove();
+	}, 1500);
+}
+var safeName = (s) => String(s || "table").replace(/[^\w.-]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 60) || "table";
+//#endregion
+//#region src/engine/exports.js
+var D2R = Math.PI / 180;
+var POS = [{
+	k: "ra",
+	n: "ra",
+	t: "double",
+	u: "deg",
+	ucd: "pos.eq.ra;meta.main",
+	d: "ICRS right ascension at the row epoch"
+}, {
+	k: "dec",
+	n: "dec",
+	t: "double",
+	u: "deg",
+	ucd: "pos.eq.dec;meta.main",
+	d: "ICRS declination at the row epoch"
+}];
+var SETCOLS = [
+	{
+		k: "name",
+		n: "name",
+		t: "char",
+		ucd: "meta.id;meta.main"
+	},
+	...POS,
+	{
+		k: "epoch",
+		n: "epoch",
+		t: "double",
+		u: "yr",
+		ucd: "time.epoch",
+		d: "Julian epoch of the position"
+	},
+	{
+		k: "dist_pc",
+		n: "dist_pc",
+		t: "double",
+		u: "pc",
+		ucd: "pos.distance"
+	},
+	{
+		k: "plx",
+		n: "plx_mas",
+		t: "double",
+		u: "mas",
+		ucd: "pos.parallax"
+	},
+	{
+		k: "mag",
+		n: "mag",
+		t: "double",
+		u: "mag",
+		ucd: "phot.mag"
+	},
+	{
+		k: "pmra",
+		n: "pmra",
+		t: "double",
+		u: "mas/yr",
+		ucd: "pos.pm;pos.eq.ra",
+		d: "proper motion in RA × cos(Dec)"
+	},
+	{
+		k: "pmdec",
+		n: "pmdec",
+		t: "double",
+		u: "mas/yr",
+		ucd: "pos.pm;pos.eq.dec"
+	},
+	{
+		k: "xm_src",
+		n: "counterpart_catalogue",
+		t: "char",
+		d: "cross-match: catalogue of the nearest counterpart"
+	},
+	{
+		k: "xm_id",
+		n: "counterpart_id",
+		t: "char",
+		ucd: "meta.id.cross"
+	},
+	{
+		k: "xm_sep",
+		n: "counterpart_sep_arcsec",
+		t: "double",
+		u: "arcsec",
+		ucd: "pos.angDistance"
+	},
+	{
+		k: "xm_plx",
+		n: "counterpart_plx_mas",
+		t: "double",
+		u: "mas"
+	},
+	{
+		k: "xm_eplx",
+		n: "counterpart_e_plx_mas",
+		t: "double",
+		u: "mas"
+	},
+	{
+		k: "xm_pmra",
+		n: "counterpart_pmra",
+		t: "double",
+		u: "mas/yr"
+	},
+	{
+		k: "xm_pmdec",
+		n: "counterpart_pmdec",
+		t: "double",
+		u: "mas/yr"
+	},
+	{
+		k: "xm_mag",
+		n: "counterpart_mag",
+		t: "double",
+		u: "mag"
+	},
+	{
+		k: "xm_ruwe",
+		n: "counterpart_ruwe",
+		t: "double"
+	},
+	{
+		k: "xm_otype",
+		n: "counterpart_type",
+		t: "char"
+	}
+];
+function setRows(st) {
+	return st.rows.map((o) => {
+		const r = {
+			name: o.n,
+			ra: o.ra,
+			dec: o.dec,
+			epoch: o.ep || 2e3,
+			dist_pc: o.noDist ? void 0 : o.d,
+			plx: o.noDist ? void 0 : 1e3 / o.d,
+			mag: o.m,
+			pmra: o.pr || void 0,
+			pmdec: o.pd || void 0
+		};
+		if (st.xm) {
+			r.xm_src = o.xm ? o.xm.src : "none within " + st.xm.radius + "\"";
+			if (o.xm) {
+				r.xm_id = o.xm.id;
+				r.xm_sep = +o.xm.sep.toFixed(3);
+				r.xm_plx = o.xm.plx;
+				r.xm_eplx = o.xm.eplx;
+				r.xm_pmra = o.xm.pr;
+				r.xm_pmdec = o.xm.pd;
+				r.xm_mag = o.xm.mag;
+				r.xm_ruwe = o.xm.ruwe;
+				r.xm_otype = o.xm.otype;
+			}
+		}
+		for (const [kx, vx] of Object.entries(o.x || {})) r["x_" + kx] = vx;
+		return r;
+	});
+}
+var MOVCOLS = [
+	{
+		k: "name",
+		n: "name",
+		t: "char",
+		ucd: "meta.id;meta.main"
+	},
+	...POS,
+	{
+		k: "pm",
+		n: "pm_total_mas_yr",
+		t: "double",
+		u: "mas/yr",
+		ucd: "pos.pm"
+	},
+	{
+		k: "jump",
+		n: "jump_arcsec",
+		t: "double",
+		u: "arcsec",
+		d: "expected displacement between the two blink epochs"
+	},
+	{
+		k: "px",
+		n: "jump_px",
+		t: "double",
+		u: "pix"
+	},
+	{
+		k: "ea",
+		n: "epoch_a",
+		t: "double",
+		u: "yr"
+	},
+	{
+		k: "eb",
+		n: "epoch_b",
+		t: "double",
+		u: "yr"
+	},
+	{
+		k: "src",
+		n: "catalogue",
+		t: "char"
+	}
+];
+var MEASCOLS = [
+	{
+		k: "a",
+		n: "object_a",
+		t: "char"
+	},
+	{
+		k: "b",
+		n: "object_b",
+		t: "char"
+	},
+	{
+		k: "dist_pc",
+		n: "distance_pc",
+		t: "double",
+		u: "pc"
+	},
+	{
+		k: "dist_au",
+		n: "distance_au",
+		t: "double",
+		u: "AU"
+	},
+	{
+		k: "dist_ly",
+		n: "distance_ly",
+		t: "double",
+		u: "ly"
+	},
+	{
+		k: "sep",
+		n: "separation_deg",
+		t: "double",
+		u: "deg",
+		ucd: "pos.angDistance"
+	},
+	{
+		k: "pa",
+		n: "position_angle_deg",
+		t: "double",
+		u: "deg",
+		ucd: "pos.posAng"
+	},
+	{
+		k: "vantage",
+		n: "vantage",
+		t: "char",
+		d: "where the angular values are measured from"
+	},
+	{
+		k: "epoch",
+		n: "epoch",
+		t: "double",
+		u: "yr"
+	},
+	{
+		k: "at",
+		n: "measured_at",
+		t: "char"
+	}
+];
+function exportTable(kind, fmt = "csv", k = 0, opts = {}) {
+	let rows = [], cols = [], name = "table", desc = "", epoch = 2e3, info = [];
+	if (kind === "set") {
+		const st = USER.sets[k];
+		if (!st) return "";
+		rows = setRows(st);
+		epoch = st.epoch || 2e3;
+		const extra = /* @__PURE__ */ new Set();
+		for (const r of rows) for (const key of Object.keys(r)) if (key.startsWith("x_")) extra.add(key);
+		cols = [...SETCOLS.filter((c) => !c.k.startsWith("xm_") || st.xm), ...[...extra].map((key) => ({
+			k: key,
+			n: key.slice(2),
+			t: "char"
+		}))];
+		name = safeName(st.name);
+		desc = `Known Universe · ${st.name} · ${st.rows.length} rows${st.xm ? ` · cross-matched against ${st.xm.remote || "the loaded catalogues"} within ${st.xm.radius}″` : ""}`;
+		info = [["source", st.src], ["row_epoch", "J" + epoch.toFixed(1)]];
+	} else if (kind === "movers") {
+		rows = MOVERS.map((m) => ({
+			name: m.name,
+			ra: (Math.atan2(m.o.dy, m.o.dx) / D2R + 360) % 360,
+			dec: Math.asin(m.o.dz) / D2R,
+			pm: m.pm,
+			jump: m.jump,
+			px: m.px,
+			ea: m.ea,
+			eb: m.eb,
+			src: m.usr ? "your data" : m.src || "catalogue"
+		}));
+		cols = MOVCOLS;
+		name = "expected-jumps";
+		desc = "Known Universe · stars expected to jump between the two blink epochs in this field";
+	} else if (kind === "measure") {
+		rows = MEAS.log;
+		cols = MEASCOLS;
+		name = "measurements";
+		desc = "Known Universe · measurement log";
+		epoch = epochNow();
+	}
+	const text = fmt === "votable" ? votableOf(rows, cols, {
+		name,
+		description: desc,
+		epoch,
+		info
+	}) : csvOf(rows, cols, [desc]);
+	if (!opts.text) download(`${name}.${fmt === "votable" ? "xml" : "csv"}`, text, fmt === "votable" ? "application/x-votable+xml" : "text/csv");
+	return text;
+}
+api.exportTable = exportTable;
+//#endregion
 //#region src/engine/fieldquery.js
 var ASU = "https://vizier.cds.unistra.fr/viz-bin/asu-tsv";
 var SIM = "https://simbad.cds.unistra.fr/simbad/sim-tap/sync";
@@ -10895,28 +11663,15 @@ function toggleFac(k) {
 	V.dirty = true;
 	return S.facHidden.has(k);
 }
-function doSearch(q) {
-	q = q.trim().toLowerCase();
-	if (!q) {
-		msg("");
-		return;
-	}
+function findByName(q) {
+	q = (q || "").trim().toLowerCase();
+	if (!q) return null;
 	const eq = (s) => s && s.toLowerCase() === q, has = (s) => s && s.toLowerCase().includes(q);
 	const cands = [];
 	const push = (t, o) => {
 		if (o) cands.push([t, o]);
 	};
-	if (/^(sgr ?a\*?|sagittarius a\*?|galactic cent(er|re))$/.test(q)) {
-		msg("→ Sgr A* · galactic centre");
-		if (!S.mw) {
-			S.mw = true;
-			syncToggle("t-mw", true);
-		}
-		V.focusSys = null;
-		S.pinned = SGRA;
-		flyTo(SGRA);
-		return;
-	}
+	if (/^(sgr ?a\*?|sagittarius a\*?|galactic cent(er|re))$/.test(q)) return ["sgra", SGRA];
 	push("user", USER.rows.find((o) => eq(o.n)));
 	push("iso", ISO.find((o) => eq(o.n)));
 	push("small", SMALL.find((o) => eq(o.n)));
@@ -10941,11 +11696,30 @@ function doSearch(q) {
 	push("tno2", TNOS.find((t2) => has(t2.n)));
 	push("psr", PULSARS.find((o) => has(o.n)));
 	push("clu", CLUSTERS.find((c) => has(c.n)));
-	if (!cands.length) {
+	return cands.length ? cands[0] : null;
+}
+function doSearch(q) {
+	if (!q.trim()) {
+		msg("");
+		return;
+	}
+	const found = findByName(q);
+	if (!found) {
 		msg("nothing found");
 		return;
 	}
-	const [t, o] = cands[0];
+	const [t, o] = found;
+	if (t === "sgra") {
+		msg("→ Sgr A* · galactic centre");
+		if (!S.mw) {
+			S.mw = true;
+			syncToggle("t-mw", true);
+		}
+		V.focusSys = null;
+		S.pinned = SGRA;
+		flyTo(SGRA);
+		return;
+	}
 	if (t === "user") {
 		msg("→ " + (o.n || "row") + " · your data" + (o.noDist ? " (no distance)" : " · " + fmt(o.d * PC2LY) + " ly"));
 		if (!S.user) {
@@ -11288,6 +12062,8 @@ Object.assign(api, {
 	clearUser,
 	removeSet,
 	queryField,
+	crossmatch,
+	exportTable,
 	skyView,
 	lookAt,
 	lookAtSelection,
@@ -11755,6 +12531,9 @@ window.__ku = {
 	},
 	get gaiaPm() {
 		return gaiaPm;
+	},
+	get gaiaRaw() {
+		return gaiaRaw;
 	},
 	get gaiaRange() {
 		return gaiaRange;

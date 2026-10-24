@@ -5,6 +5,8 @@ import { facColor as facColorStore, searchMsg as searchMsgStore, timeBar as time
 import { clickToggle, syncToggle } from './controls.js';
 import { GAL, PC2LY, STARS } from './data.js';
 import { nameOf, physPos, worldPos } from './entity.js';
+import { crossmatch } from './crossmatch.js';
+import { exportTable } from './exports.js';
 import { queryField } from './fieldquery.js';
 import { fmt } from './hud.js';
 import { zoomRange } from './interact.js';
@@ -92,16 +94,13 @@ export function toggleFac(k){ if(S.facHidden.has(k)) S.facHidden.delete(k); else
   V.dirty=true; return S.facHidden.has(k); }
 
 // ---- search ----
-export function doSearch(q){
-  q=q.trim().toLowerCase(); if(!q){msg('');return;}
+// name → [kind, object] over every catalogue, exact match first, then substring
+export function findByName(q){
+  q=(q||'').trim().toLowerCase(); if(!q) return null;
   const eq=s=>s&&s.toLowerCase()===q, has=s=>s&&s.toLowerCase().includes(q);
   const cands=[];
   const push=(t,o)=>{ if(o) cands.push([t,o]); };
-  // the galactic centre is a special object, not in any catalogue list
-  if(/^(sgr ?a\*?|sagittarius a\*?|galactic cent(er|re))$/.test(q)){
-    msg('→ Sgr A* · galactic centre');
-    if(!S.mw){S.mw=true;syncToggle('t-mw',true);}
-    V.focusSys=null; S.pinned=SGRA; flyTo(SGRA); return; }
+  if(/^(sgr ?a\*?|sagittarius a\*?|galactic cent(er|re))$/.test(q)) return ['sgra',SGRA];
   // exact first
   push('user',USER.rows.find(o=>eq(o.n)));
   push('iso', ISO.find(o=>eq(o.n)));
@@ -128,8 +127,17 @@ export function doSearch(q){
   push('tno2',TNOS.find(t2=>has(t2.n)));
   push('psr',PULSARS.find(o=>has(o.n)));
   push('clu',CLUSTERS.find(c=>has(c.n)));
-  if(!cands.length){msg('nothing found');return;}
-  const [t,o]=cands[0];
+  return cands.length?cands[0]:null;
+}
+export function doSearch(q){
+  if(!q.trim()){msg('');return;}
+  const found=findByName(q);
+  if(!found){msg('nothing found');return;}
+  const [t,o]=found;
+  // the galactic centre is a special object, not in any catalogue list
+  if(t==='sgra'){ msg('→ Sgr A* · galactic centre');
+    if(!S.mw){S.mw=true;syncToggle('t-mw',true);}
+    V.focusSys=null; S.pinned=SGRA; flyTo(SGRA); return; }
   if(t==='user'){ msg('→ '+(o.n||'row')+' · your data'+(o.noDist?' (no distance)':' · '+fmt(o.d*PC2LY)+' ly'));
     if(!S.user){S.user=true;syncToggle('t-user',true);} V.focusSys=null; S.pinned=o; flyTo(o); return; }
   if(t==='iso'){ msg('→ '+o.n+' (interstellar)');
@@ -260,6 +268,6 @@ export function gotoEncounter(i){
   aim(q[0]*d,q[1]*d,q[2]*d, scale(Math.max(L*0.35, 3e-5)));
 }
 api.liveRefresh=refreshLive;
-Object.assign(api, { importUser, clearUser, removeSet, queryField, skyView, lookAt, lookAtSelection, setFov, setSurvey, setBlink, gotoEncounter, lock:lockToggle, setCourse, clearCourse, engage:engageCourse, route:routeToggle,
+Object.assign(api, { importUser, clearUser, removeSet, queryField, crossmatch, exportTable, skyView, lookAt, lookAtSelection, setFov, setSurvey, setBlink, gotoEncounter, lock:lockToggle, setCourse, clearCourse, engage:engageCourse, route:routeToggle,
   transfer:transferToggle, deselect, reset:resetView, toggleSolar, enterSolar, flyToScale,
   doSearch, toggleFac, facColorToggle, facList:()=>facList, msgText });

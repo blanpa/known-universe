@@ -167,6 +167,13 @@ export function card(o){
       c.rows.push(['Distance', o.noDist ? 'not given — placed on the sky' : `${ly(o.d)} · ${o.d<100?o.d.toFixed(2):fmt(o.d)} pc`]);
       if(o.m!==undefined) c.rows.push(['Magnitude',o.m.toFixed(2)]);
       if(o.pr||o.pd) c.rows.push(['Proper motion',`${o.pr.toFixed(1)} · ${o.pd.toFixed(1)} mas/yr · ${Math.hypot(o.pr,o.pd).toFixed(0)} total`]);
+      const xst=(USER.sets[o.set]||{}).xm;
+      if(xst) c.rows.push(['Counterpart', o.xm ? `${o.xm.id} · ${o.xm.src} · ${o.xm.sep.toFixed(2)}″ away` : `none within ${xst.radius}″ of ${xst.remote||'the loaded catalogues'}`]);
+      if(o.xm&&o.xm.plx!==undefined) c.rows.push(['Counterpart ϖ',`${o.xm.plx.toFixed(3)}${o.xm.eplx!==undefined?' ± '+o.xm.eplx.toFixed(3):''} mas${o.xm.plx>0?' · '+(1000/o.xm.plx).toFixed(1)+' pc':''}`]);
+      if(o.xm&&(o.xm.pr!==undefined||o.xm.pd!==undefined)) c.rows.push(['Counterpart μ',`${(o.xm.pr||0).toFixed(2)}${o.xm.epr!==undefined?' ± '+o.xm.epr.toFixed(2):''} · ${(o.xm.pd||0).toFixed(2)}${o.xm.epd!==undefined?' ± '+o.xm.epd.toFixed(2):''} mas/yr`]);
+      if(o.xm&&o.xm.ruwe!==undefined) c.rows.push(['Counterpart RUWE',`${o.xm.ruwe.toFixed(2)}${o.xm.ruwe>1.4?' · astrometry suspect (>1.4)':''}`]);
+      if(o.xm&&o.xm.otype) c.rows.push(['Counterpart type',`${o.xm.otype}${o.xm.sp?' · '+o.xm.sp:''}`]);
+      if(o.xm&&o.xm.doubt) c.rows.push(['Doubt',o.xm.doubt]);
       for(const [kx,vx] of Object.entries(o.x||{}).slice(0,8)) c.rows.push([kx,String(vx).slice(0,60)]);
       c.links=[{t:'SIMBAD',u:simbadCoo(o.ra,o.dec,2)},{t:'Aladin',u:aladin(o.ra,o.dec,0.3)}];
       c.hint='from your file · the links query the catalogues at this position'; break; }

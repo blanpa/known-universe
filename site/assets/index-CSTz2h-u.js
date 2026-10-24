@@ -5355,6 +5355,18 @@ var movers = writable({
 	eb: 0,
 	dt: 0
 });
+var crossmatch = writable({
+	busy: null,
+	msg: "",
+	set: -1,
+	radius: 3,
+	remote: null,
+	known: 0,
+	unknown: 0,
+	n: 0,
+	rows: []
+});
+var measureLog = writable([]);
 //#endregion
 //#region src/lib/icons.js
 var ICONS = {
@@ -6977,18 +6989,26 @@ var root_8$1 = /* @__PURE__ */ from_html(`<p class="hint">Nothing in this field 
 var root_9$1 = /* @__PURE__ */ from_html(`<div class="label lg-sub">Expected jumps</div> <p class="hint"> </p> <!>`, 1);
 var root_10$1 = /* @__PURE__ */ from_html(`<div class="label lg-sub">Go deeper</div> <p class="hint"><a target="_blank" rel="noopener">Open this field in Aladin Lite</a> for every survey and catalogue the CDS holds.
       Hunt for moving objects with real data at <a href="https://www.zooniverse.org/projects/marckuchner/backyard-worlds-planet-9" target="_blank" rel="noopener">Backyard Worlds</a> (WISE blinks) or transits at <a href="https://www.zooniverse.org/projects/nora-dot-eisner/planet-hunters-tess" target="_blank" rel="noopener">Planet Hunters TESS</a>.</p>`, 1);
-var root_11$1 = /* @__PURE__ */ from_html(`<div class="usr-row"><span class="usr-n"> </span> <span class="usr-c mono"> </span> <button type="button" class="usr-x"><!></button></div>`);
-var root_12$1 = /* @__PURE__ */ from_html(`<p class="hint warn">Not kept after a reload: too large for this browser's storage.</p>`);
-var root_13$1 = /* @__PURE__ */ from_html(`<p class="hint warn"> </p>`);
-var root_14$1 = /* @__PURE__ */ from_html(`<p> </p>`);
-var root_15$1 = /* @__PURE__ */ from_html(`<p class="hint">Switch the telescope on to ask for a field.</p>`);
-var root_16$1 = /* @__PURE__ */ from_html(`<div class="panel" id="hud-sky"><div class="label">Sky</div> <p class="hint">The sky as the surveys photographed it, under the catalogue. From the Sun the view
+var root_11$1 = /* @__PURE__ */ from_html(`<div class="usr-row"><span class="usr-n"> </span> <span class="usr-c mono"> </span> <button type="button" class="usr-x"><!></button></div> <div class="sky-fov xm-tools"><button type="button" class="chip">CSV</button> <button type="button" class="chip">VOTable</button> <button type="button" class="chip">Check against loaded catalogues</button> <button type="button" class="chip">Identify · Gaia DR3</button> <button type="button" class="chip">Identify · SIMBAD</button></div>`, 1);
+var root_12$1 = /* @__PURE__ */ from_html(`<label class="xm-r mono">radius <input type="number" min="0.1" max="60" step="0.5"/> ″</label> <p class="hint">Cross-identification: each row is compared with the loaded HYG and Gaia clouds at once, or sent to the CDS X-Match
+      service for Gaia DR3 (J2016.0) or SIMBAD (J2000.0) identifiers. Rows with proper motion are moved to the catalogue's epoch
+      first; rows without one need a radius that covers their motion. A row with no counterpart is drawn <span class="xm-unk">red</span>.</p>`, 1);
+var root_13$1 = /* @__PURE__ */ from_html(`<p> </p>`);
+var root_14$1 = /* @__PURE__ */ from_html(`<span> </span>`);
+var root_15$1 = /* @__PURE__ */ from_html(`<span class="xm-doubt"> </span>`);
+var root_16$1 = /* @__PURE__ */ from_html(`<li><button type="button"><span> </span> <span class="enc-t mono"> </span> <span> </span> <span class="enc-v mono"> </span></button></li>`);
+var root_17$1 = /* @__PURE__ */ from_html(`<ul class="enc mov xm-list"></ul>`);
+var root_18$1 = /* @__PURE__ */ from_html(`<div class="sky-ro mono xm-sum"><span class="xm-unk"> </span><span> </span><!><!><span> </span></div> <!>`, 1);
+var root_19 = /* @__PURE__ */ from_html(`<p class="hint warn">Not kept after a reload: too large for this browser's storage.</p>`);
+var root_20 = /* @__PURE__ */ from_html(`<p class="hint warn"> </p>`);
+var root_21 = /* @__PURE__ */ from_html(`<p class="hint">Switch the telescope on to ask for a field.</p>`);
+var root_22 = /* @__PURE__ */ from_html(`<div class="panel" id="hud-sky"><div class="label">Sky</div> <p class="hint">The sky as the surveys photographed it, under the catalogue. From the Sun the view
     direction is the sky direction. Catalogue positions are propagated to the displayed epoch
     (HYG from J2000, Gaia from 2016, your rows from their own), the photographs keep theirs —
     so a fast star stands off its plate by its motion since. The arrows say how far.</p> <button type="button" role="switch"><span class="tg-l">Telescope view</span><span class="sw" aria-hidden="true"></span></button> <!> <!> <!> <div class="label lg-sub">Survey</div> <div class="sky-list"><button type="button"><span class="sv-n">None</span><span class="sv-s">catalogue only</span></button> <!></div> <div class="label lg-sub">Blink</div> <p class="hint">Alternate two epochs. A star that jumps between them has a large proper motion:
     close, or fast, or both. Nearby brown dwarfs and white dwarfs still turn up this way.</p> <button type="button" role="switch"><span class="tg-l"> </span><span class="sw" aria-hidden="true"></span></button> <div class="sky-fov"></div> <!> <!> <div class="label lg-sub">Your data</div> <p class="hint">Drop a CSV or TSV anywhere on the map, or pick a file. Columns by name: <span class="mono">ra, dec</span> (degrees or 03:47:24 / +24 07 00), a distance (<span class="mono">dist</span> pc, <span class="mono">plx</span> mas or <span class="mono">ly</span>), <span class="mono">mag</span>, <span class="mono">name</span>, <span class="mono">pmra, pmdec</span>.
-    Rows become amber rings you can click, search and point the telescope at; the file stays in this browser only.</p> <!> <!> <!> <div class="sky-fov"><input type="file" accept=".csv,.tsv,.txt,text/csv,text/plain" hidden=""/> <button type="button" class="chip">Import a file…</button> <a class="chip" href="./data/sample-stars.csv" download="">Example CSV</a></div> <div class="label lg-sub">Ask the catalogues</div> <p class="hint">Fetch what Gaia DR3 or SIMBAD hold in the field the telescope shows, straight from the CDS into this
-    layer: positions, parallaxes, proper motions, magnitudes. Gaia returns the brightest 4,000 of the cone, SIMBAD 2,000.</p> <div class="sky-fov"><button type="button" class="chip">Gaia DR3 in this field</button> <button type="button" class="chip">SIMBAD in this field</button></div> <!> <!> <p class="hint src">Tiles: CDS/HiPS (DSS2 © STScI/ROE/AAO/UKSTU, 2MASS/IPAC-Caltech, WISE/NASA-JPL, Pan-STARRS/IfA). Loaded on demand; nothing is stored.</p></div>`);
+    Rows become amber rings you can click, search and point the telescope at; the file stays in this browser only.</p> <!> <!> <!> <!> <!> <!> <div class="sky-fov"><input type="file" accept=".csv,.tsv,.txt,text/csv,text/plain" hidden=""/> <button type="button" class="chip">Import a file…</button> <a class="chip" href="./data/sample-stars.csv" download="">Example CSV</a></div> <div class="label lg-sub">Ask the catalogues</div> <p class="hint">Fetch what Gaia DR3 or SIMBAD hold in the field the telescope shows, straight from the CDS into this
+    layer: positions, parallaxes, proper motions, magnitudes. Gaia returns the brightest 4,000 of the cone, SIMBAD 2,000.</p> <div class="sky-fov"><button type="button" class="chip">Gaia DR3 in this field</button> <button type="button" class="chip">SIMBAD in this field</button></div> <!> <!> <div class="label lg-sub">Export</div> <p class="hint">Tables leave as CSV or VOTable (TOPCAT, Aladin, astropy). Positions are ICRS at the stated epoch.</p> <div class="sky-fov"><button type="button" class="chip">Expected jumps · CSV</button> <button type="button" class="chip">VOTable</button> <button type="button" class="chip"> </button> <button type="button" class="chip">VOTable</button></div> <p class="hint src">Tiles: CDS/HiPS (DSS2 © STScI/ROE/AAO/UKSTU, 2MASS/IPAC-Caltech, WISE/NASA-JPL, Pan-STARRS/IfA). Loaded on demand; nothing is stored.</p></div>`);
 function SkyPane($$anchor, $$props) {
 	push($$props, true);
 	const $survey = () => store_get(survey, "$survey", $$stores);
@@ -6996,7 +7016,9 @@ function SkyPane($$anchor, $$props) {
 	const $selection = () => store_get(selection, "$selection", $$stores);
 	const $movers = () => store_get(movers, "$movers", $$stores);
 	const $userLayer = () => store_get(userLayer, "$userLayer", $$stores);
+	const $crossmatch = () => store_get(crossmatch, "$crossmatch", $$stores);
 	const $fieldQuery = () => store_get(fieldQuery, "$fieldQuery", $$stores);
+	const $measureLog = () => store_get(measureLog, "$measureLog", $$stores);
 	const [$$stores, $$cleanup] = setup_stores();
 	const SURVEYS = [
 		{
@@ -7035,6 +7057,8 @@ function SkyPane($$anchor, $$props) {
 	};
 	let other = /* @__PURE__ */ user_derived(() => $survey().blinkWith === $survey().id ? $survey().id === "dss" ? "ps1" : "dss" : $survey().blinkWith);
 	let fileEl = /* @__PURE__ */ state(null);
+	let xmRadius = /* @__PURE__ */ state(3);
+	const sepText = (v) => v === null || v === void 0 ? "" : v >= 60 ? (v / 60).toFixed(1) + "′" : v.toFixed(2) + "″";
 	async function pickFile(e) {
 		const f = e.target.files?.[0];
 		if (!f) return;
@@ -7042,7 +7066,7 @@ function SkyPane($$anchor, $$props) {
 		e.target.value = "";
 	}
 	const aladin = () => `https://aladin.cds.unistra.fr/AladinLite/?target=${$camera().ra.toFixed(4)}%20${$camera().dec.toFixed(4)}&fov=${Math.max(.01, $camera().fov).toFixed(3)}&survey=P%2FDSS2%2Fcolor`;
-	var div = root_16$1();
+	var div = root_22();
 	var button = sibling(child(div), 4);
 	let classes;
 	var node = sibling(button, 2);
@@ -7281,7 +7305,8 @@ function SkyPane($$anchor, $$props) {
 	});
 	var node_12 = sibling(node_11, 6);
 	each(node_12, 3, () => $userLayer().sets, (st) => st.src + st.name, ($$anchor, st, k) => {
-		var div_5 = root_11$1();
+		var fragment_4 = root_11$1();
+		var div_5 = first_child(fragment_4);
 		var span_11 = child(div_5);
 		var text_18 = child(span_11, true);
 		reset(span_11);
@@ -7295,65 +7320,209 @@ function SkyPane($$anchor, $$props) {
 		});
 		reset(button_11);
 		reset(div_5);
+		var div_6 = sibling(div_5, 2);
+		var button_12 = child(div_6);
+		var button_13 = sibling(button_12, 2);
+		var button_14 = sibling(button_13, 2);
+		var button_15 = sibling(button_14, 2);
+		var button_16 = sibling(button_15, 2);
+		reset(div_6);
 		template_effect(() => {
 			set_attribute(span_11, "title", get(st).name);
 			set_text(text_18, get(st).name);
 			set_text(text_19, `${get(st).n ?? ""} rows${get(st).noDist ? ` · ${get(st).noDist} no dist` : ""}`);
 			set_attribute(button_11, "aria-label", `Remove ${get(st).name ?? ""}`);
+			button_14.disabled = !!$crossmatch().busy;
+			button_15.disabled = !!$crossmatch().busy;
+			button_16.disabled = !!$crossmatch().busy;
 		});
 		delegated("click", button_11, () => api.removeSet?.(get(k)));
-		append($$anchor, div_5);
+		delegated("click", button_12, () => api.exportTable?.("set", "csv", get(k)));
+		delegated("click", button_13, () => api.exportTable?.("set", "votable", get(k)));
+		delegated("click", button_14, () => api.crossmatch?.(get(k), { radius: get(xmRadius) }));
+		delegated("click", button_15, () => api.crossmatch?.(get(k), {
+			radius: get(xmRadius),
+			remote: "gaia"
+		}));
+		delegated("click", button_16, () => api.crossmatch?.(get(k), {
+			radius: get(xmRadius),
+			remote: "simbad"
+		}));
+		append($$anchor, fragment_4);
 	});
 	var node_14 = sibling(node_12, 2);
 	var consequent_8 = ($$anchor) => {
-		append($$anchor, root_12$1());
+		var fragment_5 = root_12$1();
+		var label = first_child(fragment_5);
+		var input = sibling(child(label));
+		remove_input_defaults(input);
+		next();
+		reset(label);
+		next(2);
+		bind_value(input, () => get(xmRadius), ($$value) => set(xmRadius, $$value));
+		append($$anchor, fragment_5);
 	};
 	if_block(node_14, ($$render) => {
-		if ($userLayer().n && !$userLayer().saved) $$render(consequent_8);
+		if ($userLayer().sets.length) $$render(consequent_8);
 	});
 	var node_15 = sibling(node_14, 2);
 	var consequent_9 = ($$anchor) => {
-		var p_5 = root_13$1();
-		var text_20 = child(p_5, true);
-		reset(p_5);
-		template_effect(() => set_text(text_20, $userLayer().warn));
-		append($$anchor, p_5);
+		var p_4 = root_13$1();
+		let classes_6;
+		var text_20 = child(p_4, true);
+		reset(p_4);
+		template_effect(() => {
+			classes_6 = set_class(p_4, 1, "hint", null, classes_6, { busy: $crossmatch().busy });
+			set_text(text_20, $crossmatch().msg);
+		});
+		append($$anchor, p_4);
 	};
 	if_block(node_15, ($$render) => {
-		if ($userLayer().warn) $$render(consequent_9);
+		if ($crossmatch().msg) $$render(consequent_9);
 	});
-	var div_6 = sibling(node_15, 2);
-	var input = child(div_6);
-	bind_this(input, ($$value) => set(fileEl, $$value), () => get(fileEl));
-	var button_12 = sibling(input, 2);
-	next(2);
-	reset(div_6);
-	var div_7 = sibling(div_6, 6);
-	var button_13 = child(div_7);
-	var button_14 = sibling(button_13, 2);
-	reset(div_7);
-	var node_16 = sibling(div_7, 2);
-	var consequent_10 = ($$anchor) => {
-		var p_6 = root_14$1();
-		let classes_6;
-		var text_21 = child(p_6, true);
-		reset(p_6);
-		template_effect(() => {
-			classes_6 = set_class(p_6, 1, "hint", null, classes_6, { busy: $fieldQuery().busy });
-			set_text(text_21, $fieldQuery().msg);
+	var node_16 = sibling(node_15, 2);
+	var consequent_13 = ($$anchor) => {
+		var fragment_6 = root_18$1();
+		var div_7 = first_child(fragment_6);
+		var span_13 = child(div_7);
+		var text_21 = child(span_13);
+		reset(span_13);
+		var span_14 = sibling(span_13);
+		var text_22 = child(span_14);
+		reset(span_14);
+		var node_17 = sibling(span_14);
+		var consequent_10 = ($$anchor) => {
+			var span_15 = root_14$1();
+			var text_23 = child(span_15);
+			reset(span_15);
+			template_effect(() => set_text(text_23, `${$crossmatch().coarse ?? ""} coarse`));
+			append($$anchor, span_15);
+		};
+		if_block(node_17, ($$render) => {
+			if ($crossmatch().coarse) $$render(consequent_10);
 		});
-		append($$anchor, p_6);
+		var node_18 = sibling(node_17);
+		var consequent_11 = ($$anchor) => {
+			var span_16 = root_15$1();
+			var text_24 = child(span_16);
+			reset(span_16);
+			template_effect(() => set_text(text_24, `${$crossmatch().doubt ?? ""} doubtful`));
+			append($$anchor, span_16);
+		};
+		if_block(node_18, ($$render) => {
+			if ($crossmatch().doubt) $$render(consequent_11);
+		});
+		var span_17 = sibling(node_18);
+		var text_25 = child(span_17);
+		reset(span_17);
+		reset(div_7);
+		var node_19 = sibling(div_7, 2);
+		var consequent_12 = ($$anchor) => {
+			var ul_1 = root_17$1();
+			each(ul_1, 5, () => $crossmatch().rows.slice(0, 60), (r) => r.i, ($$anchor, r) => {
+				var li_1 = root_16$1();
+				var button_17 = child(li_1);
+				var span_18 = child(button_17);
+				let classes_7;
+				var text_26 = child(span_18, true);
+				reset(span_18);
+				var span_19 = sibling(span_18, 2);
+				var text_27 = child(span_19, true);
+				reset(span_19);
+				var span_20 = sibling(span_19, 2);
+				let classes_8;
+				var text_28 = child(span_20, true);
+				reset(span_20);
+				var span_21 = sibling(span_20, 2);
+				var text_29 = child(span_21, true);
+				reset(span_21);
+				reset(button_17);
+				reset(li_1);
+				template_effect(($0) => {
+					classes_7 = set_class(span_18, 1, "enc-n", null, classes_7, { "xm-unk": !get(r).src });
+					set_text(text_26, get(r).n);
+					set_text(text_27, $0);
+					classes_8 = set_class(span_20, 1, "enc-d mono", null, classes_8, { "xm-doubt": get(r).doubt });
+					set_text(text_28, get(r).src ? get(r).id + (get(r).doubt ? " · " + get(r).doubt : "") : `nothing within ${$crossmatch().radius}″`);
+					set_text(text_29, get(r).src ?? "");
+				}, [() => get(r).src ? sepText(get(r).sep) : "no match"]);
+				delegated("click", button_17, () => api.lookAt?.(get(r).ra, get(r).dec));
+				append($$anchor, li_1);
+			});
+			reset(ul_1);
+			append($$anchor, ul_1);
+		};
+		if_block(node_19, ($$render) => {
+			if ($crossmatch().rows.length) $$render(consequent_12);
+		});
+		template_effect(() => {
+			set_text(text_21, `${$crossmatch().unknown ?? ""} without counterpart`);
+			set_text(text_22, `${$crossmatch().known - ($crossmatch().coarse || 0)} ${$crossmatch().remote ? "identified in " + $crossmatch().remote : "known"}`);
+			set_text(text_25, `r ${$crossmatch().radius ?? ""}″`);
+		});
+		append($$anchor, fragment_6);
 	};
 	if_block(node_16, ($$render) => {
-		if ($fieldQuery().msg) $$render(consequent_10);
+		if ($crossmatch().set >= 0 && $crossmatch().n && !$crossmatch().busy) $$render(consequent_13);
 	});
-	var node_17 = sibling(node_16, 2);
-	var consequent_11 = ($$anchor) => {
-		append($$anchor, root_15$1());
+	var node_20 = sibling(node_16, 2);
+	var consequent_14 = ($$anchor) => {
+		append($$anchor, root_19());
 	};
-	if_block(node_17, ($$render) => {
-		if (!$camera().sky) $$render(consequent_11);
+	if_block(node_20, ($$render) => {
+		if ($userLayer().n && !$userLayer().saved) $$render(consequent_14);
 	});
+	var node_21 = sibling(node_20, 2);
+	var consequent_15 = ($$anchor) => {
+		var p_6 = root_20();
+		var text_30 = child(p_6, true);
+		reset(p_6);
+		template_effect(() => set_text(text_30, $userLayer().warn));
+		append($$anchor, p_6);
+	};
+	if_block(node_21, ($$render) => {
+		if ($userLayer().warn) $$render(consequent_15);
+	});
+	var div_8 = sibling(node_21, 2);
+	var input_1 = child(div_8);
+	bind_this(input_1, ($$value) => set(fileEl, $$value), () => get(fileEl));
+	var button_18 = sibling(input_1, 2);
+	next(2);
+	reset(div_8);
+	var div_9 = sibling(div_8, 6);
+	var button_19 = child(div_9);
+	var button_20 = sibling(button_19, 2);
+	reset(div_9);
+	var node_22 = sibling(div_9, 2);
+	var consequent_16 = ($$anchor) => {
+		var p_7 = root_13$1();
+		let classes_9;
+		var text_31 = child(p_7, true);
+		reset(p_7);
+		template_effect(() => {
+			classes_9 = set_class(p_7, 1, "hint", null, classes_9, { busy: $fieldQuery().busy });
+			set_text(text_31, $fieldQuery().msg);
+		});
+		append($$anchor, p_7);
+	};
+	if_block(node_22, ($$render) => {
+		if ($fieldQuery().msg) $$render(consequent_16);
+	});
+	var node_23 = sibling(node_22, 2);
+	var consequent_17 = ($$anchor) => {
+		append($$anchor, root_21());
+	};
+	if_block(node_23, ($$render) => {
+		if (!$camera().sky) $$render(consequent_17);
+	});
+	var div_10 = sibling(node_23, 6);
+	var button_21 = child(div_10);
+	var button_22 = sibling(button_21, 2);
+	var button_23 = sibling(button_22, 2);
+	var text_32 = child(button_23);
+	reset(button_23);
+	var button_24 = sibling(button_23, 2);
+	reset(div_10);
 	next(2);
 	reset(div);
 	template_effect(($0, $1) => {
@@ -7364,16 +7533,25 @@ function SkyPane($$anchor, $$props) {
 		set_attribute(button_8, "aria-checked", $survey().blink);
 		button_8.disabled = !$survey().id;
 		set_text(text_11, `Blink ${$0 ?? ""} ↔ ${$1 ?? ""}`);
-		button_13.disabled = !$camera().sky || !!$camera().skyFrom || !!$fieldQuery().busy;
-		button_14.disabled = !$camera().sky || !!$camera().skyFrom || !!$fieldQuery().busy;
+		button_19.disabled = !$camera().sky || !!$camera().skyFrom || !!$fieldQuery().busy;
+		button_20.disabled = !$camera().sky || !!$camera().skyFrom || !!$fieldQuery().busy;
+		button_21.disabled = !$movers().list.length;
+		button_22.disabled = !$movers().list.length;
+		button_23.disabled = !$measureLog().length;
+		set_text(text_32, `Measurements (${$measureLog().length ?? ""}) · CSV`);
+		button_24.disabled = !$measureLog().length;
 	}, [() => SURVEYS.find((s) => s.id === $survey().id)?.n ?? "…", () => SURVEYS.find((s) => s.id === get(other))?.n]);
 	delegated("click", button, () => api.skyView?.());
 	delegated("click", button_6, () => api.setSurvey?.(null));
 	delegated("click", button_8, () => api.setBlink?.(!$survey().blink, get(other)));
-	delegated("change", input, pickFile);
-	delegated("click", button_12, () => get(fileEl)?.click());
-	delegated("click", button_13, () => api.queryField?.("gaia"));
-	delegated("click", button_14, () => api.queryField?.("simbad"));
+	delegated("change", input_1, pickFile);
+	delegated("click", button_18, () => get(fileEl)?.click());
+	delegated("click", button_19, () => api.queryField?.("gaia"));
+	delegated("click", button_20, () => api.queryField?.("simbad"));
+	delegated("click", button_21, () => api.exportTable?.("movers", "csv"));
+	delegated("click", button_22, () => api.exportTable?.("movers", "votable"));
+	delegated("click", button_23, () => api.exportTable?.("measure", "csv"));
+	delegated("click", button_24, () => api.exportTable?.("measure", "votable"));
 	append($$anchor, div);
 	pop();
 	$$cleanup();
@@ -10618,7 +10796,7 @@ function MobileNav($$anchor, $$props) {
 		}
 		var text_2 = sibling(node_6);
 		var small = sibling(text_2);
-		small.textContent = `· b11:51`;
+		small.textContent = `· b12:20`;
 		reset(span_2);
 		var span_3 = sibling(span_2, 2);
 		var button_6 = child(span_3);
@@ -11213,7 +11391,7 @@ window.addEventListener("error", (e) => showErr("⚠ " + (e.message || e.type) +
 window.addEventListener("unhandledrejection", (e) => showErr("⚠ promise: " + (e.reason && e.reason.message || e.reason)));
 mount(App, { target: document.getElementById("app") });
 function boot() {
-	return __vitePreload(() => import("./engine-OFXEmNY5.js").then(() => {
+	return __vitePreload(() => import("./engine-BIJDrHC0.js").then(() => {
 		try {
 			restore();
 		} catch (e) {}
@@ -11230,7 +11408,7 @@ var fail = (e) => {
 	document.body.innerHTML = "<p style=\"color:#e9edfa;font-family:monospace;padding:2em\">Error loading data: " + e + "</p>";
 };
 if (window.__DATA__) boot().catch(fail);
-else Promise.all([getJSON("data/data.json?b=b11:51", "data-json", "data.json · stars, exoplanets, galaxies"), getJSON("data/catalog.json?b=b11:51", "catalog-json", "catalog.json · solar system, deep sky, pulsars")]).then(([d, c]) => {
+else Promise.all([getJSON("data/data.json?b=b12:20", "data-json", "data.json · stars, exoplanets, galaxies"), getJSON("data/catalog.json?b=b12:20", "catalog-json", "catalog.json · solar system, deep sky, pulsars")]).then(([d, c]) => {
 	window.__DATA__ = d;
 	window.__CATALOG__ = c;
 	const m = d.meta || {};
@@ -11238,4 +11416,4 @@ else Promise.all([getJSON("data/data.json?b=b11:51", "data-json", "data.json · 
 	return boot();
 }).catch(fail);
 //#endregion
-export { declare as A, timeline as C, userLayer as D, transit as E, tally as M, tfetch as N, api as O, timg as P, timeBar as S, tour as T, searchMsg as _, satEcl as a, stats as b, camera as c, facList as d, fieldQuery as f, nav as g, movers as h, refreshLive as i, mark as j, count as k, encounters as l, measure as m, activeShowers as n, startLive as o, labels as p, groundEcl as r, RESERVED as s, LIVE as t, facColor as u, selection as v, toggleState as w, survey as x, skyCursor as y };
+export { api as A, survey as C, tour as D, toggleState as E, tfetch as F, timg as I, declare as M, mark as N, transit as O, tally as P, stats as S, timeline as T, movers as _, satEcl as a, selection as b, camera as c, facColor as d, facList as f, measureLog as g, measure as h, refreshLive as i, count as j, userLayer as k, crossmatch as l, labels as m, activeShowers as n, startLive as o, fieldQuery as p, groundEcl as r, RESERVED as s, LIVE as t, encounters as u, nav as v, timeBar as w, skyCursor as x, searchMsg as y };

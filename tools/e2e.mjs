@@ -181,6 +181,18 @@ async function open(vp, mobile, hash) {
   });
   ok(usr.n === 3 && usr.ghost && usr.saved, `CSV import keeps ${usr.n} rows, flags the one without distance, persists`);
   ok(usr.dSir < 2 && usr.dVeg < 2, `imported degrees and sexagesimal positions match the catalogue (${usr.dSir.toFixed(2)}″ / ${usr.dVeg.toFixed(2)}″)`);
+  // cross-identification: the loaded catalogues first (instant), then SIMBAD through the CDS X-Match service
+  const xm = await page.evaluate(() => { const r = window.__kuapi.crossmatch(0, { radius: 3 }); const rows = window.__ku.user.sets[0].rows; return { r, sir: rows[0].xm && rows[0].xm.id, sirSep: rows[0].xm && rows[0].xm.sep, ghost: rows[2].xm }; });
+  ok(xm.sir === 'Sirius' && xm.sirSep < 1 && xm.ghost === null, `local cross-match: My Sirius ↔ HYG Sirius ${xm.sirSep?.toFixed(2)}″, the ghost has no counterpart`);
+  const vot = await page.evaluate(() => { const t = window.__kuapi.exportTable('set', 'votable', 0, { text: true }); const d = new DOMParser().parseFromString(t, 'application/xml');
+    return { fields: d.getElementsByTagName('FIELD').length, trs: d.getElementsByTagName('TR').length, err: d.getElementsByTagName('parsererror').length, csv: window.__kuapi.exportTable('set', 'csv', 0, { text: true }).split('\n') }; });
+  ok(vot.err === 0 && vot.trs === 3 && vot.fields >= 12 && vot.csv[1].startsWith('name,ra,dec,epoch') && vot.csv.length >= 5, `VOTable export parses (${vot.fields} fields, ${vot.trs} rows) and the CSV carries the header`);
+  const rem = await page.evaluate(async () => { try { const r = await window.__kuapi.crossmatch(0, { radius: 3, remote: 'simbad' }); const rows = window.__ku.user.sets[0].rows; return { r, sir: rows[0].xm && rows[0].xm.id, ghost: rows[2].xm, msg: document.querySelector('#hud-sky .hint.busy')?.textContent }; } catch (e) { return { err: String(e) }; } });
+  if (rem.r) ok(rem.sir === '* alf CMa' && rem.ghost === null, `CDS X-Match identifies My Sirius as ${rem.sir}; the ghost stays unknown`);
+  else notes.push('skip CDS X-Match (network): ' + (rem.err || rem.msg || 'no answer'));
+  // a measurement by name goes into the log with separation and position angle (astropy, J2000: 157.8595° / PA 4.25°; HYG is propagated to today, which moves Sirius 36″)
+  const meas = await page.evaluate(() => window.__kuapi.measureBetween('Sirius', 'Vega'));
+  ok(meas && Math.abs(meas.sep - 157.8595) < 0.03 && Math.abs(meas.pa - 4.248) < 0.1, `measureBetween Sirius–Vega: sep ${meas?.sep?.toFixed(4)}° PA ${meas?.pa?.toFixed(2)}° (astropy 157.8595° / 4.25°)`);
   await page.evaluate(() => window.__kuapi.doSearch('my vega'));
   await page.waitForTimeout(800);
   const uname = await page.evaluate(() => document.querySelector('#info .in-name')?.textContent);

@@ -3,7 +3,7 @@
   // of view with the wheel. Blink two epochs and whatever hops between them is a star that
   // moves — the way Pluto and most brown dwarfs were found.
   import { api } from '../lib/api.js';
-  import { camera, fieldQuery, movers, selection, survey, userLayer } from '../lib/stores.js';
+  import { camera, crossmatch, fieldQuery, measureLog, movers, selection, survey, userLayer } from '../lib/stores.js';
   import Icon from './Icon.svelte';
   const SURVEYS = [
     { id: 'dss',   n: 'DSS2',       sub: 'photographic plates, 1983–1999', band: 'visible' },
@@ -18,6 +18,8 @@
     return `${s}${dd}° ${String(Math.floor(m)).padStart(2, '0')}′`; };
   let other = $derived($survey.blinkWith === $survey.id ? ($survey.id === 'dss' ? 'ps1' : 'dss') : $survey.blinkWith);
   let fileEl = $state(null);
+  let xmRadius = $state(3);                                   // cross-match radius, arcsec
+  const sepText = v => v === null || v === undefined ? '' : v >= 60 ? (v / 60).toFixed(1) + '′' : v.toFixed(2) + '″';
   async function pickFile(e) { const f = e.target.files?.[0]; if (!f) return; api.importUser?.(await f.text(), f.name); e.target.value = ''; }
   const aladin = () => `https://aladin.cds.unistra.fr/AladinLite/?target=${$camera.ra.toFixed(4)}%20${$camera.dec.toFixed(4)}&fov=${Math.max(0.01, $camera.fov).toFixed(3)}&survey=P%2FDSS2%2Fcolor`;
 </script>
@@ -120,7 +122,36 @@
       <span class="usr-c mono">{st.n} rows{st.noDist ? ` · ${st.noDist} no dist` : ''}</span>
       <button type="button" class="usr-x" aria-label="Remove {st.name}" onclick={() => api.removeSet?.(k)}><Icon name="close" size={12} /></button>
     </div>
+    <div class="sky-fov xm-tools">
+      <button type="button" class="chip" onclick={() => api.exportTable?.('set', 'csv', k)}>CSV</button>
+      <button type="button" class="chip" onclick={() => api.exportTable?.('set', 'votable', k)}>VOTable</button>
+      <button type="button" class="chip" disabled={!!$crossmatch.busy} onclick={() => api.crossmatch?.(k, { radius: xmRadius })}>Check against loaded catalogues</button>
+      <button type="button" class="chip" disabled={!!$crossmatch.busy} onclick={() => api.crossmatch?.(k, { radius: xmRadius, remote: 'gaia' })}>Identify · Gaia DR3</button>
+      <button type="button" class="chip" disabled={!!$crossmatch.busy} onclick={() => api.crossmatch?.(k, { radius: xmRadius, remote: 'simbad' })}>Identify · SIMBAD</button>
+    </div>
   {/each}
+  {#if $userLayer.sets.length}
+    <label class="xm-r mono">radius <input type="number" min="0.1" max="60" step="0.5" bind:value={xmRadius} /> ″</label>
+    <p class="hint">Cross-identification: each row is compared with the loaded HYG and Gaia clouds at once, or sent to the CDS X-Match
+      service for Gaia DR3 (J2016.0) or SIMBAD (J2000.0) identifiers. Rows with proper motion are moved to the catalogue's epoch
+      first; rows without one need a radius that covers their motion. A row with no counterpart is drawn <span class="xm-unk">red</span>.</p>
+  {/if}
+  {#if $crossmatch.msg}<p class="hint" class:busy={$crossmatch.busy}>{$crossmatch.msg}</p>{/if}
+  {#if $crossmatch.set >= 0 && $crossmatch.n && !$crossmatch.busy}
+    <div class="sky-ro mono xm-sum"><span class="xm-unk">{$crossmatch.unknown} without counterpart</span><span>{$crossmatch.known - ($crossmatch.coarse || 0)} {$crossmatch.remote ? 'identified in ' + $crossmatch.remote : 'known'}</span>{#if $crossmatch.coarse}<span>{$crossmatch.coarse} coarse</span>{/if}{#if $crossmatch.doubt}<span class="xm-doubt">{$crossmatch.doubt} doubtful</span>{/if}<span>r {$crossmatch.radius}″</span></div>
+    {#if $crossmatch.rows.length}
+      <ul class="enc mov xm-list">
+        {#each $crossmatch.rows.slice(0, 60) as r (r.i)}
+          <li><button type="button" onclick={() => api.lookAt?.(r.ra, r.dec)}>
+            <span class="enc-n" class:xm-unk={!r.src}>{r.n}</span>
+            <span class="enc-t mono">{r.src ? sepText(r.sep) : 'no match'}</span>
+            <span class="enc-d mono" class:xm-doubt={r.doubt}>{r.src ? r.id + (r.doubt ? ' · ' + r.doubt : '') : `nothing within ${$crossmatch.radius}″`}</span>
+            <span class="enc-v mono">{r.src ?? ''}</span>
+          </button></li>
+        {/each}
+      </ul>
+    {/if}
+  {/if}
   {#if $userLayer.n && !$userLayer.saved}<p class="hint warn">Not kept after a reload: too large for this browser's storage.</p>{/if}
   {#if $userLayer.warn}<p class="hint warn">{$userLayer.warn}</p>{/if}
   <div class="sky-fov">
@@ -137,5 +168,13 @@
   </div>
   {#if $fieldQuery.msg}<p class="hint" class:busy={$fieldQuery.busy}>{$fieldQuery.msg}</p>{/if}
   {#if !$camera.sky}<p class="hint">Switch the telescope on to ask for a field.</p>{/if}
+  <div class="label lg-sub">Export</div>
+  <p class="hint">Tables leave as CSV or VOTable (TOPCAT, Aladin, astropy). Positions are ICRS at the stated epoch.</p>
+  <div class="sky-fov">
+    <button type="button" class="chip" disabled={!$movers.list.length} onclick={() => api.exportTable?.('movers', 'csv')}>Expected jumps · CSV</button>
+    <button type="button" class="chip" disabled={!$movers.list.length} onclick={() => api.exportTable?.('movers', 'votable')}>VOTable</button>
+    <button type="button" class="chip" disabled={!$measureLog.length} onclick={() => api.exportTable?.('measure', 'csv')}>Measurements ({$measureLog.length}) · CSV</button>
+    <button type="button" class="chip" disabled={!$measureLog.length} onclick={() => api.exportTable?.('measure', 'votable')}>VOTable</button>
+  </div>
   <p class="hint src">Tiles: CDS/HiPS (DSS2 © STScI/ROE/AAO/UKSTU, 2MASS/IPAC-Caltech, WISE/NASA-JPL, Pan-STARRS/IfA). Loaded on demand; nothing is stored.</p>
 </div>

@@ -23,3 +23,5 @@ export const userLayer = writable({ sets: [], n: 0, warn: '', saved: false });  
 export const fieldQuery = writable({ busy: null, msg: '' });                       // live Gaia/SIMBAD cone query state
 export const skyCursor = writable(null);     // sky view: the sky position under the pointer {ra,dec,l,b}
 export const movers = writable({ list: [], a: '', b: '', ea: 0, eb: 0, dt: 0 });   // predicted jumps between the blink epochs
+export const crossmatch = writable({ busy: null, msg: '', set: -1, radius: 3, remote: null, known: 0, unknown: 0, n: 0, rows: [] });   // cross-identification of a set
+export const measureLog = writable([]);     // every completed measurement, for export

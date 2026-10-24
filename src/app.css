@@ -359,3 +359,12 @@ a.chip { text-decoration: none; }
 .tc-pl { fill: var(--txt-2); font-size: 9px; font-family: var(--mono); text-anchor: middle; }
 .tc-ax { fill: var(--txt-3); font-size: 9px; font-family: var(--mono); }
 .tcard .hint { margin-top: 4px; font-size: 10.5px; }
+
+/* cross-identification */
+.xm-tools { margin-top: 2px; }
+.xm-r { display: flex; align-items: center; gap: 6px; margin: 6px 0 2px; font-size: 11px; color: var(--txt-2); }
+.xm-r input { width: 58px; padding: 2px 6px; border-radius: 6px; border: 1px solid var(--line-strong); background: var(--bg-2); color: var(--txt); font: inherit; }
+.xm-unk { color: #ff8a8a; }
+.xm-sum { gap: 4px 14px; }
+.xm-list { max-height: 36vh; }
+.xm-doubt { color: #f0b36a; }

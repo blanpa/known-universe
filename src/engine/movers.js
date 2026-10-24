@@ -38,7 +38,7 @@ export function updateMovers(){
     if(jump<0.5) return;
     // one entry per place: SIMBAD lists a star's planets as objects at the star's position
     const k=o.dx.toFixed(5)+','+o.dy.toFixed(5)+','+o.dz.toFixed(5); if(seen.has(k)) return; seen.add(k);
-    out.push({o, name:name.replace(/^NAME /,''), pm, jump, px, usr:!!o.usr}); };
+    out.push({o, name:name.replace(/^NAME /,''), pm, jump, px, usr:!!o.usr, ea, eb, src:o.usr?'your data':o.gpick==='gaia'?'Gaia DR3 cloud':'HYG'}); };
   for(const o of userProj) add(o, o.n||`Row ${o.i+1}`);
   if(S.hyg) for(const s of hygProj) add(s, s.n||(s.hip?'HIP '+s.hip:'star'));
   // the Gaia cloud: every star within 100 pc with its DR3 proper motion, scanned on the CPU

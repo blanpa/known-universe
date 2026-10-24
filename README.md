@@ -266,6 +266,34 @@ are separate sets in the same layer; each can be removed on its own. HYG star di
 now stored with six decimals (0.2″) so catalogue and imported positions agree at
 telescope zoom; they used to be rounded to 4 (up to an arcminute off).
 
+**Cross-identification — is this row already known?**
+
+Every set in the *Sky* pane can be checked against the catalogues
+(`src/engine/crossmatch.js`). *Check against loaded catalogues* is instant and local:
+each row is compared with the HYG stars within the chosen radius (default 3″) and with
+the Gaia point cloud, whose positions are packed to ±20″ and therefore only count as a
+*coarse* counterpart. *Identify · Gaia DR3* and *Identify · SIMBAD* send the set (5,000
+rows per request) to the CDS X-Match service and come back with the catalogue's own
+identifiers — `Gaia DR3 4472832130942575872`, `* alf CMa` — plus the counterpart's
+parallax, proper motion and their errors, RUWE, magnitude and object type. Epochs are
+honoured: a row with proper motion is moved to the catalogue's epoch (Gaia J2016.0,
+SIMBAD J2000.0) before the comparison, a row without one is compared where it is, so a
+fast star needs a radius that covers its motion since (the pane says so). A counterpart
+whose parallax or brightness disagrees with the row's own is flagged *doubtful* rather
+than silently accepted. Rows without a counterpart are drawn red and listed first; the
+card of a row names its counterpart and the doubt. Note that Gaia DR3 has no entry for
+the very brightest stars (Sirius, Vega): a *no match* there is the catalogue's gap, not a
+discovery.
+
+**Export — tables out**
+
+Any set, its cross-match, the expected-jump list and the measurement log leave as CSV or
+VOTable 1.4 (`src/lib/export.js`): positions ICRS with the epoch stated, units and UCDs
+on every column, readable by TOPCAT, Aladin and `astropy.io.votable` (checked in the e2e
+run). A measurement can also be typed instead of clicked: `measureBetween('Sirius',
+'Vega')` logs the physical distance, the angular separation and the position angle from
+the current vantage point.
+
 ## Data sources and their state
 
 The map pulls from about fifteen services at run time and from a pipeline at build

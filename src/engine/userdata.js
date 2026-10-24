@@ -29,7 +29,7 @@ const COLS={
   pmdec:['pmdec','pm_dec','pmde','pm_de'],
 };
 const norm=h=>h.trim().toLowerCase().replace(/^"|"$/g,'').replace(/[\s]+/g,'').replace(/\[.*?\]$/,'');
-function splitLine(line,sep){                            // quoted fields, doubled quotes
+export function splitLine(line,sep){                            // quoted fields, doubled quotes
   const out=[]; let cur='', q=false;
   for(let i=0;i<line.length;i++){ const ch=line[i];
     if(q){ if(ch==='"'){ if(line[i+1]==='"'){ cur+='"'; i++; } else q=false; } else cur+=ch; }
@@ -101,7 +101,7 @@ function persist(){
 function parseSet(st){
   const r=parseUserText(st.text||'');
   if(st.prefix) for(const row of r.rows) if(row.n&&!row.n.startsWith(st.prefix)) row.n=st.prefix+row.n;
-  st.rows=r.rows; st.warn=r.warn; st.n=r.rows.length;
+  st.rows=r.rows; st.warn=r.warn; st.n=r.rows.length; st.xm=null;
 }
 // a file replaces the previous file, a query replaces the previous query from that source
 export function importUser(text,name,opts={}){
@@ -155,13 +155,15 @@ export function drawUser(){
   ctx.lineWidth=1.4;
   for(const o of userProj){
     const sel=(o===S.hover||o===S.pinned);
+    // after a cross-match: a row without a counterpart is red — that is the row to look at
+    const unk=o.xm===null && USER.sets[o.set] && USER.sets[o.set].xm;
     const r=sel?8:many?3.5:5.5;
     ctx.beginPath(); ctx.arc(o._sx,o._sy,r,0,6.2832);
-    ctx.strokeStyle=sel?'rgba(79,214,200,0.95)':'rgba(255,176,96,0.85)'; ctx.stroke();
-    if(!many||sel){ ctx.beginPath(); ctx.arc(o._sx,o._sy,1.3,0,6.2832); ctx.fillStyle=sel?'rgba(79,214,200,1)':'rgba(255,176,96,0.9)'; ctx.fill(); }
-    if(o.n&&(sel||label)){
+    ctx.strokeStyle=sel?'rgba(79,214,200,0.95)':unk?'rgba(255,96,96,0.95)':'rgba(255,176,96,0.85)'; ctx.stroke();
+    if(!many||sel||unk){ ctx.beginPath(); ctx.arc(o._sx,o._sy,1.3,0,6.2832); ctx.fillStyle=sel?'rgba(79,214,200,1)':unk?'rgba(255,120,120,1)':'rgba(255,176,96,0.9)'; ctx.fill(); }
+    if(o.n&&(sel||label||unk)){
       ctx.font=(sel?'11px':'9.5px')+' ui-monospace,monospace';
-      ctx.fillStyle=sel?'rgba(79,214,200,1)':'rgba(255,196,130,0.8)';
+      ctx.fillStyle=sel?'rgba(79,214,200,1)':unk?'rgba(255,150,150,0.9)':'rgba(255,196,130,0.8)';
       LBL.prio=sel?P_SEL:P_STAR; ctx.fillText(o.n, o._sx+r+4, o._sy+3); LBL.prio=P_STAR;
     }
   }
