@@ -217,6 +217,14 @@ for (const [name, pc, minLit] of VIEWS) {
   await ctx.close();
 }
 
+// ---- 2b. real scale: the Sun's symbol follows the zoom (it stayed 16 px over four decades) ----
+{
+  const sunPx = async (pc) => { const { page, ctx } = await open({ width: 1440, height: 900 }, false, `v1_0.5000_-0.5000_${pc.toExponential(4)}_0.0000e+0_0.0000e+0_0.0000e+0_1_0_1h9u1fh`);
+    const px = await page.evaluate(() => { const s = (window.__solarProj || []).find(o => o.o && o.o.n === 'Sun'); return s ? s.px : null; }); await ctx.close(); return px; };
+  const near = await sunPx(1e-5), ref = await sunPx(3e-4), far = await sunPx(1e-2);
+  ok(near > ref * 1.8 && ref > far * 3 && far > 1, `the Sun's symbol follows the zoom in real scale (2 AU ${near?.toFixed(1)} px · 60 AU ${ref?.toFixed(1)} px · 2000 AU ${far?.toFixed(1)} px)`);
+}
+
 // ---- 3. phone ----
 {
   const { page, ctx, errs } = await open({ width: 390, height: 844 }, true);

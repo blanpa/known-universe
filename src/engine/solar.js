@@ -34,10 +34,19 @@ function orbitR(a){ return scale(a*AU_PC); }
 // distance a body grows, and in real scale its true disc takes over as you fly at it.
 const SYM_PX=3.0, SYM_K=0.35, SYM_MIN=1.3;
 export function symPx(rk,de){ return Math.max(SYM_MIN, SYM_PX*Math.pow(rk/6371,SYM_K)*(3.2/de)*(V.foc/560)); }
+// Real scale normalises every body to the framing distance, which took the zoom itself
+// out of the symbol: the Sun stayed 16 px from a 2-AU framing to a 6000-AU one and read
+// as "it never gets smaller" while the orbits shrank into it. The symbols now follow the
+// framing distance with a gentle power, nominal at the Neptune framing (60 AU). Zooming
+// out they contract (√: 60 AU → 6000 AU is a tenth), until the origin marker takes over
+// at 0.1 pc; zooming in they grow more slowly (the inner system is crowded, and the true
+// disc takes over anyway). The compact map needs none of this: its log depth shrinks them.
+const SYM_REF=3e-4;                                        // pc
+function zoomK(){ if(!S.realScale) return 1; const r=SYM_REF/S.camZ; return Math.pow(r, r>1?0.3:0.5); }
 export function bodyPx(rk,depth){
   const de = S.realScale ? (depth/S.camZ)*3.2 : depth;   // real: normalise to the framing distance
   // cap 4× the viewport: diving in takes you past full disc INTO the imagery (clouds fill the view)
-  const sym = Math.min(Math.min(W,H)*4, symPx(rk,de));
+  const sym = Math.min(Math.min(W,H)*4, Math.max(SYM_MIN, symPx(rk,de)*zoomK()));
   if(!S.realScale) return sym;
   // real scale: once the TRUE angular size is resolvable it wins — fly at a
   // planet and it grows to a disc, exactly as it would in reality
@@ -263,7 +272,7 @@ export function drawSolar(alpha){ LBL.prio=P_SOLAR;
         // same law AND the same caps as bodyPx — moons used to cap at 10 px / half the
         // viewport while planets capped at 4×, so up close every moon clipped to the same
         // size and Io ended up two thirds of Jupiter instead of a fortieth
-        let mpx=Math.min(Math.min(W,H)*4, symPx(m.rk,mde)*0.8);   // same law, a notch below the planet
+        let mpx=Math.min(Math.min(W,H)*4, Math.max(SYM_MIN, symPx(m.rk,mde)*zoomK()*0.8));   // same law, a notch below the planet
         if(S.realScale) mpx=Math.min(Math.max(mpx, V.foc*(m.rk*3.2408e-14)/p.depth), Math.min(W,H)*4);
         ballFill(mx,my,mpx,m.c,A);
         if(m.n==='Moon'&&mpx>=26){                 // the Moon gets its real face up close
