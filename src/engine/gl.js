@@ -494,6 +494,10 @@ export function glRender(){
   // raw-byte catalogue layers (decoded in the vertex shader)
   gl.useProgram(progU.p); glShared(progU.loc);
   gl.uniform1f(progU.loc.u_pmYearsU,tSince(2016));           // Gaia DR3 epoch 2016.0 → the displayed date
+  // a_pm is an integer attribute that only the Gaia VAO enables. Where it is disabled the
+  // shader reads the generic attribute value, and Chrome rejects the whole draw call when
+  // that value's type is float (the default): quasars, web, belt, OB and variables vanished.
+  const aPm=progU.attr.a_pm; if(aPm>=0) gl.vertexAttribI4i(aPm,0,0,0,0);
   if(V.solarA<0.5){
     const far = camDist>1e-9 && invScale(camDist)>3e6;              // out among the galaxies: brighter web
     if(CL.W && S.web) drawCloud(CL.W,0.05,far?1.6:1.1, far?2.4:1);
@@ -511,6 +515,7 @@ export function glRender(){
     if(CL.O && S.ob) drawCloud(CL.O,0.05,1.0,0.8);
     if(CL.V && S.vars) drawCloud(CL.V,0.05,1.0);
   }
+  if(aPm>=0) gl.vertexAttrib4f(aPm,0,0,0,1);            // back to a float generic for the other programs
   // float layers: exoplanet hosts (year + facility filters on the GPU), pulsars,
   // open clusters (cosmos view only, matching the 2D gate), HYG stars + halo
   const L=progF.loc;

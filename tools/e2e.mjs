@@ -9,6 +9,7 @@ import { createServer } from 'node:http';
 import { createReadStream, existsSync, mkdirSync, statSync } from 'node:fs';
 import { join, extname, resolve } from 'node:path';
 import { homedir } from 'node:os';
+import { inflateSync } from 'node:zlib';
 
 const ROOT = resolve(import.meta.dirname, '..'), SITE = join(ROOT, 'site'), OUT = join(ROOT, 'tools', 'e2e-out');
 mkdirSync(OUT, { recursive: true });
@@ -32,20 +33,39 @@ const args = gpu ? ['--no-sandbox', '--headless=new', '--enable-gpu', '--ignore-
 const browser = await chromium.launch({ executablePath: exe, headless: true, args });
 console.log('browser:', exe, gpu ? '(GPU)' : '(SwiftShader — timings not meaningful)');
 
+// pixels brighter than a threshold in a screenshot (8-bit RGB/RGBA PNG, as Chrome writes them):
+// a cheap way to tell whether a point cloud was drawn at all
+function litPixels(png, thr = 90) {
+  let i = 8, w = 0, h = 0, ch = 0; const idat = [];
+  while (i < png.length) { const len = png.readUInt32BE(i), type = png.toString('ascii', i + 4, i + 8), d = png.subarray(i + 8, i + 8 + len);
+    if (type === 'IHDR') { w = d.readUInt32BE(0); h = d.readUInt32BE(4); ch = d[9] === 6 ? 4 : d[9] === 2 ? 3 : 0; } else if (type === 'IDAT') idat.push(d); i += 12 + len; }
+  if (!ch) return -1;
+  const raw = inflateSync(Buffer.concat(idat)), stride = w * ch; let lit = 0; let prev = Buffer.alloc(stride), cur = Buffer.alloc(stride);
+  for (let y = 0; y < h; y++) { const f = raw[y * (stride + 1)], o = y * (stride + 1) + 1;
+    for (let x = 0; x < stride; x++) { const a = x >= ch ? cur[x - ch] : 0, b = prev[x], c = x >= ch ? prev[x - ch] : 0; let v = raw[o + x];
+      if (f === 1) v += a; else if (f === 2) v += b; else if (f === 3) v += (a + b) >> 1;
+      else if (f === 4) { const p = a + b - c, pa = Math.abs(p - a), pb = Math.abs(p - b), pc = Math.abs(p - c); v += (pa <= pb && pa <= pc) ? a : (pb <= pc) ? b : c; }
+      cur[x] = v & 255; }
+    for (let x = 0; x < stride; x += ch) if (Math.max(cur[x], cur[x + 1], cur[x + 2]) > thr) lit++;
+    [prev, cur] = [cur, prev]; }
+  return lit;
+}
+
 const fails = [], notes = [];
 const ok = (cond, what) => { if (cond) notes.push('ok   ' + what); else fails.push('FAIL ' + what); };
 let n = 0;
 async function open(vp, mobile, hash) {
   const ctx = await browser.newContext({ viewport: vp, hasTouch: mobile, isMobile: mobile });
   const page = await ctx.newPage();
-  const errs = [];
+  const errs = [], glErrs = [];
   page.on('pageerror', e => errs.push('pageerror: ' + e.message.slice(0, 160)));
-  page.on('console', m => { if (m.type() === 'error' && !/404|429|403|Failed to load resource/.test(m.text())) errs.push(m.text().slice(0, 160)); });
+  page.on('console', m => { if (m.type() === 'error' && !/404|429|403|Failed to load resource/.test(m.text())) errs.push(m.text().slice(0, 160));
+    if (/GL_INVALID|WebGL: INVALID/.test(m.text())) glErrs.push(m.text().replace(/^\[[^\]]*\] /, '').slice(0, 120)); });   // a rejected draw call = a layer silently missing
   await page.goto(BASE + '?r=' + (n++) + (hash ? '#' + hash : ''), { waitUntil: 'load' });
   await page.waitForFunction(() => window.__kuapi && location.hash.includes('v1_'), null, { timeout: 40000 });
   await page.evaluate(() => localStorage.clear());
   await page.waitForTimeout(gpu ? 3000 : 8000);
-  return { page, ctx, errs };
+  return { page, ctx, errs, glErrs };
 }
 
 // ---- 1. boot + chrome on desktop ----
@@ -183,13 +203,17 @@ async function open(vp, mobile, hash) {
 }
 
 // ---- 2. one screenshot per scale band ----
-const VIEWS = [['neighbourhood', 2], ['gaia', 150], ['milkyway', 2e4], ['cosmicweb', 5e7]];
-for (const [name, pc] of VIEWS) {
-  const { page, ctx, errs } = await open({ width: 1440, height: 900 }, false, `v1_0.5000_-0.5000_${pc.toExponential(4)}_0.0000e+0_0.0000e+0_0.0000e+0_1_0_1h9u1fh`);
+// [name, framing in pc, least lit pixels]: the far views are point clouds (Gaia, the
+// cosmic web, quasars) and a draw call the driver rejects leaves them black
+const VIEWS = [['neighbourhood', 2, 0], ['gaia', 150, 20000], ['milkyway', 2e4, 0], ['cosmicweb', 5e7, 8000], ['quasars', 1e10, 20000]];
+for (const [name, pc, minLit] of VIEWS) {
+  const { page, ctx, errs, glErrs } = await open({ width: 1440, height: 900 }, false, `v1_0.5000_-0.5000_${pc.toExponential(4)}_0.0000e+0_0.0000e+0_0.0000e+0_1_0_1h9u1fh`);
   const band = await page.evaluate(() => document.querySelector('#hud-head .ctx-band')?.textContent);
   notes.push('view ' + name + ' → band "' + band + '"');
-  await page.screenshot({ path: join(OUT, `desktop-${name}.png`) });
+  const shot = await page.screenshot({ path: join(OUT, `desktop-${name}.png`) });
   ok(errs.length === 0, 'no page errors at ' + name + (errs.length ? ': ' + errs[0] : ''));
+  ok(glErrs.length === 0, 'no rejected WebGL draw calls at ' + name + (glErrs.length ? ': ' + glErrs[0] : ''));
+  if (minLit) { const lit = litPixels(shot); ok(lit >= minLit, `point clouds drawn at ${name} (${lit} lit pixels, need ${minLit})`); }
   await ctx.close();
 }
 

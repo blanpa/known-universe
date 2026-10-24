@@ -125,6 +125,11 @@ while desktop ANGLE silently accepted it).
   2 s, so polling must see 2 identical reads ≥4 s apart or it declares mid-flight hashes stable.
 - SwiftShader renders `backdrop-filter` panels as white blocks in full-page screenshots sometimes —
   verify suspicious "white panels" with an element screenshot / computed style before fixing.
+- **A rejected WebGL draw call is silent**: Chrome logs `GL_INVALID_OPERATION: glDrawArrays: Vertex
+  shader input type does not match…` as a console *warning* and skips the whole draw — a point cloud
+  simply vanishes (the integer `a_pm` attribute did this to quasars/web/belt). The e2e run now fails on
+  any `GL_INVALID` console message and counts lit pixels per far view; when probing by hand, listen to
+  every console type, not only `error`.
 - External live APIs 429 on repeated headless runs; GIBS tiles 404 on day-offset fallback — noise,
   not failures.
 - Views inside the Gaia point cloud (e.g. flown to a nearby star) run ~4 s/frame in SwiftShader —
