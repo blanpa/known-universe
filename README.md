@@ -5,6 +5,8 @@ solar neighbourhood **and** the measured galaxies of the local universe — all
 in a true coordinate system around the Sun, with a time slider (discovery year)
 as a fourth dimension.
 
+![The landing view: the solar system at real scale, 61 AU out — planets, dwarf planets, comets, the deep-space probes, the interstellar visitors and the trans-Neptunian field, with the scale ladder from 1 AU to the CMB at the right edge](docs/screenshots/solar-system.jpg)
+
 - **Data sources (real catalogues):**
   - [NASA Exoplanet Archive](https://exoplanetarchive.ipac.caltech.edu/)
     (`pscomppars`) → 4,708 star systems, 6,292 planets, discoveries 1992–2026,
@@ -93,6 +95,41 @@ as a fourth dimension.
   WebGL 2 is unavailable. Data in `site/data/data.json`; the Gaia point cloud
   in `site/data/gaia.bin` (a compact 8-bytes-per-star binary). Toggle
   **GPU stars** / **Gaia stars** in the panel.
+
+## Screenshots
+
+The app as it runs today, taken in headless Chrome by `npm run shots:readme`
+(`tools/readme-shots.mjs`, output in `docs/screenshots/`).
+
+<table>
+<tr>
+<td width="50%"><img src="docs/screenshots/earth.jpg" alt="Earth from 3,000 km up: the lit globe with today's satellite imagery, the ISS and Tiangong on their orbits"><br><sub><b>Earth, real scale.</b> Today's NASA GIBS true-colour imagery on a lit globe, the terminator where it really is, the ISS and Tiangong placed from CelesTrak elements.</sub></td>
+<td width="50%"><img src="docs/screenshots/saturn.jpg" alt="Saturn and its rings from 15,000 km, Tethys standing clear of the disc"><br><sub><b>Saturn.</b> The textured sphere lit by the real sun direction, the ring system with the Cassini division, Tethys clear of the disc. Every body sits where JPL Horizons puts it today.</sub></td>
+</tr>
+<tr>
+<td width="50%"><img src="docs/screenshots/earth-surface.jpg" alt="The Earth's surface at 11 km per pixel: the North Atlantic, Europe and the Sahara under today's clouds"><br><sub><b>Keep zooming and the globe becomes a map.</b> NASA GIBS true-colour tiles from two days ago at 11 km per pixel, drag to pan, scroll out to leave.</sub></td>
+<td width="50%"><img src="docs/screenshots/exoplanet-system.jpg" alt="The TRAPPIST-1 system: seven planets on their orbits, the habitable zone, and the transit light curve a telescope would see"><br><sub><b>An exoplanet system.</b> TRAPPIST-1's seven planets on their orbits, the habitable zone from the star's real luminosity, and <i>what a telescope sees</i>: the transit light curve over twenty days.</sub></td>
+</tr>
+<tr>
+<td width="50%"><img src="docs/screenshots/stellar-neighbourhood.jpg" alt="The stellar neighbourhood from 489 light-years out: the Gaia DR3 point cloud, the Pleiades and Hyades, the Taurus cloud"><br><sub><b>The stellar neighbourhood, 489 ly out.</b> The Gaia DR3 point cloud — 540,859 real stars within 100 pc — with the Pleiades, the Hyades, the Taurus cloud and the edge of our radio bubble.</sub></td>
+<td width="50%"><img src="docs/screenshots/milky-way.jpg" alt="The Milky Way from 65,000 light-years out: clusters, nebulae, pulsars and the spiral arms"><br><sub><b>The Milky Way, 65,000 ly out.</b> Open and globular clusters, nebulae, pulsars, Cepheids and RR Lyrae at their measured distances, the spiral arms, the Sculptor galaxy beyond.</sub></td>
+</tr>
+<tr>
+<td width="50%"><img src="docs/screenshots/cosmic-web.jpg" alt="The cosmic web from 489 million light-years out: 2MRS galaxies, Laniakea and the Great Attractor, the Coma, Perseus-Pisces and Hydra clusters"><br><sub><b>The cosmic web, 489 Mly out.</b> 43,504 galaxies of the 2MRS redshift survey, with Laniakea and the Great Attractor, the Coma, Perseus–Pisces, Hydra and Norma clusters, and the gravitational-wave sources.</sub></td>
+<td width="50%"><img src="docs/screenshots/observable-universe.jpg" alt="The observable universe from 32 billion light-years out: the quasar distribution"><br><sub><b>The observable universe, 32 Gly out.</b> 20,000 quasars of the Million Quasars catalogue at their comoving distances — the top rung of the ladder is the CMB.</sub></td>
+</tr>
+<tr>
+<td width="50%"><img src="docs/screenshots/sky-pleiades.jpg" alt="The telescope view: the Pleiades on DSS2 survey tiles, a 6-degree field, north up"><br><sub><b>The telescope.</b> The Pleiades on DSS2 tiles, a 6° field, north up, the catalogue positions propagated to today's epoch. Four surveys to choose from, two epochs to blink.</sub></td>
+<td width="50%"><img src="docs/screenshots/sgr-a-star.jpg" alt="Sagittarius A*: a ray-traced black hole bending the galactic disc behind it"><br><sub><b>Sagittarius A*.</b> A ray-traced black hole at its true position, 27,000 ly away, bending the real scene behind it — the galactic disc wraps around the shadow.</sub></td>
+</tr>
+<tr>
+<td width="50%"><img src="docs/screenshots/course-layers.jpg" alt="The compact view with a course set to Mars and the Layers pane open"><br><sub><b>A course and the Layers pane.</b> Compact view, a course set to Mars — distance, light time, bearing, Engage — and the pane with its five presets, 40 switches and the colour-by-instrument filter.</sub></td>
+<td width="50%"><img src="docs/screenshots/tour.jpg" alt="The cosmic tour at Proxima Centauri, with the star's card: Gaia DR3 astrometry, uncertainties, space velocity"><br><sub><b>The cosmic tour, stop 3 of 9.</b> Proxima Centauri, with its card: Gaia DR3 astrometry with uncertainties, RUWE, the space velocity, and the provenance of every number.</sub></td>
+</tr>
+<tr>
+<td colspan="2" align="center"><img src="docs/screenshots/phone.jpg" width="31%" alt="The phone layout: band and distance in the header, the bottom bar, the ladder as a strip"> &nbsp; <img src="docs/screenshots/phone-card.jpg" width="31%" alt="The phone layout with Saturn's card docked above the bar"><br><sub><b>On a phone.</b> Band and distance in the header, a bar for Search · Layers · Sky · Time · Tour, the ladder as a strip at the right edge; a card docks above the bar, the scene stays visible.</sub></td>
+</tr>
+</table>
 
 ## Controls
 
@@ -628,6 +665,7 @@ pipeline/       everything that produces site/data — see pipeline/README.md
   raw/            downloaded catalogue dumps, gitignored
 tools/          dev tooling: single-file artifact build, mount test
 deploy/         Dockerfile, nginx.conf, the auto-update container
+docs/           screenshots/ — the README's pictures (npm run shots:readme)
 ```
 
 Two rules that keep this honest:
@@ -641,6 +679,7 @@ npm run build           # src/ -> site/
 npm run test:mount      # mounts the real bundle (happy-dom) — seconds, no browser
 npm run test:e2e        # the built site in a real browser: boot, chrome, interaction,
                         # render() CPU budget, one screenshot per scale band (tools/e2e-out/)
+npm run shots:readme    # the README's screenshots -> docs/screenshots/ (real Chrome on the GPU)
 npx eslint src          # no-undef / no-import-assign across the engine modules
 npm run build:artifact  # single self-contained HTML with the data embedded
 ```
@@ -753,3 +792,7 @@ own terms — they are **not** covered by the MIT license:
   citation of the original papers (linked above).
 - **Constellation lines** — from [d3-celestial](https://github.com/ofrohn/d3-celestial)
   (BSD-3-Clause).
+
+The same terms, file by file, with the credit lines the sources ask for, ship
+next to the data as [`site/data/LICENSE.md`](site/data/LICENSE.md) — so GitHub
+Pages and the Docker image carry them too.
