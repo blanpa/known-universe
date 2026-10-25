@@ -427,9 +427,14 @@ J2000 with their proper motion (they used to come from x, y, z at two decimals: 
   `meta.built`, with `meta.sources`) and the app build. Share links carry the app build they
   were made on (`…_b20261024-1430`); opening one on a different build says so, because the
   catalogues may have moved since.
-- `DATA_CHANGELOG.md` gets one line per catalogue build (the weekly refresh appends it); the
-  Gaia clouds and the Horizons table are static releases, rebuilt by hand. `CITATION.cff`
-  says how to cite the map with its build.
+- **What came in, and when.** `pipeline/data_history.py` walks the git history of the
+  catalogue file, diffs every build by name and writes `site/data/changelog.json` (newest
+  first: counts, deltas, the names of the exoplanet systems, planets and galaxies that
+  arrived) and the table in `DATA_CHANGELOG.md`; the weekly workflow runs it before it
+  commits. The Data pane lists it under **Data updates**, each build expandable to its
+  new names. The Gaia clouds and the Horizons table are static releases outside that
+  history; the live feeds refresh on their own schedules and are not builds.
+- `CITATION.cff` says how to cite the map with its build.
 - *View → SVG* (Sky pane, Export) renders one frame through a recording context: every
   line, ring, grid, orbit and label is a path or a text, the point clouds and the sky image
   sit underneath as one raster. Figures for a paper come out of this.

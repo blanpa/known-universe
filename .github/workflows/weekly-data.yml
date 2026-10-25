@@ -17,6 +17,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0          # data_history.py diffs every build of data.json
       - name: Rebuild catalogues
         run: |
           cp site/data/data.json /tmp/old-data.json
@@ -50,7 +52,7 @@ jobs:
         run: |
           git config user.name github-actions
           git config user.email github-actions@github.com
-          git add site/data/data.json site/data/belt.bin DATA_CHANGELOG.md
+          git add site/data/data.json site/data/belt.bin site/data/changelog.json DATA_CHANGELOG.md
           git commit -m "$COMMIT_MSG"
           git pull --rebase origin main
           git push

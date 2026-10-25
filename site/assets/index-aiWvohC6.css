@@ -380,4 +380,14 @@ a.chip { text-decoration: none; }
 .lc-bls { color: #ffcf6b; }
 .lc-obs { max-height: 24vh; overflow-y: auto; }
 
+/* Data pane · data updates (what came in, and when) */
+.dl .dl-row{display:block;padding:6px 0;border-top:1px solid rgba(255,255,255,.06)}
+.dl-head{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:baseline;font-size:11px}
+.dl-date{color:#e9edfa}
+.dl-kind{color:#8fb7d9;text-transform:uppercase;letter-spacing:.04em;font-size:10px}
+.dl-n{color:#aab4cc;flex-basis:100%}
+.dl-det summary{cursor:pointer;font-size:10.5px;color:#cfd6ea;padding:2px 0}
+.dl-names{margin:2px 0 0;font-size:10.5px;line-height:1.5;color:#dfe6f7;word-break:break-word}
+.dl-names.dim{color:#8a93ab}
+
   .ic.svelte-13so817 { flex: 0 0 auto; display: block; }

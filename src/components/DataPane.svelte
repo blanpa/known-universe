@@ -3,7 +3,7 @@
   // timing, size, file date and count. Catalogue files of this build, live services,
   // Earth and Sun imagery, sky-survey tiles, catalogue queries.
   import { api } from '../lib/api.js';
-  import { sources } from '../lib/sources.js';
+  import { count, sources, tfetch } from '../lib/sources.js';
   import Icon from './Icon.svelte';
   let { compact = false } = $props();
   const GROUPS = [
@@ -28,6 +28,20 @@
   $effect(() => { try { keySaved = !!localStorage.getItem('nasa_api_key'); } catch (e) {} });
   function saveKey() { try { if (key.trim()) { localStorage.setItem('nasa_api_key', key.trim()); keySaved = true; key = ''; api.liveRefresh?.(); } } catch (e) {} }
   function clearKey() { try { localStorage.removeItem('nasa_api_key'); keySaved = false; } catch (e) {} }
+  // What came in, and when: every build of the catalogue file, diffed by name (site/data/changelog.json,
+  // written by pipeline/data_history.py from git; the weekly workflow refreshes it).
+  let log = $state(null);
+  let logErr = $state('');
+  $effect(() => { if (log !== null) return;
+    tfetch('changelog-json', { name: 'changelog.json · what came in, and when', group: 'catalogue' }, 'data/changelog.json?b=' + __BUILD__)
+      .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+      .then(j => { log = j; count('changelog-json', (j.builds || []).length); })
+      .catch(e => { logErr = e.message; log = { builds: [] }; }); });
+  const kind = e => /weekly/i.test(e.subject) || e.commit === 'pending' ? 'weekly refresh' : 'rebuild';
+  const sgn = n => n > 0 ? `+${num(n)}` : num(n);
+  const plus = (e, k) => e.delta && e.delta[k] ? ` (${sgn(e.delta[k])})` : '';
+  const names = (e, k) => (e.added && e.added[k]) || [];
+  const more = (e, k) => Math.max(0, ((e.nAdded || {})[k] || 0) - names(e, k).length);
 </script>
 
 <div class="panel" id="hud-data" class:compact>
@@ -66,6 +80,40 @@
       </ul>
     {/if}
   {/each}
+
+  <div class="label lg-sub">Data updates · what came in, and when</div>
+  <p class="hint">Every build of the catalogue file, newest first, diffed by name against the one before: the exoplanet
+    systems, planets and galaxies that arrived (NASA Exoplanet Archive weekly, Monday 05:23 UTC). The Gaia clouds and the
+    Horizons table are static releases; the live feeds above refresh on their own schedules and are not builds.</p>
+  {#if log === null}
+    <p class="hint mono">loading changelog.json…</p>
+  {:else if !log.builds.length}
+    <p class="hint mono">no changelog in this build{logErr ? ' · ' + logErr : ''}</p>
+  {:else}
+    <ul class="src dl" id="data-log">
+      {#each log.builds as e (e.commit + e.date)}
+        {@const sys = names(e, 'systems')}
+        {@const gal = names(e, 'galaxies')}
+        {@const pl = names(e, 'planets')}
+        <li class="dl-row">
+          <div class="dl-head mono"><span class="dl-date">{e.date}</span><span class="dl-kind">{kind(e)}</span>
+            <span class="dl-n">{num(e.counts.systems)} systems{plus(e, 'systems')} · {num(e.counts.planets)} planets{plus(e, 'planets')} · {num(e.counts.galaxies)} galaxies{plus(e, 'galaxies')} · {num(e.counts.hyg)} HYG{plus(e, 'hyg')}</span></div>
+          {#if sys.length || gal.length}
+            <details class="dl-det">
+              <summary class="mono">{#if sys.length}{sys.length + more(e, 'systems')} new system{sys.length + more(e, 'systems') === 1 ? '' : 's'}{/if}{#if sys.length && gal.length}{' · '}{/if}{#if gal.length}{gal.length + more(e, 'galaxies')} new galax{gal.length + more(e, 'galaxies') === 1 ? 'y' : 'ies'}{/if}{#if pl.length}{' · '}{pl.length + more(e, 'planets')} planet{pl.length + more(e, 'planets') === 1 ? '' : 's'}{/if}</summary>
+              {#if sys.length}<p class="dl-names mono">{sys.join(' · ')}{more(e, 'systems') ? ` · +${more(e, 'systems')} more` : ''}</p>{/if}
+              {#if pl.length}<p class="dl-names mono dim">{pl.join(' · ')}{more(e, 'planets') ? ` · +${more(e, 'planets')} more` : ''}</p>{/if}
+              {#if gal.length}<p class="dl-names mono">{gal.join(' · ')}</p>{/if}
+            </details>
+          {:else if e.delta}
+            <p class="dl-names mono dim">{e.nRemoved && (e.nRemoved.systems || e.nRemoved.planets) ? `${e.nRemoved.systems || 0} systems / ${e.nRemoved.planets || 0} planets dropped` : e.delta.hyg ? `HYG ${sgn(e.delta.hyg)}` : 'rebuilt · same contents, new positions or fields'}</p>
+          {:else}
+            <p class="dl-names mono dim">first build in the history</p>
+          {/if}
+        </li>
+      {/each}
+    </ul>
+  {/if}
 
   <div class="label lg-sub">NASA API key</div>
   <p class="hint">NASA's services (asteroid flybys, solar storms, EPIC) run on the shared <span class="mono">DEMO_KEY</span>,

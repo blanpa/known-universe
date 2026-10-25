@@ -133,13 +133,27 @@ async function open(vp, mobile, hash) {
     return { n: rows.length, ok: st('ok'), error: st('error'), busy: st('busy'), noReason: bad, sum: document.querySelector('#hud-data .src-sum')?.textContent.replace(/\s+/g, ' ').trim(),
       files: rows.filter(r => /\.bin|\.json/.test(r.textContent) && r.classList.contains('ok')).length }; });
   ok(src.n >= 12 && src.files >= 2, `Data pane lists ${src.n} sources, ${src.files} catalogue files loaded so far (${src.sum})`);
+
+  // what came in, and when: the catalogue history (site/data/changelog.json from pipeline/data_history.py)
+  await page.waitForFunction(() => document.querySelectorAll('#data-log .dl-row').length > 0, null, { timeout: 15000 }).catch(() => {});
+  const dl = await page.evaluate(() => { const rows = [...document.querySelectorAll('#data-log .dl-row')]; const txt = rows.map(r => r.textContent.replace(/\s+/g, ' ').trim());
+    return { n: rows.length, first: (txt[0] || '').slice(0, 120), weekly: txt.find(t => /2026-10-19/.test(t)) || '' }; });
+  ok(dl.n >= 10 && /weekly refresh/.test(dl.weekly) && /TOI-5699/.test(dl.weekly) && /\+5\)/.test(dl.weekly), `the Data pane lists every catalogue build with what came in (${dl.n} builds; 2026-10-19: ${dl.weekly.slice(0, 110) || 'missing'})`);
   ok(src.noReason === 0, `every failed source names a reason (${src.error} failed, ${src.busy} running)`);
   await page.screenshot({ path: join(OUT, 'desktop-data.png') });
   await page.keyboard.press('Escape');
 
   // the telescope: sky view at the Pleiades on DSS2 tiles, north up, east left, blink
   await page.evaluate(() => { const a = window.__kuapi; a.skyView(true); a.setSurvey('dss'); a.lookAt(56.75, 24.12); a.setFov(6); });
-  await page.waitForTimeout(gpu ? 9000 : 15000);
+  // the turn and the north-up roll ease over frames: wait until the field has arrived and the
+  // orientation is still (a loaded machine renders few frames, and 9 s once read mid-turn)
+  await page.waitForTimeout(gpu ? 4000 : 8000);
+  for (let i = 0, last = null; i < 60; i++) {
+    const m = await page.evaluate(() => { const c = window.__ku.fieldCentre(); const v = Math.cos(26 * Math.PI / 180); const n = window.__ku.projDir(v * Math.cos(56.75 * Math.PI / 180), v * Math.sin(56.75 * Math.PI / 180), Math.sin(26 * Math.PI / 180)); return [c[0], c[1], n.x, n.y]; });
+    if (last && Math.abs(m[0] - 56.75) < 0.05 && Math.abs(m[1] - 24.12) < 0.05 && Math.abs(m[2] - last[2]) < 0.5 && Math.abs(m[3] - last[3]) < 0.5) break;
+    last = m; await page.waitForTimeout(500);
+  }
+  await page.waitForTimeout(gpu ? 3000 : 5000);          // and the tiles
   const sky = await page.evaluate(() => {
     const d = (ra, dec) => { const r = ra * Math.PI / 180, q = dec * Math.PI / 180; return [Math.cos(q) * Math.cos(r), Math.cos(q) * Math.sin(r), Math.sin(q)]; };
     const P = (ra, dec) => { const v = d(ra, dec); return window.__ku.projDir(v[0], v[1], v[2]); };

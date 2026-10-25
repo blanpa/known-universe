@@ -5725,14 +5725,14 @@ var root_1$13 = /* @__PURE__ */ from_html(`<dt> </dt><dd> </dd>`, 1);
 var root_2$9 = /* @__PURE__ */ from_html(`<li><b> </b><span> </span></li>`);
 var root_3$8 = /* @__PURE__ */ from_html(`<li class="more"> </li>`);
 var root_4$5 = /* @__PURE__ */ from_html(`<div class="in-sub"> </div> <ul class="in-planets"><!> <!></ul>`, 1);
-var root_5$4 = /* @__PURE__ */ from_html(`<a target="_blank" rel="noopener"> </a>`);
-var root_6$3 = /* @__PURE__ */ from_html(`<div class="in-links"></div>`);
-var root_7$3 = /* @__PURE__ */ from_html(`<button type="button" title="Keep it centred while you zoom"><!> </button>`);
-var root_8$3 = /* @__PURE__ */ from_html(`<button type="button" title="Set a course and see distance, light time and bearing"><!> </button>`);
-var root_9$3 = /* @__PURE__ */ from_html(`<button type="button" title="A 1 g starship from Earth: how long would it take?"><!> </button>`);
-var root_10$3 = /* @__PURE__ */ from_html(`<button type="button" title="Minimum-Δv transfer orbit from Earth"><!> </button>`);
-var root_11$3 = /* @__PURE__ */ from_html(`<div class="in-actions" role="group" aria-label="Actions"><!> <!> <!> <!></div>`);
-var root_12$3 = /* @__PURE__ */ from_html(`<div class="in-hint"> </div>`);
+var root_5$5 = /* @__PURE__ */ from_html(`<a target="_blank" rel="noopener"> </a>`);
+var root_6$4 = /* @__PURE__ */ from_html(`<div class="in-links"></div>`);
+var root_7$4 = /* @__PURE__ */ from_html(`<button type="button" title="Keep it centred while you zoom"><!> </button>`);
+var root_8$4 = /* @__PURE__ */ from_html(`<button type="button" title="Set a course and see distance, light time and bearing"><!> </button>`);
+var root_9$4 = /* @__PURE__ */ from_html(`<button type="button" title="A 1 g starship from Earth: how long would it take?"><!> </button>`);
+var root_10$4 = /* @__PURE__ */ from_html(`<button type="button" title="Minimum-Δv transfer orbit from Earth"><!> </button>`);
+var root_11$4 = /* @__PURE__ */ from_html(`<div class="in-actions" role="group" aria-label="Actions"><!> <!> <!> <!></div>`);
+var root_12$4 = /* @__PURE__ */ from_html(`<div class="in-hint"> </div>`);
 var root_13$3 = /* @__PURE__ */ from_html(`<section id="info" aria-live="polite"><header class="in-h"><span class="in-dot"></span> <div class="in-t"><div class="in-name"> </div> <div class="in-kind"> </div></div> <!></header> <dl class="in-rows"></dl> <!> <!> <!> <!></section>`);
 function InfoCard($$anchor, $$props) {
 	push($$props, false);
@@ -5865,9 +5865,9 @@ function InfoCard($$anchor, $$props) {
 		});
 		var node_6 = sibling(node_3, 2);
 		var consequent_3 = ($$anchor) => {
-			var div_4 = root_6$3();
+			var div_4 = root_6$4();
 			each(div_4, 5, () => get(c).links, (l) => l.u, ($$anchor, l) => {
-				var a = root_5$4();
+				var a = root_5$5();
 				var text_8 = child(a, true);
 				reset(a);
 				template_effect(() => {
@@ -5884,10 +5884,10 @@ function InfoCard($$anchor, $$props) {
 		});
 		var node_7 = sibling(node_6, 2);
 		var consequent_8 = ($$anchor) => {
-			var div_5 = root_11$3();
+			var div_5 = root_11$4();
 			var node_8 = child(div_5);
 			var consequent_4 = ($$anchor) => {
-				var button_1 = root_7$3();
+				var button_1 = root_7$4();
 				let classes_2;
 				var node_9 = child(button_1);
 				{
@@ -5913,7 +5913,7 @@ function InfoCard($$anchor, $$props) {
 			});
 			var node_10 = sibling(node_8, 2);
 			var consequent_5 = ($$anchor) => {
-				var button_2 = root_8$3();
+				var button_2 = root_8$4();
 				let classes_3;
 				var node_11 = child(button_2);
 				{
@@ -5939,7 +5939,7 @@ function InfoCard($$anchor, $$props) {
 			});
 			var node_12 = sibling(node_10, 2);
 			var consequent_6 = ($$anchor) => {
-				var button_3 = root_9$3();
+				var button_3 = root_9$4();
 				let classes_4;
 				var node_13 = child(button_3);
 				Icon(node_13, {
@@ -5960,7 +5960,7 @@ function InfoCard($$anchor, $$props) {
 			});
 			var node_14 = sibling(node_12, 2);
 			var consequent_7 = ($$anchor) => {
-				var button_4 = root_10$3();
+				var button_4 = root_10$4();
 				let classes_5;
 				var node_15 = child(button_4);
 				Icon(node_15, {
@@ -5987,7 +5987,7 @@ function InfoCard($$anchor, $$props) {
 		});
 		var node_16 = sibling(node_7, 2);
 		var consequent_9 = ($$anchor) => {
-			var div_6 = root_12$3();
+			var div_6 = root_12$4();
 			var text_13 = child(div_6, true);
 			reset(div_6);
 			template_effect(() => set_text(text_13, get(c).hint));
@@ -6248,7 +6248,7 @@ var root_1$12 = /* @__PURE__ */ from_html(`<button type="button" class="lf-x" ar
 var root_2$8 = /* @__PURE__ */ from_html(`<div><button type="button" class="ctl-h"><span class="ctl-hl"><!><!></span> <span class="caret"><!></span></button> <!></div>`);
 var root_3$7 = /* @__PURE__ */ from_html(`<div class="lf-none"> </div>`);
 var root_4$4 = /* @__PURE__ */ from_html(`<button type="button"><span class="cdot"></span> <span class="cl"> </span><span class="cn"> </span></button>`);
-var root_5$3 = /* @__PURE__ */ from_html(`<div class="panel"><div class="presets" role="group" aria-label="Layer presets"></div> <div class="lfilter"><!> <input type="text" spellcheck="false" placeholder="Filter layers…" aria-label="Filter layers"/> <!></div> <!> <!> <div class="ctl-inst"><div class="label" style="margin-bottom:8px">Discovery instrument</div> <button type="button" role="switch"><span>colour by it</span><span class="sw" aria-hidden="true"></span></button> <div class="chips"></div></div> <div class="hint">Drag to orbit · right-drag to pan · scroll to zoom · double-click to focus<br/>WASD to fly · [.] frame selection · [Home] reset · [Esc] release</div></div>`);
+var root_5$4 = /* @__PURE__ */ from_html(`<div class="panel"><div class="presets" role="group" aria-label="Layer presets"></div> <div class="lfilter"><!> <input type="text" spellcheck="false" placeholder="Filter layers…" aria-label="Filter layers"/> <!></div> <!> <!> <div class="ctl-inst"><div class="label" style="margin-bottom:8px">Discovery instrument</div> <button type="button" role="switch"><span>colour by it</span><span class="sw" aria-hidden="true"></span></button> <div class="chips"></div></div> <div class="hint">Drag to orbit · right-drag to pan · scroll to zoom · double-click to focus<br/>WASD to fly · [.] frame selection · [Home] reset · [Esc] release</div></div>`);
 function Controls($$anchor, $$props) {
 	push($$props, true);
 	const $labels = () => store_get(labels, "$labels", $$stores);
@@ -6552,7 +6552,7 @@ function Controls($$anchor, $$props) {
 	function colby() {
 		if (api.facColorToggle) facColor.set(api.facColorToggle());
 	}
-	var div = root_5$3();
+	var div = root_5$4();
 	var div_1 = child(div);
 	each(div_1, 21, () => PRESETS, (p) => p.k, ($$anchor, p) => {
 		var button = root$15();
@@ -7035,14 +7035,14 @@ var root_1$9 = /* @__PURE__ */ from_html(`<button type="button" class="sky-aim">
 var root_2$6 = /* @__PURE__ */ from_html(`<button type="button" class="chip"> </button>`);
 var root_3$5 = /* @__PURE__ */ from_html(`<div class="sky-ro mono"><span> </span> <span> </span> <span> </span></div> <div class="sky-fov"></div> <!>`, 1);
 var root_4$3 = /* @__PURE__ */ from_html(`<button type="button"><span class="sv-n"> <span class="sv-b mono"> </span></span><span class="sv-s"> </span></button>`);
-var root_5$2 = /* @__PURE__ */ from_html(`<button type="button"><span class="sv-n">Your image<span class="sv-b mono">FITS</span></span> <span class="sv-s"> </span></button>`);
-var root_6$2 = /* @__PURE__ */ from_html(`<button type="button" class="chip">Remove</button> <button type="button" class="chip">Point at it</button>`, 1);
-var root_7$2 = /* @__PURE__ */ from_html(`<p class="hint warn"> </p>`);
-var root_8$2 = /* @__PURE__ */ from_html(`<button type="button"> </button>`);
-var root_9$2 = /* @__PURE__ */ from_html(`<button type="button">Your image</button>`);
-var root_10$2 = /* @__PURE__ */ from_html(`<li><button type="button"><span> </span> <span class="enc-t mono"> </span> <span class="enc-d mono"> </span> <span class="enc-v mono"> </span></button></li>`);
-var root_11$2 = /* @__PURE__ */ from_html(`<ul class="enc mov"></ul>`);
-var root_12$2 = /* @__PURE__ */ from_html(`<p class="hint">Nothing in this field moves by half an arcsecond or more — or zoom in: only stars on screen are listed.</p>`);
+var root_5$3 = /* @__PURE__ */ from_html(`<button type="button"><span class="sv-n">Your image<span class="sv-b mono">FITS</span></span> <span class="sv-s"> </span></button>`);
+var root_6$3 = /* @__PURE__ */ from_html(`<button type="button" class="chip">Remove</button> <button type="button" class="chip">Point at it</button>`, 1);
+var root_7$3 = /* @__PURE__ */ from_html(`<p class="hint warn"> </p>`);
+var root_8$3 = /* @__PURE__ */ from_html(`<button type="button"> </button>`);
+var root_9$3 = /* @__PURE__ */ from_html(`<button type="button">Your image</button>`);
+var root_10$3 = /* @__PURE__ */ from_html(`<li><button type="button"><span> </span> <span class="enc-t mono"> </span> <span class="enc-d mono"> </span> <span class="enc-v mono"> </span></button></li>`);
+var root_11$3 = /* @__PURE__ */ from_html(`<ul class="enc mov"></ul>`);
+var root_12$3 = /* @__PURE__ */ from_html(`<p class="hint">Nothing in this field moves by half an arcsecond or more — or zoom in: only stars on screen are listed.</p>`);
 var root_13$2 = /* @__PURE__ */ from_html(`<div class="label lg-sub">Expected jumps</div> <p class="hint"> </p> <!>`, 1);
 var root_14$2 = /* @__PURE__ */ from_html(`<div class="label lg-sub">Go deeper</div> <p class="hint"><a target="_blank" rel="noopener">Open this field in Aladin Lite</a> for every survey and catalogue the CDS holds.
       Hunt for moving objects with real data at <a href="https://www.zooniverse.org/projects/marckuchner/backyard-worlds-planet-9" target="_blank" rel="noopener">Backyard Worlds</a> (WISE blinks) or transits at <a href="https://www.zooniverse.org/projects/nora-dot-eisner/planet-hunters-tess" target="_blank" rel="noopener">Planet Hunters TESS</a>.</p>`, 1);
@@ -7319,7 +7319,7 @@ function SkyPane($$anchor, $$props) {
 	});
 	var node_9 = sibling(node_8, 2);
 	var consequent_5 = ($$anchor) => {
-		var button_8 = root_5$2();
+		var button_8 = root_5$3();
 		let classes_3;
 		var span_6 = sibling(child(button_8), 2);
 		var text_11 = child(span_6);
@@ -7344,7 +7344,7 @@ function SkyPane($$anchor, $$props) {
 	reset(button_9);
 	var node_10 = sibling(button_9, 2);
 	var consequent_6 = ($$anchor) => {
-		var fragment_2 = root_6$2();
+		var fragment_2 = root_6$3();
 		var button_10 = first_child(fragment_2);
 		var button_11 = sibling(button_10, 2);
 		delegated("click", button_10, () => api.clearFits?.());
@@ -7357,7 +7357,7 @@ function SkyPane($$anchor, $$props) {
 	reset(div_4);
 	var node_11 = sibling(div_4, 2);
 	var consequent_7 = ($$anchor) => {
-		var p_2 = root_7$2();
+		var p_2 = root_7$3();
 		var text_13 = child(p_2, true);
 		reset(p_2);
 		template_effect(() => set_text(text_13, $survey().fitsMsg));
@@ -7376,7 +7376,7 @@ function SkyPane($$anchor, $$props) {
 	var div_5 = sibling(button_12, 2);
 	var node_12 = child(div_5);
 	each(node_12, 17, () => SURVEYS.filter((s) => s.id !== $survey().id), (s) => s.id, ($$anchor, s) => {
-		var button_13 = root_8$2();
+		var button_13 = root_8$3();
 		let classes_5;
 		var text_15 = child(button_13, true);
 		reset(button_13);
@@ -7389,7 +7389,7 @@ function SkyPane($$anchor, $$props) {
 	});
 	var node_13 = sibling(node_12, 2);
 	var consequent_8 = ($$anchor) => {
-		var button_14 = root_9$2();
+		var button_14 = root_9$3();
 		let classes_6;
 		template_effect(() => classes_6 = set_class(button_14, 1, "chip", null, classes_6, { on: get(other) === "fits" }));
 		delegated("click", button_14, () => api.setBlink?.($survey().blink, "fits"));
@@ -7407,9 +7407,9 @@ function SkyPane($$anchor, $$props) {
 		reset(p_3);
 		var node_15 = sibling(p_3, 2);
 		var consequent_9 = ($$anchor) => {
-			var ul = root_11$2();
+			var ul = root_11$3();
 			each(ul, 5, () => $movers().list, index, ($$anchor, m) => {
-				var li = root_10$2();
+				var li = root_10$3();
 				var button_15 = child(li);
 				var span_8 = child(button_15);
 				let classes_7;
@@ -7445,7 +7445,7 @@ function SkyPane($$anchor, $$props) {
 			append($$anchor, ul);
 		};
 		var alternate = ($$anchor) => {
-			append($$anchor, root_12$2());
+			append($$anchor, root_12$3());
 		};
 		if_block(node_15, ($$render) => {
 			if ($movers().list.length) $$render(consequent_9);
@@ -7643,7 +7643,7 @@ function SkyPane($$anchor, $$props) {
 	});
 	var node_26 = sibling(node_25, 2);
 	var consequent_19 = ($$anchor) => {
-		var p_8 = root_7$2();
+		var p_8 = root_7$3();
 		var text_33 = child(p_8, true);
 		reset(p_8);
 		template_effect(() => set_text(text_33, $userLayer().warn));
@@ -7719,7 +7719,7 @@ function SkyPane($$anchor, $$props) {
 	reset(div_12);
 	var node_29 = sibling(div_12, 2);
 	var consequent_22 = ($$anchor) => {
-		var p_11 = root_7$2();
+		var p_11 = root_7$3();
 		var text_38 = child(p_11, true);
 		reset(p_11);
 		template_effect(() => set_text(text_38, $observer().msg));
@@ -7764,7 +7764,7 @@ function SkyPane($$anchor, $$props) {
 	});
 	var div_14 = sibling(node_30, 6);
 	each(div_14, 23, () => PRESETS, (p) => p.n, ($$anchor, p, i) => {
-		var button_30 = root_8$2();
+		var button_30 = root_8$3();
 		let classes_15;
 		var text_42 = child(button_30, true);
 		reset(button_30);
@@ -8109,9 +8109,19 @@ function SkyStatus($$anchor, $$props) {
 //#region src/components/DataPane.svelte
 var root$7 = /* @__PURE__ */ from_html(`<li><span aria-hidden="true"></span> <span class="src-n"> </span> <span class="src-s mono"> </span> <span class="src-d mono"><!> <!> <!> <!> <!> <!></span></li>`);
 var root_1$7 = /* @__PURE__ */ from_html(`<div class="label lg-sub"> </div> <p class="hint"> </p> <ul class="src"></ul>`, 1);
-var root_2$4 = /* @__PURE__ */ from_html(`<div class="sky-fov"><span class="hint">A key is saved.</span><button type="button" class="chip">Remove key</button></div>`);
-var root_3$3 = /* @__PURE__ */ from_html(`<div class="sky-fov"><input class="src-key mono" type="password" placeholder="paste your key" autocomplete="off"/> <button type="button" class="chip">Save</button></div>`);
-var root_4$2 = /* @__PURE__ */ from_html(`<div id="hud-data"><div class="label">Data</div> <p class="hint">Every outside source this map uses, and its state right now.</p> <div class="src-sum mono"><span class="d busy"></span> <span class="d ok"></span> <span class="d warn"></span> <span class="d error"></span> </div> <div class="sky-fov"><button type="button" class="chip"><!>Refresh live data</button></div> <!> <div class="label lg-sub">NASA API key</div> <p class="hint">NASA's services (asteroid flybys, solar storms, EPIC) run on the shared <span class="mono">DEMO_KEY</span>,
+var root_2$4 = /* @__PURE__ */ from_html(`<p class="hint mono">loading changelog.json…</p>`);
+var root_3$3 = /* @__PURE__ */ from_html(`<p class="hint mono"> </p>`);
+var root_4$2 = /* @__PURE__ */ from_html(`<p class="dl-names mono"> </p>`);
+var root_5$2 = /* @__PURE__ */ from_html(`<p class="dl-names mono dim"> </p>`);
+var root_6$2 = /* @__PURE__ */ from_html(`<details class="dl-det"><summary class="mono"><!><!><!><!></summary> <!> <!> <!></details>`);
+var root_7$2 = /* @__PURE__ */ from_html(`<p class="dl-names mono dim">first build in the history</p>`);
+var root_8$2 = /* @__PURE__ */ from_html(`<li class="dl-row"><div class="dl-head mono"><span class="dl-date"> </span><span class="dl-kind"> </span> <span class="dl-n"> </span></div> <!></li>`);
+var root_9$2 = /* @__PURE__ */ from_html(`<ul class="src dl" id="data-log"></ul>`);
+var root_10$2 = /* @__PURE__ */ from_html(`<div class="sky-fov"><span class="hint">A key is saved.</span><button type="button" class="chip">Remove key</button></div>`);
+var root_11$2 = /* @__PURE__ */ from_html(`<div class="sky-fov"><input class="src-key mono" type="password" placeholder="paste your key" autocomplete="off"/> <button type="button" class="chip">Save</button></div>`);
+var root_12$2 = /* @__PURE__ */ from_html(`<div id="hud-data"><div class="label">Data</div> <p class="hint">Every outside source this map uses, and its state right now.</p> <div class="src-sum mono"><span class="d busy"></span> <span class="d ok"></span> <span class="d warn"></span> <span class="d error"></span> </div> <div class="sky-fov"><button type="button" class="chip"><!>Refresh live data</button></div> <!> <div class="label lg-sub">Data updates · what came in, and when</div> <p class="hint">Every build of the catalogue file, newest first, diffed by name against the one before: the exoplanet
+    systems, planets and galaxies that arrived (NASA Exoplanet Archive weekly, Monday 05:23 UTC). The Gaia clouds and the
+    Horizons table are static releases; the live feeds above refresh on their own schedules and are not builds.</p> <!> <div class="label lg-sub">NASA API key</div> <p class="hint">NASA's services (asteroid flybys, solar storms, EPIC) run on the shared <span class="mono">DEMO_KEY</span>,
     which allows about 30 requests an hour and then answers 429. A personal key is free at api.nasa.gov; it stays in this
     browser and goes only to api.nasa.gov.</p> <!></div>`);
 function DataPane($$anchor, $$props) {
@@ -8200,7 +8210,30 @@ function DataPane($$anchor, $$props) {
 			set(keySaved, false);
 		} catch (e) {}
 	}
-	var div = root_4$2();
+	let log = /* @__PURE__ */ state(null);
+	let logErr = /* @__PURE__ */ state("");
+	user_effect(() => {
+		if (get(log) !== null) return;
+		tfetch("changelog-json", {
+			name: "changelog.json · what came in, and when",
+			group: "catalogue"
+		}, "data/changelog.json?b=20261025-1115").then((r) => {
+			if (!r.ok) throw new Error("HTTP " + r.status);
+			return r.json();
+		}).then((j) => {
+			set(log, j, true);
+			count("changelog-json", (j.builds || []).length);
+		}).catch((e) => {
+			set(logErr, e.message, true);
+			set(log, { builds: [] }, true);
+		});
+	});
+	const kind = (e) => /weekly/i.test(e.subject) || e.commit === "pending" ? "weekly refresh" : "rebuild";
+	const sgn = (n) => n > 0 ? `+${num(n)}` : num(n);
+	const plus = (e, k) => e.delta && e.delta[k] ? ` (${sgn(e.delta[k])})` : "";
+	const names = (e, k) => e.added && e.added[k] || [];
+	const more = (e, k) => Math.max(0, ((e.nAdded || {})[k] || 0) - names(e, k).length);
+	var div = root_12$2();
 	let classes;
 	var div_1 = sibling(child(div), 4);
 	var text$1 = sibling(child(div_1));
@@ -8324,26 +8357,173 @@ function DataPane($$anchor, $$props) {
 	});
 	var node_9 = sibling(node_1, 6);
 	var consequent_7 = ($$anchor) => {
-		var div_4 = root_2$4();
-		var button_1 = sibling(child(div_4));
-		reset(div_4);
-		delegated("click", button_1, clearKey);
-		append($$anchor, div_4);
+		append($$anchor, root_2$4());
 	};
-	var alternate = ($$anchor) => {
-		var div_5 = root_3$3();
-		var input = child(div_5);
+	var consequent_8 = ($$anchor) => {
+		var p_2 = root_3$3();
+		var text_14 = child(p_2);
+		reset(p_2);
+		template_effect(() => set_text(text_14, `no changelog in this build${get(logErr) ? " · " + get(logErr) : ""}`));
+		append($$anchor, p_2);
+	};
+	var alternate_1 = ($$anchor) => {
+		var ul_1 = root_9$2();
+		each(ul_1, 21, () => get(log).builds, (e) => e.commit + e.date, ($$anchor, e) => {
+			const sys = /* @__PURE__ */ user_derived(() => names(get(e), "systems"));
+			const gal = /* @__PURE__ */ user_derived(() => names(get(e), "galaxies"));
+			const pl = /* @__PURE__ */ user_derived(() => names(get(e), "planets"));
+			var li_1 = root_8$2();
+			var div_4 = child(li_1);
+			var span_4 = child(div_4);
+			var text_15 = child(span_4, true);
+			reset(span_4);
+			var span_5 = sibling(span_4);
+			var text_16 = child(span_5, true);
+			reset(span_5);
+			var span_6 = sibling(span_5, 2);
+			var text_17 = child(span_6);
+			reset(span_6);
+			reset(div_4);
+			var node_10 = sibling(div_4, 2);
+			var consequent_16 = ($$anchor) => {
+				var details = root_6$2();
+				var summary = child(details);
+				var node_11 = child(summary);
+				var consequent_9 = ($$anchor) => {
+					var text_18 = text();
+					template_effect(($0, $1) => set_text(text_18, `${$0 ?? ""} new system${$1 ?? ""}`), [() => get(sys).length + more(get(e), "systems"), () => get(sys).length + more(get(e), "systems") === 1 ? "" : "s"]);
+					append($$anchor, text_18);
+				};
+				if_block(node_11, ($$render) => {
+					if (get(sys).length) $$render(consequent_9);
+				});
+				var node_12 = sibling(node_11);
+				var consequent_10 = ($$anchor) => {
+					var text_19 = text();
+					text_19.nodeValue = " · ";
+					append($$anchor, text_19);
+				};
+				if_block(node_12, ($$render) => {
+					if (get(sys).length && get(gal).length) $$render(consequent_10);
+				});
+				var node_13 = sibling(node_12);
+				var consequent_11 = ($$anchor) => {
+					var text_20 = text();
+					template_effect(($0, $1) => set_text(text_20, `${$0 ?? ""} new galax${$1 ?? ""}`), [() => get(gal).length + more(get(e), "galaxies"), () => get(gal).length + more(get(e), "galaxies") === 1 ? "y" : "ies"]);
+					append($$anchor, text_20);
+				};
+				if_block(node_13, ($$render) => {
+					if (get(gal).length) $$render(consequent_11);
+				});
+				var node_14 = sibling(node_13);
+				var consequent_12 = ($$anchor) => {
+					var text_21 = text();
+					template_effect(($0, $1) => set_text(text_21, ` · ${$0 ?? ""} planet${$1 ?? ""}`), [() => get(pl).length + more(get(e), "planets"), () => get(pl).length + more(get(e), "planets") === 1 ? "" : "s"]);
+					append($$anchor, text_21);
+				};
+				if_block(node_14, ($$render) => {
+					if (get(pl).length) $$render(consequent_12);
+				});
+				reset(summary);
+				var node_15 = sibling(summary, 2);
+				var consequent_13 = ($$anchor) => {
+					var p_3 = root_4$2();
+					var text_22 = child(p_3);
+					reset(p_3);
+					template_effect(($0, $1) => set_text(text_22, `${$0 ?? ""}${$1 ?? ""}`), [() => get(sys).join(" · "), () => more(get(e), "systems") ? ` · +${more(get(e), "systems")} more` : ""]);
+					append($$anchor, p_3);
+				};
+				if_block(node_15, ($$render) => {
+					if (get(sys).length) $$render(consequent_13);
+				});
+				var node_16 = sibling(node_15, 2);
+				var consequent_14 = ($$anchor) => {
+					var p_4 = root_5$2();
+					var text_23 = child(p_4);
+					reset(p_4);
+					template_effect(($0, $1) => set_text(text_23, `${$0 ?? ""}${$1 ?? ""}`), [() => get(pl).join(" · "), () => more(get(e), "planets") ? ` · +${more(get(e), "planets")} more` : ""]);
+					append($$anchor, p_4);
+				};
+				if_block(node_16, ($$render) => {
+					if (get(pl).length) $$render(consequent_14);
+				});
+				var node_17 = sibling(node_16, 2);
+				var consequent_15 = ($$anchor) => {
+					var p_5 = root_4$2();
+					var text_24 = child(p_5, true);
+					reset(p_5);
+					template_effect(($0) => set_text(text_24, $0), [() => get(gal).join(" · ")]);
+					append($$anchor, p_5);
+				};
+				if_block(node_17, ($$render) => {
+					if (get(gal).length) $$render(consequent_15);
+				});
+				reset(details);
+				append($$anchor, details);
+			};
+			var consequent_17 = ($$anchor) => {
+				var p_6 = root_5$2();
+				var text_25 = child(p_6, true);
+				reset(p_6);
+				template_effect(($0) => set_text(text_25, $0), [() => get(e).nRemoved && (get(e).nRemoved.systems || get(e).nRemoved.planets) ? `${get(e).nRemoved.systems || 0} systems / ${get(e).nRemoved.planets || 0} planets dropped` : get(e).delta.hyg ? `HYG ${sgn(get(e).delta.hyg)}` : "rebuilt · same contents, new positions or fields"]);
+				append($$anchor, p_6);
+			};
+			var alternate = ($$anchor) => {
+				append($$anchor, root_7$2());
+			};
+			if_block(node_10, ($$render) => {
+				if (get(sys).length || get(gal).length) $$render(consequent_16);
+				else if (get(e).delta) $$render(consequent_17, 1);
+				else $$render(alternate, -1);
+			});
+			reset(li_1);
+			template_effect(($0, $1, $2, $3, $4, $5, $6, $7, $8) => {
+				set_text(text_15, get(e).date);
+				set_text(text_16, $0);
+				set_text(text_17, `${$1 ?? ""} systems${$2 ?? ""} · ${$3 ?? ""} planets${$4 ?? ""} · ${$5 ?? ""} galaxies${$6 ?? ""} · ${$7 ?? ""} HYG${$8 ?? ""}`);
+			}, [
+				() => kind(get(e)),
+				() => num(get(e).counts.systems),
+				() => plus(get(e), "systems"),
+				() => num(get(e).counts.planets),
+				() => plus(get(e), "planets"),
+				() => num(get(e).counts.galaxies),
+				() => plus(get(e), "galaxies"),
+				() => num(get(e).counts.hyg),
+				() => plus(get(e), "hyg")
+			]);
+			append($$anchor, li_1);
+		});
+		reset(ul_1);
+		append($$anchor, ul_1);
+	};
+	if_block(node_9, ($$render) => {
+		if (get(log) === null) $$render(consequent_7);
+		else if (!get(log).builds.length) $$render(consequent_8, 1);
+		else $$render(alternate_1, -1);
+	});
+	var node_18 = sibling(node_9, 6);
+	var consequent_18 = ($$anchor) => {
+		var div_5 = root_10$2();
+		var button_1 = sibling(child(div_5));
+		reset(div_5);
+		delegated("click", button_1, clearKey);
+		append($$anchor, div_5);
+	};
+	var alternate_2 = ($$anchor) => {
+		var div_6 = root_11$2();
+		var input = child(div_6);
 		remove_input_defaults(input);
 		var button_2 = sibling(input, 2);
-		reset(div_5);
+		reset(div_6);
 		template_effect(($0) => button_2.disabled = $0, [() => !get(key).trim()]);
 		bind_value(input, () => get(key), ($$value) => set(key, $$value));
 		delegated("click", button_2, saveKey);
-		append($$anchor, div_5);
+		append($$anchor, div_6);
 	};
-	if_block(node_9, ($$render) => {
-		if (get(keySaved)) $$render(consequent_7);
-		else $$render(alternate, -1);
+	if_block(node_18, ($$render) => {
+		if (get(keySaved)) $$render(consequent_18);
+		else $$render(alternate_2, -1);
 	});
 	reset(div);
 	template_effect(() => {
@@ -11825,7 +12005,7 @@ function MobileNav($$anchor, $$props) {
 		}
 		var text_2 = sibling(node_6);
 		var small = sibling(text_2);
-		small.textContent = `· 20261025-1057`;
+		small.textContent = `· 20261025-1115`;
 		reset(span_2);
 		var span_3 = sibling(span_2, 2);
 		var button_6 = child(span_3);
@@ -12431,7 +12611,7 @@ window.addEventListener("error", (e) => showErr("⚠ " + (e.message || e.type) +
 window.addEventListener("unhandledrejection", (e) => showErr("⚠ promise: " + (e.reason && e.reason.message || e.reason)));
 mount(App, { target: document.getElementById("app") });
 function boot() {
-	return __vitePreload(() => import("./engine-D_nFk3-6.js").then(() => {
+	return __vitePreload(() => import("./engine-CyCoCiGK.js").then(() => {
 		try {
 			restore();
 		} catch (e) {}
@@ -12448,7 +12628,7 @@ var fail = (e) => {
 	document.body.innerHTML = "<p style=\"color:#e9edfa;font-family:monospace;padding:2em\">Error loading data: " + e + "</p>";
 };
 if (window.__DATA__) boot().catch(fail);
-else Promise.all([getJSON("data/data.json?b=20261025-1057", "data-json", "data.json · stars, exoplanets, galaxies"), getJSON("data/catalog.json?b=20261025-1057", "catalog-json", "catalog.json · solar system, deep sky, pulsars")]).then(([d, c]) => {
+else Promise.all([getJSON("data/data.json?b=20261025-1115", "data-json", "data.json · stars, exoplanets, galaxies"), getJSON("data/catalog.json?b=20261025-1115", "catalog-json", "catalog.json · solar system, deep sky, pulsars")]).then(([d, c]) => {
 	window.__DATA__ = d;
 	window.__CATALOG__ = c;
 	const m = d.meta || {};

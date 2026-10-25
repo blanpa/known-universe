@@ -62,15 +62,12 @@ def refresh(work, dst, builders="/app"):
 
 
 def changelog(dst):
-    """One line per refresh in DATA_CHANGELOG.md next to the repo root: the counts and the build date."""
-    import json, time
-    try: meta = json.load(open(dst))["meta"]
-    except Exception: return
-    root = os.path.dirname(os.path.dirname(os.path.abspath(dst))); path = os.path.join(os.path.dirname(root), "DATA_CHANGELOG.md") if os.path.basename(root) == "site" else os.path.join(root, "DATA_CHANGELOG.md")
-    line = f"| {meta.get('built', time.strftime('%Y-%m-%d'))} | {meta.get('nStars', 0):,} | {meta.get('nPlanets', 0):,} | {meta.get('nGal', 0):,} | {meta.get('nHyg', 0):,} ({meta.get('nHygGaia', 0):,} from Gaia) |\n"
-    if os.path.exists(path):
-        if line in open(path).read(): return
-        open(path, "a").write(line)
+    """DATA_CHANGELOG.md and site/data/changelog.json: what came in, and when — derived from git by
+    pipeline/data_history.py (every build of data.json, diffed by name)."""
+    try:
+        import data_history; data_history.main()
+    except Exception as e:
+        print("changelog:", e)
 
 
 if __name__ == "__main__":
