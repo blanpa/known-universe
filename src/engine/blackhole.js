@@ -2,6 +2,7 @@
 import { ctx, cv } from './canvas.js';
 import { globeViewRows } from './earth.js';
 import { GC, NGP } from './sky-data.js';
+import { V } from './state.js';
 import { DPR } from './view.js';
 // ---- black holes, ray-traced: per-pixel null geodesics (Schwarzschild) ----
 // shadow, photon ring and the folded disk all EMERGE from the light bending;
@@ -123,7 +124,12 @@ function bhRender(x,y,rpx,eht){
     gl.bindTexture(gl.TEXTURE_2D,g.tex);
     gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,c);
     bgOk=1;
-  }catch(e){}
+    if(window.__bhDebug){                                // a test asks: did the capture see anything?
+      const d=g2.getImageData(0,0,256,256).data; let n=0;
+      for(let i=0;i<d.length;i+=4) if(d[i]+d[i+1]+d[i+2]>60) n++;
+      window.__bh={bgOk, lit:n, box, x, y, rpx};
+    }
+  }catch(e){ if(window.__bhDebug) window.__bh={bgOk:0, err:String(e)}; }
   const dpr=Math.min(2,window.devicePixelRatio||1);
   const size=Math.max(160,Math.min(1024,Math.ceil(box*dpr)));
   if(g.cv.width!==size){ g.cv.width=g.cv.height=size; }
@@ -135,7 +141,10 @@ function bhRender(x,y,rpx,eht){
   gl.vertexAttribPointer(g.aP,2,gl.FLOAT,false,0,0);
   // the disk lies in the GALACTIC PLANE (world-fixed): orbiting the camera really
   // changes the view — edge-on from the plane, face-on from the galactic pole
-  const V=globeViewRows();                       // world→camera rows (yaw/pitch)
+  // (the rows used to be called V, which shadowed the engine state above — V.GLDPR then hit
+  // the not-yet-initialised local, the capture threw, and the hole warped only its own
+  // procedural stars instead of the scene behind it)
+  const R=globeViewRows();                       // world→camera rows (yaw/pitch)
   // Gargantua: disk in the galactic plane. EHT torus: flow axis points at Earth
   // (per EHT/GRAVITY we see Sgr A* nearly face-on) — GC ⊥ NGP either way
   const n=eht?GC:NGP, u=eht?NGP:GC;
@@ -143,7 +152,7 @@ function bhRender(x,y,rpx,eht){
   const B=[u,n,w];                               // world→BH rows (disk plane y=0)
   const M=new Array(9);                          // camera→BH = B·Vᵀ, column-major for GLSL
   for(let i2=0;i2<3;i2++) for(let j=0;j<3;j++){
-    M[j*3+i2]=B[i2][0]*V[j][0]+B[i2][1]*V[j][1]+B[i2][2]*V[j][2]; }
+    M[j*3+i2]=B[i2][0]*R[j][0]+B[i2][1]*R[j][1]+B[i2][2]*R[j][2]; }
   gl.uniformMatrix3fv(g.uT,false,M);
   gl.bindTexture(gl.TEXTURE_2D,g.tex);
   gl.uniform1i(g.uBg,0); gl.uniform1f(g.uBgOk,bgOk); gl.uniform1f(g.uMode,eht?1:0);

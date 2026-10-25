@@ -1,4 +1,4 @@
-import { A as timeline, B as tfetch, C as samp, D as stats, E as skyCursor, F as api, I as count, L as declare, M as tour, N as transit, O as survey, P as userLayer, R as mark, S as observer, T as selection, V as timg, _ as lightcurve, a as satEcl, b as movers, c as camera, d as facColor, f as facList$1, g as labels, h as kinematics, i as refreshLive, j as toggleState, k as timeBar, l as crossmatch$1, m as fielddiag, n as activeShowers, o as startLive, p as fieldQuery, r as groundEcl, s as RESERVED, t as LIVE, u as encounters, v as measure, w as searchMsg, x as nav, y as measureLog, z as tally } from "./index-CCUZqoxd.js";
+import { A as timeline, B as tfetch, C as samp, D as stats, E as skyCursor, F as api, I as count, L as declare, M as tour, N as transit, O as survey, P as userLayer, R as mark, S as observer, T as selection, V as timg, _ as lightcurve, a as satEcl, b as movers, c as camera, d as facColor, f as facList$1, g as labels, h as kinematics, i as refreshLive, j as toggleState, k as timeBar, l as crossmatch$1, m as fielddiag, n as activeShowers, o as startLive, p as fieldQuery, r as groundEcl, s as RESERVED, t as LIVE, u as encounters, v as measure, w as searchMsg, x as nav, y as measureLog, z as tally } from "./index-w2PYMSX3.js";
 //#region src/lib/astro.js
 var D2R$7 = Math.PI / 180;
 var R2D$1 = 180 / Math.PI;
@@ -720,7 +720,7 @@ function loadEphem() {
 		name: "ephem.bin · JPL Horizons DE441, planets + Moon 2015–2045",
 		group: "catalogue",
 		optional: true
-	}, "data/ephem.json?b=20261025-1038").then((r) => r.ok ? r.json() : null), fetch("data/ephem.bin?b=20261025-1038").then((r) => r.ok ? r.arrayBuffer() : null)]).then(([m, b]) => {
+	}, "data/ephem.json?b=20261025-1057").then((r) => r.ok ? r.json() : null), fetch("data/ephem.bin?b=20261025-1057").then((r) => r.ok ? r.arrayBuffer() : null)]).then(([m, b]) => {
 		if (!m || !b) return;
 		EPH.meta = m;
 		EPH.table = ephemTable(m, new Uint8Array(b));
@@ -4401,7 +4401,25 @@ function bhRender(x, y, rpx, eht) {
 		gl.bindTexture(gl.TEXTURE_2D, g.tex);
 		gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, c);
 		bgOk = 1;
-	} catch (e) {}
+		if (window.__bhDebug) {
+			const d = g2.getImageData(0, 0, 256, 256).data;
+			let n = 0;
+			for (let i = 0; i < d.length; i += 4) if (d[i] + d[i + 1] + d[i + 2] > 60) n++;
+			window.__bh = {
+				bgOk,
+				lit: n,
+				box,
+				x,
+				y,
+				rpx
+			};
+		}
+	} catch (e) {
+		if (window.__bhDebug) window.__bh = {
+			bgOk: 0,
+			err: String(e)
+		};
+	}
 	const dpr = Math.min(2, window.devicePixelRatio || 1);
 	const size = Math.max(160, Math.min(1024, Math.ceil(box * dpr)));
 	if (g.cv.width !== size) g.cv.width = g.cv.height = size;
@@ -4412,7 +4430,7 @@ function bhRender(x, y, rpx, eht) {
 	gl.bindBuffer(gl.ARRAY_BUFFER, g.vb);
 	gl.enableVertexAttribArray(g.aP);
 	gl.vertexAttribPointer(g.aP, 2, gl.FLOAT, false, 0, 0);
-	const V = globeViewRows();
+	const R = globeViewRows();
 	const n = eht ? GC : NGP, u = eht ? NGP : GC;
 	const B = [
 		u,
@@ -4424,7 +4442,7 @@ function bhRender(x, y, rpx, eht) {
 		]
 	];
 	const M = new Array(9);
-	for (let i2 = 0; i2 < 3; i2++) for (let j = 0; j < 3; j++) M[j * 3 + i2] = B[i2][0] * V[j][0] + B[i2][1] * V[j][1] + B[i2][2] * V[j][2];
+	for (let i2 = 0; i2 < 3; i2++) for (let j = 0; j < 3; j++) M[j * 3 + i2] = B[i2][0] * R[j][0] + B[i2][1] * R[j][1] + B[i2][2] * R[j][2];
 	gl.uniformMatrix3fv(g.uT, false, M);
 	gl.bindTexture(gl.TEXTURE_2D, g.tex);
 	gl.uniform1i(g.uBg, 0);
@@ -7626,7 +7644,7 @@ function loadExtragal() {
 		} else tfetch("file-cosmicweb", {
 			name: "cosmicweb.bin",
 			group: "catalogue"
-		}, "data/cosmicweb.bin?b=20261025-1038").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/cosmicweb.bin?b=20261025-1057").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildWeb(new Uint8Array(a));
 		}).catch(() => {});
 		if (typeof window.__QSO_B64__ === "string" && window.__QSO_B64__.length) {
@@ -7635,14 +7653,14 @@ function loadExtragal() {
 		} else tfetch("file-quasars", {
 			name: "quasars.bin",
 			group: "catalogue"
-		}, "data/quasars.bin?b=20261025-1038").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/quasars.bin?b=20261025-1057").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildQso(new Uint8Array(a));
 		}).catch(() => {});
 		tfetch("file-quasarsbig", {
 			name: "quasarsbig.bin",
 			group: "catalogue",
 			optional: true
-		}, "data/quasarsbig.bin?b=20261025-1038").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/quasarsbig.bin?b=20261025-1057").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildQso(new Uint8Array(a));
 		}).catch(() => {});
 		if (typeof window.__BELT_B64__ === "string" && window.__BELT_B64__.length) {
@@ -7651,21 +7669,21 @@ function loadExtragal() {
 		} else tfetch("file-belt", {
 			name: "belt.bin",
 			group: "catalogue"
-		}, "data/belt.bin?b=20261025-1038").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/belt.bin?b=20261025-1057").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildBelt(new Uint8Array(a));
 		}).catch(() => {});
 		tfetch("file-gaiabig", {
 			name: "gaiabig.bin",
 			group: "catalogue",
 			optional: true
-		}, "data/gaiabig.bin?b=20261025-1038").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/gaiabig.bin?b=20261025-1057").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) {
 				buildGaiaBig(new Uint8Array(a));
 				tfetch("file-gaiabig_pm", {
 					name: "gaiabig_pm.bin",
 					group: "catalogue",
 					optional: true
-				}, "data/gaiabig_pm.bin?b=20261025-1038").then((r) => r.ok ? r.arrayBuffer() : null).then((p) => {
+				}, "data/gaiabig_pm.bin?b=20261025-1057").then((r) => r.ok ? r.arrayBuffer() : null).then((p) => {
 					if (p) {
 						gaiaPm = new Uint8Array(p);
 						if (CL.G) CL.G.pm = false;
@@ -7676,7 +7694,7 @@ function loadExtragal() {
 					name: "gaiabig_q.bin · errors, RUWE, distances",
 					group: "catalogue",
 					optional: true
-				}, "data/gaiabig_q.bin?b=20261025-1038").then((r) => r.ok ? r.arrayBuffer() : null).then((p) => {
+				}, "data/gaiabig_q.bin?b=20261025-1057").then((r) => r.ok ? r.arrayBuffer() : null).then((p) => {
 					if (p) {
 						gaiaQ = new Uint8Array(p);
 						if (CL.G) CL.G.q = false;
@@ -7691,7 +7709,7 @@ function loadExtragal() {
 		} else tfetch("file-obstars", {
 			name: "obstars.bin",
 			group: "catalogue"
-		}, "data/obstars.bin?b=20261025-1038").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/obstars.bin?b=20261025-1057").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildOB(new Uint8Array(a));
 		}).catch(() => {});
 		if (typeof window.__VAR_B64__ === "string" && window.__VAR_B64__.length) {
@@ -7700,7 +7718,7 @@ function loadExtragal() {
 		} else tfetch("file-variables", {
 			name: "variables.bin",
 			group: "catalogue"
-		}, "data/variables.bin?b=20261025-1038").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/variables.bin?b=20261025-1057").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildVars(new Uint8Array(a));
 		}).catch(() => {});
 	} catch (e) {}
@@ -7721,14 +7739,14 @@ function loadGaia() {
 		tfetch("file-gaia", {
 			name: "gaia.bin",
 			group: "catalogue"
-		}, "data/gaia.bin?b=20261025-1038").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/gaia.bin?b=20261025-1057").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildGaia(new Uint8Array(a));
 		}).catch(() => {});
 		tfetch("file-gaia_pm", {
 			name: "gaia_pm.bin",
 			group: "catalogue",
 			optional: true
-		}, "data/gaia_pm.bin?b=20261025-1038").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/gaia_pm.bin?b=20261025-1057").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a && (!gaiaPm || gaiaRange === 100)) {
 				gaiaPm = new Uint8Array(a);
 				attachGaiaPm();
@@ -7738,7 +7756,7 @@ function loadGaia() {
 			name: "gaia_q.bin · errors, RUWE, distances",
 			group: "catalogue",
 			optional: true
-		}, "data/gaia_q.bin?b=20261025-1038").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/gaia_q.bin?b=20261025-1057").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a && (!gaiaQ || gaiaRange === 100)) {
 				gaiaQ = new Uint8Array(a);
 				attachGaiaQ();
@@ -11072,7 +11090,7 @@ var PROV = {
 };
 function provOf(o, k) {
 	const f = PROV[k];
-	return `${f ? f(o) : "catalogue"} · catalogue build ${META$1.built || "?"} · app 20261025-1038`;
+	return `${f ? f(o) : "catalogue"} · catalogue build ${META$1.built || "?"} · app 20261025-1057`;
 }
 function dirForObserver(o, k) {
 	if (k === "sun" || k === "planet" || k === "dwarf" || k === "moon" || k === "tno" || k === "probe" || k === "comet" || k === "asteroid" || k === "iso" || k === "neo") {
@@ -15714,7 +15732,7 @@ function viewHash() {
 		m.toString(36)
 	];
 	parts.push(S.skyMode ? "s" + V.fovK.toPrecision(4) + "-" + (ST.on ? ST.id : "0") + "-" + (ST.blink ? ST.blinkWith : "0") : "x");
-	parts.push("b20261025-1038");
+	parts.push("b20261025-1057");
 	return "v1_" + parts.join("_");
 }
 function parse36(s) {
@@ -15756,9 +15774,9 @@ function applyHash() {
 			if (q[2] && q[2] !== "0") setBlink(true, q[2]);
 		}
 		const b = p.find((x, i) => i >= 10 && x[0] === "b" && x.length > 6);
-		if (b && b.slice(1) !== "20261025-1038") {
+		if (b && b.slice(1) !== "20261025-1057") {
 			linkBuild = b.slice(1);
-			setTimeout(() => msg(`This link was made on data build ${linkBuild}; this is 20261025-1038 — the catalogues may have moved since`), 1500);
+			setTimeout(() => msg(`This link was made on data build ${linkBuild}; this is 20261025-1057 — the catalogues may have moved since`), 1500);
 		}
 		V.dirty = true;
 	} catch (e) {}

@@ -162,7 +162,10 @@ async function open(vp, mobile, hash) {
   await page.screenshot({ path: join(OUT, 'desktop-sky.png') });
   // guided blink: at Barnard's star the jump list must lead with it (10,393 mas/yr × 20 yr DSS→PS1 = 3.5′), from HYG and the Gaia cloud
   await page.evaluate(() => { const a = window.__kuapi; a.timeline.now(); a.setBlink(true, 'ps1'); a.lookAt(269.45, 4.69); a.setFov(1); });
-  await page.waitForTimeout(3000);
+  // the turn eases over frames; on a loaded machine 3 s of them were not enough (the field read Dec +10° en route)
+  for (let i = 0; i < 40; i++) { await page.waitForTimeout(500); const c = await page.evaluate(() => window.__ku.fieldCentre());
+    if (i >= 3 && Math.abs(c[0] - 269.45) < 0.05 && Math.abs(c[1] - 4.69) < 0.05) break; }
+  await page.waitForTimeout(1000);
   // epoch propagation: Barnard's star has moved ~10.4″/yr since J2000 — today it stands ~4.6′ north of its catalogue place
   const ep = await page.evaluate(() => { const b = window.__ku.hyg.find(s => /Barnard/.test(s.n || '')); const cat = window.__ku.projDir(b.dx, b.dy, b.dz);
     const yrs = 2000 + (Date.now() / 86400000 + 2440587.5 - 2451545.0) / 365.25 - 2000; const pm = Math.hypot(b.pr, b.pd) / 1000 * yrs;   // arcsec
@@ -429,6 +432,14 @@ for (const [name, pc, minLit] of VIEWS) {
   ok(near.nJupMinor === 0, `the irregular moons wait until Jupiter is a disc (${near.nJupMinor} drawn at 0.05 AU)`);
   const comp = await at(2.48, [0, 0, 0], false);
   ok(!!comp.moon && comp.moon.sep > comp.earth + 2 && comp.moon.sep < comp.earthSun * 0.12, `compact map: the Moon sits by the Earth, not half an orbit out (${comp.moon?.sep.toFixed(0)} px from Earth, Earth ${comp.earthSun?.toFixed(0)} px from the Sun)`);
+}
+
+// ---- 2d. Sgr A*: the ray tracer bends the real scene behind the hole, not only its own stars ----
+{
+  const { page, ctx } = await open({ width: 1440, height: 900 }, false, 'v1_-2.1808_-1.3808_3.0000e+2_-4.4699e+2_-7.1381e+3_-3.9657e+3_1_0_fahmf99');
+  const bh = await page.evaluate(async () => { window.__bhDebug = 1; window.__kuapi.renderNow(); await new Promise(r => setTimeout(r, 300)); window.__kuapi.renderNow(); return window.__bh || null; });
+  await ctx.close();
+  ok(!!bh && bh.bgOk === 1 && bh.lit > 0, `the black hole's background capture works (${bh ? (bh.err || `bgOk ${bh.bgOk}, ${bh.lit} lit px behind a ${bh.rpx?.toFixed(0)}-px hole`) : 'no capture ran'}) — it threw on a shadowed V since the module split`);
 }
 
 // ---- 3. phone ----
