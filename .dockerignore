@@ -2,6 +2,7 @@
 .git
 .gitignore
 *.md
+!site/data/LICENSE.md
 node_modules/
 dist/
 dist-artifact/
