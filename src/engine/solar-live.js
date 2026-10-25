@@ -189,6 +189,7 @@ export function drawSats(A){ LBL.prio=P_SMALL;
       const sep=px+5+t*(px*2.0+36);
       x=ep.x+d2[0]*sep; y=ep.y+d2[1]*sep;
     }
+    if(S.stations&&(s.iss||s.css)) continue;        // drawn by the stations layer, with their orbit and card
     const named=s.iss||s.hst||s.css, sel=(s===S.hover||s===S.pinned);
     s.alt=l-6371; s.sat=true; s.kind='Satellite';
     if(s.sl) nSl++; if(s.deb) nDeb++;

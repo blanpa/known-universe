@@ -10,7 +10,7 @@ import { ctr, tgtCtr } from './view.js';
 // later additions appended — so old share links keep decoding correctly
 const HASH_KEYS=['ast','autorot','belt','con','dso','edge','freelook','gaia','galaxies',
   'gpu','helio','hyg','hz','moons','mw','mw3d','ob','oclu','probes','psr','qso','rings',
-  'size','tno','vars','veil','web','lag','lens','iso','eht','radio','bubble','grid','ggrid'];
+  'size','tno','vars','veil','web','lag','lens','iso','eht','radio','bubble','grid','ggrid','stations'];
 // BigInt: 35 layer bits do not fit a 32-bit shift (`1<<33` is 2, so 'bubble' used to
 // land on the 'ast' bit). The low 31 bits are unchanged, so older links still decode.
 function viewHash(){

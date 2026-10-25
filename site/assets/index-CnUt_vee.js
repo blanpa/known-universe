@@ -6320,6 +6320,11 @@ function Controls($$anchor, $$props) {
 					on: true
 				},
 				{
+					id: "t-stations",
+					label: "Space stations",
+					on: true
+				},
+				{
 					id: "t-sun",
 					label: "Sunspots · live",
 					on: true
@@ -8222,7 +8227,7 @@ function DataPane($$anchor, $$props) {
 		tfetch("changelog-json", {
 			name: "changelog.json · what came in, and when",
 			group: "catalogue"
-		}, "data/changelog.json?b=20261025-1149").then((r) => {
+		}, "data/changelog.json?b=20261025-1157").then((r) => {
 			if (!r.ok) throw new Error("HTTP " + r.status);
 			return r.json();
 		}).then((j) => {
@@ -11850,6 +11855,7 @@ function PoiBar($$anchor, $$props) {
 	const POIS = [
 		["sun", "Sun"],
 		["globe", "Earth"],
+		["probe", "ISS"],
 		["planet", "Mars"],
 		["planet", "Jupiter"],
 		["ringed", "Saturn"],
@@ -12066,7 +12072,7 @@ function MobileNav($$anchor, $$props) {
 		}
 		var text_2 = sibling(node_6);
 		var small = sibling(text_2);
-		small.textContent = `· 20261025-1149`;
+		small.textContent = `· 20261025-1157`;
 		reset(span_2);
 		var span_3 = sibling(span_2, 2);
 		var button_6 = child(span_3);
@@ -12672,7 +12678,7 @@ window.addEventListener("error", (e) => showErr("⚠ " + (e.message || e.type) +
 window.addEventListener("unhandledrejection", (e) => showErr("⚠ promise: " + (e.reason && e.reason.message || e.reason)));
 mount(App, { target: document.getElementById("app") });
 function boot() {
-	return __vitePreload(() => import("./engine-Dl__w9cl.js").then(() => {
+	return __vitePreload(() => import("./engine-D03ixasz.js").then(() => {
 		try {
 			restore();
 		} catch (e) {}
@@ -12689,7 +12695,7 @@ var fail = (e) => {
 	document.body.innerHTML = "<p style=\"color:#e9edfa;font-family:monospace;padding:2em\">Error loading data: " + e + "</p>";
 };
 if (window.__DATA__) boot().catch(fail);
-else Promise.all([getJSON("data/data.json?b=20261025-1149", "data-json", "data.json · stars, exoplanets, galaxies"), getJSON("data/catalog.json?b=20261025-1149", "catalog-json", "catalog.json · solar system, deep sky, pulsars")]).then(([d, c]) => {
+else Promise.all([getJSON("data/data.json?b=20261025-1157", "data-json", "data.json · stars, exoplanets, galaxies"), getJSON("data/catalog.json?b=20261025-1157", "catalog-json", "catalog.json · solar system, deep sky, pulsars")]).then(([d, c]) => {
 	window.__DATA__ = d;
 	window.__CATALOG__ = c;
 	const m = d.meta || {};

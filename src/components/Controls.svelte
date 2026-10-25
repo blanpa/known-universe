@@ -18,6 +18,7 @@
       { id: 't-cme', label: 'Solar storms · live', on: true },
       { id: 't-neo', label: 'Asteroid flybys · live', on: true },
       { id: 't-sat', label: 'Satellites · live', on: true },
+      { id: 't-stations', label: 'Space stations', on: true },
       { id: 't-sun', label: 'Sunspots · live', on: true },
       { id: 't-size', label: 'Star size by real radius', on: true }] },
     { h: 'Stars', icon: 'star', items: [

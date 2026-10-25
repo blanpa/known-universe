@@ -5,7 +5,7 @@
   let { variant = '', onpick = () => {} } = $props();
   // every entry resolves through the regular search — same fly-to as typing it
   const POIS = [
-    ['sun', 'Sun'], ['globe', 'Earth'], ['planet', 'Mars'], ['planet', 'Jupiter'], ['ringed', 'Saturn'],
+    ['sun', 'Sun'], ['globe', 'Earth'], ['probe', 'ISS'], ['planet', 'Mars'], ['planet', 'Jupiter'], ['ringed', 'Saturn'],
     ['ice', 'Pluto'], ['probe', 'Voyager 1'], ['comet', '3I/ATLAS'],
     ['star', 'Proxima Centauri'], ['system', 'TRAPPIST-1'], ['blackhole', 'Sgr A*'], ['galaxy', 'Andromeda'],
   ];

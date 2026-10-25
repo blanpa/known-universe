@@ -101,7 +101,7 @@ export const D2R=Math.PI/180;
 const NOW=new Date();
 const EPOCH_JD=NOW.getTime()/86400000 + 2440587.5;      // "today" at load
 export function solarJD(){ return EPOCH_JD + S.tOffsetDays; }   // shifted by the time-travel slider
-function jdToDate(jd){ return new Date((jd-2440587.5)*86400000); }
+export function jdToDate(jd){ return new Date((jd-2440587.5)*86400000); }
 export function dateStr(jd){ return jdToDate(jd).toLocaleDateString('en-US',{day:'2-digit',month:'2-digit',year:'numeric'}); }
 export function keplerEcl(k,T,E0){
   const a=k[0]+k[1]*T, e=k[2]+k[3]*T, I=(k[4]+k[5]*T)*D2R;

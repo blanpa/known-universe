@@ -156,6 +156,14 @@ as a fourth dimension.
     **Asteroids & comets**. Verified: Halley currently 35.2 AU (near aphelion).
   - **Rings & moons:** Saturn with a stepped ring (Cassini division), Uranus with
     its nearly vertical ring system.
+  - **Space stations:** all thirteen crewed stations humanity has flown, from Salyut 1
+    (1971) to Tiangong. The ISS and Tiangong are placed from CelesTrak elements like
+    every satellite, with their orbit drawn; the eleven before them appear on a schematic
+    orbit (altitude, inclination and period real, the phase not) whenever the map's date
+    lies within their lifetime — set the time to 1995 and Mir is there, 1975 and Skylab.
+    Searching a station that is not in orbit today takes the date into its lifetime.
+    Each has a card: operator, years in orbit, crews, mass, orbit, source. Toggle
+    **Space stations**; `pipeline/stations.json` holds the catalogue.
   - **Real moon positions:** all 26 major moons sit at their **true orbital phase
     and in their true orbit plane** (JPL Horizons state vectors, circular
     propagation — verified ≤ 1° drift over 10 days for Io/Titan/Titania/Triton;

@@ -12,8 +12,9 @@ import { fmt } from './hud.js';
 import { zoomRange } from './interact.js';
 import { ENCOUNTERS, hostPos, hygPos, tNow } from './motion.js';
 import { CLUSTERS, DSO, PULSARS, SGRA } from './sky-data.js';
-import { FAC, HYG, PROBES, SMALL, SOLAR_BODIES, SUN, TNOS } from './solar-data.js';
+import { FAC, HYG, PROBES, SMALL, SOLAR_BODIES, SUN, TNOS, dateStr, eclToWorld, solarJD, updateSolarPositions } from './solar-data.js';
 import { ISO } from './solar.js';
+import { STATIONS, inOrbitAt } from './stations.js';
 import { S, V } from './state.js';
 import { ST, setBlink, setSurvey } from './survey.js';
 import { setTime, sliderOf } from './timeline.js';
@@ -103,6 +104,7 @@ export function findByName(q){
   if(/^(sgr ?a\*?|sagittarius a\*?|galactic cent(er|re))$/.test(q)) return ['sgra',SGRA];
   // exact first
   push('user',USER.rows.find(o=>eq(o.n)));
+  push('station',STATIONS.find(s=>eq(s.n)||eq(s.full)||(s.alias||[]).some(eq)));
   push('iso', ISO.find(o=>eq(o.n)));
   push('small',SMALL.find(o=>eq(o.n)));
   push('dso', DSO.find(o=>eq(o.n)));
@@ -117,6 +119,7 @@ export function findByName(q){
   // substring fallback — ISO first: "borisov"/"atlas" should hit 2I/3I, not namesake comets
   push('iso', ISO.find(o=>has(o.n)));
   push('user',USER.rows.find(o=>has(o.n)));
+  push('station',STATIONS.find(s=>has(s.n)||has(s.full)));
   push('small',SMALL.find(o=>has(o.n)));
   push('dso', DSO.find(o=>has(o.n)));
   push('hyg', HYG.find(s=>has(s.n)));
@@ -140,6 +143,7 @@ export function doSearch(q){
     V.focusSys=null; S.pinned=SGRA; flyTo(SGRA); return; }
   if(t==='user'){ msg('→ '+(o.n||'row')+' · your data'+(o.noDist?' (no distance)':' · '+fmt(o.d*PC2LY)+' ly'));
     if(!S.user){S.user=true;syncToggle('t-user',true);} V.focusSys=null; S.pinned=o; flyTo(o); return; }
+  if(t==='station'){ gotoStation(o); return; }
   if(t==='iso'){ msg('→ '+o.n+' (interstellar)');
     if(!S.iso){S.iso=true;syncToggle('t-iso',true);} V.focusSys=null; enterSolar(); S.pinned=o; return; }
   if(t==='small'){ msg('→ '+o.n+' ('+o.kind+')');
@@ -161,6 +165,29 @@ export function doSearch(q){
   else if(t==='gal'){ msg('→ '+o.n+' · '+fmt(o.mpc*3.2616)+' Mly'); focusOnGalaxy(o); }
   else if(t==='hyg'){ msg('→ '+(o.n||'star')+' · '+fmt(o.d*PC2LY)+' ly'); focusOnHyg(o); }
   else { msg('→ '+o.h+' · '+fmt(o.d*PC2LY)+' ly'); focusOn(o); }
+}
+
+// a space station: the view goes to the Earth and stays locked on it; a station that is
+// not in orbit on the map's date takes the date into its lifetime first (Mir needs 1995)
+export function gotoStation(st){
+  const jd=solarJD(); let when='';
+  if(!inOrbitAt(st,jd)){
+    const mid=(st.jd0+Math.min(st.jd1,st.jd0+365.25*40))/2;
+    setTime(sliderOf((mid-jd)/365.25)); when=' · the date is set to '+dateStr(mid)+' — it is not in orbit today';
+  }
+  if(!S.stations){ S.stations=true; syncToggle('t-stations',true); }
+  if(!S.solar){ S.solar=true; syncToggle('t-solar',true); }
+  enterSolar();
+  // the Earth of that date, now — the planets are only repositioned when a frame draws them,
+  // and the view centre eases at a pace set by the zoom, which from Earth orbit would take
+  // minutes to cross the 0.6 AU between today's Earth and 1993's: the centre jumps, the zoom flies
+  updateSolarPositions(solarJD());
+  const earth=SOLAR_BODIES.find(b=>b.n==='Earth'), w=earth&&earth._e&&eclToWorld(earth._e[0],earth._e[1],earth._e[2]);
+  if(w){ ctr.x=tgtCtr.x=w[0]; ctr.y=tgtCtr.y=w[1]; ctr.z=tgtCtr.z=w[2]; V.FOLLOW=earth; }
+  const foc=Math.min(W,H)*0.62;                       // frame: the Earth about 150 px in radius
+  V.tgtCamZ = S.realScale ? foc*6371*3.2408e-14/150 : 9.6*foc/(560*150);
+  S.pinned=st;
+  msg('→ '+st.n+(st.to?` · in orbit ${st.from.slice(0,4)}–${st.to.slice(0,4)}`:` · in orbit since ${st.from.slice(0,4)}`)+when);
 }
 
 // ---- travel ----

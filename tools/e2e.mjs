@@ -462,6 +462,20 @@ for (const [name, pc, minLit] of VIEWS) {
   ok(!!bh && bh.bgOk === 1 && bh.lit > 0, `the black hole's background capture works (${bh ? (bh.err || `bgOk ${bh.bgOk}, ${bh.lit} lit px behind a ${bh.rpx?.toFixed(0)}-px hole`) : 'no capture ran'}) — it threw on a shadowed V since the module split`);
 }
 
+// ---- 2e. space stations: today's from CelesTrak elements, the past ones when the map's date is theirs ----
+{
+  const { page, ctx } = await open({ width: 1440, height: 900 }, false, 'v1_0.5000_-0.5000_3.0000e-4_0.0000e+0_0.0000e+0_0.0000e+0_1_0_fahmf99');
+  const r = await page.evaluate(async () => { const a = window.__kuapi, names = () => (window.__solarProj || []).filter(o => o.o && o.o.station).map(o => o.o.n);
+    a.doSearch('ISS'); await new Promise(r => setTimeout(r, 3000)); a.renderNow();
+    const now = names(), pinned = a.getS().pinned && a.getS().pinned.n, iss = (window.__solarProj || []).find(o => o.o && o.o.n === 'ISS');
+    const live = !!(iss && iss.o._live), alt = iss && iss.o._alt;
+    a.doSearch('Mir'); await new Promise(r => setTimeout(r, 3000)); a.renderNow();
+    return { now, pinned, live, alt, then: names(), pinned2: a.getS().pinned && a.getS().pinned.n, days: a.getS().tOffsetDays, cam: a.getCam() }; });
+  await ctx.close();
+  ok(r.pinned === 'ISS' && r.now.includes('ISS') && r.now.includes('Tiangong') && !r.now.includes('Mir'), `the space stations of today stand at the Earth (${r.now.join(', ') || 'none'}; ISS at ${r.alt?.toFixed(0)} km ${r.live ? 'from CelesTrak elements' : 'on the schematic orbit — no elements reached'})`);
+  ok(r.pinned2 === 'Mir' && r.then.includes('Mir') && !r.then.includes('ISS') && r.days < -365 * 25, `a past station takes the map's date into its lifetime (${(r.days / 365.25).toFixed(1)} yr: ${r.then.join(', ') || 'none'})`);
+}
+
 // ---- 3. phone ----
 {
   const { page, ctx, errs } = await open({ width: 390, height: 844 }, true);

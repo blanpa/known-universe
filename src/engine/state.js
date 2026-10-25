@@ -3,7 +3,7 @@
 export const S={ yaw:0.5, pitch:-0.5, camZ:2.47, year:2026, tOffsetDays:0,
   autorot:false, freelook:false, rings:true, veil:true, size:true, galaxies:true,
   hyg:true, user:true, gpu:true, gaia:true, ruwe:false, web:true, qso:true, ob:true, vars:true, edge:true, facColor:false, facHidden:new Set(),
-  solar:true, moons:true, mw:true, mw3d:true, dso:true, psr:true, oclu:true, ast:true, tno:true, probes:true, helio:true, belt:true, con:true, hz:true, lag:true, lens:true, pm:false, pmYears:0,
+  solar:true, moons:true, mw:true, mw3d:true, dso:true, psr:true, oclu:true, ast:true, tno:true, probes:true, stations:true, helio:true, belt:true, con:true, hz:true, lag:true, lens:true, pm:false, pmYears:0,
   cme:true, neo:true, sat:true, sunAR:true, met:true, iso:true, eht:false, labels:true,
   radio:true, bubble:true, grid:false, ggrid:false,
   realScale:false,

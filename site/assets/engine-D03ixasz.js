@@ -1,4 +1,4 @@
-import { A as timeline, B as tfetch, C as samp, D as stats, E as skyCursor, F as api, I as count, L as declare, M as tour, N as transit, O as survey, P as userLayer, R as mark, S as observer, T as selection, V as timg, _ as lightcurve, a as satEcl, b as movers, c as camera, d as facColor, f as facList$1, g as labels, h as kinematics, i as refreshLive, j as toggleState, k as timeBar, l as crossmatch$1, m as fielddiag, n as activeShowers, o as startLive, p as fieldQuery, r as groundEcl, s as RESERVED, t as LIVE, u as encounters, v as measure, w as searchMsg, x as nav, y as measureLog, z as tally } from "./index-B1kO6P4i.js";
+import { A as timeline, B as tfetch, C as samp, D as stats, E as skyCursor, F as api, I as count, L as declare, M as tour, N as transit, O as survey, P as userLayer, R as mark, S as observer, T as selection, V as timg, _ as lightcurve, a as satEcl, b as movers, c as camera, d as facColor, f as facList$1, g as labels, h as kinematics, i as refreshLive, j as toggleState, k as timeBar, l as crossmatch$1, m as fielddiag, n as activeShowers, o as startLive, p as fieldQuery, r as groundEcl, s as RESERVED, t as LIVE, u as encounters, v as measure, w as searchMsg, x as nav, y as measureLog, z as tally } from "./index-CnUt_vee.js";
 //#region src/lib/astro.js
 var D2R$7 = Math.PI / 180;
 var R2D$1 = 180 / Math.PI;
@@ -653,6 +653,7 @@ var S = {
 	ast: true,
 	tno: true,
 	probes: true,
+	stations: true,
 	helio: true,
 	belt: true,
 	con: true,
@@ -720,7 +721,7 @@ function loadEphem() {
 		name: "ephem.bin · JPL Horizons DE441, planets + Moon 2015–2045",
 		group: "catalogue",
 		optional: true
-	}, "data/ephem.json?b=20261025-1149").then((r) => r.ok ? r.json() : null), fetch("data/ephem.bin?b=20261025-1149").then((r) => r.ok ? r.arrayBuffer() : null)]).then(([m, b]) => {
+	}, "data/ephem.json?b=20261025-1157").then((r) => r.ok ? r.json() : null), fetch("data/ephem.bin?b=20261025-1157").then((r) => r.ok ? r.arrayBuffer() : null)]).then(([m, b]) => {
 		if (!m || !b) return;
 		EPH.meta = m;
 		EPH.table = ephemTable(m, new Uint8Array(b));
@@ -7644,7 +7645,7 @@ function loadExtragal() {
 		} else tfetch("file-cosmicweb", {
 			name: "cosmicweb.bin",
 			group: "catalogue"
-		}, "data/cosmicweb.bin?b=20261025-1149").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/cosmicweb.bin?b=20261025-1157").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildWeb(new Uint8Array(a));
 		}).catch(() => {});
 		if (typeof window.__QSO_B64__ === "string" && window.__QSO_B64__.length) {
@@ -7653,14 +7654,14 @@ function loadExtragal() {
 		} else tfetch("file-quasars", {
 			name: "quasars.bin",
 			group: "catalogue"
-		}, "data/quasars.bin?b=20261025-1149").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/quasars.bin?b=20261025-1157").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildQso(new Uint8Array(a));
 		}).catch(() => {});
 		tfetch("file-quasarsbig", {
 			name: "quasarsbig.bin",
 			group: "catalogue",
 			optional: true
-		}, "data/quasarsbig.bin?b=20261025-1149").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/quasarsbig.bin?b=20261025-1157").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildQso(new Uint8Array(a));
 		}).catch(() => {});
 		if (typeof window.__BELT_B64__ === "string" && window.__BELT_B64__.length) {
@@ -7669,21 +7670,21 @@ function loadExtragal() {
 		} else tfetch("file-belt", {
 			name: "belt.bin",
 			group: "catalogue"
-		}, "data/belt.bin?b=20261025-1149").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/belt.bin?b=20261025-1157").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildBelt(new Uint8Array(a));
 		}).catch(() => {});
 		tfetch("file-gaiabig", {
 			name: "gaiabig.bin",
 			group: "catalogue",
 			optional: true
-		}, "data/gaiabig.bin?b=20261025-1149").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/gaiabig.bin?b=20261025-1157").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) {
 				buildGaiaBig(new Uint8Array(a));
 				tfetch("file-gaiabig_pm", {
 					name: "gaiabig_pm.bin",
 					group: "catalogue",
 					optional: true
-				}, "data/gaiabig_pm.bin?b=20261025-1149").then((r) => r.ok ? r.arrayBuffer() : null).then((p) => {
+				}, "data/gaiabig_pm.bin?b=20261025-1157").then((r) => r.ok ? r.arrayBuffer() : null).then((p) => {
 					if (p) {
 						gaiaPm = new Uint8Array(p);
 						if (CL.G) CL.G.pm = false;
@@ -7694,7 +7695,7 @@ function loadExtragal() {
 					name: "gaiabig_q.bin · errors, RUWE, distances",
 					group: "catalogue",
 					optional: true
-				}, "data/gaiabig_q.bin?b=20261025-1149").then((r) => r.ok ? r.arrayBuffer() : null).then((p) => {
+				}, "data/gaiabig_q.bin?b=20261025-1157").then((r) => r.ok ? r.arrayBuffer() : null).then((p) => {
 					if (p) {
 						gaiaQ = new Uint8Array(p);
 						if (CL.G) CL.G.q = false;
@@ -7709,7 +7710,7 @@ function loadExtragal() {
 		} else tfetch("file-obstars", {
 			name: "obstars.bin",
 			group: "catalogue"
-		}, "data/obstars.bin?b=20261025-1149").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/obstars.bin?b=20261025-1157").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildOB(new Uint8Array(a));
 		}).catch(() => {});
 		if (typeof window.__VAR_B64__ === "string" && window.__VAR_B64__.length) {
@@ -7718,7 +7719,7 @@ function loadExtragal() {
 		} else tfetch("file-variables", {
 			name: "variables.bin",
 			group: "catalogue"
-		}, "data/variables.bin?b=20261025-1149").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/variables.bin?b=20261025-1157").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildVars(new Uint8Array(a));
 		}).catch(() => {});
 	} catch (e) {}
@@ -7739,14 +7740,14 @@ function loadGaia() {
 		tfetch("file-gaia", {
 			name: "gaia.bin",
 			group: "catalogue"
-		}, "data/gaia.bin?b=20261025-1149").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/gaia.bin?b=20261025-1157").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a) buildGaia(new Uint8Array(a));
 		}).catch(() => {});
 		tfetch("file-gaia_pm", {
 			name: "gaia_pm.bin",
 			group: "catalogue",
 			optional: true
-		}, "data/gaia_pm.bin?b=20261025-1149").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/gaia_pm.bin?b=20261025-1157").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a && (!gaiaPm || gaiaRange === 100)) {
 				gaiaPm = new Uint8Array(a);
 				attachGaiaPm();
@@ -7756,7 +7757,7 @@ function loadGaia() {
 			name: "gaia_q.bin · errors, RUWE, distances",
 			group: "catalogue",
 			optional: true
-		}, "data/gaia_q.bin?b=20261025-1149").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
+		}, "data/gaia_q.bin?b=20261025-1157").then((r) => r.ok ? r.arrayBuffer() : null).then((a) => {
 			if (a && (!gaiaQ || gaiaRange === 100)) {
 				gaiaQ = new Uint8Array(a);
 				attachGaiaQ();
@@ -9280,6 +9281,7 @@ function drawSats(A) {
 			x = ep.x + d2[0] * sep;
 			y = ep.y + d2[1] * sep;
 		}
+		if (S.stations && (s.iss || s.css)) continue;
 		const named = s.iss || s.hst || s.css, sel = s === S.hover || s === S.pinned;
 		s.alt = l - 6371;
 		s.sat = true;
@@ -10450,7 +10452,147 @@ Object.assign(api, {
 	clearKinematics
 });
 //#endregion
+//#region src/engine/stations.js
+var GM = 398600.4418;
+var RE = 6371;
+var jdOfDate = (d) => Date.UTC(+d.slice(0, 4), +d.slice(5, 7) - 1, +d.slice(8, 10)) / 864e5 + 2440587.5;
+var nodeOf = (n) => {
+	let h = 0;
+	for (const c of n) h = (h * 31 + c.charCodeAt(0)) % 360;
+	return h * Math.PI / 180;
+};
+var STATIONS = (CAT.stations || []).map((s) => ({
+	...s,
+	station: true,
+	kind: "Space station",
+	jd0: jdOfDate(s.from),
+	jd1: s.to ? jdOfDate(s.to) + 1 : Infinity,
+	node: nodeOf(s.n),
+	_live: null,
+	_alt: s.alt
+}));
+function periodMin(st) {
+	const R = RE + (st._alt || st.alt);
+	return 2 * Math.PI * Math.sqrt(R * R * R / GM) / 60;
+}
+function inOrbitAt(st, jd) {
+	return jd >= st.jd0 && jd <= st.jd1;
+}
+var OBL = 23.43928 * Math.PI / 180;
+var cO = Math.cos(OBL);
+var sO = Math.sin(OBL);
+function schematic(st, jd) {
+	const R = RE + st.alt, u = Math.sqrt(GM / (R * R * R)) * (jd - st.jd0) * 86400, i = st.inc * Math.PI / 180, O = st.node;
+	const cu = Math.cos(u), su = Math.sin(u), ci = Math.cos(i), si = Math.sin(i), cN = Math.cos(O), sN = Math.sin(O);
+	const x = R * (cN * cu - sN * su * ci), y = R * (sN * cu + cN * su * ci), z = R * su * si;
+	return [
+		x,
+		y * cO + z * sO,
+		z * cO - y * sO
+	];
+}
+function liveRec(st) {
+	if (!st.norad) return null;
+	if (st._sats !== LIVE.sats) {
+		st._sats = LIVE.sats;
+		st._rec = LIVE.sats.find((x) => x.rec && +x.rec.satnum === st.norad) || null;
+	}
+	return st._rec;
+}
+function stationEcl(st, jd) {
+	if (!inOrbitAt(st, jd)) return null;
+	const s = liveRec(st);
+	if (s) {
+		const e = satEcl(s, jd);
+		if (e) {
+			st._live = s;
+			return e;
+		}
+	}
+	st._live = null;
+	return schematic(st, jd);
+}
+function drawStations(A) {
+	if (!STATIONS.length) return;
+	const earth = PLANETS.find((p) => p.n === "Earth");
+	if (!earth || !earth._e || !earth._p) return;
+	const ep = earth._p, px = bodyPx(earth.rk, ep.depth);
+	if (px < 10) return;
+	const jd = solarJD(), K = 1496e5;
+	const LOG_LO = Math.log10(6600), LOG_HI = Math.log10(5e4);
+	const place = (e) => {
+		const l = Math.hypot(e[0], e[1], e[2]);
+		if (S.realScale) {
+			const w = eclToWorld(earth._e[0] + e[0] / K, earth._e[1] + e[1] / K, earth._e[2] + e[2] / K);
+			const p = project(w[0], w[1], w[2]);
+			return p.depth > V.NEAR ? [p.x, p.y] : null;
+		}
+		const d2 = camDir2([
+			e[0] / l,
+			e[2] / l,
+			e[1] / l
+		]);
+		const t = Math.min(1.25, Math.max(0, (Math.log10(l) - LOG_LO) / (LOG_HI - LOG_LO))), sep = px + 5 + t * (px * 2 + 36);
+		return [ep.x + d2[0] * sep, ep.y + d2[1] * sep];
+	};
+	const g = Math.max(1, Math.min(2.6, px / 60));
+	let any = false;
+	for (const st of STATIONS) {
+		const e = stationEcl(st, jd);
+		if (!e) continue;
+		st._alt = Math.hypot(e[0], e[1], e[2]) - RE;
+		const xy = place(e);
+		if (!xy) continue;
+		const [x, y] = xy;
+		const P = periodMin(st) / 1440, N = 48, pts = [];
+		for (let k = 0; k <= N; k++) {
+			const q = st._live ? satEcl(st._live, jd + k / N * P) : schematic(st, jd + k / N * P);
+			const z = q && place(q);
+			if (!z) {
+				pts.length = 0;
+				break;
+			}
+			pts.push(z);
+		}
+		if (pts.length) {
+			ctx.beginPath();
+			pts.forEach((p, k) => k ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]));
+			ctx.strokeStyle = `rgba(255,222,150,${A * (st._live ? .3 : .2)})`;
+			ctx.lineWidth = .8;
+			ctx.setLineDash(st._live ? [] : [3, 4]);
+			ctx.stroke();
+			ctx.setLineDash([]);
+		}
+		const sel = st === S.hover || st === S.pinned;
+		ctx.fillStyle = `rgba(255,226,160,${A * .95})`;
+		ctx.fillRect(x - 6 * g, y - 1.1 * g, 12 * g, 2.2 * g);
+		ctx.fillStyle = `rgba(255,255,255,${A})`;
+		ctx.beginPath();
+		ctx.arc(x, y, 2.1 * g, 0, 6.2832);
+		ctx.fill();
+		if (sel) {
+			ctx.beginPath();
+			ctx.arc(x, y, 7 * g + 2, 0, 6.2832);
+			ctx.strokeStyle = "rgba(79,214,200,.9)";
+			ctx.lineWidth = 1.1;
+			ctx.stroke();
+		}
+		ctx.font = `${sel ? "10px" : "9px"} ui-monospace,monospace`;
+		ctx.fillStyle = `rgba(255,232,180,${A * .95})`;
+		ctx.fillText(st.n + (st._live ? ` · ${st._alt.toFixed(0)} km` : ""), x + 7 * g + 3, y - 3);
+		solarProj.push({
+			o: st,
+			x,
+			y,
+			px: Math.max(6, 4 * g)
+		});
+		any = true;
+	}
+	if (any) V.dirty = true;
+}
+//#endregion
 //#region src/engine/entity.js
+var jdOfDay = (d) => Date.UTC(+d.slice(0, 4), +d.slice(5, 7) - 1, +d.slice(8, 10)) / 864e5 + 2440587.5;
 var GTYPE = {
 	Sp: "Spiral galaxy",
 	E: "Elliptical galaxy",
@@ -10469,6 +10611,7 @@ function kindOf(o) {
 	if (o.iroute) return "route";
 	if (o.xfer) return "transfer";
 	if (o.spot) return "spot";
+	if (o.station) return "station";
 	if (o.rec) return "satellite";
 	if (o.fb) return "fireball";
 	if (o.rk !== void 0) {
@@ -10551,6 +10694,11 @@ function colorOf(o) {
 			235,
 			255
 		];
+		case "station": return [
+			255,
+			222,
+			150
+		];
 		case "fireball": return [
 			255,
 			150,
@@ -10616,6 +10764,7 @@ function physPos(o) {
 			const p = SOLAR_BODIES.find((b) => b.n === o.parent);
 			return p && p._e ? eclPos(p._e) : null;
 		}
+		case "station":
 		case "satellite": {
 			const e = SOLAR_BODIES.find((b) => b.n === "Earth");
 			return e && e._e ? eclPos(e._e) : null;
@@ -10644,6 +10793,7 @@ function worldPos(o) {
 			const p = SOLAR_BODIES.find((b) => b.n === o.parent);
 			return p && p._e ? eclToWorld(p._e[0], p._e[1], p._e[2]) : null;
 		}
+		case "station":
 		case "satellite": {
 			const e = SOLAR_BODIES.find((b) => b.n === "Earth");
 			return e && e._e ? eclToWorld(e._e[0], e._e[1], e._e[2]) : null;
@@ -10871,6 +11021,29 @@ function card(o) {
 			c.hint = `observed ${r.date} — sunspots this size dwarf the Earth`;
 			break;
 		}
+		case "station": {
+			const st = o, yr = (d) => d.slice(0, 4), live = st._live, jd = solarJD();
+			c.title = st.full ? `${st.n} · ${st.full}` : st.n;
+			c.kindLabel = "Space station";
+			const span = st.to ? `${st.from} → ${st.to} · ${((jdOfDay(st.to) - jdOfDay(st.from)) / 365.25).toFixed(1)} yr` : `since ${st.from} · ${((jd - jdOfDay(st.from)) / 365.25).toFixed(1)} yr and counting`;
+			c.rows.push(["Type", `Space station · ${st.op}`], ["In orbit", span]);
+			c.rows.push(["Crews", typeof st.crews === "string" ? st.crews : st.crews ? `${st.crews} crewed expedition${st.crews === 1 ? "" : "s"} · ${st.days} days occupied` : "never crewed"]);
+			c.rows.push(["Mass", `${st.mass} t`], ["Orbit", `${st.alt} km · ${st.inc}° inclination · ${(2 * Math.PI * Math.sqrt(Math.pow(6371 + st.alt, 3) / 398600.4418) / 60).toFixed(0)} min`]);
+			if (!inOrbitAt(st, jd)) c.rows.push(["On this date", st.to && jd > jdOfDay(st.to) ? `gone — re-entered ${st.to}` : `not yet — launched ${st.from}`]);
+			else if (live) c.rows.push(["Now", `${(st._alt || st.alt).toFixed(0)} km · NORAD ${st.norad} · elements of ${jdToDate(live.rec.jdsatepoch).toISOString().slice(0, 10)}`]);
+			else c.rows.push(["Position", "schematic circular orbit — altitude, inclination and period real, the phase not" + (st.norad ? " (no current elements)" : "")]);
+			c.rows.push(["Provenance", "catalogue · Wikipedia and the mission records" + (live ? " · CelesTrak GP elements" : "")]);
+			c.links = [{
+				t: "Wikipedia",
+				u: `https://en.wikipedia.org/wiki/${st.wiki}`
+			}];
+			if (st.norad) c.links.push({
+				t: "N2YO",
+				u: `https://www.n2yo.com/satellite/?s=${st.norad}`
+			});
+			c.hint = st.first + (st.to ? "" : ` · in orbit since ${yr(st.from)}`);
+			break;
+		}
 		case "satellite":
 			c.rows.push(["Type", `Satellite · NORAD ${o.rec.satnum}`], ["Altitude", `${fmt(o.alt || 0)} km`], ["Period", `${(2 * Math.PI / o.rec.no).toFixed(0)} min`], ["Inclination", `${(o.rec.inclo * 57.2958).toFixed(1)}°`]);
 			c.links = [{
@@ -11090,7 +11263,7 @@ var PROV = {
 };
 function provOf(o, k) {
 	const f = PROV[k];
-	return `${f ? f(o) : "catalogue"} · catalogue build ${META$1.built || "?"} · app 20261025-1149`;
+	return `${f ? f(o) : "catalogue"} · catalogue build ${META$1.built || "?"} · app 20261025-1157`;
 }
 function dirForObserver(o, k) {
 	if (k === "sun" || k === "planet" || k === "dwarf" || k === "moon" || k === "tno" || k === "probe" || k === "comet" || k === "asteroid" || k === "iso" || k === "neo") {
@@ -12745,6 +12918,7 @@ function findByName(q) {
 	};
 	if (/^(sgr ?a\*?|sagittarius a\*?|galactic cent(er|re))$/.test(q)) return ["sgra", SGRA];
 	push("user", USER.rows.find((o) => eq(o.n)));
+	push("station", STATIONS.find((s) => eq(s.n) || eq(s.full) || (s.alias || []).some(eq)));
 	push("iso", ISO.find((o) => eq(o.n)));
 	push("small", SMALL.find((o) => eq(o.n)));
 	push("dso", DSO.find((o) => eq(o.n)));
@@ -12758,6 +12932,7 @@ function findByName(q) {
 	push("clu", CLUSTERS.find((c) => eq(c.n)));
 	push("iso", ISO.find((o) => has(o.n)));
 	push("user", USER.rows.find((o) => has(o.n)));
+	push("station", STATIONS.find((s) => has(s.n) || has(s.full)));
 	push("small", SMALL.find((o) => has(o.n)));
 	push("dso", DSO.find((o) => has(o.n)));
 	push("hyg", HYG.find((s) => has(s.n)));
@@ -12801,6 +12976,10 @@ function doSearch(q) {
 		V.focusSys = null;
 		S.pinned = o;
 		flyTo(o);
+		return;
+	}
+	if (t === "station") {
+		gotoStation(o);
 		return;
 	}
 	if (t === "iso") {
@@ -12883,6 +13062,36 @@ function doSearch(q) {
 		msg("→ " + o.h + " · " + fmt(o.d * PC2LY) + " ly");
 		focusOn(o);
 	}
+}
+function gotoStation(st) {
+	const jd = solarJD();
+	let when = "";
+	if (!inOrbitAt(st, jd)) {
+		const mid = (st.jd0 + Math.min(st.jd1, st.jd0 + 365.25 * 40)) / 2;
+		setTime(sliderOf((mid - jd) / 365.25));
+		when = " · the date is set to " + dateStr(mid) + " — it is not in orbit today";
+	}
+	if (!S.stations) {
+		S.stations = true;
+		syncToggle("t-stations", true);
+	}
+	if (!S.solar) {
+		S.solar = true;
+		syncToggle("t-solar", true);
+	}
+	enterSolar();
+	updateSolarPositions(solarJD());
+	const earth = SOLAR_BODIES.find((b) => b.n === "Earth"), w = earth && earth._e && eclToWorld(earth._e[0], earth._e[1], earth._e[2]);
+	if (w) {
+		ctr.x = tgtCtr.x = w[0];
+		ctr.y = tgtCtr.y = w[1];
+		ctr.z = tgtCtr.z = w[2];
+		V.FOLLOW = earth;
+	}
+	const foc = Math.min(W, H) * .62;
+	V.tgtCamZ = S.realScale ? foc * 6371 * 32408e-18 / 150 : 9.6 * foc / (560 * 150);
+	S.pinned = st;
+	msg("→ " + st.n + (st.to ? ` · in orbit ${st.from.slice(0, 4)}–${st.to.slice(0, 4)}` : ` · in orbit since ${st.from.slice(0, 4)}`) + when);
 }
 function aim(x, y, z, margin) {
 	if (!isFinite(x + y + z + margin)) return;
@@ -13247,6 +13456,7 @@ bindToggle("t-helio", "helio");
 bindToggle("t-belt", "belt");
 bindToggle("t-lag", "lag");
 bindToggle("t-lens", "lens");
+bindToggle("t-stations", "stations");
 bindToggle("t-iso", "iso");
 bindToggle("t-eht", "eht");
 bindToggle("t-labels", "labels");
@@ -14197,6 +14407,7 @@ function drawSolar(alpha) {
 		drawFireballs(A);
 	}
 	if (S.sat) drawSats(A);
+	if (S.stations) drawStations(A);
 	if (V.TRANSFER) drawTransfer(A);
 	ctx.globalAlpha = 1;
 }
@@ -15713,7 +15924,8 @@ var HASH_KEYS = [
 	"radio",
 	"bubble",
 	"grid",
-	"ggrid"
+	"ggrid",
+	"stations"
 ];
 function viewHash() {
 	let m = 0n;
@@ -15732,7 +15944,7 @@ function viewHash() {
 		m.toString(36)
 	];
 	parts.push(S.skyMode ? "s" + V.fovK.toPrecision(4) + "-" + (ST.on ? ST.id : "0") + "-" + (ST.blink ? ST.blinkWith : "0") : "x");
-	parts.push("b20261025-1149");
+	parts.push("b20261025-1157");
 	return "v1_" + parts.join("_");
 }
 function parse36(s) {
@@ -15774,9 +15986,9 @@ function applyHash() {
 			if (q[2] && q[2] !== "0") setBlink(true, q[2]);
 		}
 		const b = p.find((x, i) => i >= 10 && x[0] === "b" && x.length > 6);
-		if (b && b.slice(1) !== "20261025-1149") {
+		if (b && b.slice(1) !== "20261025-1157") {
 			linkBuild = b.slice(1);
-			setTimeout(() => msg(`This link was made on data build ${linkBuild}; this is 20261025-1149 — the catalogues may have moved since`), 1500);
+			setTimeout(() => msg(`This link was made on data build ${linkBuild}; this is 20261025-1157 — the catalogues may have moved since`), 1500);
 		}
 		V.dirty = true;
 	} catch (e) {}

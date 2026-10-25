@@ -64,6 +64,7 @@ bindToggle('t-helio','helio');
 bindToggle('t-belt','belt');
 bindToggle('t-lag','lag');
 bindToggle('t-lens','lens');
+bindToggle('t-stations','stations');
 bindToggle('t-iso','iso');
 bindToggle('t-eht','eht');
 bindToggle('t-labels','labels');

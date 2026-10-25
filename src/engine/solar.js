@@ -8,6 +8,7 @@ import { LBL, P_PROBE, P_SEL, P_SMALL, P_SOLAR } from './labels.js';
 import { drawLagrange } from './lagrange.js';
 import { D2R, MOON_EPH, PROBES, SMALL, SOLAR_BODIES, SUN, dateStr, eclToWorld, keplerSB, moonAt, moonOrbitPoint, orbPoint, solarJD, updateSolarPositions } from './solar-data.js';
 import { drawCME, drawFireballs, drawLiveNeo, drawSats, drawSunspots } from './solar-live.js';
+import { drawStations } from './stations.js';
 import { S, V } from './state.js';
 import { drawTransfer } from './transfer.js';
 import { AU_PC, H, W, _d2x, _d2y, camDir2i, project, scale } from './view.js';
@@ -337,6 +338,7 @@ export function drawSolar(alpha){ LBL.prio=P_SOLAR;
   if(S.cme) drawCME(A);
   if(S.neo){ drawLiveNeo(A); drawFireballs(A); }
   if(S.sat) drawSats(A);
+  if(S.stations) drawStations(A);
   if(V.TRANSFER) drawTransfer(A);
   ctx.globalAlpha=1;
 }

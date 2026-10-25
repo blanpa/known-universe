@@ -8,7 +8,9 @@ import { META, PC2LY } from './data.js';
 import { fmt } from './hud.js';
 import { epochNow, hostPos, hygPos, tNow } from './motion.js';
 import { CLU_T, DSO_T } from './sky-data.js';
-import { FAC, SOLAR_BODIES, SUN, dateStr, eclDir, eclToWorld } from './solar-data.js';
+import { FAC, SOLAR_BODIES, SUN, dateStr, eclDir, eclToWorld, jdToDate, solarJD } from './solar-data.js';
+import { inOrbitAt as inOrbit } from './stations.js';
+const jdOfDay=d=>Date.UTC(+d.slice(0,4),+d.slice(5,7)-1,+d.slice(8,10))/86400000+2440587.5;
 import { S } from './state.js';
 import { planetColor } from './system.js';
 import { fmtYears, route1g } from './transfer.js';
@@ -37,6 +39,7 @@ export function kindOf(o){
   if(o.iroute) return 'route';
   if(o.xfer) return 'transfer';
   if(o.spot) return 'spot';
+  if(o.station) return 'station';
   if(o.rec) return 'satellite';
   if(o.fb) return 'fireball';
   if(o.rk!==undefined){
@@ -75,6 +78,7 @@ export function colorOf(o){
     case 'route': case 'transfer': return [120,255,235];
     case 'spot': return [200,100,50];
     case 'satellite': return [150,235,255];
+    case 'station': return [255,222,150];
     case 'fireball': return [255,150,80];
     case 'dso': return (DSO_T[o.t]||DSO_T.EN).c;
     case 'sgra': return [255,205,130];
@@ -98,7 +102,7 @@ export function physPos(o){
     case 'host': return hostPos(o, tNow());
     case 'star': return hygPos(o, tNow());
     case 'moon': { const p=SOLAR_BODIES.find(b=>b.n===o.parent); return p&&p._e ? eclPos(p._e) : null; }
-    case 'satellite': { const e=SOLAR_BODIES.find(b=>b.n==='Earth'); return e&&e._e ? eclPos(e._e) : null; }
+    case 'station': case 'satellite': { const e=SOLAR_BODIES.find(b=>b.n==='Earth'); return e&&e._e ? eclPos(e._e) : null; }
     default: return o._e ? eclPos(o._e) : null;
   }
 }
@@ -111,7 +115,7 @@ export function worldPos(o){
   switch(kindOf(o)){
     case 'sun': return [0,0,0];
     case 'moon': { const p=SOLAR_BODIES.find(b=>b.n===o.parent); return p&&p._e ? eclToWorld(p._e[0],p._e[1],p._e[2]) : null; }
-    case 'satellite': { const e=SOLAR_BODIES.find(b=>b.n==='Earth'); return e&&e._e ? eclToWorld(e._e[0],e._e[1],e._e[2]) : null; }
+    case 'station': case 'satellite': { const e=SOLAR_BODIES.find(b=>b.n==='Earth'); return e&&e._e ? eclToWorld(e._e[0],e._e[1],e._e[2]) : null; }
     default: return o._e ? eclToWorld(o._e[0],o._e[1],o._e[2]) : null;
   }
 }
@@ -233,6 +237,19 @@ export function card(o){
       c.rows.push(['Type','Sunspot group · NOAA SWPC'],['Class',`${r.cls||'—'}${r.mag?' · mag '+r.mag:''}`],['Area',`${r.area} millionths · ${r.spots} spots`],['Flares 24 h',`${r.cx} C · ${r.mx} M · ${r.xx} X`],['Flare odds',`C ${r.cp}% · M ${r.mp}% · X ${r.xp}%`]);
       c.links=[{t:'SWPC',u:'https://www.swpc.noaa.gov/products/solar-region-summary'}];
       c.hint=`observed ${r.date} — sunspots this size dwarf the Earth`; break; }
+    case 'station': {
+      const st=o, yr=d=>d.slice(0,4), live=st._live, jd=solarJD();
+      c.title=st.full?`${st.n} · ${st.full}`:st.n; c.kindLabel='Space station';
+      const span=st.to?`${st.from} → ${st.to} · ${((jdOfDay(st.to)-jdOfDay(st.from))/365.25).toFixed(1)} yr`:`since ${st.from} · ${((jd-jdOfDay(st.from))/365.25).toFixed(1)} yr and counting`;
+      c.rows.push(['Type',`Space station · ${st.op}`],['In orbit',span]);
+      c.rows.push(['Crews', typeof st.crews==='string'?st.crews:st.crews?`${st.crews} crewed expedition${st.crews===1?'':'s'} · ${st.days} days occupied`:'never crewed']);
+      c.rows.push(['Mass',`${st.mass} t`],['Orbit',`${st.alt} km · ${st.inc}° inclination · ${(2*Math.PI*Math.sqrt(Math.pow(6371+st.alt,3)/398600.4418)/60).toFixed(0)} min`]);
+      if(!inOrbit(st,jd)) c.rows.push(['On this date', st.to&&jd>jdOfDay(st.to)?`gone — re-entered ${st.to}`:`not yet — launched ${st.from}`]);
+      else if(live) c.rows.push(['Now',`${(st._alt||st.alt).toFixed(0)} km · NORAD ${st.norad} · elements of ${jdToDate(live.rec.jdsatepoch).toISOString().slice(0,10)}`]);
+      else c.rows.push(['Position','schematic circular orbit — altitude, inclination and period real, the phase not'+(st.norad?' (no current elements)':'')]);
+      c.rows.push(['Provenance','catalogue · Wikipedia and the mission records'+(live?' · CelesTrak GP elements':'')]);
+      c.links=[{t:'Wikipedia',u:`https://en.wikipedia.org/wiki/${st.wiki}`}]; if(st.norad) c.links.push({t:'N2YO',u:`https://www.n2yo.com/satellite/?s=${st.norad}`});
+      c.hint=st.first+(st.to?'':` · in orbit since ${yr(st.from)}`); break; }
     case 'satellite':
       c.rows.push(['Type',`Satellite · NORAD ${o.rec.satnum}`],['Altitude',`${fmt(o.alt||0)} km`],['Period',`${(2*Math.PI/o.rec.no).toFixed(0)} min`],['Inclination',`${(o.rec.inclo*57.2958).toFixed(1)}°`]);
       c.links=[{t:'N2YO',u:`https://www.n2yo.com/satellite/?s=${o.rec.satnum}`},{t:'CelesTrak',u:'https://celestrak.org/'}];
