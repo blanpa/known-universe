@@ -26,7 +26,7 @@ import { HYG } from './solar-data.js';
 import { S, V } from './state.js';
 import { SKY_R_PC, ST, cacheSize } from './survey.js';
 import { USER, restoreUser, userProj } from './userdata.js';
-import { H, W, project, projectInto, scale } from './view.js';
+import { H, W, ctr, project, projectInto, scale, tgtCtr } from './view.js';
 // This module runs at import time and expects the data to be there: main.js imports it
 // dynamically once data.json and catalog.json have arrived (or were embedded).
 import './timeline.js';
@@ -35,7 +35,7 @@ import './measure.js';
 import './solar-live.js';   // live layers register their draw hooks
 
 api.clickToggle=clickToggle; api.suggest=suggestList; api.getS=()=>S;
-api.getCam=()=>({camZ:S.camZ, tgt:V.tgtCamZ, real:S.realScale});
+api.getCam=()=>({camZ:S.camZ, tgt:V.tgtCamZ, real:S.realScale, ctr:[ctr.x,ctr.y,ctr.z], tgtCtr:[tgtCtr.x,tgtCtr.y,tgtCtr.z]});
 api.searchInput=q=>{ if(q&&q.trim().length>2) api.doSearch(q); };
 api.zoomBy=f=>{ let ax=W/2, ay=H/2;
   if(S.pinned){ const w=objWorld(S.pinned);

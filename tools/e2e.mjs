@@ -139,6 +139,12 @@ async function open(vp, mobile, hash) {
   const dl = await page.evaluate(() => { const rows = [...document.querySelectorAll('#data-log .dl-row')]; const txt = rows.map(r => r.textContent.replace(/\s+/g, ' ').trim());
     return { n: rows.length, first: (txt[0] || '').slice(0, 120), weekly: txt.find(t => /2026-10-19/.test(t)) || '' }; });
   ok(dl.n >= 10 && /weekly refresh/.test(dl.weekly) && /TOI-5699/.test(dl.weekly) && /\+5\)/.test(dl.weekly), `the Data pane lists every catalogue build with what came in (${dl.n} builds; 2026-10-19: ${dl.weekly.slice(0, 110) || 'missing'})`);
+  // a new name is a destination: click it and the map flies to that system
+  const jumped = await page.evaluate(async () => { const rows = [...document.querySelectorAll('#data-log .dl-row')]; const row = rows.find(r => /2026-10-19/.test(r.textContent)); if (!row) return { err: 'no row' };
+    row.querySelector('details').open = true; const b = [...row.querySelectorAll('.dl-link')].find(x => x.textContent === 'TOI-5699'); if (!b) return { err: 'no button' };
+    const before = window.__kuapi.getCam().tgtCtr; b.click(); await new Promise(r => setTimeout(r, 1500));
+    const S = window.__kuapi.getS(), c = window.__kuapi.getCam(); return { pinned: S.pinned && (S.pinned.h || S.pinned.n), moved: Math.hypot(c.tgtCtr[0] - before[0], c.tgtCtr[1] - before[1], c.tgtCtr[2] - before[2]), d: S.pinned && S.pinned.d }; });
+  ok(jumped.pinned === 'TOI-5699' && jumped.moved > 0.5, `clicking a new name flies to it (${jumped.err || `pinned ${jumped.pinned} at ${jumped.d} pc, the view centre moved ${jumped.moved?.toFixed(1)} pc`})`);
   ok(src.noReason === 0, `every failed source names a reason (${src.error} failed, ${src.busy} running)`);
   await page.screenshot({ path: join(OUT, 'desktop-data.png') });
   await page.keyboard.press('Escape');

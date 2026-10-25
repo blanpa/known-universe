@@ -389,5 +389,8 @@ a.chip { text-decoration: none; }
 .dl-det summary{cursor:pointer;font-size:10.5px;color:#cfd6ea;padding:2px 0}
 .dl-names{margin:2px 0 0;font-size:10.5px;line-height:1.5;color:#dfe6f7;word-break:break-word}
 .dl-names.dim{color:#8a93ab}
+.dl-link{display:inline;background:none;border:0;padding:0 1px;margin:0 6px 0 0;font:inherit;color:#9fd0ff;cursor:pointer;text-decoration:underline dotted rgba(159,208,255,.45);text-underline-offset:2px}
+.dl-link:hover,.dl-link:focus-visible{color:#fff;text-decoration-color:#fff;outline:none}
+.dl-link.dim{color:#7fa3c9}
 
   .ic.svelte-13so817 { flex: 0 0 auto; display: block; }

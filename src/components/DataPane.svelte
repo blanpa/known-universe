@@ -42,6 +42,9 @@
   const plus = (e, k) => e.delta && e.delta[k] ? ` (${sgn(e.delta[k])})` : '';
   const names = (e, k) => (e.added && e.added[k]) || [];
   const more = (e, k) => Math.max(0, ((e.nAdded || {})[k] || 0) - names(e, k).length);
+  // a name is a destination: the search action finds the host (a planet's name finds its system),
+  // pins it and flies in — the same path the search box takes
+  const jump = n => { if (api.doSearch) api.doSearch(n); };
 </script>
 
 <div class="panel" id="hud-data" class:compact>
@@ -101,9 +104,9 @@
           {#if sys.length || gal.length}
             <details class="dl-det">
               <summary class="mono">{#if sys.length}{sys.length + more(e, 'systems')} new system{sys.length + more(e, 'systems') === 1 ? '' : 's'}{/if}{#if sys.length && gal.length}{' · '}{/if}{#if gal.length}{gal.length + more(e, 'galaxies')} new galax{gal.length + more(e, 'galaxies') === 1 ? 'y' : 'ies'}{/if}{#if pl.length}{' · '}{pl.length + more(e, 'planets')} planet{pl.length + more(e, 'planets') === 1 ? '' : 's'}{/if}</summary>
-              {#if sys.length}<p class="dl-names mono">{sys.join(' · ')}{more(e, 'systems') ? ` · +${more(e, 'systems')} more` : ''}</p>{/if}
-              {#if pl.length}<p class="dl-names mono dim">{pl.join(' · ')}{more(e, 'planets') ? ` · +${more(e, 'planets')} more` : ''}</p>{/if}
-              {#if gal.length}<p class="dl-names mono">{gal.join(' · ')}</p>{/if}
+              {#if sys.length}<p class="dl-names mono">{#each sys as n (n)}<button type="button" class="dl-link" title="fly to {n}" onclick={() => jump(n)}>{n}</button>{/each}{#if more(e, 'systems')}<span class="dim">+{more(e, 'systems')} more</span>{/if}</p>{/if}
+              {#if pl.length}<p class="dl-names mono dim">{#each pl as n (n)}<button type="button" class="dl-link dim" title="fly to the system of {n}" onclick={() => jump(n)}>{n}</button>{/each}{#if more(e, 'planets')}<span class="dim">+{more(e, 'planets')} more</span>{/if}</p>{/if}
+              {#if gal.length}<p class="dl-names mono">{#each gal as n (n)}<button type="button" class="dl-link" title="fly to {n}" onclick={() => jump(n)}>{n}</button>{/each}</p>{/if}
             </details>
           {:else if e.delta}
             <p class="dl-names mono dim">{e.nRemoved && (e.nRemoved.systems || e.nRemoved.planets) ? `${e.nRemoved.systems || 0} systems / ${e.nRemoved.planets || 0} planets dropped` : e.delta.hyg ? `HYG ${sgn(e.delta.hyg)}` : 'rebuilt · same contents, new positions or fields'}</p>

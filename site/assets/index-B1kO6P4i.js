@@ -5733,7 +5733,7 @@ var root_9$4 = /* @__PURE__ */ from_html(`<button type="button" title="A 1 g sta
 var root_10$4 = /* @__PURE__ */ from_html(`<button type="button" title="Minimum-Δv transfer orbit from Earth"><!> </button>`);
 var root_11$4 = /* @__PURE__ */ from_html(`<div class="in-actions" role="group" aria-label="Actions"><!> <!> <!> <!></div>`);
 var root_12$4 = /* @__PURE__ */ from_html(`<div class="in-hint"> </div>`);
-var root_13$3 = /* @__PURE__ */ from_html(`<section id="info" aria-live="polite"><header class="in-h"><span class="in-dot"></span> <div class="in-t"><div class="in-name"> </div> <div class="in-kind"> </div></div> <!></header> <dl class="in-rows"></dl> <!> <!> <!> <!></section>`);
+var root_13$4 = /* @__PURE__ */ from_html(`<section id="info" aria-live="polite"><header class="in-h"><span class="in-dot"></span> <div class="in-t"><div class="in-name"> </div> <div class="in-kind"> </div></div> <!></header> <dl class="in-rows"></dl> <!> <!> <!> <!></section>`);
 function InfoCard($$anchor, $$props) {
 	push($$props, false);
 	const $selection = () => store_get(selection, "$selection", $$stores);
@@ -5773,7 +5773,7 @@ function InfoCard($$anchor, $$props) {
 	var consequent_10 = ($$anchor) => {
 		const s = /* @__PURE__ */ derived_safe_equal($selection);
 		const c = /* @__PURE__ */ derived_safe_equal(() => get(s).card);
-		var section = root_13$3();
+		var section = root_13$4();
 		let classes;
 		var header = child(section);
 		var span = child(header);
@@ -7043,14 +7043,14 @@ var root_9$3 = /* @__PURE__ */ from_html(`<button type="button">Your image</butt
 var root_10$3 = /* @__PURE__ */ from_html(`<li><button type="button"><span> </span> <span class="enc-t mono"> </span> <span class="enc-d mono"> </span> <span class="enc-v mono"> </span></button></li>`);
 var root_11$3 = /* @__PURE__ */ from_html(`<ul class="enc mov"></ul>`);
 var root_12$3 = /* @__PURE__ */ from_html(`<p class="hint">Nothing in this field moves by half an arcsecond or more — or zoom in: only stars on screen are listed.</p>`);
-var root_13$2 = /* @__PURE__ */ from_html(`<div class="label lg-sub">Expected jumps</div> <p class="hint"> </p> <!>`, 1);
-var root_14$2 = /* @__PURE__ */ from_html(`<div class="label lg-sub">Go deeper</div> <p class="hint"><a target="_blank" rel="noopener">Open this field in Aladin Lite</a> for every survey and catalogue the CDS holds.
+var root_13$3 = /* @__PURE__ */ from_html(`<div class="label lg-sub">Expected jumps</div> <p class="hint"> </p> <!>`, 1);
+var root_14$3 = /* @__PURE__ */ from_html(`<div class="label lg-sub">Go deeper</div> <p class="hint"><a target="_blank" rel="noopener">Open this field in Aladin Lite</a> for every survey and catalogue the CDS holds.
       Hunt for moving objects with real data at <a href="https://www.zooniverse.org/projects/marckuchner/backyard-worlds-planet-9" target="_blank" rel="noopener">Backyard Worlds</a> (WISE blinks) or transits at <a href="https://www.zooniverse.org/projects/nora-dot-eisner/planet-hunters-tess" target="_blank" rel="noopener">Planet Hunters TESS</a>.</p>`, 1);
-var root_15$2 = /* @__PURE__ */ from_html(`<div class="usr-row"><span class="usr-n"> </span> <span class="usr-c mono"> </span> <button type="button" class="usr-x"><!></button></div> <div class="sky-fov xm-tools"><button type="button" class="chip">CSV</button> <button type="button" class="chip">VOTable</button> <button type="button" class="chip">Check against loaded catalogues</button> <button type="button" class="chip">Identify · Gaia DR3</button> <button type="button" class="chip">Identify · SIMBAD</button></div>`, 1);
-var root_16$1 = /* @__PURE__ */ from_html(`<label class="xm-r mono">radius <input type="number" min="0.1" max="60" step="0.5"/> ″</label> <p class="hint">Cross-identification: each row is compared with the loaded HYG and Gaia clouds at once, or sent to the CDS X-Match
+var root_15$3 = /* @__PURE__ */ from_html(`<div class="usr-row"><span class="usr-n"> </span> <span class="usr-c mono"> </span> <button type="button" class="usr-x"><!></button></div> <div class="sky-fov xm-tools"><button type="button" class="chip">CSV</button> <button type="button" class="chip">VOTable</button> <button type="button" class="chip">Check against loaded catalogues</button> <button type="button" class="chip">Identify · Gaia DR3</button> <button type="button" class="chip">Identify · SIMBAD</button></div>`, 1);
+var root_16$2 = /* @__PURE__ */ from_html(`<label class="xm-r mono">radius <input type="number" min="0.1" max="60" step="0.5"/> ″</label> <p class="hint">Cross-identification: each row is compared with the loaded HYG and Gaia clouds at once, or sent to the CDS X-Match
       service for Gaia DR3 (J2016.0) or SIMBAD (J2000.0) identifiers. Rows with proper motion are moved to the catalogue's epoch
       first; rows without one need a radius that covers their motion. A row with no counterpart is drawn <span class="xm-unk">red</span>.</p>`, 1);
-var root_17$1 = /* @__PURE__ */ from_html(`<p> </p>`);
+var root_17$2 = /* @__PURE__ */ from_html(`<p> </p>`);
 var root_18$1 = /* @__PURE__ */ from_html(`<span> </span>`);
 var root_19 = /* @__PURE__ */ from_html(`<span class="xm-doubt"> </span>`);
 var root_20 = /* @__PURE__ */ from_html(`<li><button type="button"><span> </span> <span class="enc-t mono"> </span> <span> </span> <span class="enc-v mono"> </span></button></li>`);
@@ -7401,7 +7401,7 @@ function SkyPane($$anchor, $$props) {
 	reset(div_5);
 	var node_14 = sibling(div_5, 2);
 	var consequent_10 = ($$anchor) => {
-		var fragment_3 = root_13$2();
+		var fragment_3 = root_13$3();
 		var p_3 = sibling(first_child(fragment_3), 2);
 		var text_16 = child(p_3);
 		reset(p_3);
@@ -7461,7 +7461,7 @@ function SkyPane($$anchor, $$props) {
 	});
 	var node_16 = sibling(node_14, 2);
 	var consequent_11 = ($$anchor) => {
-		var fragment_4 = root_14$2();
+		var fragment_4 = root_14$3();
 		var p_5 = sibling(first_child(fragment_4), 2);
 		var a_1 = child(p_5);
 		next(5);
@@ -7474,7 +7474,7 @@ function SkyPane($$anchor, $$props) {
 	});
 	var node_17 = sibling(node_16, 6);
 	each(node_17, 3, () => $userLayer().sets, (st) => st.src + st.name, ($$anchor, st, k) => {
-		var fragment_5 = root_15$2();
+		var fragment_5 = root_15$3();
 		var div_6 = first_child(fragment_5);
 		var span_12 = child(div_6);
 		var text_21 = child(span_12, true);
@@ -7521,7 +7521,7 @@ function SkyPane($$anchor, $$props) {
 	});
 	var node_19 = sibling(node_17, 2);
 	var consequent_12 = ($$anchor) => {
-		var fragment_6 = root_16$1();
+		var fragment_6 = root_16$2();
 		var label = first_child(fragment_6);
 		var input_1 = sibling(child(label));
 		remove_input_defaults(input_1);
@@ -7536,7 +7536,7 @@ function SkyPane($$anchor, $$props) {
 	});
 	var node_20 = sibling(node_19, 2);
 	var consequent_13 = ($$anchor) => {
-		var p_6 = root_17$1();
+		var p_6 = root_17$2();
 		let classes_8;
 		var text_23 = child(p_6, true);
 		reset(p_6);
@@ -7664,7 +7664,7 @@ function SkyPane($$anchor, $$props) {
 	reset(div_10);
 	var node_27 = sibling(div_10, 2);
 	var consequent_20 = ($$anchor) => {
-		var p_9 = root_17$1();
+		var p_9 = root_17$2();
 		let classes_11;
 		var text_34 = child(p_9, true);
 		reset(p_9);
@@ -7863,7 +7863,7 @@ function SkyPane($$anchor, $$props) {
 	reset(div_18);
 	var node_35 = sibling(div_18, 2);
 	var consequent_27 = ($$anchor) => {
-		var p_12 = root_17$1();
+		var p_12 = root_17$2();
 		let classes_17;
 		var text_47 = child(p_12, true);
 		reset(p_12);
@@ -8111,15 +8111,20 @@ var root$7 = /* @__PURE__ */ from_html(`<li><span aria-hidden="true"></span> <sp
 var root_1$7 = /* @__PURE__ */ from_html(`<div class="label lg-sub"> </div> <p class="hint"> </p> <ul class="src"></ul>`, 1);
 var root_2$4 = /* @__PURE__ */ from_html(`<p class="hint mono">loading changelog.json…</p>`);
 var root_3$3 = /* @__PURE__ */ from_html(`<p class="hint mono"> </p>`);
-var root_4$2 = /* @__PURE__ */ from_html(`<p class="dl-names mono"> </p>`);
-var root_5$2 = /* @__PURE__ */ from_html(`<p class="dl-names mono dim"> </p>`);
-var root_6$2 = /* @__PURE__ */ from_html(`<details class="dl-det"><summary class="mono"><!><!><!><!></summary> <!> <!> <!></details>`);
-var root_7$2 = /* @__PURE__ */ from_html(`<p class="dl-names mono dim">first build in the history</p>`);
-var root_8$2 = /* @__PURE__ */ from_html(`<li class="dl-row"><div class="dl-head mono"><span class="dl-date"> </span><span class="dl-kind"> </span> <span class="dl-n"> </span></div> <!></li>`);
-var root_9$2 = /* @__PURE__ */ from_html(`<ul class="src dl" id="data-log"></ul>`);
-var root_10$2 = /* @__PURE__ */ from_html(`<div class="sky-fov"><span class="hint">A key is saved.</span><button type="button" class="chip">Remove key</button></div>`);
-var root_11$2 = /* @__PURE__ */ from_html(`<div class="sky-fov"><input class="src-key mono" type="password" placeholder="paste your key" autocomplete="off"/> <button type="button" class="chip">Save</button></div>`);
-var root_12$2 = /* @__PURE__ */ from_html(`<div id="hud-data"><div class="label">Data</div> <p class="hint">Every outside source this map uses, and its state right now.</p> <div class="src-sum mono"><span class="d busy"></span> <span class="d ok"></span> <span class="d warn"></span> <span class="d error"></span> </div> <div class="sky-fov"><button type="button" class="chip"><!>Refresh live data</button></div> <!> <div class="label lg-sub">Data updates · what came in, and when</div> <p class="hint">Every build of the catalogue file, newest first, diffed by name against the one before: the exoplanet
+var root_4$2 = /* @__PURE__ */ from_html(`<button type="button" class="dl-link"> </button>`);
+var root_5$2 = /* @__PURE__ */ from_html(`<span class="dim"> </span>`);
+var root_6$2 = /* @__PURE__ */ from_html(`<p class="dl-names mono"><!><!></p>`);
+var root_7$2 = /* @__PURE__ */ from_html(`<button type="button" class="dl-link dim"> </button>`);
+var root_8$2 = /* @__PURE__ */ from_html(`<p class="dl-names mono dim"><!><!></p>`);
+var root_9$2 = /* @__PURE__ */ from_html(`<p class="dl-names mono"></p>`);
+var root_10$2 = /* @__PURE__ */ from_html(`<details class="dl-det"><summary class="mono"><!><!><!><!></summary> <!> <!> <!></details>`);
+var root_11$2 = /* @__PURE__ */ from_html(`<p class="dl-names mono dim"> </p>`);
+var root_12$2 = /* @__PURE__ */ from_html(`<p class="dl-names mono dim">first build in the history</p>`);
+var root_13$2 = /* @__PURE__ */ from_html(`<li class="dl-row"><div class="dl-head mono"><span class="dl-date"> </span><span class="dl-kind"> </span> <span class="dl-n"> </span></div> <!></li>`);
+var root_14$2 = /* @__PURE__ */ from_html(`<ul class="src dl" id="data-log"></ul>`);
+var root_15$2 = /* @__PURE__ */ from_html(`<div class="sky-fov"><span class="hint">A key is saved.</span><button type="button" class="chip">Remove key</button></div>`);
+var root_16$1 = /* @__PURE__ */ from_html(`<div class="sky-fov"><input class="src-key mono" type="password" placeholder="paste your key" autocomplete="off"/> <button type="button" class="chip">Save</button></div>`);
+var root_17$1 = /* @__PURE__ */ from_html(`<div id="hud-data"><div class="label">Data</div> <p class="hint">Every outside source this map uses, and its state right now.</p> <div class="src-sum mono"><span class="d busy"></span> <span class="d ok"></span> <span class="d warn"></span> <span class="d error"></span> </div> <div class="sky-fov"><button type="button" class="chip"><!>Refresh live data</button></div> <!> <div class="label lg-sub">Data updates · what came in, and when</div> <p class="hint">Every build of the catalogue file, newest first, diffed by name against the one before: the exoplanet
     systems, planets and galaxies that arrived (NASA Exoplanet Archive weekly, Monday 05:23 UTC). The Gaia clouds and the
     Horizons table are static releases; the live feeds above refresh on their own schedules and are not builds.</p> <!> <div class="label lg-sub">NASA API key</div> <p class="hint">NASA's services (asteroid flybys, solar storms, EPIC) run on the shared <span class="mono">DEMO_KEY</span>,
     which allows about 30 requests an hour and then answers 429. A personal key is free at api.nasa.gov; it stays in this
@@ -8217,7 +8222,7 @@ function DataPane($$anchor, $$props) {
 		tfetch("changelog-json", {
 			name: "changelog.json · what came in, and when",
 			group: "catalogue"
-		}, "data/changelog.json?b=20261025-1115").then((r) => {
+		}, "data/changelog.json?b=20261025-1149").then((r) => {
 			if (!r.ok) throw new Error("HTTP " + r.status);
 			return r.json();
 		}).then((j) => {
@@ -8233,7 +8238,10 @@ function DataPane($$anchor, $$props) {
 	const plus = (e, k) => e.delta && e.delta[k] ? ` (${sgn(e.delta[k])})` : "";
 	const names = (e, k) => e.added && e.added[k] || [];
 	const more = (e, k) => Math.max(0, ((e.nAdded || {})[k] || 0) - names(e, k).length);
-	var div = root_12$2();
+	const jump = (n) => {
+		if (api.doSearch) api.doSearch(n);
+	};
+	var div = root_17$1();
 	let classes;
 	var div_1 = sibling(child(div), 4);
 	var text$1 = sibling(child(div_1));
@@ -8367,12 +8375,12 @@ function DataPane($$anchor, $$props) {
 		append($$anchor, p_2);
 	};
 	var alternate_1 = ($$anchor) => {
-		var ul_1 = root_9$2();
+		var ul_1 = root_14$2();
 		each(ul_1, 21, () => get(log).builds, (e) => e.commit + e.date, ($$anchor, e) => {
 			const sys = /* @__PURE__ */ user_derived(() => names(get(e), "systems"));
 			const gal = /* @__PURE__ */ user_derived(() => names(get(e), "galaxies"));
 			const pl = /* @__PURE__ */ user_derived(() => names(get(e), "planets"));
-			var li_1 = root_8$2();
+			var li_1 = root_13$2();
 			var div_4 = child(li_1);
 			var span_4 = child(div_4);
 			var text_15 = child(span_4, true);
@@ -8385,8 +8393,8 @@ function DataPane($$anchor, $$props) {
 			reset(span_6);
 			reset(div_4);
 			var node_10 = sibling(div_4, 2);
-			var consequent_16 = ($$anchor) => {
-				var details = root_6$2();
+			var consequent_18 = ($$anchor) => {
+				var details = root_10$2();
 				var summary = child(details);
 				var node_11 = child(summary);
 				var consequent_9 = ($$anchor) => {
@@ -8426,54 +8434,107 @@ function DataPane($$anchor, $$props) {
 				});
 				reset(summary);
 				var node_15 = sibling(summary, 2);
-				var consequent_13 = ($$anchor) => {
-					var p_3 = root_4$2();
-					var text_22 = child(p_3);
+				var consequent_14 = ($$anchor) => {
+					var p_3 = root_6$2();
+					var node_16 = child(p_3);
+					each(node_16, 16, () => get(sys), (n) => n, ($$anchor, n) => {
+						var button_1 = root_4$2();
+						var text_22 = child(button_1, true);
+						reset(button_1);
+						template_effect(() => {
+							set_attribute(button_1, "title", `fly to ${n ?? ""}`);
+							set_text(text_22, n);
+						});
+						delegated("click", button_1, () => jump(n));
+						append($$anchor, button_1);
+					});
+					var node_17 = sibling(node_16);
+					var consequent_13 = ($$anchor) => {
+						var span_7 = root_5$2();
+						var text_23 = child(span_7);
+						reset(span_7);
+						template_effect(($0) => set_text(text_23, `+${$0 ?? ""} more`), [() => more(get(e), "systems")]);
+						append($$anchor, span_7);
+					};
+					var d_1 = /* @__PURE__ */ user_derived(() => more(get(e), "systems"));
+					if_block(node_17, ($$render) => {
+						if (get(d_1)) $$render(consequent_13);
+					});
 					reset(p_3);
-					template_effect(($0, $1) => set_text(text_22, `${$0 ?? ""}${$1 ?? ""}`), [() => get(sys).join(" · "), () => more(get(e), "systems") ? ` · +${more(get(e), "systems")} more` : ""]);
 					append($$anchor, p_3);
 				};
 				if_block(node_15, ($$render) => {
-					if (get(sys).length) $$render(consequent_13);
+					if (get(sys).length) $$render(consequent_14);
 				});
-				var node_16 = sibling(node_15, 2);
-				var consequent_14 = ($$anchor) => {
-					var p_4 = root_5$2();
-					var text_23 = child(p_4);
+				var node_18 = sibling(node_15, 2);
+				var consequent_16 = ($$anchor) => {
+					var p_4 = root_8$2();
+					var node_19 = child(p_4);
+					each(node_19, 16, () => get(pl), (n) => n, ($$anchor, n) => {
+						var button_2 = root_7$2();
+						var text_24 = child(button_2, true);
+						reset(button_2);
+						template_effect(() => {
+							set_attribute(button_2, "title", `fly to the system of ${n ?? ""}`);
+							set_text(text_24, n);
+						});
+						delegated("click", button_2, () => jump(n));
+						append($$anchor, button_2);
+					});
+					var node_20 = sibling(node_19);
+					var consequent_15 = ($$anchor) => {
+						var span_8 = root_5$2();
+						var text_25 = child(span_8);
+						reset(span_8);
+						template_effect(($0) => set_text(text_25, `+${$0 ?? ""} more`), [() => more(get(e), "planets")]);
+						append($$anchor, span_8);
+					};
+					var d_2 = /* @__PURE__ */ user_derived(() => more(get(e), "planets"));
+					if_block(node_20, ($$render) => {
+						if (get(d_2)) $$render(consequent_15);
+					});
 					reset(p_4);
-					template_effect(($0, $1) => set_text(text_23, `${$0 ?? ""}${$1 ?? ""}`), [() => get(pl).join(" · "), () => more(get(e), "planets") ? ` · +${more(get(e), "planets")} more` : ""]);
 					append($$anchor, p_4);
 				};
-				if_block(node_16, ($$render) => {
-					if (get(pl).length) $$render(consequent_14);
+				if_block(node_18, ($$render) => {
+					if (get(pl).length) $$render(consequent_16);
 				});
-				var node_17 = sibling(node_16, 2);
-				var consequent_15 = ($$anchor) => {
-					var p_5 = root_4$2();
-					var text_24 = child(p_5, true);
+				var node_21 = sibling(node_18, 2);
+				var consequent_17 = ($$anchor) => {
+					var p_5 = root_9$2();
+					each(p_5, 20, () => get(gal), (n) => n, ($$anchor, n) => {
+						var button_3 = root_4$2();
+						var text_26 = child(button_3, true);
+						reset(button_3);
+						template_effect(() => {
+							set_attribute(button_3, "title", `fly to ${n ?? ""}`);
+							set_text(text_26, n);
+						});
+						delegated("click", button_3, () => jump(n));
+						append($$anchor, button_3);
+					});
 					reset(p_5);
-					template_effect(($0) => set_text(text_24, $0), [() => get(gal).join(" · ")]);
 					append($$anchor, p_5);
 				};
-				if_block(node_17, ($$render) => {
-					if (get(gal).length) $$render(consequent_15);
+				if_block(node_21, ($$render) => {
+					if (get(gal).length) $$render(consequent_17);
 				});
 				reset(details);
 				append($$anchor, details);
 			};
-			var consequent_17 = ($$anchor) => {
-				var p_6 = root_5$2();
-				var text_25 = child(p_6, true);
+			var consequent_19 = ($$anchor) => {
+				var p_6 = root_11$2();
+				var text_27 = child(p_6, true);
 				reset(p_6);
-				template_effect(($0) => set_text(text_25, $0), [() => get(e).nRemoved && (get(e).nRemoved.systems || get(e).nRemoved.planets) ? `${get(e).nRemoved.systems || 0} systems / ${get(e).nRemoved.planets || 0} planets dropped` : get(e).delta.hyg ? `HYG ${sgn(get(e).delta.hyg)}` : "rebuilt · same contents, new positions or fields"]);
+				template_effect(($0) => set_text(text_27, $0), [() => get(e).nRemoved && (get(e).nRemoved.systems || get(e).nRemoved.planets) ? `${get(e).nRemoved.systems || 0} systems / ${get(e).nRemoved.planets || 0} planets dropped` : get(e).delta.hyg ? `HYG ${sgn(get(e).delta.hyg)}` : "rebuilt · same contents, new positions or fields"]);
 				append($$anchor, p_6);
 			};
 			var alternate = ($$anchor) => {
-				append($$anchor, root_7$2());
+				append($$anchor, root_12$2());
 			};
 			if_block(node_10, ($$render) => {
-				if (get(sys).length || get(gal).length) $$render(consequent_16);
-				else if (get(e).delta) $$render(consequent_17, 1);
+				if (get(sys).length || get(gal).length) $$render(consequent_18);
+				else if (get(e).delta) $$render(consequent_19, 1);
 				else $$render(alternate, -1);
 			});
 			reset(li_1);
@@ -8502,27 +8563,27 @@ function DataPane($$anchor, $$props) {
 		else if (!get(log).builds.length) $$render(consequent_8, 1);
 		else $$render(alternate_1, -1);
 	});
-	var node_18 = sibling(node_9, 6);
-	var consequent_18 = ($$anchor) => {
-		var div_5 = root_10$2();
-		var button_1 = sibling(child(div_5));
+	var node_22 = sibling(node_9, 6);
+	var consequent_20 = ($$anchor) => {
+		var div_5 = root_15$2();
+		var button_4 = sibling(child(div_5));
 		reset(div_5);
-		delegated("click", button_1, clearKey);
+		delegated("click", button_4, clearKey);
 		append($$anchor, div_5);
 	};
 	var alternate_2 = ($$anchor) => {
-		var div_6 = root_11$2();
+		var div_6 = root_16$1();
 		var input = child(div_6);
 		remove_input_defaults(input);
-		var button_2 = sibling(input, 2);
+		var button_5 = sibling(input, 2);
 		reset(div_6);
-		template_effect(($0) => button_2.disabled = $0, [() => !get(key).trim()]);
+		template_effect(($0) => button_5.disabled = $0, [() => !get(key).trim()]);
 		bind_value(input, () => get(key), ($$value) => set(key, $$value));
-		delegated("click", button_2, saveKey);
+		delegated("click", button_5, saveKey);
 		append($$anchor, div_6);
 	};
-	if_block(node_18, ($$render) => {
-		if (get(keySaved)) $$render(consequent_18);
+	if_block(node_22, ($$render) => {
+		if (get(keySaved)) $$render(consequent_20);
 		else $$render(alternate_2, -1);
 	});
 	reset(div);
@@ -12005,7 +12066,7 @@ function MobileNav($$anchor, $$props) {
 		}
 		var text_2 = sibling(node_6);
 		var small = sibling(text_2);
-		small.textContent = `· 20261025-1115`;
+		small.textContent = `· 20261025-1149`;
 		reset(span_2);
 		var span_3 = sibling(span_2, 2);
 		var button_6 = child(span_3);
@@ -12611,7 +12672,7 @@ window.addEventListener("error", (e) => showErr("⚠ " + (e.message || e.type) +
 window.addEventListener("unhandledrejection", (e) => showErr("⚠ promise: " + (e.reason && e.reason.message || e.reason)));
 mount(App, { target: document.getElementById("app") });
 function boot() {
-	return __vitePreload(() => import("./engine-CyCoCiGK.js").then(() => {
+	return __vitePreload(() => import("./engine-Dl__w9cl.js").then(() => {
 		try {
 			restore();
 		} catch (e) {}
@@ -12628,7 +12689,7 @@ var fail = (e) => {
 	document.body.innerHTML = "<p style=\"color:#e9edfa;font-family:monospace;padding:2em\">Error loading data: " + e + "</p>";
 };
 if (window.__DATA__) boot().catch(fail);
-else Promise.all([getJSON("data/data.json?b=20261025-1115", "data-json", "data.json · stars, exoplanets, galaxies"), getJSON("data/catalog.json?b=20261025-1115", "catalog-json", "catalog.json · solar system, deep sky, pulsars")]).then(([d, c]) => {
+else Promise.all([getJSON("data/data.json?b=20261025-1149", "data-json", "data.json · stars, exoplanets, galaxies"), getJSON("data/catalog.json?b=20261025-1149", "catalog-json", "catalog.json · solar system, deep sky, pulsars")]).then(([d, c]) => {
 	window.__DATA__ = d;
 	window.__CATALOG__ = c;
 	const m = d.meta || {};
