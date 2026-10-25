@@ -78,9 +78,14 @@ while desktop ANGLE silently accepted it).
     it, so a burst of zoom input leaves camZ orders of magnitude behind and a test that
     reads camZ concludes "zoom is stuck" when it is merely still travelling. Physical
     framing in pc is `real ? tgt : 10**(tgt-6)`, which is comparable across both modes.
-  - `window.__solarProj` — the current frame's solar-system projection, `[{o, x, y, px}]`.
-    `px` is the glyph radius (floored at 4 for picking), which is how the body-size model
-    gets checked without eyeballing screenshots.
+  - `window.__solarProj` — the current frame's solar-system projection, `[{o, x, y, px}]`,
+    set every frame (it used to be set only while the Sun was in front of the camera, so a
+    view from beside the Earth read as "no planets"). `px` is the glyph radius (floored at 4
+    for picking), which is how the body-size model gets checked without eyeballing
+    screenshots; moons carry `o.parent`, the irregular ones `o.minor`.
+  - `window.__ku.bodyWorld('Jupiter')` — a planet's world position this frame, in the
+    current scale mode, which is how a test pins the camera on it via a share hash
+    (`v1_yaw_pitch_camZ_x_y_z_real_t_mask`) without waiting for a flight.
 - **Do NOT trust wall-clock frame timings from this environment.** SwiftShader rasterises
   in software at ~0.5 fps when the point clouds are on, so per-frame numbers swing 3× run
   to run and per-second work (hash rewrite, live fetches) is divided over a handful of

@@ -68,10 +68,15 @@ as a fourth dimension.
   neighbourhood (parsec) to the galaxies (megaparsec). The real emptiness
   between the solar system and the nearest star stays visible as a true gap.
   *(Physical object sizes are necessarily symbolic across 13 decades. A body's
-  glyph follows its real radius with a power law (radius^0.35: Sun 16 px,
-  Jupiter 7, Earth 3, the Moon 2 at the framing distance), so the ordering is
-  real and the spread stays legible; in real scale the true disc takes over as
-  you fly at a body.)*
+  glyph follows its real radius with a power law (radius^0.35: Jupiter 7 px,
+  Earth 3, Mars 2.4 at the framing distance; the Sun is capped at 4× Earth's,
+  12 px, or its disc would swallow the inner orbits), so the ordering is real
+  and the spread stays legible. In real scale a glyph is a marker for a body
+  that is not resolved yet: it holds its size as you zoom in and shrinks as you
+  zoom out past Neptune's orbit, and the true disc takes over as you fly at a
+  body — the Sun's from 0.01 AU, Jupiter's from 0.04 AU. Moons are drawn at
+  their true size ratio to their planet's glyph, and only once they stand clear
+  of it; inside it they are unresolved and neither drawn nor pickable.)*
 - **Tech:** Svelte 5 + Vite for the UI chrome; the renderer is a set of
   framework-free ES modules (`src/engine/`). The engine publishes state through
   Svelte stores (selection, camera band, course, tour, timeline) and the
@@ -155,10 +160,15 @@ as a fourth dimension.
     and in their true orbit plane** (JPL Horizons state vectors, circular
     propagation — verified ≤ 1° drift over 10 days for Io/Titan/Titania/Triton;
     the eccentric Earth-Moon wobbles ~10°, Nereid e=0.75 is approximate). The
-    Uranus moons visibly orbit sideways, Triton retrograde. In log scale the
-    separations are exploded for visibility (phases stay real); in **real scale**
-    the separation is the true angular distance. The moons run live along their
-    orbits with the time slider (`python3 build_moons.py` re-bakes the epoch).
+    Uranus moons visibly orbit sideways, Triton retrograde. In **real scale** each
+    moon is projected where it really is (its planet's position plus its true
+    offset) and appears once it clears the planet's glyph — Callisto from 0.85 AU
+    out, Io from 0.2 AU; the Moon beside a 15-px Earth from 0.003 AU. In the
+    compact map the separations are exploded onto a ring in world units (phases
+    stay real), so the ring zooms with the map instead of hanging a fixed 100 px
+    off the planet. The small irregular moons appear only once the planet itself
+    is a disc. The moons run live along their orbits with the time slider
+    (`python3 build_moons.py` re-bakes the epoch).
 - **Constellations:** the 89 constellations as line figures on the celestial
   sphere (d3-celestial), with names — the night sky as you know it. Toggle
   **Constellations**.

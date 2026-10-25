@@ -11825,7 +11825,7 @@ function MobileNav($$anchor, $$props) {
 		}
 		var text_2 = sibling(node_6);
 		var small = sibling(text_2);
-		small.textContent = `· 20261024-1148`;
+		small.textContent = `· 20261025-1038`;
 		reset(span_2);
 		var span_3 = sibling(span_2, 2);
 		var button_6 = child(span_3);
@@ -12431,7 +12431,7 @@ window.addEventListener("error", (e) => showErr("⚠ " + (e.message || e.type) +
 window.addEventListener("unhandledrejection", (e) => showErr("⚠ promise: " + (e.reason && e.reason.message || e.reason)));
 mount(App, { target: document.getElementById("app") });
 function boot() {
-	return __vitePreload(() => import("./engine-DJv7jj9w.js").then(() => {
+	return __vitePreload(() => import("./engine-CTOSY8AT.js").then(() => {
 		try {
 			restore();
 		} catch (e) {}
@@ -12448,7 +12448,7 @@ var fail = (e) => {
 	document.body.innerHTML = "<p style=\"color:#e9edfa;font-family:monospace;padding:2em\">Error loading data: " + e + "</p>";
 };
 if (window.__DATA__) boot().catch(fail);
-else Promise.all([getJSON("data/data.json?b=20261024-1148", "data-json", "data.json · stars, exoplanets, galaxies"), getJSON("data/catalog.json?b=20261024-1148", "catalog-json", "catalog.json · solar system, deep sky, pulsars")]).then(([d, c]) => {
+else Promise.all([getJSON("data/data.json?b=20261025-1038", "data-json", "data.json · stars, exoplanets, galaxies"), getJSON("data/catalog.json?b=20261025-1038", "catalog-json", "catalog.json · solar system, deep sky, pulsars")]).then(([d, c]) => {
 	window.__DATA__ = d;
 	window.__CATALOG__ = c;
 	const m = d.meta || {};

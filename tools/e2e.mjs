@@ -222,8 +222,11 @@ async function open(vp, mobile, hash) {
     const vot = tl ? Buffer.from(tl['samp.params'].url.split(',')[1], 'base64').toString('utf8') : '';
     hub.notify({ 'samp.mtype': 'coord.pointAt.sky', 'samp.params': { ra: '83.8221', dec: '-5.3911' } });
     hub.call({ 'samp.mtype': 'samp.app.ping', 'samp.params': {} }, 'msg-7');
-    await page.waitForTimeout(3000);
-    const turned = await page.evaluate(() => window.__ku.fieldCentre());
+    // the turn eases over frames and a busy machine renders few of them: wait for it to arrive
+    // (at least 3 s, so the ping's reply has time too), up to 20 s
+    let turned = [0, 0];
+    for (let i = 0; i < 40; i++) { await page.waitForTimeout(500); turned = await page.evaluate(() => window.__ku.fieldCentre());
+      if (i >= 5 && Math.abs(turned[0] - 83.8221) < 0.05 && Math.abs(turned[1] + 5.3911) < 0.05) break; }
     await page.evaluate(() => window.__kuapi.sampDisconnect()); await page.waitForTimeout(300);
     const names = hub.calls.map(x => x.method), bad = hub.calls.filter(x => x.method === 'PARSE-ERROR').length;
     ok(con && names.includes('samp.webhub.register') && names.includes('samp.webhub.declareSubscriptions') && names.includes('samp.webhub.allowReverseCallbacks') && bad === 0, `SAMP registers with the hub (${names.filter(n => n !== 'samp.webhub.pullCallbacks').length} calls, ${bad} malformed)`);
@@ -395,12 +398,37 @@ for (const [name, pc, minLit] of VIEWS) {
   await ctx.close();
 }
 
-// ---- 2b. real scale: the Sun's symbol follows the zoom (it stayed 16 px over four decades) ----
+// ---- 2b. real scale: the Sun's symbol shrinks outward, holds inward, and yields to the true disc ----
 {
   const sunPx = async (pc) => { const { page, ctx } = await open({ width: 1440, height: 900 }, false, `v1_0.5000_-0.5000_${pc.toExponential(4)}_0.0000e+0_0.0000e+0_0.0000e+0_1_0_1h9u1fh`);
     const px = await page.evaluate(() => { const s = (window.__solarProj || []).find(o => o.o && o.o.n === 'Sun'); return s ? s.px : null; }); await ctx.close(); return px; };
-  const near = await sunPx(1e-5), ref = await sunPx(3e-4), far = await sunPx(1e-2);
-  ok(near > ref * 1.8 && ref > far * 3 && far > 1, `the Sun's symbol follows the zoom in real scale (2 AU ${near?.toFixed(1)} px · 60 AU ${ref?.toFixed(1)} px · 2000 AU ${far?.toFixed(1)} px)`);
+  const near = await sunPx(1e-5), ref = await sunPx(3e-4), far = await sunPx(1e-2), deep = await sunPx(4.85e-8);
+  ok(near > ref * 0.85 && near < ref * 1.15 && ref > far * 3 && far > 1, `the Sun's symbol holds inward and shrinks outward in real scale (2 AU ${near?.toFixed(1)} px · 60 AU ${ref?.toFixed(1)} px · 2000 AU ${far?.toFixed(1)} px)`);
+  ok(ref > 8 && ref < 16, `the Sun's symbol is capped at 4× Earth's (60 AU: ${ref?.toFixed(1)} px; Earth's is 3)`);
+  ok(deep > 150, `up close the Sun's true disc takes over (0.01 AU: ${deep?.toFixed(0)} px, the symbol would be ${ref?.toFixed(0)})`);
+}
+
+// ---- 2c. moons: unresolved inside the planet's glyph they are not drawn; outside, true separations and sizes ----
+{
+  const at = async (pc, c, real) => { const { page, ctx } = await open({ width: 1440, height: 900 }, false, `v1_0.5000_-0.5000_${pc.toExponential(4)}_${c[0].toExponential(4)}_${c[1].toExponential(4)}_${c[2].toExponential(4)}_${real ? 1 : 0}_0_fahmf99`);
+    const r = await page.evaluate(() => { const P = window.__solarProj || []; const f = n => P.find(o => o.o && o.o.n === n);
+      const J = f('Jupiter'), E = f('Earth'), S = f('Sun');
+      const rel = (m, b) => m && b ? { sep: Math.hypot(m.x - b.x, m.y - b.y), px: m.px } : null;
+      return { jw: window.__ku.bodyWorld('Jupiter'), jup: J && J.px, earth: E && E.px, sun: S && S.px,
+        gal: ['Io', 'Europa', 'Ganymede', 'Callisto'].map(n => rel(f(n), J)),
+        nJupMinor: P.filter(o => o.o && o.o.parent === 'Jupiter' && o.o.minor).length,
+        nJupAll: P.filter(o => o.o && o.o.parent === 'Jupiter').length,
+        moon: rel(f('Moon'), E), earthSun: E && S ? Math.hypot(E.x - S.x, E.y - S.y) : null }; });
+    await ctx.close(); return r; };
+  const nep = await at(3e-4, [0, 0, 0], true);
+  ok(nep.nJupAll === 0, `at the Neptune framing no moon of Jupiter is drawn or pickable (${nep.nJupAll} were — all inside the glyph)`);
+  const near = await at(2.424e-7, nep.jw || [0, 0, 0], true);           // 0.05 AU from Jupiter
+  const g = near.gal, fmt = k => g.map(x => x ? x[k].toFixed(k === 'sep' ? 0 : 1) : '–').join('/');
+  ok(!!nep.jw && g.every(x => x && x.sep > near.jup + x.px + 2), `from 0.05 AU the four Galilean moons stand clear of Jupiter's glyph (${fmt('sep')} px out, glyph ${near.jup?.toFixed(1)} px)`);
+  ok(g.every(x => x && x.px <= Math.max(4, near.jup * 0.05)), `…drawn at their true ratio to it, not a quarter of it (${fmt('px')} px for a ${near.jup?.toFixed(1)}-px Jupiter)`);
+  ok(near.nJupMinor === 0, `the irregular moons wait until Jupiter is a disc (${near.nJupMinor} drawn at 0.05 AU)`);
+  const comp = await at(2.48, [0, 0, 0], false);
+  ok(!!comp.moon && comp.moon.sep > comp.earth + 2 && comp.moon.sep < comp.earthSun * 0.12, `compact map: the Moon sits by the Earth, not half an orbit out (${comp.moon?.sep.toFixed(0)} px from Earth, Earth ${comp.earthSun?.toFixed(0)} px from the Sun)`);
 }
 
 // ---- 3. phone ----
